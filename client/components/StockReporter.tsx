@@ -311,7 +311,7 @@ export function createStockPDF(
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
+      <Page size="A4" orientation="landscape" style={styles.page}>
         <View style={styles.topLine} />
 
         <View style={styles.header}>

@@ -95,6 +95,7 @@ export default function SignUpMedicine() {
             "mcg",
             "mg/ml",
             "g/ml",
+            "mg/g",
             "mg+",
             "UI",
             "gts",
