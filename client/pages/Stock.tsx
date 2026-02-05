@@ -362,7 +362,7 @@ export default function Stock() {
     casela?: number,
     destino?: string,
     details?: string,
-    options?: { bypassCasela: boolean }
+    options?: { bypassCasela: boolean },
   ) => {
     if (!pendingAction.row || pendingAction.type !== "transfer") return;
 
@@ -378,7 +378,7 @@ export default function Stock() {
         casela_id: casela ?? null,
         destino: destino ?? null,
         observacao: details ?? null,
-        bypassCasela: options?.bypassCasela ?? false
+        bypassCasela: options?.bypassCasela ?? false,
       });
 
       await loadStock(page);

@@ -38,7 +38,7 @@ interface TransferQuantityModalProps {
     details?: string | null,
     options?: {
       bypassCasela: boolean;
-    }
+    },
   ) => void;
   onCancel: () => void;
   loading?: boolean;
@@ -88,23 +88,20 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
 
   const canConfirm =
     isValidQuantity &&
-    (
-      isIndividual ||
+    (isIndividual ||
       (isMedicamentoGeral && (isGeneralUse || hasCaselaSelected)) ||
-      (isInsumoGeral && (hasCaselaSelected || hasDestination))
-    );
+      (isInsumoGeral && (hasCaselaSelected || hasDestination)));
 
   const handleConfirm = () => {
     if (!canConfirm) return;
 
-    const casela =
-      isIndividualStock
-        ? item.casela
-        : isGeneralUse
+    const casela = isIndividualStock
+      ? item.casela
+      : isGeneralUse
         ? null
         : selectedCasela
-        ? Number(selectedCasela)
-        : null;
+          ? Number(selectedCasela)
+          : null;
 
     const destino =
       (isIndividualStock || isInput) && hasDestination
@@ -124,8 +121,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
     return r.name.toLowerCase().includes(caselaSearch.toLowerCase());
   });
 
-  const nextSector =
-    item?.sector === "farmacia" ? "enfermagem" : "farmacia";
+  const nextSector = item?.sector === "farmacia" ? "enfermagem" : "farmacia";
 
   return (
     <Dialog open={open} onOpenChange={onCancel}>
@@ -194,8 +190,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                     {selectedCasela
                       ? `Casela ${selectedCasela} - ${
                           residents.find(
-                            (r) =>
-                              r.casela === Number(selectedCasela),
+                            (r) => r.casela === Number(selectedCasela),
                           )?.name
                         }`
                       : "Selecione uma casela..."}
@@ -210,25 +205,20 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                       value={caselaSearch}
                       onValueChange={setCaselaSearch}
                     />
-                    <CommandEmpty>
-                      Nenhuma casela encontrada.
-                    </CommandEmpty>
+                    <CommandEmpty>Nenhuma casela encontrada.</CommandEmpty>
                     <CommandGroup>
                       {filteredResidents.map((resident) => (
                         <CommandItem
                           key={resident.casela}
                           onSelect={() => {
-                            setSelectedCasela(
-                              resident.casela.toString(),
-                            );
+                            setSelectedCasela(resident.casela.toString());
                             setCaselaOpen(false);
                             setCaselaSearch("");
                           }}
                         >
                           <Check
                             className={`mr-2 h-4 w-4 ${
-                              selectedCasela ===
-                              resident.casela.toString()
+                              selectedCasela === resident.casela.toString()
                                 ? "opacity-100"
                                 : "opacity-0"
                             }`}
@@ -241,38 +231,35 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                 </PopoverContent>
               </Popover>
 
-              {isGeneralMedicine && !isInput &&
-              <div
-                className={`flex items-start gap-2 rounded-md border p-3 ${
-                  isGeneralUse
-                    ? "border-red-400 bg-red-50"
-                    : "border-muted"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  id="general-use"
-                  checked={isGeneralUse}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setIsGeneralUse(checked);
-
-                    if (checked) {
-                      setSelectedCasela("");
-                      setDetails(""); 
-                    }
-                  }}
-                  className="mt-1"
-                />
-                <Label
-                  htmlFor="general-use"
-                  className="text-sm leading-snug cursor-pointer"
+              {isGeneralMedicine && !isInput && (
+                <div
+                  className={`flex items-start gap-2 rounded-md border p-3 ${
+                    isGeneralUse ? "border-red-400 bg-red-50" : "border-muted"
+                  }`}
                 >
-                  Este medicamento é para{" "}
-                  <strong>uso geral</strong>.
-                </Label>
-              </div>
-              }
+                  <input
+                    type="checkbox"
+                    id="general-use"
+                    checked={isGeneralUse}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setIsGeneralUse(checked);
+
+                      if (checked) {
+                        setSelectedCasela("");
+                        setDetails("");
+                      }
+                    }}
+                    className="mt-1"
+                  />
+                  <Label
+                    htmlFor="general-use"
+                    className="text-sm leading-snug cursor-pointer"
+                  >
+                    Este medicamento é para <strong>uso geral</strong>.
+                  </Label>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -281,10 +268,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
           <Button variant="outline" onClick={onCancel} disabled={loading}>
             Cancelar
           </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={loading || !canConfirm}
-          >
+          <Button onClick={handleConfirm} disabled={loading || !canConfirm}>
             Confirmar Transferência
           </Button>
         </DialogFooter>
