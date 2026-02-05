@@ -44,6 +44,7 @@ export interface TransferReport {
   armario: number | null;
   lote: string | null;
   destino: string | null;
+  observacao: string | null;
 }
 
 export interface PeriodMovementReport {
@@ -628,7 +629,7 @@ export function createStockPDF(
                   <Text style={[styles.cell, { fontSize: 8 }]}>Residente</Text>
                   <Text style={[styles.cell, { fontSize: 8 }]}>Lote</Text>
                   <Text style={[styles.cell, { fontSize: 8 }]}>Destino</Text>
-                  <Text style={[styles.cell, { fontSize: 8 }]}>Data</Text>
+                  <Text style={[styles.cell, { fontSize: 8 }]}>Observação</Text>
                 </View>
 
                 {transferData.map((transfer, idx) => (
@@ -672,7 +673,7 @@ export function createStockPDF(
                     </Text>
 
                     <Text style={[styles.cell, { fontSize: 8 }]}>
-                      {transfer.data}
+                      {transfer.observacao || "-"}
                     </Text>
                   </View>
                 ))}
