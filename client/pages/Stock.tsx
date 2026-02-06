@@ -67,6 +67,7 @@ export default function Stock() {
     casela: "",
     armario: "",
     setor: "",
+    lote: "",
   });
 
   const [debouncedNome, setDebouncedNome] = useState("");
@@ -95,7 +96,7 @@ export default function Stock() {
       ...filters,
       nome: debouncedNome,
     }),
-    [debouncedNome, filters.casela, filters.armario, filters.setor],
+    [debouncedNome, filters.casela, filters.armario, filters.setor, filters.lote],
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
@@ -205,7 +206,8 @@ export default function Stock() {
       prevFiltersRef.current.nome !== effectiveFilters.nome ||
       prevFiltersRef.current.casela !== effectiveFilters.casela ||
       prevFiltersRef.current.armario !== effectiveFilters.armario ||
-      prevFiltersRef.current.setor !== effectiveFilters.setor;
+      prevFiltersRef.current.setor !== effectiveFilters.setor ||  
+      prevFiltersRef.current.lote !== effectiveFilters.lote;
 
     if (filtersChanged) {
       setPage(1);
@@ -417,7 +419,7 @@ export default function Stock() {
               })
             }
             className="
-              h-12 px-6 rounded-lg font-semibold
+              h-12 px-6 rounded-lg font-semiboldfetchStockPage
               bg-red-600 text-white
               shadow-md hover:bg-red-700 hover:shadow-lg active:bg-red-800 active:shadow-xl
               disabled:opacity-50 disabled:cursor-not-allowed
@@ -443,8 +445,9 @@ export default function Stock() {
 
         {allRawData.length > 0 && (
           <div className="bg-white p-6 rounded-lg border border-gray-300 shadow-sm">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
+            <div className="flex items-end gap-4">
+
+              <div className="flex-1 min-w-0">
                 <label className="block text-xs text-gray-700 mb-1">Nome</label>
                 <TableFilter
                   placeholder="Buscar por nome"
@@ -454,31 +457,23 @@ export default function Stock() {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs text-gray-700 mb-1">
-                  Setor
-                </label>
+              <div className="flex-1 min-w-0">
+                <label className="block text-xs text-gray-700 mb-1">Setor</label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white">
-                      {filters.setor
-                        ? filterOptions.sectors.find(
-                            (s) => s.value === filters.setor,
-                          )?.label || filters.setor
-                        : "Selecione"}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                    <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white truncate">
+                      <span className="truncate">
+                        {filters.setor
+                          ? filterOptions.sectors.find(
+                              (s) => s.value === filters.setor,
+                            )?.label || filters.setor
+                          : "Selecione"}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent
-                    side="bottom"
-                    align="start"
-                    sideOffset={4}
-                    avoidCollisions={false}
-                    className="w-full p-0"
-                  >
+                  <PopoverContent className="w-full p-0">
                     <Command>
-                      <CommandInput placeholder="Buscar setor" />
-                      <CommandEmpty>Nenhum item encontrado</CommandEmpty>
                       <CommandGroup>
                         <CommandItem
                           value=""
@@ -486,12 +481,6 @@ export default function Stock() {
                             setFilters((prev) => ({ ...prev, setor: "" }))
                           }
                         >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              !filters.setor ? "opacity-100" : "opacity-0",
-                            )}
-                          />
                           Todos
                         </CommandItem>
                         {filterOptions.sectors.map((sector) => (
@@ -502,20 +491,10 @@ export default function Stock() {
                               setFilters((prev) => ({
                                 ...prev,
                                 setor:
-                                  prev.setor === sector.value
-                                    ? ""
-                                    : sector.value,
+                                  prev.setor === sector.value ? "" : sector.value,
                               }))
                             }
                           >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                filters.setor === sector.value
-                                  ? "opacity-100"
-                                  : "opacity-0",
-                              )}
-                            />
                             {sector.label}
                           </CommandItem>
                         ))}
@@ -525,48 +504,25 @@ export default function Stock() {
                 </Popover>
               </div>
 
-              <div>
-                <label className="block text-xs text-gray-700 mb-1">
-                  Armário
-                </label>
+              <div className="flex-1 min-w-0">
+                <label className="block text-xs text-gray-700 mb-1">Armário</label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white">
-                      {filters.armario
-                        ? `Armário ${filters.armario}`
-                        : "Selecione"}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                    <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white truncate">
+                      <span className="truncate">
+                        {filters.armario ? `Armário ${filters.armario}` : "Selecione"}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent
-                    side="bottom"
-                    align="start"
-                    sideOffset={4}
-                    avoidCollisions={false}
-                    className="w-full p-0"
-                  >
+                  <PopoverContent className="w-full p-0">
                     <Command shouldFilter={false}>
                       <CommandInput
                         placeholder="Buscar armário"
                         value={armarioSearch}
                         onValueChange={setArmarioSearch}
                       />
-                      <CommandEmpty>Nenhum item encontrado</CommandEmpty>
                       <CommandGroup>
-                        <CommandItem
-                          value=""
-                          onSelect={() =>
-                            setFilters((prev) => ({ ...prev, armario: "" }))
-                          }
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              !filters.armario ? "opacity-100" : "opacity-0",
-                            )}
-                          />
-                          Todos
-                        </CommandItem>
                         {filteredCabinets.map((cabinet) => (
                           <CommandItem
                             key={cabinet.value}
@@ -579,18 +535,9 @@ export default function Stock() {
                                     ? ""
                                     : cabinet.value,
                               }));
-
                               setArmarioSearch("");
                             }}
                           >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                filters.armario === cabinet.value
-                                  ? "opacity-100"
-                                  : "opacity-0",
-                              )}
-                            />
                             {cabinet.label}
                           </CommandItem>
                         ))}
@@ -600,48 +547,25 @@ export default function Stock() {
                 </Popover>
               </div>
 
-              <div>
-                <label className="block text-xs text-gray-700 mb-1">
-                  Casela
-                </label>
+              <div className="flex-1 min-w-0">
+                <label className="block text-xs text-gray-700 mb-1">Casela</label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white">
-                      {filters.casela
-                        ? `Casela ${filters.casela}`
-                        : "Selecione"}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                    <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white truncate">
+                      <span className="truncate">
+                        {filters.casela ? `Casela ${filters.casela}` : "Selecione"}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent
-                    side="bottom"
-                    align="start"
-                    sideOffset={4}
-                    avoidCollisions={false}
-                    className="w-full p-0"
-                  >
+                  <PopoverContent className="w-full p-0">
                     <Command shouldFilter={false}>
                       <CommandInput
                         placeholder="Buscar casela"
                         value={caselaSearch}
                         onValueChange={setCaselaSearch}
                       />
-                      <CommandEmpty>Nenhum item encontrado</CommandEmpty>
                       <CommandGroup>
-                        <CommandItem
-                          value=""
-                          onSelect={() =>
-                            setFilters((prev) => ({ ...prev, casela: "" }))
-                          }
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              !filters.casela ? "opacity-100" : "opacity-0",
-                            )}
-                          />
-                          Todos
-                        </CommandItem>
                         {filteredCaselas.map((casela) => (
                           <CommandItem
                             key={casela.value}
@@ -650,22 +574,11 @@ export default function Stock() {
                               setFilters((prev) => ({
                                 ...prev,
                                 casela:
-                                  prev.casela === casela.value
-                                    ? ""
-                                    : casela.value,
+                                  prev.casela === casela.value ? "" : casela.value,
                               }));
-
                               setCaselaSearch("");
                             }}
                           >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                filters.casela === casela.value
-                                  ? "opacity-100"
-                                  : "opacity-0",
-                              )}
-                            />
                             {casela.label}
                           </CommandItem>
                         ))}
@@ -673,6 +586,16 @@ export default function Stock() {
                     </Command>
                   </PopoverContent>
                 </Popover>
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <label className="block text-xs text-gray-700 mb-1">Lote</label>
+                <TableFilter
+                  placeholder="Buscar por lote"
+                  onFilterChange={(value) =>
+                    setFilters((prev) => ({ ...prev, lote: value }))
+                  }
+                />
               </div>
             </div>
           </div>

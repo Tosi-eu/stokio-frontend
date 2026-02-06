@@ -23,6 +23,32 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 
+export enum MeasurementUnit {
+  MG = "mg",
+  ML = "ml",
+  G = "g",
+  MCG = "mcg",
+  MG_ML = "mg/ml",
+  G_ML = "g/ml",
+  MG_G = "mg/g",
+  MG_PLUS = "mg+",
+  UI = "UI",
+  GTS = "gts",
+}
+
+export const MEASUREMENT_UNIT_LABEL: Record<MeasurementUnit, string> = {
+  [MeasurementUnit.MG]: "mg",
+  [MeasurementUnit.ML]: "ml",
+  [MeasurementUnit.G]: "g",
+  [MeasurementUnit.MCG]: "mcg",
+  [MeasurementUnit.MG_ML]: "mg/ml",
+  [MeasurementUnit.G_ML]: "g/ml",
+  [MeasurementUnit.MG_G]: "mg/g",
+  [MeasurementUnit.MG_PLUS]: "mg+",
+  [MeasurementUnit.UI]: "UI",
+  [MeasurementUnit.GTS]: "gts"
+};
+
 export default function SignUpMedicine() {
   const navigate = useNavigate();
 
@@ -87,21 +113,8 @@ export default function SignUpMedicine() {
 
         setValue("substance", selected.principio_ativo || "");
         setValue("dosageValue", dosageValue);
-        if (
-          [
-            "mg",
-            "ml",
-            "g",
-            "mcg",
-            "mg/ml",
-            "g/ml",
-            "mg/g",
-            "mg+",
-            "UI",
-            "gts",
-          ].includes(measurementUnit)
-        ) {
-          setValue("measurementUnit", measurementUnit);
+        if (Object.values(MeasurementUnit).includes(measurementUnit as MeasurementUnit)) {
+          setValue("measurementUnit", measurementUnit as MeasurementUnit);
         }
         setValue("minimumStock", selected.estoque_minimo?.toString() || "");
       }
@@ -228,13 +241,11 @@ export default function SignUpMedicine() {
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="mg">mg</SelectItem>
-                          <SelectItem value="ml">ml</SelectItem>
-                          <SelectItem value="g">g</SelectItem>
-                          <SelectItem value="mcg">mcg</SelectItem>
-                          <SelectItem value="mg/ml">mg/ml</SelectItem>
-                          <SelectItem value="UI">UI</SelectItem>
-                          <SelectItem value="gts">gts</SelectItem>
+                          {Object.values(MeasurementUnit).map((unit) => (
+                            <SelectItem key={unit} value={unit}>
+                              {MEASUREMENT_UNIT_LABEL[unit]}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       {errors.measurementUnit && (
