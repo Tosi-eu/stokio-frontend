@@ -243,8 +243,6 @@ export const getNotifications = async ({
       params: { page, limit, type, status, date },
     });
 
-    console.log(JSON.stringify(res));
-
     return {
       items: res?.items ?? [],
       total: res?.total ?? 0,
