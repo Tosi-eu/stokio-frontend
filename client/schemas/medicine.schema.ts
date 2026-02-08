@@ -20,9 +20,12 @@ export const medicineSchema = z.object({
   measurementUnit: z
     .string()
     .min(1, "Unidade de medida é obrigatória")
-    .refine((val) => Object.values(MeasurementUnit).includes(val as MeasurementUnit), {
-      message: "Unidade de medida inválida",
-    }),
+    .refine(
+      (val) => Object.values(MeasurementUnit).includes(val as MeasurementUnit),
+      {
+        message: "Unidade de medida inválida",
+      },
+    ),
   minimumStock: z
     .string()
     .optional()

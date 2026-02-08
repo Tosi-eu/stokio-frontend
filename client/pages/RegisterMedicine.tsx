@@ -46,7 +46,7 @@ export const MEASUREMENT_UNIT_LABEL: Record<MeasurementUnit, string> = {
   [MeasurementUnit.MG_G]: "mg/g",
   [MeasurementUnit.MG_PLUS]: "mg+",
   [MeasurementUnit.UI]: "UI",
-  [MeasurementUnit.GTS]: "gts"
+  [MeasurementUnit.GTS]: "gts",
 };
 
 export default function SignUpMedicine() {
@@ -113,7 +113,11 @@ export default function SignUpMedicine() {
 
         setValue("substance", selected.principio_ativo || "");
         setValue("dosageValue", dosageValue);
-        if (Object.values(MeasurementUnit).includes(measurementUnit as MeasurementUnit)) {
+        if (
+          Object.values(MeasurementUnit).includes(
+            measurementUnit as MeasurementUnit,
+          )
+        ) {
           setValue("measurementUnit", measurementUnit as MeasurementUnit);
         }
         setValue("minimumStock", selected.estoque_minimo?.toString() || "");

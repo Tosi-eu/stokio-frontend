@@ -100,9 +100,7 @@ export function buildFilterOptions(allRawData: unknown[]): StockFilterOptions {
 
   const caselaIds = Array.from(
     new Set(
-      raw
-        .map((i: any) => i.casela_id)
-        .filter((id): id is number => id != null),
+      raw.map((i: any) => i.casela_id).filter((id): id is number => id != null),
     ),
   )
     .sort((a, b) => a - b)

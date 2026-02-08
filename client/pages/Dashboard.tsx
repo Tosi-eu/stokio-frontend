@@ -43,11 +43,10 @@ import {
 const NotificationReminderModal = lazy(
   () => import("@/components/NotificationModal"),
 );
-const StockReplacementModal = lazy(
-  () =>
-    import("@/components/StockReplacementModal").then((m) => ({
-      default: m.default,
-    })),
+const StockReplacementModal = lazy(() =>
+  import("@/components/StockReplacementModal").then((m) => ({
+    default: m.default,
+  })),
 );
 import StockProportionCard from "@/components/StockProportionCard";
 import { prepareStockDistributionData } from "@/helpers/estoque.helper";
@@ -246,20 +245,17 @@ export default function Dashboard() {
     async function fetchReminders() {
       try {
         const res = await getTodayMedicineNotifications();
-        console.log('gt', res)
+        console.log("gt", res);
         const notifications = res.items;
-        
+
         if (notifications.length > 0) {
           setNotifList(notifications);
           setNotifOpen(true);
-        
+
           await Promise.all(
-            notifications.map((n) =>
-              updateNotification(n.id, { visto: true })
-            ),
+            notifications.map((n) => updateNotification(n.id, { visto: true })),
           );
         }
-        
       } catch (err: unknown) {
         const errorMessage =
           err instanceof Error
@@ -281,14 +277,16 @@ export default function Dashboard() {
     async function fetchReplacementReminders() {
       try {
         const res = await getTomorrowReplacementNotifications();
-        console.log('gt2', res)
+        console.log("gt2", res);
         const items = res.items;
 
         if (items.length > 0) {
           setReplacementItems(items);
           setReplacementOpen(true);
         }
-      } catch { /* NO-OP */}
+      } catch {
+        /* NO-OP */
+      }
     }
 
     fetchReplacementReminders();

@@ -173,18 +173,18 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
           )}
 
           {!isGeneralUse && (
-              <div className="space-y-2">
-                <Label>Dias para repor</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="Ex: 7"
-                    value={daysToReplacement}
-                    onChange={(e) => setDaysToReplacement(e.target.value)}
-                    disabled={loading}
-                  />
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label>Dias para repor</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="Ex: 7"
+                value={daysToReplacement}
+                onChange={(e) => setDaysToReplacement(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>Observação</Label>

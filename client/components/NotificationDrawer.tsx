@@ -16,10 +16,10 @@ import { EventStatus } from "@/utils/enums";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface GetNotificationsParams {
-  page: number
-  limit: number
-  tipo: string
-  status: EventStatus
+  page: number;
+  limit: number;
+  tipo: string;
+  status: EventStatus;
 }
 
 export function NotificationDrawer() {
@@ -30,9 +30,13 @@ export function NotificationDrawer() {
   const [hasNext, setHasNext] = useState(false);
 
   const [mode, setMode] = useState<"list" | "create">("list");
-  const [editingNotification, setEditingNotification] = useState<any | null>(null);
+  const [editingNotification, setEditingNotification] = useState<any | null>(
+    null,
+  );
 
-  const [activeTab, setActiveTab] = useState<"receita" | "reposicao">("receita");
+  const [activeTab, setActiveTab] = useState<"receita" | "reposicao">(
+    "receita",
+  );
   const [loading, setLoading] = useState(false);
 
   const fetchItems = async (p = 1, append = false) => {
@@ -94,7 +98,7 @@ export function NotificationDrawer() {
   const handleRemove = async (
     id: number,
     status: "sent" | "cancelled",
-    message: string
+    message: string,
   ) => {
     try {
       await updateNotification(id, { status });
@@ -120,8 +124,8 @@ export function NotificationDrawer() {
                 ? "Notificações de Receita"
                 : "Notificações de Reposição"
               : editingNotification
-              ? "Editar Notificação"
-              : "Criar Notificação"}
+                ? "Editar Notificação"
+                : "Criar Notificação"}
           </DrawerTitle>
         </DrawerHeader>
 
@@ -198,7 +202,7 @@ export function NotificationDrawer() {
                       {activeTab === "receita" ? (
                         <NotificationCard
                           residentName={n.residente_nome}
-                          medicineName={n.medicamento_nome} 
+                          medicineName={n.medicamento_nome}
                           dateToGo={n.data_prevista}
                           destiny={n.destino}
                           createdBy={n.usuario}
@@ -209,7 +213,7 @@ export function NotificationDrawer() {
                             handleRemove(
                               n.id,
                               "cancelled",
-                              "Notificação cancelada"
+                              "Notificação cancelada",
                             )
                           }
                           onEdit={() => {
@@ -236,7 +240,11 @@ export function NotificationDrawer() {
                             handleRemove(n.id, "sent", "Reposição concluída")
                           }
                           onCancel={() =>
-                            handleRemove(n.id, "cancelled", "Reposição cancelada")
+                            handleRemove(
+                              n.id,
+                              "cancelled",
+                              "Reposição cancelada",
+                            )
                           }
                         />
                       )}
@@ -297,7 +305,9 @@ export function NotificationDrawer() {
                 type="submit"
                 className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg w-full"
               >
-                {editingNotification ? "Salvar Alterações" : "Criar Notificação"}
+                {editingNotification
+                  ? "Salvar Alterações"
+                  : "Criar Notificação"}
               </button>
             </DrawerFooter>
           </>

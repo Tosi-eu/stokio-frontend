@@ -26,20 +26,20 @@ export function NotificationRepositionCard({
       </CardHeader>
 
       <CardContent className="space-y-2 text-sm">
-      <ul className="space-y-1">
-        <li>
-          <b>Residente:</b> {residentName}
-        </li>
-        <li>
-          <b>Quantidade:</b> {quantity}
-        </li>
-        <li>
-          <b>Dias para reposição:</b> {daysToReposition}
-        </li>
-        <li>
-          <b>Próxima reposição:</b> {nextRepositionDate}
-        </li>
-      </ul>
+        <ul className="space-y-1">
+          <li>
+            <b>Residente:</b> {residentName}
+          </li>
+          <li>
+            <b>Quantidade:</b> {quantity}
+          </li>
+          <li>
+            <b>Dias para reposição:</b> {daysToReposition}
+          </li>
+          <li>
+            <b>Próxima reposição:</b> {nextRepositionDate}
+          </li>
+        </ul>
 
         <div className="flex gap-3 pt-3">
           {onComplete && (

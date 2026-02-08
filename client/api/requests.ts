@@ -243,7 +243,7 @@ export const getNotifications = async ({
       params: { page, limit, type, status, date },
     });
 
-    console.log(JSON.stringify(res))
+    console.log(JSON.stringify(res));
 
     return {
       items: res?.items ?? [],
@@ -279,12 +279,12 @@ export const getTodayMedicineNotifications = () =>
     status: EventStatus.PENDENTE,
   });
 
-  export const getTomorrowReplacementNotifications = () =>
-    getNotifications({
-      type: "reposicao_estoque",
-      date: "tomorrow",
-      status: EventStatus.PENDENTE,
-    });  
+export const getTomorrowReplacementNotifications = () =>
+  getNotifications({
+    type: "reposicao_estoque",
+    date: "tomorrow",
+    status: EventStatus.PENDENTE,
+  });
 
 export const getStock = (
   page = 1,

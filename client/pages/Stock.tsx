@@ -96,7 +96,13 @@ export default function Stock() {
       ...filters,
       nome: debouncedNome,
     }),
-    [debouncedNome, filters.casela, filters.armario, filters.setor, filters.lote],
+    [
+      debouncedNome,
+      filters.casela,
+      filters.armario,
+      filters.setor,
+      filters.lote,
+    ],
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
@@ -206,7 +212,7 @@ export default function Stock() {
       prevFiltersRef.current.nome !== effectiveFilters.nome ||
       prevFiltersRef.current.casela !== effectiveFilters.casela ||
       prevFiltersRef.current.armario !== effectiveFilters.armario ||
-      prevFiltersRef.current.setor !== effectiveFilters.setor ||  
+      prevFiltersRef.current.setor !== effectiveFilters.setor ||
       prevFiltersRef.current.lote !== effectiveFilters.lote;
 
     if (filtersChanged) {
@@ -371,7 +377,7 @@ export default function Stock() {
     const { row } = pendingAction;
     setActionLoading(true);
 
-    console.log(options)
+    console.log(options);
 
     try {
       await transferStockSector({
@@ -449,7 +455,6 @@ export default function Stock() {
         {allRawData.length > 0 && (
           <div className="bg-white p-6 rounded-lg border border-gray-300 shadow-sm">
             <div className="flex items-end gap-4">
-
               <div className="flex-1 min-w-0">
                 <label className="block text-xs text-gray-700 mb-1">Nome</label>
                 <TableFilter
@@ -461,7 +466,9 @@ export default function Stock() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <label className="block text-xs text-gray-700 mb-1">Setor</label>
+                <label className="block text-xs text-gray-700 mb-1">
+                  Setor
+                </label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white truncate">
@@ -494,7 +501,9 @@ export default function Stock() {
                               setFilters((prev) => ({
                                 ...prev,
                                 setor:
-                                  prev.setor === sector.value ? "" : sector.value,
+                                  prev.setor === sector.value
+                                    ? ""
+                                    : sector.value,
                               }))
                             }
                           >
@@ -508,12 +517,16 @@ export default function Stock() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <label className="block text-xs text-gray-700 mb-1">Armário</label>
+                <label className="block text-xs text-gray-700 mb-1">
+                  Armário
+                </label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white truncate">
                       <span className="truncate">
-                        {filters.armario ? `Armário ${filters.armario}` : "Selecione"}
+                        {filters.armario
+                          ? `Armário ${filters.armario}`
+                          : "Selecione"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
                     </button>
@@ -551,12 +564,16 @@ export default function Stock() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <label className="block text-xs text-gray-700 mb-1">Casela</label>
+                <label className="block text-xs text-gray-700 mb-1">
+                  Casela
+                </label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white truncate">
                       <span className="truncate">
-                        {filters.casela ? `Casela ${filters.casela}` : "Selecione"}
+                        {filters.casela
+                          ? `Casela ${filters.casela}`
+                          : "Selecione"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
                     </button>
@@ -577,7 +594,9 @@ export default function Stock() {
                               setFilters((prev) => ({
                                 ...prev,
                                 casela:
-                                  prev.casela === casela.value ? "" : casela.value,
+                                  prev.casela === casela.value
+                                    ? ""
+                                    : casela.value,
                               }));
                               setCaselaSearch("");
                             }}

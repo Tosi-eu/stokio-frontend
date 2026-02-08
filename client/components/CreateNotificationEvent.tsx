@@ -41,7 +41,7 @@ export default function CreateNotificationForm({
     criado_por: user?.id,
     status: EventStatus.PENDENTE,
     id: undefined as number | undefined,
-    tipo_evento: ""
+    tipo_evento: "",
   });
 
   const NotificationDestinyLabel: Record<NotificationDestiny, string> = {
