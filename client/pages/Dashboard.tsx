@@ -1,9 +1,8 @@
 import Layout from "@/components/Layout";
-import { useEffect, useState, useMemo, memo, lazy, Suspense } from "react";
+import { useEffect, useState, useMemo, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast.hook";
 import { SkeletonCard } from "@/components/SkeletonCard";
-import { SkeletonTable } from "@/components/SkeletonTable";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -245,15 +244,17 @@ export default function Dashboard() {
     async function fetchReminders() {
       try {
         const res = await getTodayMedicineNotifications();
-        console.log("gt", res);
-        const notifications = res.items;
-
-        if (notifications.length > 0) {
-          setNotifList(notifications);
+  
+        const unseenNotifications = res.items.filter((n: any) => n.visto !== true);
+  
+        if (unseenNotifications.length > 0) {
+          setNotifList(unseenNotifications);
           setNotifOpen(true);
-
+  
           await Promise.all(
-            notifications.map((n) => updateNotification(n.id, { visto: true })),
+            unseenNotifications.map((n: any) =>
+              updateNotification(n.id, { visto: true }),
+            ),
           );
         }
       } catch (err: unknown) {
@@ -269,28 +270,37 @@ export default function Dashboard() {
         });
       }
     }
-
+  
     fetchReminders();
   }, []);
+  
 
   useEffect(() => {
     async function fetchReplacementReminders() {
       try {
         const res = await getTomorrowReplacementNotifications();
-        console.log("gt2", res);
-        const items = res.items;
-
-        if (items.length > 0) {
-          setReplacementItems(items);
+  
+        const unseenItems = res.items.filter(
+          (item: any) => item.visto !== true,
+        );
+  
+        if (unseenItems.length > 0) {
+          setReplacementItems(unseenItems);
           setReplacementOpen(true);
         }
+
+        await Promise.all(
+          unseenItems.map((n: any) =>
+            updateNotification(n.id, { visto: true }),
+          ),
+        );
       } catch {
         /* NO-OP */
       }
     }
-
+  
     fetchReplacementReminders();
-  }, []);
+  }, []);  
 
   const stats = useMemo(
     () => [

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Drawer,
   DrawerContent,
@@ -15,77 +15,60 @@ import { getNotifications, updateNotification } from "@/api/requests";
 import { EventStatus } from "@/utils/enums";
 import { AnimatePresence, motion } from "framer-motion";
 
-interface GetNotificationsParams {
-  page: number;
-  limit: number;
-  tipo: string;
-  status: EventStatus;
-}
-
 export function NotificationDrawer() {
   const { open, setOpen, triggerReload, setCount } = useNotifications();
 
   const [items, setItems] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
-
   const [mode, setMode] = useState<"list" | "create">("list");
-  const [editingNotification, setEditingNotification] = useState<any | null>(
-    null,
-  );
-
-  const [activeTab, setActiveTab] = useState<"receita" | "reposicao">(
-    "receita",
-  );
+  const [editingNotification, setEditingNotification] = useState<any | null>(null);
+  const [activeTab, setActiveTab] = useState<"receita" | "reposicao">("receita");
   const [loading, setLoading] = useState(false);
 
-  const fetchItems = async (p = 1, append = false) => {
-    setLoading(true);
-    try {
-      let data: any = { items: [], total: 0, hasNext: false };
+  const [filterResidentName, setFilterResidentName] = useState("");
 
-      const params =
-        activeTab === "receita"
-          ? {
-              page: p,
-              limit: 5,
-              type: "medicamento",
-              status: EventStatus.PENDENTE,
-            }
-          : {
-              page: p,
-              limit: 5,
-              type: "reposicao_estoque",
-              status: EventStatus.PENDENTE,
-            };
+  // Timeout para filtro leve
+  const [filterTimeout, setFilterTimeout] = useState<NodeJS.Timeout | null>(null);
 
-      if (activeTab === "receita") {
-        data = await getNotifications(params);
-      } else if (activeTab === "reposicao") {
-        data = await getNotifications(params);
+  const fetchItems = useCallback(
+    async (p = 1, append = false) => {
+      setLoading(true);
+      try {
+        const params: any = {
+          page: p,
+          limit: 5, // limite ajustado
+          type: activeTab === "receita" ? "medicamento" : "reposicao_estoque",
+          status: EventStatus.PENDENTE,
+          residente_nome: filterResidentName || undefined,
+        };
+
+        const data = await getNotifications(params);
+
+        setItems((prev) => (append ? [...prev, ...data.items] : data.items));
+        setCount(data.total);
+        setHasNext(data.hasNext);
+      } catch {
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar as notificações.",
+          variant: "error",
+          duration: 3000,
+        });
+
+        if (!append) {
+          setItems([]);
+          setCount(0);
+          setHasNext(false);
+        }
+      } finally {
+        setLoading(false);
       }
+    },
+    [activeTab, filterResidentName, setCount]
+  );
 
-      setItems((prev) => (append ? [...prev, ...data.items] : data.items));
-      setCount(data.total);
-      setHasNext(data.hasNext);
-    } catch {
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar as notificações.",
-        variant: "error",
-        duration: 3000,
-      });
-
-      if (!append) {
-        setItems([]);
-        setCount(0);
-        setHasNext(false);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Carrega itens quando o drawer abre ou muda de aba
   useEffect(() => {
     if (open) {
       setMode("list");
@@ -93,12 +76,26 @@ export function NotificationDrawer() {
       setEditingNotification(null);
       fetchItems(1);
     }
-  }, [open, triggerReload, activeTab]);
+  }, [open, triggerReload, activeTab, fetchItems]);
+
+  // Atualiza itens quando o filtro muda, com delay de 300ms
+  useEffect(() => {
+    if (filterTimeout) clearTimeout(filterTimeout);
+
+    const timeout = setTimeout(() => {
+      setPage(1);
+      fetchItems(1);
+    }, 300);
+
+    setFilterTimeout(timeout);
+
+    return () => clearTimeout(timeout);
+  }, [filterResidentName, fetchItems]);
 
   const handleRemove = async (
     id: number,
     status: "sent" | "cancelled",
-    message: string,
+    message: string
   ) => {
     try {
       await updateNotification(id, { status });
@@ -124,44 +121,55 @@ export function NotificationDrawer() {
                 ? "Notificações de Receita"
                 : "Notificações de Reposição"
               : editingNotification
-                ? "Editar Notificação"
-                : "Criar Notificação"}
+              ? "Editar Notificação"
+              : "Criar Notificação"}
           </DrawerTitle>
         </DrawerHeader>
 
         {mode === "list" && (
-          <div className="flex border-b mb-4">
-            <button
-              className={`flex-1 py-2 text-sm font-medium ${
-                activeTab === "receita"
-                  ? "border-b-2 border-sky-600 text-sky-600"
-                  : "text-slate-500"
-              }`}
-              onClick={() => {
-                setActiveTab("receita");
-                setPage(1);
-              }}
-            >
-              Receita
-            </button>
-            <button
-              className={`flex-1 py-2 text-sm font-medium ${
-                activeTab === "reposicao"
-                  ? "border-b-2 border-sky-600 text-sky-600"
-                  : "text-slate-500"
-              }`}
-              onClick={() => {
-                setActiveTab("reposicao");
-                setPage(1);
-              }}
-            >
-              Reposição
-            </button>
-          </div>
-        )}
-
-        {mode === "list" && (
           <>
+            {/* Tabs */}
+            <div className="flex border-b mb-4">
+              <button
+                className={`flex-1 py-2 text-sm font-medium ${
+                  activeTab === "receita"
+                    ? "border-b-2 border-sky-600 text-sky-600"
+                    : "text-slate-500"
+                }`}
+                onClick={() => {
+                  setActiveTab("receita");
+                  setPage(1);
+                }}
+              >
+                Receita
+              </button>
+              <button
+                className={`flex-1 py-2 text-sm font-medium ${
+                  activeTab === "reposicao"
+                    ? "border-b-2 border-sky-600 text-sky-600"
+                    : "text-slate-500"
+                }`}
+                onClick={() => {
+                  setActiveTab("reposicao");
+                  setPage(1);
+                }}
+              >
+                Reposição
+              </button>
+            </div>
+
+            {/* Filtro residente */}
+            <div className="flex flex-col gap-2 mb-4">
+              <input
+                type="text"
+                placeholder="Filtrar por residente"
+                value={filterResidentName}
+                onChange={(e) => setFilterResidentName(e.target.value)}
+                className="px-2 py-1 border rounded"
+              />
+            </div>
+
+            {/* Lista */}
             <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
               <AnimatePresence mode="popLayout" initial={false}>
                 {loading ? (
@@ -191,11 +199,7 @@ export function NotificationDrawer() {
                       key={n.id}
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{
-                        opacity: 0,
-                        scale: 0.97,
-                        y: -8,
-                      }}
+                      exit={{ opacity: 0, scale: 0.97, y: -8 }}
                       transition={{ duration: 0.3, ease: "easeInOut" }}
                       layout
                     >
@@ -210,11 +214,7 @@ export function NotificationDrawer() {
                             handleRemove(n.id, "sent", "Notificação concluída")
                           }
                           onCancel={() =>
-                            handleRemove(
-                              n.id,
-                              "cancelled",
-                              "Notificação cancelada",
-                            )
+                            handleRemove(n.id, "cancelled", "Notificação cancelada")
                           }
                           onEdit={() => {
                             setMode("create");
@@ -240,11 +240,7 @@ export function NotificationDrawer() {
                             handleRemove(n.id, "sent", "Reposição concluída")
                           }
                           onCancel={() =>
-                            handleRemove(
-                              n.id,
-                              "cancelled",
-                              "Reposição cancelada",
-                            )
+                            handleRemove(n.id, "cancelled", "Reposição cancelada")
                           }
                         />
                       )}
@@ -253,6 +249,7 @@ export function NotificationDrawer() {
                 )}
               </AnimatePresence>
 
+              {/* Botão "Mostrar mais" */}
               {items.length > 0 && hasNext && (
                 <div className="text-center py-2">
                   <button
@@ -293,8 +290,7 @@ export function NotificationDrawer() {
                 onCreated={() => {
                   setMode("list");
                   setEditingNotification(null);
-                  setPage(1);
-                  fetchItems(1);
+                  fetchItems();
                 }}
               />
             </div>
@@ -305,9 +301,7 @@ export function NotificationDrawer() {
                 type="submit"
                 className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg w-full"
               >
-                {editingNotification
-                  ? "Salvar Alterações"
-                  : "Criar Notificação"}
+                {editingNotification ? "Salvar Alterações" : "Criar Notificação"}
               </button>
             </DrawerFooter>
           </>

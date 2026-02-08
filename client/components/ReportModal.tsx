@@ -71,6 +71,8 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [transferDate, setTransferDate] = useState<Date | null>(null);
+  const [movementPeriodTransfer, setMovementPeriodTransfer] =
+    useState<MovementPeriod>(MovementPeriod.DIARIO);
   const [residentSearch, setResidentSearch] = useState("");
 
   const reportOptions = [
@@ -78,36 +80,12 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
     { value: "medicamentos", label: "Medicamentos", icon: Stethoscope },
     { value: "residentes", label: "Residentes", icon: User },
     { value: "psicotropicos", label: "Psicotrópicos", icon: Syringe },
-    {
-      value: "insumos_medicamentos",
-      label: "Insumos e Medicamentos",
-      icon: Check,
-    },
-    {
-      value: "residente_consumo",
-      label: "Consumo por Residente",
-      icon: Users,
-    },
-    {
-      value: "transferencias",
-      label: "Transferências (Farmácia → Enfermaria)",
-      icon: ArrowRightLeft,
-    },
-    {
-      value: "movimentacoes",
-      label: "Movimentações",
-      icon: Activity,
-    },
-    {
-      value: "medicamentos_residente",
-      label: "Medicamentos por Residente",
-      icon: User,
-    },
-    {
-      value: "medicamentos_vencidos",
-      label: "Medicamentos Vencidos",
-      icon: AlertTriangle,
-    },
+    { value: "insumos_medicamentos", label: "Insumos e Medicamentos", icon: Check },
+    { value: "residente_consumo", label: "Consumo por Residente", icon: Users },
+    { value: "transferencias", label: "Transferências (Farmácia → Enfermaria)", icon: ArrowRightLeft },
+    { value: "movimentacoes", label: "Movimentações", icon: Activity },
+    { value: "medicamentos_residente", label: "Medicamentos por Residente", icon: User },
+    { value: "medicamentos_vencidos", label: "Medicamentos Vencidos", icon: AlertTriangle },
   ];
 
   useEffect(() => {
@@ -162,26 +140,16 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
             periodo: MovementPeriod.DIARIO,
             data: movementDate.toISOString().split("T")[0],
           };
-        }
-
-        if (movementPeriod === MovementPeriod.MENSAL) {
+        } else if (movementPeriod === MovementPeriod.MENSAL) {
           if (!movementMonth) {
             toast({ title: "Selecione o mês", variant: "error" });
             setStatus("idle");
             return;
           }
-          params = {
-            periodo: MovementPeriod.MENSAL,
-            mes: movementMonth,
-          };
-        }
-
-        if (movementPeriod === MovementPeriod.INTERVALO) {
+          params = { periodo: MovementPeriod.MENSAL, mes: movementMonth };
+        } else if (movementPeriod === MovementPeriod.INTERVALO) {
           if (!startDate || !endDate) {
-            toast({
-              title: "Selecione o intervalo de datas",
-              variant: "error",
-            });
+            toast({ title: "Selecione o intervalo de datas", variant: "error" });
             setStatus("idle");
             return;
           }
@@ -194,19 +162,31 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
 
         response = await getReport("movimentacoes", undefined, params);
       } else if (tipo === "transferencias") {
-        if (!transferDate) {
-          toast({
-            title: "Selecione a data da transferência",
-            variant: "error",
-          });
-          setStatus("idle");
-          return;
+        let params: any;
+        if (movementPeriodTransfer === MovementPeriod.DIARIO) {
+          if (!transferDate) {
+            toast({ title: "Selecione a data da transferência", variant: "error" });
+            setStatus("idle");
+            return;
+          }
+          params = {
+            periodo: MovementPeriod.DIARIO,
+            data: transferDate.toISOString().split("T")[0],
+          };
+        } else if (movementPeriodTransfer === MovementPeriod.INTERVALO) {
+          if (!startDate || !endDate) {
+            toast({ title: "Selecione o intervalo de datas", variant: "error" });
+            setStatus("idle");
+            return;
+          }
+          params = {
+            periodo: MovementPeriod.INTERVALO,
+            data_inicial: startDate.toISOString().split("T")[0],
+            data_final: endDate.toISOString().split("T")[0],
+          };
         }
 
-        response = await getReport("transferencias", undefined, {
-          periodo: MovementPeriod.DIARIO,
-          data: transferDate.toISOString().split("T")[0],
-        });
+        response = await getReport("transferencias", undefined, params);
       } else {
         const casela =
           tipo === "residente_consumo" || tipo === "medicamentos_residente"
@@ -215,8 +195,8 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
 
         response = await getReport(tipo, casela);
       }
-      const doc = createStockPDF(tipo, response);
 
+      const doc = createStockPDF(tipo, response);
       const blob = await pdf(doc).toBlob();
       const url = URL.createObjectURL(blob);
 
@@ -242,6 +222,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
     setStartDate(null);
     setEndDate(null);
     setTransferDate(null);
+    setMovementPeriodTransfer(MovementPeriod.DIARIO);
     onClose();
   };
 
@@ -308,52 +289,83 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                       </motion.div>
 
                       {isSelected && value === "transferencias" && (
-                        <div className="mt-2 col-span-2">
-                          <label className="block mb-1 text-gray-600">
-                            Data da Transferência
-                          </label>
-                          <DatePicker
-                            selected={transferDate}
-                            onChange={(date: Date) => setTransferDate(date)}
-                            dateFormat="dd/MM/yyyy"
-                            locale="pt-BR"
-                            className="w-full border rounded px-2 py-1"
-                          />
+                        <div className="mt-2 p-3 border rounded-lg grid grid-cols-2 gap-3 text-sm">
+                          <div className="col-span-2">
+                            <label className="block mb-1 text-gray-600">Período</label>
+                            <select
+                              value={movementPeriodTransfer}
+                              onChange={(e) =>
+                                setMovementPeriodTransfer(e.target.value as MovementPeriod)
+                              }
+                              className="w-full border rounded px-2 py-1"
+                            >
+                              <option value={MovementPeriod.DIARIO}>Diário</option>
+                              <option value={MovementPeriod.INTERVALO}>Intervalo</option>
+                            </select>
+                          </div>
+
+                          {movementPeriodTransfer === MovementPeriod.DIARIO && (
+                            <div className="col-span-2">
+                              <label className="block mb-1 text-gray-600">
+                                Data da Transferência
+                              </label>
+                              <DatePicker
+                                selected={transferDate}
+                                onChange={(date: Date) => setTransferDate(date)}
+                                dateFormat="dd/MM/yyyy"
+                                locale="pt-BR"
+                                className="w-full border rounded px-2 py-1"
+                              />
+                            </div>
+                          )}
+
+                          {movementPeriodTransfer === MovementPeriod.INTERVALO && (
+                            <>
+                              <div>
+                                <label className="block mb-1 text-gray-600">Data inicial</label>
+                                <DatePicker
+                                  selected={startDate}
+                                  onChange={(date: Date) => setStartDate(date)}
+                                  dateFormat="dd/MM/yyyy"
+                                  locale="pt-BR"
+                                  className="w-full border rounded px-2 py-1"
+                                />
+                              </div>
+                              <div>
+                                <label className="block mb-1 text-gray-600">Data final</label>
+                                <DatePicker
+                                  selected={endDate}
+                                  onChange={(date: Date) => setEndDate(date)}
+                                  dateFormat="dd/MM/yyyy"
+                                  locale="pt-BR"
+                                  className="w-full border rounded px-2 py-1"
+                                />
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
 
                       {isSelected && showMovementFilters && (
                         <div className="mt-2 p-3 border rounded-lg grid grid-cols-2 gap-3 text-sm">
                           <div className="col-span-2">
-                            <label className="block mb-1 text-gray-600">
-                              Período
-                            </label>
+                            <label className="block mb-1 text-gray-600">Período</label>
                             <select
                               value={movementPeriod}
                               onChange={(e) =>
-                                setMovementPeriod(
-                                  e.target.value as MovementPeriod,
-                                )
+                                setMovementPeriod(e.target.value as MovementPeriod)
                               }
                               className="w-full border rounded px-2 py-1"
                             >
-                              <option value={MovementPeriod.DIARIO}>
-                                Diário
-                              </option>
-                              <option value={MovementPeriod.MENSAL}>
-                                Mensal
-                              </option>
-                              <option value={MovementPeriod.INTERVALO}>
-                                Intervalo
-                              </option>
+                              <option value={MovementPeriod.DIARIO}>Diário</option>
+                              <option value={MovementPeriod.MENSAL}>Mensal</option>
+                              <option value={MovementPeriod.INTERVALO}>Intervalo</option>
                             </select>
                           </div>
 
                           {movementPeriod === MovementPeriod.DIARIO && (
                             <div className="col-span-2">
-                              <label className="block mb-1 text-gray-600">
-                                Data
-                              </label>
+                              <label className="block mb-1 text-gray-600">Data</label>
                               <DatePicker
                                 selected={movementDate}
                                 onChange={(date: Date) => setMovementDate(date)}
@@ -366,20 +378,12 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
 
                           {movementPeriod === MovementPeriod.MENSAL && (
                             <div className="col-span-2">
-                              <label className="block mb-1 text-gray-600">
-                                Mês
-                              </label>
+                              <label className="block mb-1 text-gray-600">Mês</label>
                               <DatePicker
-                                selected={
-                                  movementMonth
-                                    ? parseYearMonthToDate(movementMonth)
-                                    : null
-                                }
+                                selected={movementMonth ? parseYearMonthToDate(movementMonth) : null}
                                 onChange={(date: Date) => {
                                   const year = date.getFullYear();
-                                  const month = String(
-                                    date.getMonth() + 1,
-                                  ).padStart(2, "0");
+                                  const month = String(date.getMonth() + 1).padStart(2, "0");
                                   setMovementMonth(`${year}-${month}`);
                                 }}
                                 dateFormat="MM/yyyy"
@@ -394,9 +398,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                           {movementPeriod === MovementPeriod.INTERVALO && (
                             <>
                               <div>
-                                <label className="block mb-1 text-gray-600">
-                                  Data inicial
-                                </label>
+                                <label className="block mb-1 text-gray-600">Data inicial</label>
                                 <DatePicker
                                   selected={startDate}
                                   onChange={(date: Date) => setStartDate(date)}
@@ -405,11 +407,8 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                                   className="w-full border rounded px-2 py-1"
                                 />
                               </div>
-
                               <div>
-                                <label className="block mb-1 text-gray-600">
-                                  Data final
-                                </label>
+                                <label className="block mb-1 text-gray-600">Data final</label>
                                 <DatePicker
                                   selected={endDate}
                                   onChange={(date: Date) => setEndDate(date)}
@@ -425,9 +424,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
 
                       {isSelected && showResidentSelector && (
                         <div className="mt-2 p-3 border rounded-lg">
-                          <label className="block mb-1 text-gray-600 text-sm">
-                            Residente
-                          </label>
+                          <label className="block mb-1 text-gray-600 text-sm">Residente</label>
 
                           {loadingResidents ? (
                             <div className="flex justify-center py-2">
@@ -442,37 +439,21 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                                   className="w-full justify-between text-sm"
                                 >
                                   {selectedResident
-                                    ? residents.find(
-                                        (r) => r.casela === selectedResident,
-                                      )?.name
+                                    ? residents.find((r) => r.casela === selectedResident)?.name
                                     : "Selecionar residente"}
                                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
                               </PopoverTrigger>
 
-                              <PopoverContent
-                                side="bottom"
-                                align="start"
-                                sideOffset={4}
-                                avoidCollisions={false}
-                                className="w-full p-0"
-                              >
+                              <PopoverContent side="bottom" align="start" sideOffset={4} avoidCollisions={false} className="w-full p-0">
                                 <Command shouldFilter={false}>
-                                  <CommandInput
-                                    placeholder="Buscar residente"
-                                    value={residentSearch}
-                                    onValueChange={setResidentSearch}
-                                  />
-                                  <CommandEmpty>
-                                    Nenhum residente encontrado.
-                                  </CommandEmpty>
+                                  <CommandInput placeholder="Buscar residente" value={residentSearch} onValueChange={setResidentSearch} />
+                                  <CommandEmpty>Nenhum residente encontrado.</CommandEmpty>
                                   <CommandGroup>
                                     {filteredResidents.map((r) => (
                                       <CommandItem
                                         key={r.casela}
-                                        value={
-                                          r.casela?.toString() + " - " + r.name
-                                        }
+                                        value={r.casela?.toString() + " - " + r.name}
                                         onSelect={() => {
                                           setSelectedResident(r.casela);
                                           setResidentSearch("");
@@ -494,10 +475,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
 
                 <Button
                   className="mt-4 w-full max-w-md bg-sky-600 hover:bg-sky-700 text-white"
-                  disabled={
-                    !selectedReports.length ||
-                    (showResidentSelector && !selectedResident)
-                  }
+                  disabled={!selectedReports.length || (showResidentSelector && !selectedResident)}
                   onClick={handleGenerate}
                 >
                   Gerar relatório

@@ -328,7 +328,7 @@ export function createStockPDF(
             {isResidentConsumption
               ? "CONSUMO DO RESIDENTE"
               : isTransferReport
-                ? "TRANSFERÊNCIAS DE SETOR"
+                ? "TRANSFERÊNCIAS DA FARMÁCIA PARA ENFERMARIA"
                 : isMovementsReport
                   ? movementHeading
                   : isResidentMedicines
@@ -612,9 +612,6 @@ export function createStockPDF(
 
         {isTransferReport && transferData && (
           <>
-            <Text style={styles.sectionTitle}>
-              Transferências de Farmácia para Enfermaria
-            </Text>
 
             {transferData.length > 0 ? (
               <>

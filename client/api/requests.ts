@@ -231,16 +231,18 @@ export const getNotifications = async ({
   type,
   status,
   date,
+  residente_nome,
 }: {
   page?: number;
   limit?: number;
   type: string;
   status?: string;
   date?: "today" | "tomorrow" | string;
+  residente_nome?: string;
 }) => {
   try {
     const res = await api.get("/notificacao", {
-      params: { page, limit, type, status, date },
+      params: { page, limit, type, status, date, residente_nome },
     });
 
     return {
