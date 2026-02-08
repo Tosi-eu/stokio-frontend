@@ -41,6 +41,7 @@ export default function CreateNotificationForm({
     criado_por: user?.id,
     status: EventStatus.PENDENTE,
     id: undefined as number | undefined,
+    tipo_evento: ""
   });
 
   const NotificationDestinyLabel: Record<NotificationDestiny, string> = {
@@ -59,6 +60,7 @@ export default function CreateNotificationForm({
         criado_por: editData.criado_por,
         status: editData.status,
         id: editData.id,
+        tipo_evento: "medicamento",
       });
     } else {
       setForm({
@@ -69,6 +71,7 @@ export default function CreateNotificationForm({
         criado_por: user?.id,
         status: EventStatus.PENDENTE,
         id: undefined,
+        tipo_evento: "medicamento",
       });
     }
   }, [editData, user?.id]);

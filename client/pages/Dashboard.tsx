@@ -27,7 +27,8 @@ import {
   getNonMovementProducts,
   getStock,
   getStockProportions,
-  getTodayNotifications,
+  getTodayMedicineNotifications,
+  getTomorrowReplacementNotifications,
   updateNotification,
 } from "@/api/requests";
 import {
@@ -41,6 +42,12 @@ import {
 } from "@/interfaces/interfaces";
 const NotificationReminderModal = lazy(
   () => import("@/components/NotificationModal"),
+);
+const StockReplacementModal = lazy(
+  () =>
+    import("@/components/StockReplacementModal").then((m) => ({
+      default: m.default,
+    })),
 );
 import StockProportionCard from "@/components/StockProportionCard";
 import { prepareStockDistributionData } from "@/helpers/estoque.helper";
@@ -78,6 +85,10 @@ export default function Dashboard() {
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifList, setNotifList] = useState([]);
+  const [replacementOpen, setReplacementOpen] = useState(false);
+  const [replacementItems, setReplacementItems] = useState<
+    import("@/components/StockReplacementModal").StockReplacementItem[]
+  >([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -234,23 +245,21 @@ export default function Dashboard() {
   useEffect(() => {
     async function fetchReminders() {
       try {
-        const res = await getTodayNotifications();
-
-        const unseenNotifications = res.data.filter(
-          (n: Record<string, unknown>) => !n.visto,
-        );
-
-        if (unseenNotifications.length > 0) {
-          setNotifList(unseenNotifications);
+        const res = await getTodayMedicineNotifications();
+        console.log('gt', res)
+        const notifications = res.items;
+        
+        if (notifications.length > 0) {
+          setNotifList(notifications);
           setNotifOpen(true);
-
+        
           await Promise.all(
-            unseenNotifications.map((n: Record<string, unknown>) => {
-              const id = typeof n.id === "number" ? n.id : Number(n.id);
-              return updateNotification(id, { visto: true });
-            }),
+            notifications.map((n) =>
+              updateNotification(n.id, { visto: true })
+            ),
           );
         }
+        
       } catch (err: unknown) {
         const errorMessage =
           err instanceof Error
@@ -266,6 +275,23 @@ export default function Dashboard() {
     }
 
     fetchReminders();
+  }, []);
+
+  useEffect(() => {
+    async function fetchReplacementReminders() {
+      try {
+        const res = await getTomorrowReplacementNotifications();
+        console.log('gt2', res)
+        const items = res.items;
+
+        if (items.length > 0) {
+          setReplacementItems(items);
+          setReplacementOpen(true);
+        }
+      } catch { /* NO-OP */}
+    }
+
+    fetchReplacementReminders();
   }, []);
 
   const stats = useMemo(
@@ -517,6 +543,11 @@ export default function Dashboard() {
           open={notifOpen}
           events={notifList}
           onClose={() => setNotifOpen(false)}
+        />
+        <StockReplacementModal
+          open={replacementOpen}
+          items={replacementItems}
+          onClose={() => setReplacementOpen(false)}
         />
       </Suspense>
     </Layout>

@@ -221,27 +221,36 @@ export const createNotificationEvent = (payload: {
   destino: NotificationDestiny;
   data_prevista: Date;
   criado_por: number;
+  tipo_evento: string;
   status: EventStatus;
 }) => api.post("/notificacao", payload);
 
-export const getNotifications = async (
+export const getNotifications = async ({
   page = 1,
   limit = 10,
-  status?: string,
-) => {
+  type,
+  status,
+  date,
+}: {
+  page?: number;
+  limit?: number;
+  type: string;
+  status?: string;
+  date?: "today" | "tomorrow" | string;
+}) => {
   try {
     const res = await api.get("/notificacao", {
-      params: { page, limit, status },
+      params: { page, limit, type, status, date },
     });
 
-    const data = res.data;
+    console.log(JSON.stringify(res))
 
     return {
-      items: Array.isArray(data) ? data : [],
-      total: res.total ? res.total : 0,
-      hasNext: res.hasNext ? res.hasNext : false,
+      items: res?.items ?? [],
+      total: res?.total ?? 0,
+      hasNext: res?.hasNext ?? false,
     };
-  } catch (err) {
+  } catch {
     return { items: [], total: 0, hasNext: false };
   }
 };
@@ -263,7 +272,19 @@ export const patchNotificationEvent = (
   }>,
 ) => api.patch(`/notificacao/${id}`, data);
 
-export const getTodayNotifications = () => api.get("/notificacao/retirar-hoje");
+export const getTodayMedicineNotifications = () =>
+  getNotifications({
+    type: "medicamento",
+    date: "today",
+    status: EventStatus.PENDENTE,
+  });
+
+  export const getTomorrowReplacementNotifications = () =>
+    getNotifications({
+      type: "reposicao_estoque",
+      date: "tomorrow",
+      status: EventStatus.PENDENTE,
+    });  
 
 export const getStock = (
   page = 1,
@@ -379,6 +400,7 @@ export const transferStockSector = (payload: {
   destino?: string | null;
   observacao?: string | null;
   bypassCasela: boolean;
+  dias_para_repor: number | null;
 }) => {
   const basePath =
     payload.itemType === "medicamento"
@@ -391,6 +413,7 @@ export const transferStockSector = (payload: {
     destino: payload.destino,
     observacao: payload.observacao,
     bypassCasela: payload.bypassCasela,
+    dias_para_repor: payload.dias_para_repor,
   });
 };
 
@@ -408,6 +431,8 @@ export const updateStockItem = (
     casela_id?: number | null;
     tipo?: string;
     preco?: number | null;
+    observacao?: string | null;
+    dias_para_repor?: number | null;
   },
 ) => {
   const { tipo: stockTipo, ...restData } = data;

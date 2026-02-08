@@ -364,12 +364,14 @@ export default function Stock() {
     casela?: number,
     destino?: string,
     details?: string,
-    options?: { bypassCasela: boolean },
+    options?: { bypassCasela: boolean; dias_para_repor: number | null },
   ) => {
     if (!pendingAction.row || pendingAction.type !== "transfer") return;
 
     const { row } = pendingAction;
     setActionLoading(true);
+
+    console.log(options)
 
     try {
       await transferStockSector({
@@ -381,6 +383,7 @@ export default function Stock() {
         destino: destino ?? null,
         observacao: details ?? null,
         bypassCasela: options?.bypassCasela ?? false,
+        dias_para_repor: options?.dias_para_repor ?? null,
       });
 
       await loadStock(page);

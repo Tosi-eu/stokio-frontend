@@ -8,36 +8,62 @@ import {
 } from "@/components/ui/drawer";
 import { toast } from "@/hooks/use-toast.hook";
 import { NotificationCard } from "./NotiifcationCard";
+import { NotificationRepositionCard } from "./NotificationRepositionCard";
 import CreateNotificationForm from "./CreateNotificationEvent";
 import { useNotifications } from "@/hooks/use-notification.hook";
 import { getNotifications, updateNotification } from "@/api/requests";
 import { EventStatus } from "@/utils/enums";
 import { AnimatePresence, motion } from "framer-motion";
 
+interface GetNotificationsParams {
+  page: number
+  limit: number
+  tipo: string
+  status: EventStatus
+}
+
 export function NotificationDrawer() {
   const { open, setOpen, triggerReload, setCount } = useNotifications();
 
   const [items, setItems] = useState<any[]>([]);
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
   const [hasNext, setHasNext] = useState(false);
 
   const [mode, setMode] = useState<"list" | "create">("list");
-  const [editingNotification, setEditingNotification] = useState<any | null>(
-    null,
-  );
+  const [editingNotification, setEditingNotification] = useState<any | null>(null);
 
-  const fetchNotifications = async (p = 1, append = false) => {
+  const [activeTab, setActiveTab] = useState<"receita" | "reposicao">("receita");
+  const [loading, setLoading] = useState(false);
+
+  const fetchItems = async (p = 1, append = false) => {
+    setLoading(true);
     try {
-      const {
-        items: data,
-        total,
-        hasNext,
-      } = await getNotifications(p, 5, EventStatus.PENDENTE);
+      let data: any = { items: [], total: 0, hasNext: false };
 
-      setItems((prev) => (append ? [...prev, ...data] : data));
-      setCount(total);
-      setHasNext(hasNext);
+      const params =
+        activeTab === "receita"
+          ? {
+              page: p,
+              limit: 5,
+              type: "medicamento",
+              status: EventStatus.PENDENTE,
+            }
+          : {
+              page: p,
+              limit: 5,
+              type: "reposicao_estoque",
+              status: EventStatus.PENDENTE,
+            };
+
+      if (activeTab === "receita") {
+        data = await getNotifications(params);
+      } else if (activeTab === "reposicao") {
+        data = await getNotifications(params);
+      }
+
+      setItems((prev) => (append ? [...prev, ...data.items] : data.items));
+      setCount(data.total);
+      setHasNext(data.hasNext);
     } catch {
       toast({
         title: "Erro",
@@ -51,6 +77,8 @@ export function NotificationDrawer() {
         setCount(0);
         setHasNext(false);
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -59,14 +87,14 @@ export function NotificationDrawer() {
       setMode("list");
       setPage(1);
       setEditingNotification(null);
-      fetchNotifications(1);
+      fetchItems(1);
     }
-  }, [open, triggerReload]);
+  }, [open, triggerReload, activeTab]);
 
   const handleRemove = async (
     id: number,
     status: "sent" | "cancelled",
-    message: string,
+    message: string
   ) => {
     try {
       await updateNotification(id, { status });
@@ -88,18 +116,61 @@ export function NotificationDrawer() {
         <DrawerHeader>
           <DrawerTitle>
             {mode === "list"
-              ? "Notificações Pendentes"
+              ? activeTab === "receita"
+                ? "Notificações de Receita"
+                : "Notificações de Reposição"
               : editingNotification
-                ? "Editar Notificação"
-                : "Criar Notificação"}
+              ? "Editar Notificação"
+              : "Criar Notificação"}
           </DrawerTitle>
         </DrawerHeader>
+
+        {mode === "list" && (
+          <div className="flex border-b mb-4">
+            <button
+              className={`flex-1 py-2 text-sm font-medium ${
+                activeTab === "receita"
+                  ? "border-b-2 border-sky-600 text-sky-600"
+                  : "text-slate-500"
+              }`}
+              onClick={() => {
+                setActiveTab("receita");
+                setPage(1);
+              }}
+            >
+              Receita
+            </button>
+            <button
+              className={`flex-1 py-2 text-sm font-medium ${
+                activeTab === "reposicao"
+                  ? "border-b-2 border-sky-600 text-sky-600"
+                  : "text-slate-500"
+              }`}
+              onClick={() => {
+                setActiveTab("reposicao");
+                setPage(1);
+              }}
+            >
+              Reposição
+            </button>
+          </div>
+        )}
 
         {mode === "list" && (
           <>
             <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
               <AnimatePresence mode="popLayout" initial={false}>
-                {items.length === 0 ? (
+                {loading ? (
+                  <motion.div
+                    key="loading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center justify-center h-[70vh] text-slate-400 text-center"
+                  >
+                    Carregando notificações...
+                  </motion.div>
+                ) : items.length === 0 ? (
                   <motion.div
                     key="empty-state"
                     initial={{ opacity: 0 }}
@@ -124,35 +195,51 @@ export function NotificationDrawer() {
                       transition={{ duration: 0.3, ease: "easeInOut" }}
                       layout
                     >
-                      <NotificationCard
-                        residentName={n.residente_nome}
-                        medicineName={n.medicamento_nome}
-                        dateToGo={n.data_prevista}
-                        destiny={n.destino}
-                        createdBy={n.usuario?.login}
-                        onComplete={() =>
-                          handleRemove(n.id, "sent", "Notificação concluída")
-                        }
-                        onCancel={() =>
-                          handleRemove(
-                            n.id,
-                            "cancelled",
-                            "Notificação cancelada",
-                          )
-                        }
-                        onEdit={() => {
-                          setMode("create");
-                          setEditingNotification({
-                            medicamento_id: n.medicamento_id,
-                            residente_id: n.residente_id,
-                            destino: n.destino,
-                            data_prevista: n.data_prevista,
-                            criado_por: n.usuario?.id,
-                            status: n.status,
-                            id: n.id,
-                          });
-                        }}
-                      />
+                      {activeTab === "receita" ? (
+                        <NotificationCard
+                          residentName={n.residente_nome}
+                          medicineName={n.medicamento_nome} 
+                          dateToGo={n.data_prevista}
+                          destiny={n.destino}
+                          createdBy={n.usuario}
+                          onComplete={() =>
+                            handleRemove(n.id, "sent", "Notificação concluída")
+                          }
+                          onCancel={() =>
+                            handleRemove(
+                              n.id,
+                              "cancelled",
+                              "Notificação cancelada"
+                            )
+                          }
+                          onEdit={() => {
+                            setMode("create");
+                            setEditingNotification({
+                              medicamento_id: n.medicamento_id,
+                              residente_id: n.residente_id,
+                              destino: n.destino,
+                              data_prevista: n.data_prevista,
+                              criado_por: n.usuario?.id,
+                              status: n.status,
+                              id: n.id,
+                            });
+                          }}
+                        />
+                      ) : (
+                        <NotificationRepositionCard
+                          medicineName={n.medicamento_nome}
+                          quantity={n.quantidade}
+                          daysToReposition={n.dias_para_repor}
+                          nextRepositionDate={n.data_prevista}
+                          residentName={n.residente_nome}
+                          onComplete={() =>
+                            handleRemove(n.id, "sent", "Reposição concluída")
+                          }
+                          onCancel={() =>
+                            handleRemove(n.id, "cancelled", "Reposição cancelada")
+                          }
+                        />
+                      )}
                     </motion.div>
                   ))
                 )}
@@ -165,7 +252,7 @@ export function NotificationDrawer() {
                     onClick={() => {
                       const nextPage = page + 1;
                       setPage(nextPage);
-                      fetchNotifications(nextPage, true);
+                      fetchItems(nextPage, true);
                     }}
                   >
                     Mostrar mais registros
@@ -175,20 +262,22 @@ export function NotificationDrawer() {
             </div>
 
             <DrawerFooter>
-              <button
-                className="bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700"
-                onClick={() => {
-                  setMode("create");
-                  setEditingNotification(null);
-                }}
-              >
-                Criar Notificação
-              </button>
+              {activeTab === "receita" && (
+                <button
+                  className="bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700"
+                  onClick={() => {
+                    setMode("create");
+                    setEditingNotification(null);
+                  }}
+                >
+                  Criar Notificação
+                </button>
+              )}
             </DrawerFooter>
           </>
         )}
 
-        {mode === "create" && (
+        {mode === "create" && activeTab === "receita" && (
           <>
             <div className="pt-2">
               <CreateNotificationForm
@@ -197,7 +286,7 @@ export function NotificationDrawer() {
                   setMode("list");
                   setEditingNotification(null);
                   setPage(1);
-                  fetchNotifications(1);
+                  fetchItems(1);
                 }}
               />
             </div>
@@ -208,9 +297,7 @@ export function NotificationDrawer() {
                 type="submit"
                 className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg w-full"
               >
-                {editingNotification
-                  ? "Salvar Alterações"
-                  : "Criar Notificação"}
+                {editingNotification ? "Salvar Alterações" : "Criar Notificação"}
               </button>
             </DrawerFooter>
           </>

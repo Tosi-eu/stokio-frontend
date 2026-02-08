@@ -38,6 +38,7 @@ interface TransferQuantityModalProps {
     details?: string | null,
     options?: {
       bypassCasela: boolean;
+      dias_para_repor: number | null;
     },
   ) => void;
   onCancel: () => void;
@@ -59,6 +60,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
   const [destination, setDestination] = useState("");
   const [details, setDetails] = useState("");
   const [isGeneralUse, setIsGeneralUse] = useState(false);
+  const [daysToReplacement, setDaysToReplacement] = useState("");
 
   const isInput = item?.itemType === "insumo";
   const isGeneralMedicine = item?.isGeneralMedicine === true;
@@ -71,6 +73,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
       setDetails("");
       setCaselaSearch("");
       setIsGeneralUse(false);
+      setDaysToReplacement("");
     }
   }, [open]);
 
@@ -110,6 +113,10 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
 
     onConfirm(quantityNum, casela, destino, details.trim() || null, {
       bypassCasela: isGeneralUse,
+      dias_para_repor:
+        !isGeneralUse && daysToReplacement !== ""
+          ? Number(daysToReplacement)
+          : null,
     });
   };
 
@@ -164,6 +171,20 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
               />
             </div>
           )}
+
+          {!isGeneralUse && (
+              <div className="space-y-2">
+                <Label>Dias para repor</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="Ex: 7"
+                    value={daysToReplacement}
+                    onChange={(e) => setDaysToReplacement(e.target.value)}
+                    disabled={loading}
+                  />
+              </div>
+            )}
 
           <div className="space-y-2">
             <Label>Observação</Label>
@@ -248,6 +269,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                       if (checked) {
                         setSelectedCasela("");
                         setDetails("");
+                        setDaysToReplacement("");
                       }
                     }}
                     className="mt-1"

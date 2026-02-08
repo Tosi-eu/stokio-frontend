@@ -72,6 +72,7 @@ export function formatStockItems(raw: unknown[]): StockItem[] {
       destination: item.destino ?? null,
       suspended_at: item.suspenso_em ? new Date(item.suspenso_em) : null,
       detail: item.observacao ?? null,
+      daysToReplacement: item.dias_para_repor ?? null,
       itemType: item.tipo_item,
       sector: item.setor,
       lot: item.lote ?? null,
