@@ -172,7 +172,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
             </div>
           )}
 
-          {!isGeneralUse && (
+          {!isGeneralUse && isMedicamento && (
             <div className="space-y-2">
               <Label>Dias para repor</Label>
               <Input

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Dialog,
@@ -86,6 +86,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
     { value: "movimentacoes", label: "Movimentações", icon: Activity },
     { value: "medicamentos_residente", label: "Medicamentos por Residente", icon: User },
     { value: "medicamentos_vencidos", label: "Medicamentos Vencidos", icon: AlertTriangle },
+    { value: "expiringSoon", label: "Medicamentos e Insumos Próximos ao Vencimento", icon: AlertTriangle },
   ];
 
   useEffect(() => {
@@ -97,6 +98,29 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
       loadResidents();
     }
   }, [open, selectedReports]);
+
+  const handleClose = useCallback(() => {
+    setStatus("idle");
+    setSelectedReports([]);
+    setSelectedResident(null);
+    setResidentSearch("");
+    setMovementDate(null);
+    setStartDate(null);
+    setEndDate(null);
+    setTransferDate(null);
+    setMovementPeriodTransfer(MovementPeriod.DIARIO);
+    onClose();
+  }, [onClose]);
+
+  useEffect(() => {
+    if (status === "success" || status === "error") {
+      const timer = setTimeout(() => {
+        handleClose();
+      }, 800); 
+
+      return () => clearTimeout(timer);
+    }
+  }, [status, handleClose]);
 
   const loadResidents = async () => {
     setLoadingResidents(true);
@@ -211,19 +235,6 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
       console.error(e);
       setStatus("error");
     }
-  };
-
-  const handleClose = () => {
-    setStatus("idle");
-    setSelectedReports([]);
-    setSelectedResident(null);
-    setResidentSearch("");
-    setMovementDate(null);
-    setStartDate(null);
-    setEndDate(null);
-    setTransferDate(null);
-    setMovementPeriodTransfer(MovementPeriod.DIARIO);
-    onClose();
   };
 
   const showResidentSelector =
@@ -491,17 +502,79 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
           )}
 
           {status === "success" && (
-            <div className="flex flex-col items-center h-72 justify-center">
-              <Check className="text-green-600" style={{ width: iconSize }} />
-              <p className="mt-4 font-bold">Relatório gerado com sucesso!</p>
-            </div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              transition={{ duration: 0.3, type: "spring", stiffness: 200 }}
+              className="flex flex-col items-center h-72 justify-center"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.1, type: "spring", stiffness: 200, damping: 10 }}
+                className="relative"
+              >
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: [0, 1.2, 1] }}
+                  transition={{ delay: 0.2, duration: 0.4 }}
+                  className="absolute inset-0 bg-green-100 rounded-full"
+                  style={{ width: iconSize + 40, height: iconSize + 40, marginLeft: -20, marginTop: -20 }}
+                />
+                <Check 
+                  className="text-green-600 relative z-10" 
+                  style={{ width: iconSize, height: iconSize }}
+                  strokeWidth={3}
+                />
+              </motion.div>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-6 text-xl font-bold text-green-600"
+              >
+                Relatório gerado com sucesso!
+              </motion.p>
+            </motion.div>
           )}
 
           {status === "error" && (
-            <div className="flex flex-col items-center h-72 justify-center">
-              <X className="text-red-600" style={{ width: iconSize }} />
-              <p className="mt-4 font-bold">Erro ao gerar relatório</p>
-            </div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              transition={{ duration: 0.3, type: "spring", stiffness: 200 }}
+              className="flex flex-col items-center h-72 justify-center"
+            >
+              <motion.div
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.1, type: "spring", stiffness: 200, damping: 10 }}
+                className="relative"
+              >
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: [0, 1.2, 1] }}
+                  transition={{ delay: 0.2, duration: 0.4 }}
+                  className="absolute inset-0 bg-red-100 rounded-full"
+                  style={{ width: iconSize + 40, height: iconSize + 40, marginLeft: -20, marginTop: -20 }}
+                />
+                <X 
+                  className="text-red-600 relative z-10" 
+                  style={{ width: iconSize, height: iconSize }}
+                  strokeWidth={3}
+                />
+              </motion.div>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-6 text-xl font-bold text-red-600"
+              >
+                Erro ao gerar relatório
+              </motion.p>
+            </motion.div>
           )}
         </AnimatePresence>
       </DialogContent>
