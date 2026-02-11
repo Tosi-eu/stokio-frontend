@@ -38,6 +38,7 @@ interface TransferQuantityModalProps {
     details?: string | null,
     options?: {
       bypassCasela: boolean;
+      dias_para_repor: number | null;
     },
   ) => void;
   onCancel: () => void;
@@ -59,6 +60,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
   const [destination, setDestination] = useState("");
   const [details, setDetails] = useState("");
   const [isGeneralUse, setIsGeneralUse] = useState(false);
+  const [daysToReplacement, setDaysToReplacement] = useState("");
 
   const isInput = item?.itemType === "insumo";
   const isGeneralMedicine = item?.isGeneralMedicine === true;
@@ -71,6 +73,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
       setDetails("");
       setCaselaSearch("");
       setIsGeneralUse(false);
+      setDaysToReplacement("");
     }
   }, [open]);
 
@@ -86,8 +89,19 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
   const hasCaselaSelected = selectedCasela.length > 0;
   const hasDestination = destination.trim().length > 0;
 
+  // Validação: se dias_para_repor está preenchido, casela deve estar selecionada (exceto para estoque individual)
+  const hasValidCaselaForDaysToReplacement = 
+    isIndividualStock || 
+    (isMedicamento && !isGeneralUse && hasCaselaSelected);
+  
+  const isValidDaysToReplacement = 
+    !daysToReplacement || 
+    daysToReplacement === "" || 
+    hasValidCaselaForDaysToReplacement;
+
   const canConfirm =
     isValidQuantity &&
+    isValidDaysToReplacement &&
     (isIndividual ||
       (isMedicamentoGeral && (isGeneralUse || hasCaselaSelected)) ||
       (isInsumoGeral && (hasCaselaSelected || hasDestination)));
@@ -108,8 +122,19 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
         ? destination.trim()
         : null;
 
+    // Garantir que dias_para_repor só seja enviado quando há casela válida
+    const hasValidCasela = isIndividualStock || (!isGeneralUse && hasCaselaSelected);
+    const shouldSendDaysToReplacement = 
+      !isGeneralUse && 
+      isMedicamento && 
+      daysToReplacement !== "" && 
+      hasValidCasela;
+
     onConfirm(quantityNum, casela, destino, details.trim() || null, {
       bypassCasela: isGeneralUse,
+      dias_para_repor: shouldSendDaysToReplacement
+        ? Number(daysToReplacement)
+        : null,
     });
   };
 
@@ -162,6 +187,25 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                 onChange={(e) => setDestination(e.target.value)}
                 disabled={loading}
               />
+            </div>
+          )}
+
+          {!isGeneralUse && isMedicamento && (
+            <div className="space-y-2">
+              <Label>Dias para repor</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="Ex: 7"
+                value={daysToReplacement}
+                onChange={(e) => setDaysToReplacement(e.target.value)}
+                disabled={loading}
+              />
+              {daysToReplacement !== "" && !isIndividualStock && !hasCaselaSelected && (
+                <p className="text-xs text-amber-600">
+                  Selecione uma casela para definir os dias para reposição
+                </p>
+              )}
             </div>
           )}
 
@@ -248,6 +292,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                       if (checked) {
                         setSelectedCasela("");
                         setDetails("");
+                        setDaysToReplacement("");
                       }
                     }}
                     className="mt-1"

@@ -1,56 +1,43 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Pencil } from "lucide-react";
 
-interface NotificationCardProps {
-  residentName: string;
+interface RepositionCardProps {
   medicineName: string;
-  dateToGo: string;
-  destiny: string;
-  createdBy: string;
+  quantity: number;
+  daysToReposition: number;
+  nextRepositionDate: string;
+  residentName: string;
   onComplete?: () => Promise<void>;
   onCancel?: () => Promise<void>;
-  onEdit?: () => void;
-  onRemove?: () => void;
 }
 
-export function NotificationCard({
-  residentName,
+export function NotificationRepositionCard({
   medicineName,
-  dateToGo,
-  destiny,
-  createdBy,
+  quantity,
+  daysToReposition,
+  nextRepositionDate,
+  residentName,
   onComplete,
   onCancel,
-  onEdit,
-}: NotificationCardProps) {
+}: RepositionCardProps) {
   return (
     <Card className="relative shadow-sm hover:shadow-md border-slate-200 rounded-xl">
-      {onEdit && (
-        <button
-          onClick={onEdit}
-          className="absolute top-3 right-3 p-2 rounded-lg hover:bg-slate-100"
-        >
-          <Pencil className="w-4 h-4 text-slate-600" />
-        </button>
-      )}
-
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold">{residentName}</CardTitle>
+        <CardTitle className="text-lg font-semibold">{medicineName}</CardTitle>
       </CardHeader>
 
       <CardContent className="space-y-2 text-sm">
         <ul className="space-y-1">
           <li>
-            <b>Medicamento:</b> {medicineName}
+            <b>Residente:</b> {residentName}
           </li>
           <li>
-            <b>Data prevista:</b> {dateToGo}
+            <b>Quantidade:</b> {quantity}
           </li>
           <li>
-            <b>Destino:</b> {destiny}
+            <b>Intervalo de dias entre reposições:</b> {daysToReposition}
           </li>
           <li>
-            <b>Criado por:</b> {createdBy}
+            <b>Próxima reposição:</b> {nextRepositionDate}
           </li>
         </ul>
 

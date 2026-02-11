@@ -40,6 +40,8 @@ export const getReportTitle = (
       return "Relatório de Medicamentos por Residente";
     case "medicamentos_vencidos":
       return "Relatório de Medicamentos Vencidos";
+    case "expiringSoon":
+      return "Relatório de Medicamentos e Insumos Próximos ao Vencimento";
     default:
       return "Relatório";
   }

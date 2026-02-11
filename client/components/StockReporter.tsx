@@ -1,3 +1,4 @@
+import React from "react";
 import {
   Document,
   Page,
@@ -82,6 +83,21 @@ export interface ExpiredMedicineReport {
   dias_vencido: number;
   lote: string | null;
   setor: string;
+}
+
+export interface ExpiringSoonReport {
+  tipo: "medicamento" | "insumo";
+  nome: string;
+  principio_ativo?: string | null;
+  descricao?: string | null;
+  quantidade: number;
+  validade: string;
+  dias_para_vencer: number;
+  residente: string | null;
+  lote: string | null;
+  setor: string;
+  armario?: number | null;
+  gaveta?: number | null;
 }
 
 interface ResidentConsumptionReport {
@@ -206,6 +222,16 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     overflow: "hidden",
   },
+  cellNumeric: {
+    flex: 0.5,
+    paddingHorizontal: 2,
+    fontSize: 8,
+    textAlign: "center",
+    justifyContent: "center",
+    alignItems: "center",
+    flexWrap: "wrap",
+    overflow: "hidden",
+  },
 
   footer: {
     position: "absolute",
@@ -216,13 +242,26 @@ const styles = StyleSheet.create({
   },
 });
 
-function renderTable(headers: string[], rows: RowData[]) {
+interface ColumnConfig {
+  header: string;
+  key: string;
+  isNumeric?: boolean;
+}
+
+function renderTableWithConfig(
+  columns: ColumnConfig[],
+  rows: RowData[],
+  customCellRenderer?: (row: RowData, column: ColumnConfig, index: number) => React.ReactNode,
+) {
   return (
     <>
       <View style={styles.tableHeader}>
-        {headers.map((h, i) => (
-          <Text key={i} style={styles.cell}>
-            {h}
+        {columns.map((col, i) => (
+          <Text
+            key={i}
+            style={col.isNumeric ? styles.cellNumeric : styles.cell}
+          >
+            {col.header}
           </Text>
         ))}
       </View>
@@ -232,8 +271,12 @@ function renderTable(headers: string[], rows: RowData[]) {
           key={idx}
           style={[styles.tableRow, idx % 2 === 0 ? styles.striped : undefined]}
         >
-          {headers.map((h, i) => {
-            const key = h
+          {columns.map((col, i) => {
+            if (customCellRenderer) {
+              return <View key={i}>{customCellRenderer(row, col, i)}</View>;
+            }
+
+            const key = col.key
               .normalize("NFD")
               .replace(/[\u0300-\u036f]/g, "")
               .toLowerCase()
@@ -242,7 +285,10 @@ function renderTable(headers: string[], rows: RowData[]) {
             let value: any = row[key as keyof RowData] ?? "";
 
             return (
-              <Text key={i} style={styles.cell}>
+              <Text
+                key={i}
+                style={col.isNumeric ? styles.cellNumeric : styles.cell}
+              >
                 {value}
               </Text>
             );
@@ -251,6 +297,35 @@ function renderTable(headers: string[], rows: RowData[]) {
       ))}
     </>
   );
+}
+
+function renderTable(headers: string[], rows: RowData[]) {
+  const columns: ColumnConfig[] = headers.map((h) => {
+    const normalized = h
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/\s+/g, "_");
+    
+    const numericColumns = [
+      "quantidade",
+      "armario",
+      "gaveta",
+      "casela",
+      "dias_vencido",
+      "dias_para_vencer",
+      "consumo_mensal",
+      "item",
+    ];
+    
+    return {
+      header: h,
+      key: normalized,
+      isNumeric: numericColumns.includes(normalized),
+    };
+  });
+
+  return renderTableWithConfig(columns, rows);
 }
 
 export function createStockPDF(
@@ -262,7 +337,8 @@ export function createStockPDF(
     | TransferReport[]
     | PeriodMovementReport[]
     | ResidentMedicinesReport[]
-    | ExpiredMedicineReport[],
+    | ExpiredMedicineReport[]
+    | ExpiringSoonReport[],
   _reportMeta?: { period: MovementPeriod },
 ) {
   const isResidentConsumption = tipo === "residente_consumo";
@@ -270,6 +346,7 @@ export function createStockPDF(
   const isMovementsReport = tipo === "movimentacoes";
   const isResidentMedicines = tipo === "medicamentos_residente";
   const isExpiredMedicines = tipo === "medicamentos_vencidos";
+  const isExpiringSoon = tipo === "expiringSoon";
   const consumptionData = isResidentConsumption
     ? (data as ResidentConsumptionReport)
     : null;
@@ -283,6 +360,9 @@ export function createStockPDF(
     : null;
   const expiredMedicinesData = isExpiredMedicines
     ? (data as ExpiredMedicineReport[])
+    : null;
+  const expiringSoonData = isExpiringSoon
+    ? (data as ExpiringSoonReport[])
     : null;
 
   const movementsPayload = isMovementsReport ? (data as any) : null;
@@ -328,14 +408,16 @@ export function createStockPDF(
             {isResidentConsumption
               ? "CONSUMO DO RESIDENTE"
               : isTransferReport
-                ? "TRANSFERÊNCIAS DE SETOR"
+                ? "TRANSFERÊNCIAS DA FARMÁCIA PARA ENFERMARIA"
                 : isMovementsReport
                   ? movementHeading
                   : isResidentMedicines
                     ? "MEDICAMENTOS POR RESIDENTE"
                     : isExpiredMedicines
                       ? "MEDICAMENTOS VENCIDOS"
-                      : "ESTOQUE ATUAL"}
+                      : isExpiringSoon
+                        ? "MEDICAMENTOS E INSUMOS PRÓXIMOS AO VENCIMENTO"
+                        : "ESTOQUE ATUAL"}
           </Text>
         </View>
 
@@ -572,6 +654,51 @@ export function createStockPDF(
           </>
         )}
 
+        {isExpiringSoon && expiringSoonData && (
+          <>
+            <Text style={styles.sectionTitle}>
+              Medicamentos e Insumos Próximos ao Vencimento
+            </Text>
+
+            {expiringSoonData.length > 0 ? (
+              <>
+                {renderTableWithConfig(
+                  [
+                    { header: "Tipo", key: "tipo" },
+                    { header: "Nome", key: "nome" },
+                    { header: "Complemento", key: "complemento" },
+                    { header: "Quantidade", key: "quantidade", isNumeric: true },
+                    { header: "Validade", key: "validade" },
+                    { header: "Dias para Vencer", key: "dias_para_vencer", isNumeric: true },
+                    { header: "Setor", key: "setor" },
+                    { header: "Armário", key: "armario", isNumeric: true },
+                    { header: "Gaveta", key: "gaveta", isNumeric: true },
+                    { header: "Lote", key: "lote" },
+                    { header: "Residente", key: "residente" },
+                  ],
+                  expiringSoonData.map((item) => ({
+                    tipo: item.tipo === "medicamento" ? "Medicamento" : "Insumo",
+                    nome: item.nome || "-",
+                    complemento: item.principio_ativo || item.descricao || "-",
+                    quantidade: item.quantidade ?? "-",
+                    validade: item.validade || "-",
+                    dias_para_vencer: item.dias_para_vencer ?? "-",
+                    setor: item.setor || "-",
+                    armario: item.armario ?? "-",
+                    gaveta: item.gaveta ?? "-",
+                    lote: item.lote || "-",
+                    residente: item.residente || "-",
+                  })),
+                )}
+              </>
+            ) : (
+              <Text style={{ fontSize: 10, marginTop: 10, color: "#666" }}>
+                Nenhum item próximo ao vencimento encontrado.
+              </Text>
+            )}
+          </>
+        )}
+
         {tipo === "insumos_medicamentos" && (
           <>
             <Text style={styles.sectionTitle}>Medicamentos</Text>
@@ -612,71 +739,35 @@ export function createStockPDF(
 
         {isTransferReport && transferData && (
           <>
-            <Text style={styles.sectionTitle}>
-              Transferências de Farmácia para Enfermaria
-            </Text>
 
             {transferData.length > 0 ? (
               <>
-                <View style={[styles.tableHeader, { fontSize: 8 }]}>
-                  <Text style={[styles.cell, { fontSize: 8 }]}>Item</Text>
-                  <Text style={[styles.cell, { fontSize: 8 }]}>
-                    Complemento
-                  </Text>
-                  <Text style={[styles.cell, { fontSize: 8 }]}>Quantidade</Text>
-                  <Text style={[styles.cell, { fontSize: 8 }]}>Armário</Text>
-                  <Text style={[styles.cell, { fontSize: 8 }]}>Casela</Text>
-                  <Text style={[styles.cell, { fontSize: 8 }]}>Residente</Text>
-                  <Text style={[styles.cell, { fontSize: 8 }]}>Lote</Text>
-                  <Text style={[styles.cell, { fontSize: 8 }]}>Destino</Text>
-                  <Text style={[styles.cell, { fontSize: 8 }]}>Observação</Text>
-                </View>
-
-                {transferData.map((transfer, idx) => (
-                  <View
-                    key={idx}
-                    style={[
-                      styles.tableRow,
-                      idx % 2 === 0 ? styles.striped : undefined,
-                    ]}
-                  >
-                    <Text style={[styles.cell, { fontSize: 8 }]}>
-                      {transfer.nome || "-"}
-                    </Text>
-
-                    <Text style={[styles.cell, { fontSize: 8 }]}>
-                      {transfer.principio_ativo || transfer.descricao || "-"}
-                    </Text>
-
-                    <Text style={[styles.cell, { fontSize: 8 }]}>
-                      {transfer.quantidade}
-                    </Text>
-
-                    <Text style={[styles.cell, { fontSize: 8 }]}>
-                      {transfer.armario ?? "-"}
-                    </Text>
-
-                    <Text style={[styles.cell, { fontSize: 8 }]}>
-                      {transfer.casela ?? "-"}
-                    </Text>
-
-                    <Text style={[styles.cell, { fontSize: 8 }]}>
-                      {transfer.residente || "-"}
-                    </Text>
-
-                    <Text style={[styles.cell, { fontSize: 8 }]}>
-                      {transfer.lote || "-"}
-                    </Text>
-
-                    <Text style={[styles.cell, { fontSize: 8 }]}>
-                      {transfer.destino || "-"}
-                    </Text>
-
-                    <Text style={[styles.cell, { fontSize: 8 }]}>
-                      {transfer.observacao || "-"}
-                    </Text>
-                  </View>
-                ))}
+                {renderTableWithConfig(
+                  [
+                    { header: "Data", key: "data" },
+                    { header: "Item", key: "nome" },
+                    { header: "Complemento", key: "complemento" },
+                    { header: "Quantidade", key: "quantidade", isNumeric: true },
+                    { header: "Armário", key: "armario", isNumeric: true },
+                    { header: "Casela", key: "casela", isNumeric: true },
+                    { header: "Residente", key: "residente" },
+                    { header: "Lote", key: "lote" },
+                    { header: "Destino", key: "destino" },
+                    { header: "Observação", key: "observacao" },
+                  ],
+                  transferData.map((transfer) => ({
+                    data: transfer.data || "-",
+                    nome: transfer.nome || "-",
+                    complemento: transfer.principio_ativo || transfer.descricao || "-",
+                    quantidade: transfer.quantidade ?? "-",
+                    armario: transfer.armario ?? "-",
+                    casela: transfer.casela ?? "-",
+                    residente: transfer.residente || "-",
+                    lote: transfer.lote || "-",
+                    destino: transfer.destino || "-",
+                    observacao: transfer.observacao || "-",
+                  })),
+                )}
               </>
             ) : (
               <Text style={{ fontSize: 10, marginTop: 10, color: "#666" }}>
@@ -692,143 +783,37 @@ export function createStockPDF(
 
             {movementsData.length > 0 ? (
               <>
-                <View style={[styles.tableHeader, { fontSize: 8 }]}>
-                  <Text
-                    style={[styles.cell, { fontSize: 8, textAlign: "center" }]}
-                  >
-                    Tipo
-                  </Text>
-                  <Text
-                    style={[styles.cell, { fontSize: 8, textAlign: "center" }]}
-                  >
-                    Item
-                  </Text>
-                  <Text
-                    style={[styles.cell, { fontSize: 8, textAlign: "center" }]}
-                  >
-                    Complemento
-                  </Text>
-                  <Text
-                    style={[styles.cell, { fontSize: 8, textAlign: "center" }]}
-                  >
-                    Quantidade
-                  </Text>
-                  <Text
-                    style={[styles.cell, { fontSize: 8, textAlign: "center" }]}
-                  >
-                    Setor
-                  </Text>
-                  <Text
-                    style={[styles.cell, { fontSize: 8, textAlign: "center" }]}
-                  >
-                    Casela
-                  </Text>
-
-                  {showCabinetColumn ? (
-                    <Text style={styles.cell}>Armário</Text>
-                  ) : (
-                    <Text style={styles.cell}>Gaveta</Text>
-                  )}
-
-                  <Text
-                    style={[styles.cell, { fontSize: 8, textAlign: "center" }]}
-                  >
-                    Lote
-                  </Text>
-
-                  <Text
-                    style={[styles.cell, { fontSize: 8, textAlign: "center" }]}
-                  >
-                    Destino
-                  </Text>
-                </View>
-
-                {movementsData.map((movement, idx) => {
-                  return (
-                    <View
-                      key={idx}
-                      style={[
-                        styles.tableRow,
-                        idx % 2 === 0 ? styles.striped : undefined,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.cell,
-                          { fontSize: 8, textAlign: "center" },
-                        ]}
-                      >
-                        {movement.tipo_movimentacao}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.cell,
-                          { fontSize: 8, textAlign: "center" },
-                        ]}
-                      >
-                        {movement.nome || "-"}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.cell,
-                          { fontSize: 8, textAlign: "center" },
-                        ]}
-                      >
-                        {movement.principio_ativo ?? movement.descricao ?? "-"}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.cell,
-                          { fontSize: 8, textAlign: "center" },
-                        ]}
-                      >
-                        {movement.quantidade ?? "-"}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.cell,
-                          { fontSize: 8, textAlign: "center" },
-                        ]}
-                      >
-                        {movement.setor || "-"}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.cell,
-                          { fontSize: 8, textAlign: "center" },
-                        ]}
-                      >
-                        {movement.casela ?? "-"}
-                      </Text>
-                      {showCabinetColumn ? (
-                        <Text style={styles.cell}>
-                          {movement.armario ?? "-"}
-                        </Text>
-                      ) : (
-                        <Text style={styles.cell}>
-                          {movement.gaveta ?? "-"}
-                        </Text>
-                      )}
-                      <Text
-                        wrap
-                        style={[
-                          styles.cell,
-                          { fontSize: 8, textAlign: "center" },
-                        ]}
-                      >
-                        {movement.lote ?? "-"}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.cell,
-                          { fontSize: 8, textAlign: "center" },
-                        ]}
-                      >
-                        {movement.destino ?? "-"}
-                      </Text>
-                    </View>
-                  );
-                })}
+                {renderTableWithConfig(
+                  [
+                    { header: "Data/Hora", key: "data" },
+                    { header: "Tipo", key: "tipo_movimentacao" },
+                    { header: "Item", key: "nome" },
+                    { header: "Complemento", key: "complemento" },
+                    { header: "Quantidade", key: "quantidade", isNumeric: true },
+                    { header: "Setor", key: "setor" },
+                    { header: "Casela", key: "casela", isNumeric: true },
+                    {
+                      header: showCabinetColumn ? "Armário" : "Gaveta",
+                      key: showCabinetColumn ? "armario" : "gaveta",
+                      isNumeric: true,
+                    },
+                    { header: "Lote", key: "lote" },
+                    { header: "Destino", key: "destino" },
+                  ],
+                  movementsData.map((movement) => ({
+                    data: movement.data || "-",
+                    tipo_movimentacao: movement.tipo_movimentacao || "-",
+                    nome: movement.nome || "-",
+                    complemento: movement.principio_ativo ?? movement.descricao ?? "-",
+                    quantidade: movement.quantidade ?? "-",
+                    setor: movement.setor || "-",
+                    casela: movement.casela ?? "-",
+                    armario: showCabinetColumn ? (movement.armario ?? "-") : undefined,
+                    gaveta: !showCabinetColumn ? (movement.gaveta ?? "-") : undefined,
+                    lote: movement.lote ?? "-",
+                    destino: movement.destino ?? "-",
+                  })),
+                )}
               </>
             ) : (
               <Text style={{ fontSize: 8, marginTop: 10, color: "#666" }}>
@@ -857,43 +842,22 @@ export function createStockPDF(
                   </Text>
                 </View>
 
-                <View style={[styles.tableHeader, { fontSize: 8 }]}>
-                  <Text style={[styles.cell, { fontSize: 8 }]}>
-                    Medicamento
-                  </Text>
-                  <Text style={[styles.cell, { fontSize: 8 }]}>
-                    Princípio Ativo
-                  </Text>
-                  <Text style={[styles.cell, { fontSize: 8 }]}>Dosagem</Text>
-                  <Text style={[styles.cell, { fontSize: 8 }]}>Quantidade</Text>
-                  <Text style={[styles.cell, { fontSize: 8 }]}>Validade</Text>
-                </View>
-
-                {residentMedicinesData.map((item, idx) => (
-                  <View
-                    key={idx}
-                    style={[
-                      styles.tableRow,
-                      idx % 2 === 0 ? styles.striped : undefined,
-                    ]}
-                  >
-                    <Text style={[styles.cell, { fontSize: 8 }]}>
-                      {item.medicamento}
-                    </Text>
-                    <Text style={[styles.cell, { fontSize: 8 }]}>
-                      {item.principio_ativo}
-                    </Text>
-                    <Text style={[styles.cell, { fontSize: 8 }]}>
-                      {item.dosagem}
-                    </Text>
-                    <Text style={[styles.cell, { fontSize: 8 }]}>
-                      {item.quantidade}
-                    </Text>
-                    <Text style={[styles.cell, { fontSize: 8 }]}>
-                      {item.validade}
-                    </Text>
-                  </View>
-                ))}
+                {renderTableWithConfig(
+                  [
+                    { header: "Medicamento", key: "medicamento" },
+                    { header: "Princípio Ativo", key: "principio_ativo" },
+                    { header: "Dosagem", key: "dosagem" },
+                    { header: "Quantidade", key: "quantidade", isNumeric: true },
+                    { header: "Validade", key: "validade" },
+                  ],
+                  residentMedicinesData.map((item) => ({
+                    medicamento: item.medicamento || "-",
+                    principio_ativo: item.principio_ativo || "-",
+                    dosagem: item.dosagem || "-",
+                    quantidade: item.quantidade ?? "-",
+                    validade: item.validade || "-",
+                  })),
+                )}
               </>
             ) : (
               <Text style={{ fontSize: 10, marginTop: 10, color: "#666" }}>
@@ -909,123 +873,28 @@ export function createStockPDF(
 
             {expiredMedicinesData.length > 0 ? (
               <>
-                <View style={[styles.tableHeader, { fontSize: 8 }]}>
-                  <Text
-                    style={[styles.cell, { fontSize: 8, textAlign: "center" }]}
-                  >
-                    Medicamento
-                  </Text>
-                  <Text
-                    style={[styles.cell, { fontSize: 8, textAlign: "center" }]}
-                  >
-                    Princípio Ativo
-                  </Text>
-                  <Text
-                    style={[styles.cell, { fontSize: 8, textAlign: "center" }]}
-                  >
-                    Quantidade
-                  </Text>
-                  <Text
-                    style={[styles.cell, { fontSize: 8, textAlign: "center" }]}
-                  >
-                    Validade
-                  </Text>
-                  <Text
-                    style={[styles.cell, { fontSize: 8, textAlign: "center" }]}
-                  >
-                    Dias Vencido
-                  </Text>
-                  <Text
-                    style={[styles.cell, { fontSize: 8, textAlign: "center" }]}
-                  >
-                    Lote
-                  </Text>
-                  <Text
-                    style={[styles.cell, { fontSize: 8, textAlign: "center" }]}
-                  >
-                    Setor
-                  </Text>
-                  <Text
-                    style={[styles.cell, { fontSize: 8, textAlign: "center" }]}
-                  >
-                    Residente
-                  </Text>
-                </View>
-
-                {expiredMedicinesData.map((item, idx) => (
-                  <View
-                    key={idx}
-                    style={[
-                      styles.tableRow,
-                      idx % 2 === 0 ? styles.striped : undefined,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.cell,
-                        { fontSize: 8, textAlign: "center" },
-                      ]}
-                    >
-                      {item.medicamento || "-"}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.cell,
-                        { fontSize: 8, textAlign: "center" },
-                      ]}
-                    >
-                      {item.principio_ativo || "-"}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.cell,
-                        { fontSize: 8, textAlign: "center" },
-                      ]}
-                    >
-                      {item.quantidade ?? "-"}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.cell,
-                        { fontSize: 8, textAlign: "center" },
-                      ]}
-                    >
-                      {item.validade || "-"}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.cell,
-                        { fontSize: 8, textAlign: "center" },
-                      ]}
-                    >
-                      {item.dias_vencido ?? "-"}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.cell,
-                        { fontSize: 8, textAlign: "center" },
-                      ]}
-                    >
-                      {item.lote || "-"}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.cell,
-                        { fontSize: 8, textAlign: "center" },
-                      ]}
-                    >
-                      {item.setor || "-"}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.cell,
-                        { fontSize: 8, textAlign: "center" },
-                      ]}
-                    >
-                      {item.residente || "-"}
-                    </Text>
-                  </View>
-                ))}
+                {renderTableWithConfig(
+                  [
+                    { header: "Medicamento", key: "medicamento" },
+                    { header: "Princípio Ativo", key: "principio_ativo" },
+                    { header: "Quantidade", key: "quantidade", isNumeric: true },
+                    { header: "Validade", key: "validade" },
+                    { header: "Dias Vencido", key: "dias_vencido", isNumeric: true },
+                    { header: "Lote", key: "lote" },
+                    { header: "Setor", key: "setor" },
+                    { header: "Residente", key: "residente" },
+                  ],
+                  expiredMedicinesData.map((item) => ({
+                    medicamento: item.medicamento || "-",
+                    principio_ativo: item.principio_ativo || "-",
+                    quantidade: item.quantidade ?? "-",
+                    validade: item.validade || "-",
+                    dias_vencido: item.dias_vencido ?? "-",
+                    lote: item.lote || "-",
+                    setor: item.setor || "-",
+                    residente: item.residente || "-",
+                  })),
+                )}
               </>
             ) : (
               <Text style={{ fontSize: 10, marginTop: 10, color: "#666" }}>

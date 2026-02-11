@@ -16,8 +16,8 @@ interface NotificationReminderModalProps {
   open: boolean;
   events: Array<{
     id: number;
-    residente: { nome: string };
-    medicamento: { nome: string };
+    residente_nome;
+    medicamento_nome;
     destino: string;
     data_prevista: string;
   }>;
@@ -57,12 +57,12 @@ const NotificationReminderModal: FC<NotificationReminderModalProps> = ({
               >
                 <CardContent className="p-4 space-y-2">
                   <span className="font-semibold text-base text-slate-900">
-                    {ev.residente.nome}
+                    {ev.residente_nome}
                   </span>
 
                   <div className="text-sm text-slate-700">
                     <span className="font-semibold">Medicamento: </span>
-                    {ev.medicamento.nome}
+                    {ev.medicamento_nome}
                   </div>
 
                   <div className="text-sm text-slate-700">

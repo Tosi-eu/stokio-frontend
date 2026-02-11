@@ -12,8 +12,12 @@ import { toast } from "@/hooks/use-toast.hook";
 import { EventStatus, NotificationDestiny } from "@/utils/enums";
 import { parseDateFromString } from "@/utils/utils";
 import { ptBR } from "date-fns/locale";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DatePicker from "react-datepicker";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Command, CommandInput, CommandGroup, CommandItem } from "./ui/command";
+import { ChevronDown } from "lucide-react";
+import { CommandSelect } from "./CommandSelect";
 
 interface CreateNotificationFormProps {
   editData?: any;
@@ -41,6 +45,7 @@ export default function CreateNotificationForm({
     criado_por: user?.id,
     status: EventStatus.PENDENTE,
     id: undefined as number | undefined,
+    tipo_evento: "",
   });
 
   const NotificationDestinyLabel: Record<NotificationDestiny, string> = {
@@ -59,6 +64,7 @@ export default function CreateNotificationForm({
         criado_por: editData.criado_por,
         status: editData.status,
         id: editData.id,
+        tipo_evento: "medicamento",
       });
     } else {
       setForm({
@@ -69,6 +75,7 @@ export default function CreateNotificationForm({
         criado_por: user?.id,
         status: EventStatus.PENDENTE,
         id: undefined,
+        tipo_evento: "medicamento",
       });
     }
   }, [editData, user?.id]);
@@ -112,18 +119,10 @@ export default function CreateNotificationForm({
     try {
       if (form.id) {
         await patchNotificationEvent(form.id, form);
-        toast({
-          title: "Notificação atualizada",
-          variant: "success",
-          duration: 3000,
-        });
+        toast({ title: "Notificação atualizada", variant: "success", duration: 3000 });
       } else {
         await createNotificationEvent(form);
-        toast({
-          title: "Notificação criada",
-          variant: "success",
-          duration: 3000,
-        });
+        toast({ title: "Notificação criada", variant: "success", duration: 3000 });
       }
 
       reload();
@@ -150,93 +149,36 @@ export default function CreateNotificationForm({
       onSubmit={handleSubmit}
       className="space-y-4 pb-20"
     >
-      <div className="flex flex-col">
-        <label
-          htmlFor="medicamento"
-          className="mb-1 text-sm font-medium text-slate-700"
-        >
-          Medicamento
-        </label>
-        <select
-          id="medicamento"
-          className="border rounded p-2 w-full bg-white"
-          value={form.medicamento_id}
-          onChange={(e) =>
-            setForm({ ...form, medicamento_id: Number(e.target.value) })
-          }
-        >
-          <option value={0}>Selecione o Medicamento</option>
-          {medicamentos.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.nome}
-            </option>
-          ))}
-        </select>
-      </div>
 
-      <div className="flex flex-col">
-        <label
-          htmlFor="residente"
-          className="mb-1 text-sm font-medium text-slate-700"
-        >
-          Residente
-        </label>
-        <select
-          id="residente"
-          className="border rounded p-2 w-full bg-white"
-          value={form.residente_id}
-          onChange={(e) =>
-            setForm({ ...form, residente_id: Number(e.target.value) })
-          }
-        >
-          <option value={0}>Selecione o Residente</option>
-          {residentes.map((r) => (
-            <option key={r.casela} value={r.casela}>
-              {r.name}
-            </option>
-          ))}
-        </select>
-      </div>
+    <CommandSelect
+      label="Medicamento"
+      value={medicamentos.find((m) => m.id === form.medicamento_id)}
+      items={medicamentos}
+      onSelect={(m) => setForm({ ...form, medicamento_id: m.id })}
+      getLabel={(m) => m.nome}
+    />
 
-      <div className="flex flex-col">
-        <label
-          htmlFor="destino"
-          className="mb-1 text-sm font-medium text-slate-700"
-        >
-          Destino
-        </label>
-        <select
-          id="destino"
-          className="border rounded p-2 w-full bg-white"
-          value={form.destino}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              destino: e.target.value as NotificationDestiny,
-            })
-          }
-        >
-          {Object.values(NotificationDestiny).map((destiny) => (
-            <option key={destiny} value={destiny}>
-              {NotificationDestinyLabel[destiny]}
-            </option>
-          ))}
-        </select>
-      </div>
+    <CommandSelect
+      label="Residente"
+      value={residentes.find((r) => r.casela === form.residente_id)}
+      items={residentes}
+      onSelect={(r) => setForm({ ...form, residente_id: r.casela })}
+      getLabel={(r) => r.name}
+    />
 
+    <CommandSelect
+      label="Destino"
+      value={form.destino}
+      items={Object.values(NotificationDestiny)}
+      onSelect={(d) => setForm({ ...form, destino: d })}
+      getLabel={(d) => NotificationDestinyLabel[d]}
+    />
+    
       <div className="flex flex-col">
-        <label
-          htmlFor="data_prevista"
-          className="mb-1 text-sm font-medium text-slate-700"
-        >
-          Data Prevista
-        </label>
+        <label className="mb-1 text-sm font-medium text-slate-700">Data Prevista</label>
         <DatePicker
-          id="data_prevista"
           selected={form.data_prevista}
-          onChange={(date: Date | null) =>
-            setForm({ ...form, data_prevista: date })
-          }
+          onChange={(date: Date | null) => setForm({ ...form, data_prevista: date })}
           dateFormat="dd/MM/yyyy"
           locale={ptBR}
           placeholderText="Selecione a data"

@@ -1,14 +1,5 @@
+import { MeasurementUnit } from "@/pages/RegisterMedicine";
 import { z } from "zod";
-
-export const unitsOfMeasurement = [
-  "mg",
-  "ml",
-  "g",
-  "mcg",
-  "mg/ml",
-  "UI",
-  "gts",
-];
 
 export const medicineSchema = z.object({
   name: z
@@ -29,9 +20,12 @@ export const medicineSchema = z.object({
   measurementUnit: z
     .string()
     .min(1, "Unidade de medida é obrigatória")
-    .refine((val) => unitsOfMeasurement.includes(val), {
-      message: "Unidade de medida inválida",
-    }),
+    .refine(
+      (val) => Object.values(MeasurementUnit).includes(val as MeasurementUnit),
+      {
+        message: "Unidade de medida inválida",
+      },
+    ),
   minimumStock: z
     .string()
     .optional()

@@ -117,6 +117,8 @@ export default function EditStock() {
       casela_id: null,
       tipo: ItemStockType.GERAL,
       preco: "",
+      observacao: null,
+      dias_para_repor: null,
     },
   });
 
@@ -130,6 +132,7 @@ export default function EditStock() {
       try {
         if (location.state?.item) {
           const item = location.state.item as StockItem;
+          console.log("Carregando item para edição:", item);
           setStockItem(item);
 
           let validadeDate: Date | null = null;
@@ -181,6 +184,8 @@ export default function EditStock() {
             casela_id: typeof item.casela === "number" ? item.casela : null,
             tipo: validTipo,
             preco: item.preco ? item.preco.toFixed(2).replace(".", ",") : "",
+            observacao: item.detail ?? "",
+            dias_para_repor: item.daysToReplacement ?? null,
           });
         } else {
           toast({
@@ -261,11 +266,9 @@ export default function EditStock() {
           formData.preco && formData.preco.trim() !== ""
             ? parseFloat(formData.preco.replace(",", "."))
             : null,
+        observacao: formData.observacao || null,
+        dias_para_repor: formData.dias_para_repor ?? null,
       };
-
-      if (isMedicine) {
-        updatePayload.origem = formData.origem || undefined;
-      }
 
       await updateStockItem(
         stockItem.id,
@@ -649,6 +652,41 @@ export default function EditStock() {
                     {errors.lote.message}
                   </p>
                 )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1 col-span-2">
+                  <Label htmlFor="observacao">Observação</Label>
+                  <Input
+                    id="observacao"
+                    {...register("observacao")}
+                    maxLength={255}
+                    disabled={isSubmitting}
+                    placeholder="Observações adicionais"
+                  />
+                  {errors.observacao && (
+                    <p className="text-sm text-red-600 mt-1">
+                      {errors.observacao.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="dias_para_repor">Dias para repor</Label>
+                  <Input
+                    id="dias_para_repor"
+                    type="number"
+                    {...register("dias_para_repor", { valueAsNumber: true })}
+                    min={0}
+                    disabled={isSubmitting}
+                    placeholder="Ex: 30"
+                  />
+                  {errors.dias_para_repor && (
+                    <p className="text-sm text-red-600 mt-1">
+                      {errors.dias_para_repor.message}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1">

@@ -178,6 +178,8 @@ export interface StockItem {
   expirationMsg: string;
   quantityMsg: string;
   destino?: string | null;
+  detail?: string | null;
+  daysToReplacement?: number | null;
 }
 
 export interface InputFormProps {

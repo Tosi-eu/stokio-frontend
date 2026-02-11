@@ -7,6 +7,7 @@ export interface StockListFilters {
   casela?: string;
   armario?: string;
   setor?: string;
+  lote?: string;
 }
 
 export interface StockFilterOption {
@@ -18,6 +19,7 @@ export interface StockFilterOptions {
   sectors: StockFilterOption[];
   cabinets: StockFilterOption[];
   caselas: StockFilterOption[];
+  lots: StockFilterOption[];
 }
 
 export async function fetchStockPage(
@@ -31,6 +33,7 @@ export async function fetchStockPage(
   if (filters.casela?.trim()) filterParams.casela = filters.casela.trim();
   if (filters.armario?.trim()) filterParams.cabinet = filters.armario.trim();
   if (filters.setor?.trim()) filterParams.sector = filters.setor.trim();
+  if (filters.lote?.trim()) filterParams.lot = filters.lote.trim();
 
   const res = await getStock(page, limit, filterParams, urlFilter ?? undefined);
   return {
@@ -69,6 +72,7 @@ export function formatStockItems(raw: unknown[]): StockItem[] {
       destination: item.destino ?? null,
       suspended_at: item.suspenso_em ? new Date(item.suspenso_em) : null,
       detail: item.observacao ?? null,
+      daysToReplacement: item.dias_para_repor ?? null,
       itemType: item.tipo_item,
       sector: item.setor,
       lot: item.lote ?? null,
@@ -102,9 +106,20 @@ export function buildFilterOptions(allRawData: unknown[]): StockFilterOptions {
     .sort((a, b) => a - b)
     .map((id) => ({ value: String(id), label: `Casela ${id}` }));
 
+  const lotes = Array.from(
+    new Set(
+      raw
+        .map((i: any) => i.lote)
+        .filter((l): l is string => typeof l === "string" && l.trim() !== ""),
+    ),
+  )
+    .sort((a, b) => a.localeCompare(b))
+    .map((lote) => ({ value: lote, label: lote }));
+
   return {
     sectors,
     cabinets: cabinetIds,
     caselas: caselaIds,
+    lots: lotes,
   };
 }

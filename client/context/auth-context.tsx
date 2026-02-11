@@ -41,14 +41,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
 
-        initSessionTimeout(
-          () => {
-            handleLogout();
-          },
-          () => {
-            console.warn("Sua sessão expirará em breve por inatividade");
-          },
-        );
       } catch (error) {
         console.error("Erro ao restaurar sessão:", error);
         sessionStorage.removeItem("user");
@@ -74,25 +66,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     sessionStorage.setItem("user", JSON.stringify(loggedUser));
 
-    initSessionTimeout(
-      () => {
-        handleLogout();
-      },
-      () => {
-        console.warn("Sua sessão expirará em breve por inatividade");
-      },
-    );
+    // Session timeout disabled - no automatic logout
+    // initSessionTimeout(
+    //   () => {
+    //     handleLogout();
+    //   },
+    //   () => {
+    //     console.warn("Sua sessão expirará em breve por inatividade");
+    //   },
+    // );
   };
 
   const logout = async () => {
     await handleLogout();
   };
 
-  useEffect(() => {
-    if (user) {
-      resetInactivityTimer();
-    }
-  }, [user]);
+  // Session timeout disabled - no automatic logout
+  // useEffect(() => {
+  //   if (user) {
+  //     resetInactivityTimer();
+  //   }
+  // }, [user]);
 
   if (loading) return null;
 

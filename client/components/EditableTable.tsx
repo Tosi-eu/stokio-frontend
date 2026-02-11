@@ -231,6 +231,13 @@ export default function EditableTable({
       case "quantity":
         return renderQuantityTag(row);
 
+      case "daysToReplacement": {
+        const value = row[colKey];
+        if (value === null || value === undefined) return "-";
+        const numValue = typeof value === "number" ? value : Number(value);
+        return isNaN(numValue) ? "-" : `${numValue} ${numValue === 1 ? "dia" : "dias"}`;
+      }
+
       default: {
         const value = row[colKey];
         return value !== null && value !== undefined ? String(value) : "-";
