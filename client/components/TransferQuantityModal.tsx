@@ -89,8 +89,19 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
   const hasCaselaSelected = selectedCasela.length > 0;
   const hasDestination = destination.trim().length > 0;
 
+  // Validação: se dias_para_repor está preenchido, casela deve estar selecionada (exceto para estoque individual)
+  const hasValidCaselaForDaysToReplacement = 
+    isIndividualStock || 
+    (isMedicamento && !isGeneralUse && hasCaselaSelected);
+  
+  const isValidDaysToReplacement = 
+    !daysToReplacement || 
+    daysToReplacement === "" || 
+    hasValidCaselaForDaysToReplacement;
+
   const canConfirm =
     isValidQuantity &&
+    isValidDaysToReplacement &&
     (isIndividual ||
       (isMedicamentoGeral && (isGeneralUse || hasCaselaSelected)) ||
       (isInsumoGeral && (hasCaselaSelected || hasDestination)));
@@ -111,12 +122,19 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
         ? destination.trim()
         : null;
 
+    // Garantir que dias_para_repor só seja enviado quando há casela válida
+    const hasValidCasela = isIndividualStock || (!isGeneralUse && hasCaselaSelected);
+    const shouldSendDaysToReplacement = 
+      !isGeneralUse && 
+      isMedicamento && 
+      daysToReplacement !== "" && 
+      hasValidCasela;
+
     onConfirm(quantityNum, casela, destino, details.trim() || null, {
       bypassCasela: isGeneralUse,
-      dias_para_repor:
-        !isGeneralUse && daysToReplacement !== ""
-          ? Number(daysToReplacement)
-          : null,
+      dias_para_repor: shouldSendDaysToReplacement
+        ? Number(daysToReplacement)
+        : null,
     });
   };
 
@@ -183,6 +201,11 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                 onChange={(e) => setDaysToReplacement(e.target.value)}
                 disabled={loading}
               />
+              {daysToReplacement !== "" && !isIndividualStock && !hasCaselaSelected && (
+                <p className="text-xs text-amber-600">
+                  Selecione uma casela para definir os dias para reposição
+                </p>
+              )}
             </div>
           )}
 

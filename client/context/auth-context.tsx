@@ -41,15 +41,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
 
-        // Session timeout disabled - no automatic logout
-        // initSessionTimeout(
-        //   () => {
-        //     handleLogout();
-        //   },
-        //   () => {
-        //     console.warn("Sua sessão expirará em breve por inatividade");
-        //   },
-        // );
       } catch (error) {
         console.error("Erro ao restaurar sessão:", error);
         sessionStorage.removeItem("user");

@@ -256,6 +256,7 @@ import { lazy, Suspense } from "react";
       { key: "cabinet", label: "Armário", editable: false },
       { key: "drawer", label: "Gaveta", editable: false },
       { key: "casela", label: "Casela", editable: false },
+      { key: "daysToReplacement", label: "Dias para Repor", editable: false },
       { key: "origin", label: "Origem", editable: false },
       { key: "sector", label: "Setor", editable: false },
       { key: "destination", label: "Destino", editable: false },
