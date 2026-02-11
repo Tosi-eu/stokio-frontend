@@ -137,15 +137,17 @@ interface RowData {
   insumo?: string;
   principio_ativo?: string;
   quantidade?: number | string;
-  validade: string;
+  validade?: string;
   residente?: string;
   medicamento?: string;
-  casela?: number;
+  casela?: number | string;
   data?: string;
   consumo_mensal?: string | number;
-  armario?: number;
+  armario?: number | string;
+  gaveta?: number | string;
   medicamentos?: RowData[];
   insumos?: RowData[];
+  [key: string]: any; // Permite propriedades adicionais para flexibilidade
 }
 
 const styles = StyleSheet.create({
@@ -439,32 +441,37 @@ export function createStockPDF(
               <>
                 <View style={styles.tableHeader}>
                   <Text style={styles.cell}>Nome do Medicamento</Text>
-                  <Text style={styles.cell}>Dosagem</Text>
                   <Text style={styles.cell}>Preço Unitário (R$)</Text>
                   <Text style={styles.cell}>Observação</Text>
                 </View>
-                {consumptionData.medicamentos.map((med, idx) => (
-                  <View
-                    key={idx}
-                    style={[
-                      styles.tableRow,
-                      idx % 2 === 0 ? styles.striped : undefined,
-                    ]}
-                  >
-                    <Text style={styles.cell}>{med.nome || "-"}</Text>
-                    <Text style={styles.cell}>
-                      {med.dosagem && med.unidade_medida
-                        ? `${med.dosagem} ${med.unidade_medida}`
-                        : med.dosagem || med.unidade_medida || "-"}
-                    </Text>
-                    <Text style={styles.cell}>
-                      {med.preco !== null && med.preco !== undefined
-                        ? `R$ ${Number(med.preco).toFixed(2)}`
-                        : "-"}
-                    </Text>
-                    <Text style={styles.cell}>{med.observacao || "-"}</Text>
-                  </View>
-                ))}
+                {consumptionData.medicamentos.map((med, idx) => {
+                  const nomeCompleto = [
+                    med.nome || "",
+                    med.dosagem || "",
+                    med.unidade_medida || "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")
+                    .trim() || "-";
+                  
+                  return (
+                    <View
+                      key={idx}
+                      style={[
+                        styles.tableRow,
+                        idx % 2 === 0 ? styles.striped : undefined,
+                      ]}
+                    >
+                      <Text style={styles.cell}>{nomeCompleto}</Text>
+                      <Text style={styles.cell}>
+                        {med.preco !== null && med.preco !== undefined
+                          ? `R$ ${Number(med.preco).toFixed(2)}`
+                          : "-"}
+                      </Text>
+                      <Text style={styles.cell}>{med.observacao || "-"}</Text>
+                    </View>
+                  );
+                })}
               </>
             ) : (
               <Text style={{ fontSize: 10, marginTop: 10, color: "#666" }}>
@@ -846,14 +853,12 @@ export function createStockPDF(
                   [
                     { header: "Medicamento", key: "medicamento" },
                     { header: "Princípio Ativo", key: "principio_ativo" },
-                    { header: "Dosagem", key: "dosagem" },
                     { header: "Quantidade", key: "quantidade", isNumeric: true },
                     { header: "Validade", key: "validade" },
                   ],
                   residentMedicinesData.map((item) => ({
                     medicamento: item.medicamento || "-",
                     principio_ativo: item.principio_ativo || "-",
-                    dosagem: item.dosagem || "-",
                     quantidade: item.quantidade ?? "-",
                     validade: item.validade || "-",
                   })),

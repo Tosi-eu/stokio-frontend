@@ -89,7 +89,6 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
   const hasCaselaSelected = selectedCasela.length > 0;
   const hasDestination = destination.trim().length > 0;
 
-  // Validação: se dias_para_repor está preenchido, casela deve estar selecionada (exceto para estoque individual)
   const hasValidCaselaForDaysToReplacement = 
     isIndividualStock || 
     (isMedicamento && !isGeneralUse && hasCaselaSelected);
