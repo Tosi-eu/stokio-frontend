@@ -180,6 +180,7 @@ export interface StockItem {
   destino?: string | null;
   detail?: string | null;
   daysToReplacement?: number | null;
+  medicamentoId?: number | null;
 }
 
 export interface InputFormProps {

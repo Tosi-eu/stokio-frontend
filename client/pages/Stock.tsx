@@ -676,6 +676,8 @@ import { lazy, Suspense } from "react";
                 isGeneralMedicine:
                   pendingAction.row.tipo === ItemStockType.GERAL,
                 casela: pendingAction.row.casela ?? null,
+                daysToReplacement: pendingAction.row.daysToReplacement ?? null,
+                medicamentoId: pendingAction.row.medicamentoId ?? null,
               }
             : null
         }

@@ -19,6 +19,7 @@ import {
 } from "./ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Check, ChevronDown } from "lucide-react";
+import { getDaysForReplacementForNursing } from "@/api/requests";
 
 interface TransferQuantityModalProps {
   open: boolean;
@@ -29,6 +30,10 @@ interface TransferQuantityModalProps {
     itemType?: "medicamento" | "insumo";
     isGeneralMedicine?: boolean;
     casela?: number | null;
+    /** Existing days-to-replacement for this stock row (e.g. already in nursing) */
+    daysToReplacement?: number | null;
+    /** Medicine id; used to fetch saved dias_para_repor when user selects a casela */
+    medicamentoId?: number | null;
   } | null;
   residents?: Array<{ casela: number; name: string }>;
   onConfirm: (
@@ -61,6 +66,9 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
   const [details, setDetails] = useState("");
   const [isGeneralUse, setIsGeneralUse] = useState(false);
   const [daysToReplacement, setDaysToReplacement] = useState("");
+  const [fetchedDiasParaRepor, setFetchedDiasParaRepor] = useState<
+    number | null
+  >(null);
 
   const isInput = item?.itemType === "insumo";
   const isGeneralMedicine = item?.isGeneralMedicine === true;
@@ -73,9 +81,49 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
       setDetails("");
       setCaselaSearch("");
       setIsGeneralUse(false);
-      setDaysToReplacement("");
+      setFetchedDiasParaRepor(null);
+      setDaysToReplacement(
+        item?.daysToReplacement != null ? String(item.daysToReplacement) : "",
+      );
     }
-  }, [open]);
+  }, [open, item?.daysToReplacement]);
+
+  useEffect(() => {
+    if (
+      !open ||
+      !item?.medicamentoId ||
+      !selectedCasela ||
+      isGeneralUse ||
+      item.itemType !== "medicamento"
+    ) {
+      setFetchedDiasParaRepor(null);
+      return;
+    }
+    let cancelled = false;
+    getDaysForReplacementForNursing(item.medicamentoId, Number(selectedCasela))
+      .then((res: any) => {
+        if (!cancelled && res.dias_para_repor != null) {
+          setFetchedDiasParaRepor(Number(res.dias_para_repor));
+          setDaysToReplacement(String(res.dias_para_repor));
+        } else {
+          setFetchedDiasParaRepor(null);
+          setDaysToReplacement("");
+        }
+      })
+      .catch(() => {
+        setFetchedDiasParaRepor(null);
+        setDaysToReplacement("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    open,
+    item?.medicamentoId,
+    item?.itemType,
+    selectedCasela,
+    isGeneralUse,
+  ]);
 
   const maxQuantity = item?.quantity || 0;
   const quantityNum = parseInt(quantity, 10);
@@ -89,14 +137,22 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
   const hasCaselaSelected = selectedCasela.length > 0;
   const hasDestination = destination.trim().length > 0;
 
-  const hasValidCaselaForDaysToReplacement = 
-    isIndividualStock || 
+  // Saved value: from current row (nursing stock) or from API (previous transfer to this casela)
+  const effectiveReadOnlyDias =
+    item?.daysToReplacement ?? fetchedDiasParaRepor ?? null;
+
+  const hasValidCaselaForDaysToReplacement =
+    isIndividualStock ||
     (isMedicamento && !isGeneralUse && hasCaselaSelected);
-  
-  const isValidDaysToReplacement = 
-    !daysToReplacement || 
-    daysToReplacement === "" || 
-    hasValidCaselaForDaysToReplacement;
+
+  const hasValidDiasValue =
+    effectiveReadOnlyDias != null ||
+    (hasValidCaselaForDaysToReplacement && daysToReplacement !== "");
+
+  const isValidDaysToReplacement =
+    !hasValidCaselaForDaysToReplacement ||
+    hasValidDiasValue ||
+    daysToReplacement === "";
 
   const canConfirm =
     isValidQuantity &&
@@ -123,17 +179,18 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
 
     // Garantir que dias_para_repor só seja enviado quando há casela válida
     const hasValidCasela = isIndividualStock || (!isGeneralUse && hasCaselaSelected);
-    const shouldSendDaysToReplacement = 
-      !isGeneralUse && 
-      isMedicamento && 
-      daysToReplacement !== "" && 
-      hasValidCasela;
+    const valueToSend =
+      effectiveReadOnlyDias ??
+      (daysToReplacement !== "" ? Number(daysToReplacement) : null);
+    const shouldSendDaysToReplacement =
+      !isGeneralUse &&
+      isMedicamento &&
+      hasValidCasela &&
+      valueToSend != null;
 
     onConfirm(quantityNum, casela, destino, details.trim() || null, {
       bypassCasela: isGeneralUse,
-      dias_para_repor: shouldSendDaysToReplacement
-        ? Number(daysToReplacement)
-        : null,
+      dias_para_repor: shouldSendDaysToReplacement ? valueToSend : null,
     });
   };
 
@@ -174,47 +231,6 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               disabled={loading}
-            />
-          </div>
-
-          {isInput && !isIndividualStock && !isGeneralUse && (
-            <div className="space-y-2">
-              <Label>Destino</Label>
-              <Input
-                placeholder="Digite o destino (opcional)"
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-          )}
-
-          {!isGeneralUse && isMedicamento && (
-            <div className="space-y-2">
-              <Label>Dias para repor</Label>
-              <Input
-                type="number"
-                min={0}
-                placeholder="Ex: 7"
-                value={daysToReplacement}
-                onChange={(e) => setDaysToReplacement(e.target.value)}
-                disabled={loading}
-              />
-              {daysToReplacement !== "" && !isIndividualStock && !hasCaselaSelected && (
-                <p className="text-xs text-amber-600">
-                  Selecione uma casela para definir os dias para reposição
-                </p>
-              )}
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label>Observação</Label>
-            <Input
-              placeholder="Digite uma observação (opcional)"
-              value={details}
-              onChange={(e) => setDetails(e.target.value)}
-              disabled={loading || isGeneralUse}
             />
           </div>
 
@@ -274,7 +290,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                 </PopoverContent>
               </Popover>
 
-              {isGeneralMedicine && !isInput && (
+              {!isInput && (
                 <div
                   className={`flex items-start gap-2 rounded-md border p-3 ${
                     isGeneralUse ? "border-red-400 bg-red-50" : "border-muted"
@@ -292,6 +308,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                         setSelectedCasela("");
                         setDetails("");
                         setDaysToReplacement("");
+                        setFetchedDiasParaRepor(null);
                       }
                     }}
                     className="mt-1"
@@ -306,6 +323,63 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
               )}
             </div>
           )}
+
+          {isInput && !isIndividualStock && !isGeneralUse && (
+            <div className="space-y-2">
+              <Label>Destino</Label>
+              <Input
+                placeholder="Digite o destino (opcional)"
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+          )}
+
+          {!isGeneralUse && isMedicamento && (
+            <div className="space-y-2">
+              <Label>Dias para repor</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="Ex: 7"
+                value={daysToReplacement}
+                onChange={(e) => setDaysToReplacement(e.target.value)}
+                disabled={loading}
+                className={
+                  effectiveReadOnlyDias != null
+                    ? "border-sky-200 bg-sky-50 text-sky-800 font-medium"
+                    : undefined
+                }
+                readOnly={effectiveReadOnlyDias != null}
+              />
+              {daysToReplacement === "" &&
+                !isIndividualStock &&
+                hasCaselaSelected && (
+                  <p className="text-xs text-slate-500">
+                    Digite os dias para reposição (ou aguarde o carregamento)
+                  </p>
+                )}
+              {daysToReplacement === "" &&
+                !isIndividualStock &&
+                !hasCaselaSelected && (
+                  <p className="text-xs text-amber-600">
+                    Selecione uma casela para buscar ou definir os dias para
+                    reposição
+                  </p>
+                )}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label>Observação</Label>
+            <Input
+              placeholder="Digite uma observação (opcional)"
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
+              disabled={loading || isGeneralUse}
+            />
+          </div>
         </div>
 
         <DialogFooter>

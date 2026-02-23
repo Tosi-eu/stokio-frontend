@@ -244,15 +244,13 @@ export default function Dashboard() {
     async function fetchReminders() {
       try {
         const res = await getTodayMedicineNotifications();
-  
-        const unseenNotifications = res.items.filter((n: any) => n.visto !== true);
-  
-        if (unseenNotifications.length > 0) {
-          setNotifList(unseenNotifications);
+
+        if (res.items.length > 0) {
+          setNotifList(res.items);
           setNotifOpen(true);
-  
+
           await Promise.all(
-            unseenNotifications.map((n: any) =>
+            res.items.map((n: any) =>
               updateNotification(n.id, { visto: true }),
             ),
           );
@@ -270,7 +268,7 @@ export default function Dashboard() {
         });
       }
     }
-  
+
     fetchReminders();
   }, []);
   
@@ -279,18 +277,14 @@ export default function Dashboard() {
     async function fetchReplacementReminders() {
       try {
         const res = await getTomorrowReplacementNotifications();
-  
-        const unseenItems = res.items.filter(
-          (item: any) => item.visto !== true,
-        );
-  
-        if (unseenItems.length > 0) {
-          setReplacementItems(unseenItems);
+
+        if (res.items.length > 0) {
+          setReplacementItems(res.items);
           setReplacementOpen(true);
         }
 
         await Promise.all(
-          unseenItems.map((n: any) =>
+          res.items.map((n: any) =>
             updateNotification(n.id, { visto: true }),
           ),
         );
@@ -298,7 +292,7 @@ export default function Dashboard() {
         /* NO-OP */
       }
     }
-  
+
     fetchReplacementReminders();
   }, []);  
 

@@ -232,6 +232,7 @@ export const getNotifications = async ({
   status,
   date,
   residente_nome,
+  visto,
 }: {
   page?: number;
   limit?: number;
@@ -239,11 +240,21 @@ export const getNotifications = async ({
   status?: string;
   date?: "today" | "tomorrow" | string;
   residente_nome?: string;
+  visto?: boolean;
 }) => {
   try {
-    const res = await api.get("/notificacao", {
-      params: { page, limit, type, status, date, residente_nome },
-    });
+    const params: Record<string, string | number | boolean | undefined> = {
+      page,
+      limit,
+      type,
+      status,
+      date,
+      residente_nome,
+    };
+    if (visto === false) params.visto = false;
+    if (visto === true) params.visto = true;
+
+    const res = await api.get("/notificacao", { params });
 
     return {
       items: res?.items ?? [],
@@ -277,6 +288,7 @@ export const getTodayMedicineNotifications = () =>
     type: "medicamento",
     date: "today",
     status: EventStatus.PENDENTE,
+    visto: false,
   });
 
 export const getTomorrowReplacementNotifications = () =>
@@ -284,6 +296,7 @@ export const getTomorrowReplacementNotifications = () =>
     type: "reposicao_estoque",
     date: "tomorrow",
     status: EventStatus.PENDENTE,
+    visto: false,
   });
 
 export const getStock = (
@@ -372,6 +385,14 @@ export const deleteDrawerCategory = (id: number) =>
 
 export const removeIndividualMedicineFromStock = (stockId: number) =>
   api.patch(`/estoque/medicamento/${stockId}/remover-individual`);
+
+export const getDaysForReplacementForNursing = (
+  medicamentoId: number,
+  caselaId: number,
+) =>
+  api.get("/estoque/medicamento/dias-para-repor", {
+    params: { medicamento_id: medicamentoId, casela_id: caselaId },
+  });
 
 export const suspendMedicineFromStock = (stockId: number) =>
   api.patch(`/estoque/medicamento/${stockId}/suspender`);
