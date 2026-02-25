@@ -467,3 +467,26 @@ export const updateStockItem = (
 export const getBackendLoadingStatus = () => api.get("/status");
 
 export const logoutRequest = () => api.post("/login/logout");
+
+export const getAdminUsers = () => api.get("/admin/users");
+
+export const updateAdminUser = (
+  id: number,
+  data: {
+    firstName?: string;
+    lastName?: string;
+    login?: string;
+    password?: string;
+    role?: "admin" | "user";
+  },
+) => api.put(`/admin/users/${id}`, data);
+
+export const deleteAdminUser = (id: number) =>
+  api.delete(`/admin/users/${id}`);
+
+export const getAdminInsights = (params?: {
+  days?: number;
+  limit?: number;
+  page?: number;
+  operationType?: "create" | "update" | "delete";
+}) => api.get("/admin/insights", { params: params ?? {} });

@@ -45,6 +45,7 @@ const Drawers = lazy(() => import("./pages/Drawers"));
 const EditDrawer = lazy(() => import("./pages/EditDrawer"));
 const RegisterDrawer = lazy(() => import("./pages/RegisterDrawer"));
 const TransferReport = lazy(() => import("./pages/TransferReport"));
+const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 
 const queryClient = new QueryClient();
 
@@ -381,6 +382,20 @@ const AppContent = () => {
                 fallback={<LoadingFallback title="Carregando relatório..." />}
               >
                 <TransferReport />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <PrivateRoute>
+              <Suspense
+                fallback={
+                  <LoadingFallback title="Carregando painel administrativo..." />
+                }
+              >
+                <AdminPanel />
               </Suspense>
             </PrivateRoute>
           }

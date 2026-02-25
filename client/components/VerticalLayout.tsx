@@ -10,10 +10,11 @@ import {
   Grid,
   User,
   LogOut,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth.hook";
 
-const navigationTabs = [
+const baseNavigationTabs = [
   { name: "Painel", href: "/dashboard", icon: LayoutDashboard },
   { name: "Movimentações", href: "/movements", icon: ArrowLeftRight },
   { name: "Medicamentos", href: "/medicines", icon: Pill },
@@ -33,6 +34,13 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  const navigationTabs = [
+    ...baseNavigationTabs,
+    ...(user?.role === "admin"
+      ? [{ name: "Painel administrativo", href: "/admin", icon: ShieldCheck }]
+      : []),
+  ];
 
   return (
     <aside
