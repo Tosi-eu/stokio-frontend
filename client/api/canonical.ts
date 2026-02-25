@@ -11,6 +11,9 @@ if (!API_BASE_URL) {
   );
 }
 
+const INSUFFICIENT_PRIVILEGES_MESSAGE =
+  "Você não tem os privilégios necessários. Contate o administrador.";
+
 export class InvalidSessionError extends Error {
   constructor(message: string) {
     super(message);
@@ -163,6 +166,20 @@ async function request(path: string, options: RequestInit = {}) {
         sessionStorage.removeItem("user");
         throw new InvalidSessionError("Sessão inválida");
       }
+    }
+
+    if (res?.status === 403) {
+      window.dispatchEvent(
+        new CustomEvent("insufficient-privileges", {
+          detail: {
+            message:
+              data?.error || rawMsg || INSUFFICIENT_PRIVILEGES_MESSAGE,
+          },
+        }),
+      );
+      throw new Error(
+        data?.error || rawMsg || INSUFFICIENT_PRIVILEGES_MESSAGE,
+      );
     }
 
     const sanitizedMsg = sanitizeErrorMessage(String(rawMsg));

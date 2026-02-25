@@ -18,6 +18,7 @@ import {
 } from "./context/invalid-session.context";
 import { LoadingFallback } from "./components/LoadingFallback";
 import { InvalidSessionModal } from "./components/InvalidSessionModal";
+import { toast } from "@/hooks/use-toast.hook";
 
 const Auth = lazy(() => import("./pages/Auth"));
 const Profile = lazy(() => import("./pages/Profile"));
@@ -60,6 +61,22 @@ const AppContent = () => {
       window.removeEventListener("invalid-session", handleInvalidSession);
     };
   }, [setShowModal]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const message =
+        (e as CustomEvent<{ message?: string }>).detail?.message ||
+        "Você não tem os privilégios necessários. Contate o administrador.";
+      toast({
+        title: message,
+        variant: "error",
+        duration: 5000,
+      });
+    };
+    window.addEventListener("insufficient-privileges", handler);
+    return () =>
+      window.removeEventListener("insufficient-privileges", handler);
+  }, []);
 
   return (
     <>
