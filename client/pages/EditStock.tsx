@@ -270,15 +270,18 @@ export default function EditStock() {
         dias_para_repor: formData.dias_para_repor ?? null,
       };
 
-      await updateStockItem(
+      const result = await updateStockItem(
         stockItem.id,
         stockItem.itemType === "medicamento" ? "medicamento" : "insumo",
         updatePayload,
       );
 
+      const message =
+        (result as { message?: string } | undefined)?.message ??
+        "O item de estoque foi atualizado com sucesso.";
       toast({
         title: "Item atualizado",
-        description: "O item de estoque foi atualizado com sucesso.",
+        description: message,
         variant: "success",
         duration: 3000,
       });

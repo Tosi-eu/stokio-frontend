@@ -77,6 +77,12 @@ export const deleteInput = (id: number) => api.delete(`/insumos/${id}`);
 export const getResidents = (page = 1, limit = 20) =>
   api.get("/residentes", { params: { page, limit } });
 
+export const getResidentsCount = () => api.get("/residentes/count");
+export const getCabinetsCount = () => api.get("/armarios/count");
+export const getDrawersCount = () => api.get("/gavetas/count");
+
+export const getDashboardSummary = () => api.get("/dashboard/summary");
+
 export const deleteResident = (casela: string | number) =>
   api.delete(`/residentes/${casela}`);
 

@@ -1,14 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Layout from "@/components/Layout";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast.hook";
+import { useQueryClient } from "@tanstack/react-query";
+import { useDrawerCategories } from "@/hooks/use-categories.hook";
 
-import {
-  createDrawer,
-  createDrawerCategory,
-  getDrawerCategories,
-} from "@/api/requests";
-import { DrawerCategory } from "@/interfaces/interfaces";
+import { createDrawer, createDrawerCategory } from "@/api/requests";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,30 +16,14 @@ import ConfirmationModal from "@/components/ConfirmationModal";
 export default function RegisterDrawer() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { categories } = useDrawerCategories();
 
   const [numero, setNumero] = useState<number>(0);
   const [category, setCategory] = useState("");
 
-  const [categories, setCategories] = useState<DrawerCategory[]>([]);
   const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  const loadCategories = async () => {
-    try {
-      const res = await getDrawerCategories(1, 100);
-      setCategories(res.data);
-    } catch (err) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar as categorias de gaveta.",
-        variant: "error",
-      });
-    }
-  };
 
   const findCategoryByName = (name: string) =>
     categories.find((c) => c.nome.toLowerCase() === name.trim().toLowerCase());
@@ -87,6 +68,7 @@ export default function RegisterDrawer() {
       if (!finalCategoryId) {
         const res = await createDrawerCategory(category.trim());
         finalCategoryId = res.id;
+        await queryClient.invalidateQueries({ queryKey: ["drawer-categories"] });
       }
 
       await createDrawer(numero, finalCategoryId);

@@ -1,14 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Layout from "@/components/Layout";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast.hook";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCabinetCategories } from "@/hooks/use-categories.hook";
 
-import {
-  createCabinet,
-  createCabinetCategory,
-  getCabinetCategories,
-} from "@/api/requests";
-import { CabinetCategory } from "@/interfaces/interfaces";
+import { createCabinet, createCabinetCategory } from "@/api/requests";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,31 +16,15 @@ import ConfirmationModal from "@/components/ConfirmationModal";
 export default function RegisterCabinet() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { categories, isLoading: loadingCategories } = useCabinetCategories();
 
   const [numero, setNumero] = useState<number>(0);
   const [category, setCategory] = useState("");
 
-  const [categories, setCategories] = useState<CabinetCategory[]>([]);
   const [saving, setSaving] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
-
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  const loadCategories = async () => {
-    try {
-      const res = await getCabinetCategories(1, 100);
-      setCategories(res.data);
-    } catch (err) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar as categorias.",
-        variant: "error",
-      });
-    }
-  };
 
   const findCategoryByName = (name: string) =>
     categories.find((c) => c.nome.toLowerCase() === name.trim().toLowerCase());
@@ -88,6 +69,7 @@ export default function RegisterCabinet() {
       if (!finalCategoryId) {
         const res = await createCabinetCategory(category.trim());
         finalCategoryId = res.id;
+        await queryClient.invalidateQueries({ queryKey: ["cabinet-categories"] });
       }
 
       await createCabinet(numero, finalCategoryId);

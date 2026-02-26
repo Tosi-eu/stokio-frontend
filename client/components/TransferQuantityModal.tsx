@@ -88,11 +88,22 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
     }
   }, [open, item?.daysToReplacement]);
 
+  // Fetch "dias para repor" when we have a casela to transfer to (nursing):
+  // - General medicine: user selects a casela (selectedCasela).
+  // - Individual medicine in pharmacy: same resident (item.casela) — so we can reuse the cycle
+  //   if that medicine+resident already exists in nursing, or let the user set it.
+  const caselaForDaysFetch =
+    selectedCasela
+      ? Number(selectedCasela)
+      : item?.sector === "farmacia" && item?.casela != null
+        ? item.casela
+        : null;
+
   useEffect(() => {
     if (
       !open ||
       !item?.medicamentoId ||
-      !selectedCasela ||
+      caselaForDaysFetch == null ||
       isGeneralUse ||
       item.itemType !== "medicamento"
     ) {
@@ -100,19 +111,29 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
       return;
     }
     let cancelled = false;
-    getDaysForReplacementForNursing(item.medicamentoId, Number(selectedCasela))
-      .then((res: any) => {
-        if (!cancelled && res.dias_para_repor != null) {
+    getDaysForReplacementForNursing(item.medicamentoId, caselaForDaysFetch)
+      .then((res: { dias_para_repor?: number | null }) => {
+        if (cancelled) return;
+        if (res.dias_para_repor != null) {
           setFetchedDiasParaRepor(Number(res.dias_para_repor));
           setDaysToReplacement(String(res.dias_para_repor));
         } else {
           setFetchedDiasParaRepor(null);
-          setDaysToReplacement("");
+          setDaysToReplacement(
+            item?.daysToReplacement != null
+              ? String(item.daysToReplacement)
+              : "",
+          );
         }
       })
       .catch(() => {
+        if (cancelled) return;
         setFetchedDiasParaRepor(null);
-        setDaysToReplacement("");
+        setDaysToReplacement(
+          item?.daysToReplacement != null
+            ? String(item.daysToReplacement)
+            : "",
+        );
       });
     return () => {
       cancelled = true;
@@ -121,7 +142,8 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
     open,
     item?.medicamentoId,
     item?.itemType,
-    selectedCasela,
+    item?.daysToReplacement,
+    caselaForDaysFetch,
     isGeneralUse,
   ]);
 
@@ -137,9 +159,9 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
   const hasCaselaSelected = selectedCasela.length > 0;
   const hasDestination = destination.trim().length > 0;
 
-  // Saved value: from current row (nursing stock) or from API (previous transfer to this casela)
-  const effectiveReadOnlyDias =
-    item?.daysToReplacement ?? fetchedDiasParaRepor ?? null;
+  // Read-only only when we fetched from nursing (same medicine+resident already in nursing).
+  // When source is individual in pharmacy, allow editing so user can set the replacement cycle.
+  const effectiveReadOnlyDias = fetchedDiasParaRepor ?? null;
 
   const hasValidCaselaForDaysToReplacement =
     isIndividualStock ||
@@ -181,7 +203,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
     const hasValidCasela = isIndividualStock || (!isGeneralUse && hasCaselaSelected);
     const valueToSend =
       effectiveReadOnlyDias ??
-      (daysToReplacement !== "" ? Number(daysToReplacement) : null);
+      (daysToReplacement !== "" ? Number(daysToReplacement) : item?.daysToReplacement ?? null);
     const shouldSendDaysToReplacement =
       !isGeneralUse &&
       isMedicamento &&
@@ -368,6 +390,12 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                     reposição
                   </p>
                 )}
+              {isIndividualStock && item?.sector === "farmacia" && (
+                <p className="text-xs text-slate-500">
+                  Mesmo medicamento e residente: use o ciclo já na enfermaria (se
+                  houver) ou defina os dias para reposição.
+                </p>
+              )}
             </div>
           )}
 

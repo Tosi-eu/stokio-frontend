@@ -5,11 +5,7 @@ import { toast } from "@/hooks/use-toast.hook";
 import { SkeletonCard } from "@/components/SkeletonCard";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  DEFAULT_PAGE_SIZE,
-  fetchAllPaginated,
-  paginate,
-} from "@/helpers/paginacao.helper";
+import { DEFAULT_PAGE_SIZE, paginate } from "@/helpers/paginacao.helper";
 
 import EditableTable from "@/components/EditableTable";
 import { DashboardStatsCard } from "@/components/DashboardStatsCard";
@@ -20,23 +16,16 @@ const DashboardChartCard = lazy(() =>
   })),
 );
 import {
-  getInputMovements,
-  getMedicineMovements,
-  getMedicineRanking,
-  getNonMovementProducts,
-  getStock,
-  getStockProportions,
+  getDashboardSummary,
   getTodayMedicineNotifications,
   getTomorrowReplacementNotifications,
   updateNotification,
 } from "@/api/requests";
 import {
-  StockStatusItem,
   CabinetStockItem,
   StockDistributionItem,
   RecentMovement,
   MedicineRankingItem,
-  RawMovement,
   DrawerStockItem,
 } from "@/interfaces/interfaces";
 const NotificationReminderModal = lazy(
@@ -58,7 +47,7 @@ export default function Dashboard() {
   const [noStock, setNoStock] = useState<number>(0);
   const [belowMin, setBelowMin] = useState<number>(0);
   const [expired, setExpired] = useState<number>(0);
-  const [expiringSoon, setExpiringSoon] = useState<StockStatusItem[]>([]);
+  const [expiringSoonCount, setExpiringSoonCount] = useState<number>(0);
   const [cabinetStockData, setCabinetStockData] = useState<CabinetStockItem[]>(
     [],
   );
@@ -93,42 +82,18 @@ export default function Dashboard() {
       try {
         setLoadingNonMovement(true);
         setLoadingRecentMovements(true);
-        const [
-          stockList,
-          medicamentosMov,
-          insumosMov,
-          nursingRes,
-          pharmacyRes,
-          cabinetRes,
-          drawerRes,
-        ] = await Promise.all([
-          fetchAllPaginated((page, limit) =>
-            getStock(page, limit).then((res) => res),
-          ),
+        const summary = await getDashboardSummary();
 
-          fetchAllPaginated((page, limit) =>
-            getMedicineMovements({ page, limit, days: 7 }).then((res) => res),
-          ),
+        const a = summary.alerts || {};
+        setNoStock(a.noStock ?? 0);
+        setBelowMin(a.belowMin ?? 0);
+        setExpired(a.expired ?? 0);
+        setExpiringSoonCount(a.expiringSoon ?? 0);
 
-          fetchAllPaginated((page, limit) =>
-            getInputMovements({ page, limit, days: 7 }).then((res) => res),
-          ),
-
-          getStockProportions("enfermagem"),
-          getStockProportions("farmacia"),
-          getStock(1, 10, { type: "armarios" }),
-          getStock(1, 20, { type: "gavetas" }),
-        ]);
-
-        const [medMoreRes, medLessRes, nonMovementRes] = await Promise.all([
-          getMedicineRanking("more"),
-          getMedicineRanking("less"),
-          getNonMovementProducts(),
-        ]);
-
-        const recentMovements = [
-          ...medicamentosMov.map((m: RawMovement) => ({
-            name: m.MedicineModel?.nome || "-",
+        const recent = summary.recentMovements || [];
+        setRecentMovements(
+          recent.slice(0, DEFAULT_PAGE_SIZE).map((m: any) => ({
+            name: m.MedicineModel?.nome || m.InputModel?.nome || "-",
             type: m.tipo,
             operator: m.LoginModel?.login || "-",
             casela: m.ResidentModel?.num_casela ?? "-",
@@ -137,92 +102,73 @@ export default function Dashboard() {
             cabinet: m.CabinetModel?.num_armario ?? "-",
             date: m.data,
           })),
-
-          ...insumosMov.map((m: RawMovement) => ({
-            name: m.InputModel?.nome || "-",
-            type: m.tipo,
-            operator: m.LoginModel?.login || "-",
-            casela: m.ResidentModel?.num_casela ?? "-",
-            quantity: m.quantidade,
-            patient: m.ResidentModel ? m.ResidentModel.nome : "-",
-            cabinet: m.CabinetModel?.num_armario ?? "-",
-            date: m.data,
-          })),
-        ].sort((a, b) => Number(new Date(b.date)) - Number(new Date(a.date)));
-
-        const noStockItems = (stockList as any).filter(
-          (i) => i.st_quantidade === "critical",
         );
 
-        const itemsInStockWarning = (stockList as any).filter(
-          (i) => i.st_quantidade === "low",
-        );
-
-        const expiredItems = (stockList as any).filter(
-          (i) => i.st_expiracao === "expired" && i.quantidade > 0,
-        );
-
-        const expiringSoonItems = (stockList as any).filter(
-          (i) =>
-            i.st_expiracao === "warning" ||
-            (i.st_expiracao === "critical" && i.quantidade > 0),
-        );
-
-        setNoStock(noStockItems.length);
-        setBelowMin(itemsInStockWarning.length);
-        setExpired(expiredItems.length);
-        setExpiringSoon(expiringSoonItems);
-
-        setRecentMovements(recentMovements.slice(0, DEFAULT_PAGE_SIZE));
         setNonMovementProducts(
-          Array.isArray(nonMovementRes)
-            ? nonMovementRes.slice(0, DEFAULT_PAGE_SIZE)
+          Array.isArray(summary.nonMovementProducts)
+            ? summary.nonMovementProducts.slice(0, DEFAULT_PAGE_SIZE)
             : [],
         );
 
+        const more = summary.medicineRankingMore?.data || [];
         setMostMovData(
-          medMoreRes.data.map((item) => ({
-            name: item.medicamento.nome,
-            substance: item.medicamento.principio_ativo,
-            total: item.total_movimentado,
-            entradas: item.total_entradas,
-            saidas: item.total_saidas,
+          more.map((item: any) => ({
+            name: item.medicamento?.nome ?? "-",
+            substance: item.medicamento?.principio_ativo ?? "-",
+            total: item.total_movimentado ?? 0,
+            entradas: item.total_entradas ?? 0,
+            saidas: item.total_saidas ?? 0,
           })),
         );
 
+        const less = summary.medicineRankingLess?.data || [];
         setLeastMovData(
-          medLessRes.data.map((item) => ({
-            name: item.medicamento.nome,
-            substance: item.medicamento.principio_ativo,
-            total: item.total_movimentado,
-            entradas: item.total_entradas,
-            saidas: item.total_saidas,
+          less.map((item: any) => ({
+            name: item.medicamento?.nome ?? "-",
+            substance: item.medicamento?.principio_ativo ?? "-",
+            total: item.total_movimentado ?? 0,
+            entradas: item.total_entradas ?? 0,
+            saidas: item.total_saidas ?? 0,
           })),
         );
 
-        setNursingDistribution(
-          prepareStockDistributionData(nursingRes, SectorType.ENFERMAGEM).sort(
-            (a, b) => b.rawValue - a.rawValue,
-          ),
-        );
+        const nursingRes = summary.nursingProportion;
+        const pharmacyRes = summary.pharmacyProportion;
+        if (nursingRes) {
+          setNursingDistribution(
+            prepareStockDistributionData(
+              nursingRes,
+              SectorType.ENFERMAGEM,
+            ).sort((a, b) => b.rawValue - a.rawValue),
+          );
+        }
+        if (pharmacyRes) {
+          setPharmacyDistribution(
+            prepareStockDistributionData(
+              pharmacyRes,
+              SectorType.FARMACIA,
+            ).sort((a, b) => b.rawValue - a.rawValue),
+          );
+        }
 
-        setPharmacyDistribution(
-          prepareStockDistributionData(pharmacyRes, SectorType.FARMACIA).sort(
-            (a, b) => b.rawValue - a.rawValue,
-          ),
-        );
-
-        const formattedCabinetData = cabinetRes.data.map((arm: any) => ({
-          cabinet: arm.armario_id,
-          total: Number(arm.total_geral) || 0,
-        }));
-        setCabinetStockData(formattedCabinetData);
-
-        const formattedDrawerData = drawerRes.data.map((drawer: any) => ({
-          drawer: drawer.gaveta_id,
-          total: Number(drawer.total_geral) || 0,
-        }));
-        setDrawerStockData(formattedDrawerData);
+        const cabinetRes = summary.cabinetStockData;
+        const drawerRes = summary.drawerStockData;
+        if (cabinetRes?.data) {
+          setCabinetStockData(
+            cabinetRes.data.map((arm: any) => ({
+              cabinet: arm.armario_id,
+              total: Number(arm.total_geral) || 0,
+            })),
+          );
+        }
+        if (drawerRes?.data) {
+          setDrawerStockData(
+            drawerRes.data.map((drawer: any) => ({
+              drawer: drawer.gaveta_id,
+              total: Number(drawer.total_geral) || 0,
+            })),
+          );
+        }
       } catch (err: any) {
         toast({
           title: "Erro ao carregar dados",
@@ -315,11 +261,11 @@ export default function Dashboard() {
       },
       {
         label: "Itens com Vencimento Próximo",
-        value: expiringSoon.length,
+        value: expiringSoonCount,
         onClick: () => navigate("/stock?filter=expiringSoon"),
       },
     ],
-    [noStock, belowMin, expired, expiringSoon, navigate],
+    [noStock, belowMin, expired, expiringSoonCount, navigate],
   );
 
   const COLORS = useMemo(
