@@ -30,7 +30,7 @@ export default function Inputs() {
         DEFAULT_PAGE_SIZE,
         searchFilter || undefined,
       );
-      setInputs(res.data);
+      setInputs(res.data as unknown as Record<string, unknown>[]);
       setHasNext(res.hasNext);
       setTotal(res.total);
     } catch (err: unknown) {

@@ -31,7 +31,7 @@ export default function Medicines() {
         DEFAULT_PAGE_SIZE,
         searchFilter || undefined,
       );
-      setMedicines(res.data);
+      setMedicines(res.data as unknown as Record<string, unknown>[]);
       setHasNext(res.hasNext);
       setTotal(res.total);
     } catch (err: unknown) {

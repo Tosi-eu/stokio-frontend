@@ -14,6 +14,7 @@ import {
   Cabinet,
   Drawer,
 } from "@/interfaces/interfaces";
+import type { RawStockInput, RawStockMedicine } from "@/interfaces/interfaces";
 
 import {
   createStockIn,
@@ -47,8 +48,8 @@ export default function StockIn() {
   });
 
   const operationType = watch("operationType");
-  const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [inputs, setInputs] = useState<Input[]>([]);
+  const [medicines, setMedicines] = useState<RawStockMedicine[]>([]);
+  const [inputs, setInputs] = useState<RawStockInput[]>([]);
   const [caselas, setCaselas] = useState<Patient[]>([]);
   const [drawers, setDrawers] = useState<Drawer[]>([]);
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
@@ -58,7 +59,7 @@ export default function StockIn() {
   useEffect(() => {
     const fetchAll = async () => {
       try {
-        const [medicines, inputs, residents, cabinets, drawers] =
+        const [medicinesRes, inputsRes, residents, cabinets, drawers] =
           await Promise.all([
             fetchAllPaginated(getMedicines),
             fetchAllPaginated(getInputs),
@@ -67,11 +68,11 @@ export default function StockIn() {
             fetchAllPaginated(getDrawers),
           ]);
 
-        setMedicines(medicines as Medicine[]);
-        setInputs(inputs as Input[]);
-        setCaselas(residents as Patient[]);
-        setCabinets(cabinets as Cabinet[]);
-        setDrawers(drawers as Drawer[]);
+        setMedicines(medicinesRes);
+        setInputs(inputsRes);
+        setCaselas(residents);
+        setCabinets(cabinets);
+        setDrawers(drawers);
       } catch (err: unknown) {
         toast({
           title: "Erro ao carregar dados",
@@ -184,17 +185,17 @@ export default function StockIn() {
     }
   };
 
-  const canonicalMedicines: Medicine[] = medicines.map((m: any) => ({
-    id: m.id,
+  const canonicalMedicines: Medicine[] = medicines.map((m) => ({
+    id: m.id ?? 0,
     name: m.nome,
     dosage: m.dosagem,
     measurementUnit: m.unidade_medida,
     substance: m.principio_ativo,
-    minimumStock: m.estoque_minimo,
+    minimumStock: Number(m.estoque_minimo) || 0,
   }));
 
-  const canonicalInputs: Input[] = inputs.map((i: any) => ({
-    id: i.id,
+  const canonicalInputs: Input[] = inputs.map((i) => ({
+    id: i.id ?? 0,
     name: i.nome,
     description: i.descricao,
     minimumStock: i.estoque_minimo,

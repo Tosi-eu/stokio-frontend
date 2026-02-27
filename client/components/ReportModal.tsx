@@ -36,7 +36,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { getReportTitle } from "@/helpers/relatorio.helper";
 import { parseYearMonthToDate } from "@/helpers/dates.helper";
-import { createStockPDF } from "./StockReporter";
+import { createStockPDF, MovementsParams } from "./StockReporter";
 import { toast } from "@/hooks/use-toast.hook";
 
 type StatusType = "idle" | "loading" | "success" | "error";
@@ -152,7 +152,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
       let response;
 
       if (tipo === "movimentacoes") {
-        let params: any;
+        let params: MovementsParams;
 
         if (movementPeriod === MovementPeriod.DIARIO) {
           if (!movementDate) {
@@ -186,7 +186,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
 
         response = await getReport("movimentacoes", undefined, params);
       } else if (tipo === "transferencias") {
-        let params: any;
+        let params: MovementsParams;
         if (movementPeriodTransfer === MovementPeriod.DIARIO) {
           if (!transferDate) {
             toast({ title: "Selecione a data da transferência", variant: "error" });

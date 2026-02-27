@@ -6,6 +6,7 @@ import { toast } from "@/hooks/use-toast.hook";
 
 import { getInputMovements, getMedicineMovements } from "@/api/requests";
 import { Card } from "@/components/ui/card";
+import type { RawMovement } from "@/interfaces/interfaces";
 
 const TABLE_LIMIT = 10;
 const REQUEST_LIMIT = 5;
@@ -38,8 +39,8 @@ export default function InputMovements() {
     { key: "lot", label: "Lote", editable: false },
   ];
 
-  function normalizeMovement(item: any) {
-    const isMedicine = item.medicamento_id !== null;
+  function normalizeMovement(item: RawMovement) {
+    const isMedicine = item.medicamento_id != null;
 
     return {
       id: item.id,

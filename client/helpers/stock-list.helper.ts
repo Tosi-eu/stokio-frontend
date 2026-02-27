@@ -1,5 +1,5 @@
 import { getStock } from "@/api/requests";
-import { StockItem } from "@/interfaces/interfaces";
+import { StockItem, StockItemRaw } from "@/interfaces/interfaces";
 import { ItemStockType, StockTypeLabels } from "@/utils/enums";
 
 export interface StockListFilters {
@@ -37,13 +37,23 @@ export async function fetchStockPage(
 
   const res = await getStock(page, limit, filterParams, urlFilter ?? undefined);
   return {
-    data: Array.isArray((res as any).data) ? (res as any).data : [],
-    hasNext: Boolean((res as any).hasNext),
+    data: Array.isArray(res?.data) ? res.data : [],
+    hasNext: Boolean(res?.hasNext),
   };
 }
 
+export interface StockListItemRaw extends Partial<StockItemRaw> {
+  tipo_item?: string;
+  dosagem?: string;
+  unidade_medida?: string;
+  item_id?: number;
+  destino?: string | null;
+  observacao?: string | null;
+  dias_para_repor?: number | null;
+}
+
 export function formatStockItems(raw: unknown[]): StockItem[] {
-  return (raw || []).map((item: any) => {
+  return (raw || []).map((item: StockListItemRaw) => {
     const isMedicamento = item.tipo_item === "medicamento";
     const name = isMedicamento
       ? `${item.nome || ""} ${item.dosagem || ""}${item.unidade_medida || ""}`.trim()
@@ -93,7 +103,7 @@ export function buildFilterOptions(allRawData: unknown[]): StockFilterOptions {
   const cabinetIds = Array.from(
     new Set(
       raw
-        .map((i: any) => i.armario_id)
+        .map((i: Record<string, unknown>) => i.armario_id as number | undefined)
         .filter((id): id is number => id != null),
     ),
   )
@@ -102,7 +112,7 @@ export function buildFilterOptions(allRawData: unknown[]): StockFilterOptions {
 
   const caselaIds = Array.from(
     new Set(
-      raw.map((i: any) => i.casela_id).filter((id): id is number => id != null),
+      raw.map((i: Record<string, unknown>) => i.casela_id as number | undefined).filter((id): id is number => id != null),
     ),
   )
     .sort((a, b) => a - b)
@@ -111,7 +121,7 @@ export function buildFilterOptions(allRawData: unknown[]): StockFilterOptions {
   const lotes = Array.from(
     new Set(
       raw
-        .map((i: any) => i.lote)
+        .map((i: Record<string, unknown>) => i.lote as string | undefined)
         .filter((l): l is string => typeof l === "string" && l.trim() !== ""),
     ),
   )

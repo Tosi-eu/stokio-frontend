@@ -35,7 +35,7 @@ export function NotificationDrawer() {
     async (p = 1, append = false) => {
       setLoading(true);
       try {
-        const params: any = {
+        const params: Parameters<typeof getNotifications>[0] = {
           page: p,
           limit: 5, // limite ajustado
           type: activeTab === "receita" ? "medicamento" : "reposicao_estoque",

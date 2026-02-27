@@ -132,10 +132,10 @@ export default function EditableTable({
   loading?: boolean;
   onNextPage?: () => void;
   onPrevPage?: () => void;
-  onRemoveIndividual?: (row: any) => void;
-  onTransferSector?: (row: any) => void;
-  onSuspend?: (row: any) => void;
-  onResume?: (row: any) => void;
+  onRemoveIndividual?: (row: Record<string, unknown>) => void;
+  onTransferSector?: (row: Record<string, unknown>) => void;
+  onSuspend?: (row: Record<string, unknown>) => void;
+  onResume?: (row: Record<string, unknown>) => void;
   onDeleteSuccess?: () => void;
 }) {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
@@ -191,7 +191,7 @@ export default function EditableTable({
     return entityType === "stock" && row?.itemType != null;
   };
 
-  const handleEditClick = (row: any) => {
+  const handleEditClick = (row: Record<string, unknown>) => {
     if (row.status === "suspended") {
       toast({
         title: "Medicamento suspenso",
@@ -202,7 +202,7 @@ export default function EditableTable({
       return;
     }
 
-    let type = typeMap[row?.type];
+    let type = typeMap[String(row?.type ?? "")];
     if (entityType) type = entityType;
 
     if (!type) return;
@@ -303,10 +303,10 @@ export default function EditableTable({
         setShowStockDeleteModal(false);
       }
       setDeleteIndex(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: "Erro ao remover item",
-        description: err?.message || "Não foi possível remover o item.",
+        description: err instanceof Error ? err.message : "Não foi possível remover o item.",
         variant: "error",
         duration: 3000,
       });

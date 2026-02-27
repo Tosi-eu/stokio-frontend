@@ -44,16 +44,25 @@ export default function StockProportionCard({
     }, 120);
   };
 
-  const renderActiveShape = (props: any) => {
+  const renderActiveShape = (props: {
+    cx?: number;
+    cy?: number;
+    midAngle?: number;
+    innerRadius?: number;
+    outerRadius?: number;
+    startAngle?: number;
+    endAngle?: number;
+    fill?: string;
+  }) => {
     const {
-      cx,
-      cy,
-      midAngle,
-      innerRadius,
-      outerRadius,
-      startAngle,
-      endAngle,
-      fill,
+      cx = 0,
+      cy = 0,
+      midAngle = 0,
+      innerRadius = 0,
+      outerRadius = 0,
+      startAngle = 0,
+      endAngle = 0,
+      fill = "#000",
     } = props;
 
     const RADIAN = Math.PI / 180;
@@ -133,8 +142,8 @@ export default function StockProportionCard({
                 </Pie>
 
                 <Tooltip
-                  formatter={(_v: any, _n: string, p: any) => [
-                    p.payload.rawValue,
+                  formatter={(_v: unknown, _n: string, p: { payload?: { rawValue?: number } }) => [
+                    p.payload?.rawValue ?? 0,
                     "Quantidade",
                   ]}
                 />

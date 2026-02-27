@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/hooks/use-toast.hook";
 import { getErrorMessage } from "@/helpers/validation.helper";
 import { createMedicine, getMedicines } from "@/api/requests";
+import type { RawStockMedicine } from "@/interfaces/interfaces";
 import {
   medicineSchema,
   type MedicineFormData,
@@ -71,15 +72,7 @@ export default function SignUpMedicine() {
     },
   });
 
-  const [medicines, setMedicines] = useState<
-    Array<{
-      id: number;
-      name: string;
-      dosagem?: string;
-      principio_ativo?: string;
-      estoque_minimo?: number;
-    }>
-  >([]);
+  const [medicines, setMedicines] = useState<RawStockMedicine[]>([]);
   const watchedName = watch("name");
 
   useEffect(() => {
@@ -105,7 +98,7 @@ export default function SignUpMedicine() {
 
   useEffect(() => {
     if (watchedName) {
-      const selected = medicines.find((m) => m.name === watchedName);
+      const selected = medicines.find((m) => m.nome === watchedName);
       if (selected) {
         const match = selected.dosagem?.match(/^(\d+(?:,\d+)?)([a-zA-Z]+)$/);
         const dosageValue = match ? match[1] : "";
@@ -181,7 +174,7 @@ export default function SignUpMedicine() {
               />
               <datalist id="lista-medicamentos">
                 {medicines.map((m) => (
-                  <option key={m.id} value={m.name} />
+                  <option key={m.id} value={m.nome} />
                 ))}
               </datalist>
               {errors.name && (

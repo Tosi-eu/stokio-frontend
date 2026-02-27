@@ -100,6 +100,20 @@ export interface ExpiringSoonReport {
   gaveta?: number | null;
 }
 
+interface MovementsReportPayload {
+  data: PeriodMovementReport[];
+  _reportMeta?: { period?: MovementPeriod };
+}
+
+interface InsumosMedicamentosReport {
+  medicamentos?: unknown[];
+  insumos?: unknown[];
+}
+
+interface PsicotropicosReport {
+  psicotropico?: unknown[];
+}
+
 interface ResidentConsumptionReport {
   residente: string;
   casela: number;
@@ -147,7 +161,7 @@ interface RowData {
   gaveta?: number | string;
   medicamentos?: RowData[];
   insumos?: RowData[];
-  [key: string]: any; // Permite propriedades adicionais para flexibilidade
+  [key: string]: unknown;
 }
 
 const styles = StyleSheet.create({
@@ -284,7 +298,7 @@ function renderTableWithConfig(
               .toLowerCase()
               .replace(/\s+/g, "_");
 
-            let value: any = row[key as keyof RowData] ?? "";
+            const value = (row[key as keyof RowData] ?? "") as string | number;
 
             return (
               <Text
@@ -337,7 +351,7 @@ export function createStockPDF(
     | ResidentesResponse
     | ResidentConsumptionReport
     | TransferReport[]
-    | PeriodMovementReport[]
+    | MovementsReportPayload
     | ResidentMedicinesReport[]
     | ExpiredMedicineReport[]
     | ExpiringSoonReport[],
@@ -355,7 +369,7 @@ export function createStockPDF(
   const transferData = isTransferReport ? (data as TransferReport[]) : null;
 
   const movementsData = isMovementsReport
-    ? ((data as any).data as PeriodMovementReport[])
+    ? (data as MovementsReportPayload).data
     : null;
   const residentMedicinesData = isResidentMedicines
     ? (data as ResidentMedicinesReport[])
@@ -367,7 +381,7 @@ export function createStockPDF(
     ? (data as ExpiringSoonReport[])
     : null;
 
-  const movementsPayload = isMovementsReport ? (data as any) : null;
+  const movementsPayload = isMovementsReport ? (data as MovementsReportPayload) : null;
 
   const movementHeading =
     movementsPayload?._reportMeta?.period === MovementPeriod.MENSAL
@@ -717,13 +731,13 @@ export function createStockPDF(
                 "Validade",
                 "Residente",
               ],
-              (data as any).medicamentos ?? [],
+              ((data as InsumosMedicamentosReport).medicamentos ?? []) as RowData[],
             )}
 
             <Text style={styles.sectionTitle}>Insumos</Text>
             {renderTable(
               ["Insumo", "Quantidade", "Armario"],
-              (data as any).insumos ?? [],
+              ((data as InsumosMedicamentosReport).insumos ?? []) as RowData[],
             )}
           </>
         )}
@@ -739,7 +753,7 @@ export function createStockPDF(
                 "Data Movimentação",
                 "Quantidade",
               ],
-              (data as any).psicotropico ?? [],
+              ((data as PsicotropicosReport).psicotropico ?? []) as RowData[],
             )}
           </>
         )}

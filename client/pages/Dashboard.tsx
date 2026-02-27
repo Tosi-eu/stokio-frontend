@@ -1,5 +1,6 @@
 import Layout from "@/components/Layout";
 import { useEffect, useState, useMemo, lazy, Suspense } from "react";
+import { useDashboardSummary } from "@/hooks/use-dashboard-summary.hook";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast.hook";
 import { SkeletonCard } from "@/components/SkeletonCard";
@@ -16,7 +17,6 @@ const DashboardChartCard = lazy(() =>
   })),
 );
 import {
-  getDashboardSummary,
   getTodayMedicineNotifications,
   getTomorrowReplacementNotifications,
   updateNotification,
@@ -66,7 +66,7 @@ export default function Dashboard() {
 
   const [mostMovData, setMostMovData] = useState<MedicineRankingItem[]>([]);
   const [leastMovData, setLeastMovData] = useState<MedicineRankingItem[]>([]);
-  const [nonMovementProducts, setNonMovementProducts] = useState<any[]>([]);
+  const [nonMovementProducts, setNonMovementProducts] = useState<unknown[]>([]);
   const [loadingNonMovement, setLoadingNonMovement] = useState(true);
   const [loadingRecentMovements, setLoadingRecentMovements] = useState(true);
 
@@ -77,12 +77,27 @@ export default function Dashboard() {
     import("@/components/StockReplacementModal").StockReplacementItem[]
   >([]);
 
+  const { summary, isLoading: loadingSummary, error: summaryError } = useDashboardSummary();
+
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoadingNonMovement(true);
-        setLoadingRecentMovements(true);
-        const summary = await getDashboardSummary();
+    if (summaryError) {
+      toast({
+        title: "Erro ao carregar dados",
+        description:
+          summaryError instanceof Error
+            ? summaryError.message
+            : "Não foi possível carregar os dados do dashboard.",
+        variant: "error",
+        duration: 3000,
+      });
+    }
+  }, [summaryError]);
+
+  useEffect(() => {
+    if (!summary) return;
+    try {
+      setLoadingNonMovement(true);
+      setLoadingRecentMovements(true);
 
         const a = summary.alerts || {};
         setNoStock(a.noStock ?? 0);
@@ -92,7 +107,7 @@ export default function Dashboard() {
 
         const recent = summary.recentMovements || [];
         setRecentMovements(
-          recent.slice(0, DEFAULT_PAGE_SIZE).map((m: any) => ({
+          recent.slice(0, DEFAULT_PAGE_SIZE).map((m) => ({
             name: m.MedicineModel?.nome || m.InputModel?.nome || "-",
             type: m.tipo,
             operator: m.LoginModel?.login || "-",
@@ -112,7 +127,7 @@ export default function Dashboard() {
 
         const more = summary.medicineRankingMore?.data || [];
         setMostMovData(
-          more.map((item: any) => ({
+          more.map((item) => ({
             name: item.medicamento?.nome ?? "-",
             substance: item.medicamento?.principio_ativo ?? "-",
             total: item.total_movimentado ?? 0,
@@ -123,7 +138,7 @@ export default function Dashboard() {
 
         const less = summary.medicineRankingLess?.data || [];
         setLeastMovData(
-          less.map((item: any) => ({
+          less.map((item) => ({
             name: item.medicamento?.nome ?? "-",
             substance: item.medicamento?.principio_ativo ?? "-",
             total: item.total_movimentado ?? 0,
@@ -155,7 +170,7 @@ export default function Dashboard() {
         const drawerRes = summary.drawerStockData;
         if (cabinetRes?.data) {
           setCabinetStockData(
-            cabinetRes.data.map((arm: any) => ({
+            cabinetRes.data.map((arm) => ({
               cabinet: arm.armario_id,
               total: Number(arm.total_geral) || 0,
             })),
@@ -163,28 +178,17 @@ export default function Dashboard() {
         }
         if (drawerRes?.data) {
           setDrawerStockData(
-            drawerRes.data.map((drawer: any) => ({
+            drawerRes.data.map((drawer) => ({
               drawer: drawer.gaveta_id,
               total: Number(drawer.total_geral) || 0,
             })),
           );
         }
-      } catch (err: any) {
-        toast({
-          title: "Erro ao carregar dados",
-          description:
-            err?.message || "Não foi possível carregar os dados do dashboard.",
-          variant: "error",
-          duration: 3000,
-        });
-      } finally {
-        setLoadingNonMovement(false);
-        setLoadingRecentMovements(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, []);
+    } finally {
+      setLoadingNonMovement(false);
+      setLoadingRecentMovements(false);
+    }
+  }, [summary]);
 
   useEffect(() => {
     async function fetchReminders() {
@@ -196,7 +200,7 @@ export default function Dashboard() {
           setNotifOpen(true);
 
           await Promise.all(
-            res.items.map((n: any) =>
+            res.items.map((n: { id: number }) =>
               updateNotification(n.id, { visto: true }),
             ),
           );
@@ -230,7 +234,7 @@ export default function Dashboard() {
         }
 
         await Promise.all(
-          res.items.map((n: any) =>
+          res.items.map((n: { id: number }) =>
             updateNotification(n.id, { visto: true }),
           ),
         );
@@ -331,7 +335,7 @@ export default function Dashboard() {
                     label: "Data",
                   },
                 ]}
-                data={paginatedNonMovement}
+                data={paginatedNonMovement as Record<string, unknown>[]}
                 showAddons={false}
                 minRows={minRowsMovements}
                 loading={loadingNonMovement}
@@ -376,7 +380,7 @@ export default function Dashboard() {
                   { key: "patient", label: "Paciente" },
                   { key: "date", label: "Data" },
                 ]}
-                data={paginatedRecentMovements}
+                data={paginatedRecentMovements as unknown as Record<string, unknown>[]}
                 minRows={minRowsMovements}
                 showAddons={false}
                 loading={loadingRecentMovements}
@@ -421,7 +425,7 @@ export default function Dashboard() {
                   { key: "entradas", label: "Entradas" },
                   { key: "saidas", label: "Saídas" },
                 ]}
-                data={mostMovData}
+                data={mostMovData as unknown as Record<string, unknown>[]}
                 showAddons={false}
               />
             </CardContent>
@@ -442,7 +446,7 @@ export default function Dashboard() {
                   { key: "entradas", label: "Entradas" },
                   { key: "saidas", label: "Saídas" },
                 ]}
-                data={leastMovData}
+                data={leastMovData as unknown as Record<string, unknown>[]}
                 showAddons={false}
               />
             </CardContent>

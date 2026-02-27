@@ -47,8 +47,9 @@ import {
   getCabinets,
   getDrawers,
 } from "@/api/requests";
+import type { StockListAlertItem } from "@/interfaces/interfaces";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
-import { createStockPDF, MovementPeriod } from "@/components/StockReporter";
+import { createStockPDF, MovementPeriod, MovementsParams } from "@/components/StockReporter";
 import { getReportTitle } from "@/helpers/relatorio.helper";
 import { parseYearMonthToDate, formatValidityDate } from "@/helpers/dates.helper";
 import { pdf } from "@react-pdf/renderer";
@@ -437,7 +438,7 @@ export default function AdminPanel() {
       if (kind === "residents") {
         list = await fetchAllPaginated<Record<string, unknown>>(
           (p, l) =>
-            getResidents(p, l).then((r: any) => ({
+            getResidents(p, l).then((r) => ({
               data: (r.data ?? []) as Record<string, unknown>[],
               hasNext: r.hasNext ?? false,
             })),
@@ -445,22 +446,22 @@ export default function AdminPanel() {
         );
       } else if (kind === "medicines") {
         list = await fetchAllPaginated<Record<string, unknown>>(
-          (p, l) => getMedicines(p, l).then((r: any) => toList(r, p)),
+          (p, l) => getMedicines(p, l).then((r) => toList(r, p)),
           limit,
         );
       } else if (kind === "inputs") {
         list = await fetchAllPaginated<Record<string, unknown>>(
-          (p, l) => getInputs(p, l).then((r: any) => toList(r, p)),
+          (p, l) => getInputs(p, l).then((r) => toList(r, p)),
           limit,
         );
       } else if (kind === "cabinets") {
         list = await fetchAllPaginated<Record<string, unknown>>(
-          (p, l) => getCabinets(p, l).then((r: any) => toList(r, p)),
+          (p, l) => getCabinets(p, l).then((r) => toList(r, p)),
           limit,
         );
       } else {
         list = await fetchAllPaginated<Record<string, unknown>>(
-          (p, l) => getDrawers(p, l).then((r: any) => toList(r, p)),
+          (p, l) => getDrawers(p, l).then((r) => toList(r, p)),
           limit,
         );
       }
@@ -479,10 +480,14 @@ export default function AdminPanel() {
   async function loadAlerts() {
     setLoadingAlerts(true);
     try {
-      const stockList = await fetchAllPaginated((page, limit) =>
-        getStock(page, limit).then((res: any) => res),
+      const stockList = await fetchAllPaginated<StockListAlertItem>(
+        (page, limit) =>
+          getStock(page, limit).then((res) => ({
+            data: Array.isArray(res?.data) ? (res.data as StockListAlertItem[]) : [],
+            hasNext: Boolean(res?.hasNext),
+          })),
       );
-      const noStock = (stockList as any[])
+      const noStock = stockList
         .filter((i) => i.st_quantidade === "critical")
         .map((i) => ({
           nome: i.nome ?? "-",
@@ -493,7 +498,7 @@ export default function AdminPanel() {
           setor: i.setor ?? "-",
           tipo_item: i.tipo_item ?? "-",
         }));
-      const belowMin = (stockList as any[])
+      const belowMin = stockList
         .filter((i) => i.st_quantidade === "low")
         .map((i) => ({
           nome: i.nome ?? "-",
@@ -504,7 +509,7 @@ export default function AdminPanel() {
           setor: i.setor ?? "-",
           tipo_item: i.tipo_item ?? "-",
         }));
-      const expired = (stockList as any[])
+      const expired = stockList
         .filter((i) => i.st_expiracao === "expired" && (i.quantidade ?? 0) > 0)
         .map((i) => ({
           nome: i.nome ?? "-",
@@ -515,7 +520,7 @@ export default function AdminPanel() {
           setor: i.setor ?? "-",
           tipo_item: i.tipo_item ?? "-",
         }));
-      const expiringSoon = (stockList as any[])
+      const expiringSoon = stockList
         .filter(
           (i) =>
             i.st_expiracao === "warning" ||
@@ -576,9 +581,9 @@ export default function AdminPanel() {
     const tipo = selectedReportType;
     setReportStatus("loading");
     try {
-      let response: any;
+      let response: unknown;
       if (tipo === "movimentacoes") {
-        let params: any;
+        let params: MovementsParams;
         if (reportMovementPeriod === MovementPeriod.DIARIO) {
           if (!reportMovementDate) {
             toast({ title: "Selecione a data", variant: "error" });
@@ -610,7 +615,7 @@ export default function AdminPanel() {
         }
         response = await getReport("movimentacoes", undefined, params);
       } else if (tipo === "transferencias") {
-        let params: any;
+        let params: MovementsParams;
         if (reportTransferPeriod === MovementPeriod.DIARIO) {
           if (!reportTransferDate) {
             toast({ title: "Selecione a data da transferência", variant: "error" });
@@ -641,7 +646,10 @@ export default function AdminPanel() {
             : undefined;
         response = await getReport(tipo, casela);
       }
-      const doc = createStockPDF(tipo, response);
+      const doc = createStockPDF(
+        tipo,
+        response as Parameters<typeof createStockPDF>[1],
+      );
       const blob = await pdf(doc).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -948,38 +956,38 @@ export default function AdminPanel() {
                                 </TableCell>
                               </TableRow>
                             ) : (
-                              summaryListData.map((row: any, idx) => (
+                              summaryListData.map((row: Record<string, unknown>, idx: number) => (
                                 <TableRow key={idx}>
                                   {expandedSummary === "residents" && (
                                     <>
-                                      <TableCell>{row.casela ?? "-"}</TableCell>
-                                      <TableCell>{row.nome ?? "-"}</TableCell>
+                                      <TableCell>{String(row.casela ?? "-")}</TableCell>
+                                      <TableCell>{String(row.nome ?? "-")}</TableCell>
                                     </>
                                   )}
                                   {expandedSummary === "medicines" && (
                                     <>
-                                      <TableCell>{row.nome ?? "-"}</TableCell>
-                                      <TableCell>{row.principio_ativo ?? "-"}</TableCell>
-                                      <TableCell>{row.dosagem ?? "-"}</TableCell>
-                                      <TableCell>{row.unidade_medida ?? "-"}</TableCell>
+                                      <TableCell>{String(row.nome ?? "-")}</TableCell>
+                                      <TableCell>{String(row.principio_ativo ?? "-")}</TableCell>
+                                      <TableCell>{String(row.dosagem ?? "-")}</TableCell>
+                                      <TableCell>{String(row.unidade_medida ?? "-")}</TableCell>
                                     </>
                                   )}
                                   {expandedSummary === "inputs" && (
                                     <>
-                                      <TableCell>{row.nome ?? "-"}</TableCell>
-                                      <TableCell>{row.descricao ?? "-"}</TableCell>
+                                      <TableCell>{String(row.nome ?? "-")}</TableCell>
+                                      <TableCell>{String(row.descricao ?? "-")}</TableCell>
                                     </>
                                   )}
                                   {expandedSummary === "cabinets" && (
                                     <>
-                                      <TableCell>{row.numero ?? "-"}</TableCell>
-                                      <TableCell>{row.categoria ?? "-"}</TableCell>
+                                      <TableCell>{String(row.numero ?? "-")}</TableCell>
+                                      <TableCell>{String(row.categoria ?? "-")}</TableCell>
                                     </>
                                   )}
                                   {expandedSummary === "drawers" && (
                                     <>
-                                      <TableCell>{row.numero ?? "-"}</TableCell>
-                                      <TableCell>{row.categoria ?? "-"}</TableCell>
+                                      <TableCell>{String(row.numero ?? "-")}</TableCell>
+                                      <TableCell>{String(row.categoria ?? "-")}</TableCell>
                                     </>
                                   )}
                                 </TableRow>

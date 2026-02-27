@@ -171,7 +171,7 @@ import { lazy, Suspense } from "react";
           100,
         );
         setResidents(
-          allResidents.map((r: any) => ({ casela: r.casela, name: r.name })),
+          allResidents.map((r: { casela: number; name: string }) => ({ casela: r.casela, name: r.name })),
         );
       } catch (err: unknown) {
         const errorMessage =
@@ -342,9 +342,9 @@ import { lazy, Suspense } from "react";
           variant: "success",
           duration: 3000,
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         const errorMessage =
-          err?.message || "Ocorreu um erro ao executar a ação.";
+          err instanceof Error ? err.message : "Ocorreu um erro ao executar a ação.";
 
         const messages =
           typeof actionMessages[type] === "function"
@@ -398,9 +398,9 @@ import { lazy, Suspense } from "react";
 
         const messages = actionMessages.transfer(row);
         toast({ title: messages.success, variant: "success", duration: 3000 });
-      } catch (err: any) {
+      } catch (err: unknown) {
         const errorMessage =
-          err?.message || "Ocorreu um erro ao transferir o item.";
+          err instanceof Error ? err.message : "Ocorreu um erro ao transferir o item.";
 
         const messages = actionMessages.transfer(row);
         toast({
@@ -629,17 +629,21 @@ import { lazy, Suspense } from "react";
             <SkeletonTable rows={8} cols={columns.length} />
           ) : (
             <EditableTable
-              data={items}
+              data={items as unknown as Record<string, unknown>[]}
               columns={columns}
               showAddons={true}
               currentPage={page}
               hasNextPage={hasNext}
               onNextPage={() => setPage((p) => p + 1)}
               onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
-              onTransferSector={requestTransferSector}
-              onRemoveIndividual={requestRemoveIndividual}
-              onSuspend={requestSuspend}
-              onResume={requestResume}
+              onTransferSector={(row) =>
+                requestTransferSector(row as unknown as StockItem)
+              }
+              onRemoveIndividual={(row) =>
+                requestRemoveIndividual(row as unknown as StockItem)
+              }
+              onSuspend={(row) => requestSuspend(row as unknown as StockItem)}
+              onResume={(row) => requestResume(row as unknown as StockItem)}
               onDeleteSuccess={() => {
                 loadStock(page);
                 loadAllStock();

@@ -5,9 +5,10 @@ import {
   TooltipTrigger,
 } from "@radix-ui/react-tooltip";
 import { AlertTriangle } from "lucide-react";
+import type { StockItemRaw } from "@/interfaces/interfaces";
 
 interface StockCardProps {
-  item: any;
+  item: StockItemRaw;
   selected: boolean;
   onSelect: () => void;
   disabled?: boolean;
@@ -20,8 +21,12 @@ export function StockCard({
   onSelect,
   disabled = false,
 }: StockCardProps) {
-  const display = (v: any) =>
-    v !== null && v !== undefined && v !== "" ? v : "N/A";
+  const display = (v: unknown): string | number =>
+    v !== null && v !== undefined && v !== ""
+      ? typeof v === "number"
+        ? v
+        : String(v)
+      : "N/A";
 
   const isSuspended = item.status === "suspended";
   const isOutOfStock = Number(item.quantidade) === 0;
