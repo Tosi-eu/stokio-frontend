@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -98,12 +99,20 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 
+interface UserPermissions {
+  read: boolean;
+  create: boolean;
+  update: boolean;
+  delete: boolean;
+}
+
 interface AdminUser {
   id: number;
   login: string;
   firstName: string;
   lastName: string;
   role: "admin" | "user";
+  permissions?: UserPermissions;
 }
 
 interface AuditEvent {
@@ -239,9 +248,25 @@ function getAuditDiffEntries(
     });
 }
 
+function formatPermissionsForAudit(obj: unknown): string {
+  if (obj == null || typeof obj !== "object") return "—";
+  const o = obj as Record<string, unknown>;
+  const read = o.read === true ? "Sim" : "Não";
+  const create = o.create === true ? "Sim" : "Não";
+  const update = o.update === true ? "Sim" : "Não";
+  const del = o.delete === true ? "Sim" : "Não";
+  return `Leitura: ${read}, Criar: ${create}, Editar: ${update}, Remover: ${del}`;
+}
+
 function formatDiffValue(v: unknown, key?: string): string {
   if (v === undefined || v === null) return "—";
-  if (typeof v === "object") return JSON.stringify(v);
+  if (key === "permissions") return formatPermissionsForAudit(v);
+  if (typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    if ("read" in o && ("create" in o || "update" in o || "delete" in o))
+      return formatPermissionsForAudit(v);
+    return JSON.stringify(v);
+  }
   const str = String(v);
   if (key === "status") {
     const lower = str.toLowerCase();
@@ -256,6 +281,7 @@ const AUDIT_FIELD_LABEL: Record<string, string> = {
   last_name: "Sobrenome",
   login: "Login",
   role: "Privilégio",
+  permissions: "Permissões",
   created_at: "Criado em",
   updated_at: "Atualizado em",
   num_casela: "Casela",
@@ -368,6 +394,12 @@ export default function AdminPanel() {
     login: "",
     password: "",
     role: "user" as "admin" | "user",
+    permissions: {
+      read: true,
+      create: false,
+      update: false,
+      delete: false,
+    } as UserPermissions,
   });
   const [saving, setSaving] = useState(false);
 
@@ -414,7 +446,16 @@ export default function AdminPanel() {
   const [stockHistoryItemType, setStockHistoryItemType] = useState<
     "medicamento" | "insumo"
   >("medicamento");
-  const [stockHistoryItemId, setStockHistoryItemId] = useState("");
+  const [stockHistoryItemSearch, setStockHistoryItemSearch] = useState("");
+  const [stockHistoryItemOptions, setStockHistoryItemOptions] = useState<
+    { id: number; nome: string }[]
+  >([]);
+  const [stockHistorySelectedItem, setStockHistorySelectedItem] = useState<{
+    id: number;
+    nome: string;
+  } | null>(null);
+  const [loadingStockHistoryItemSearch, setLoadingStockHistoryItemSearch] = useState(false);
+  const [stockHistoryItemPopoverOpen, setStockHistoryItemPopoverOpen] = useState(false);
   const [stockHistoryLote, setStockHistoryLote] = useState("");
   const [stockHistoryData, setStockHistoryData] = useState<StockHistoryEntry[]>(
     [],
@@ -506,6 +547,40 @@ export default function AdminPanel() {
   useEffect(() => {
     if (user?.role === "admin") fetchConsumptionByItem();
   }, [user?.role]);
+
+  useEffect(() => {
+    if (!stockHistoryItemSearch.trim() || stockHistoryItemSearch.length < 2) {
+      setStockHistoryItemOptions([]);
+      return;
+    }
+    const t = setTimeout(() => {
+      let cancelled = false;
+      setLoadingStockHistoryItemSearch(true);
+      const search = stockHistoryItemSearch.trim();
+      (stockHistoryItemType === "medicamento"
+        ? getMedicines(1, 25, search)
+        : getInputs(1, 25, search)
+      )
+        .then((res) => {
+          if (cancelled) return;
+          const list = (res.data ?? []).map((x: { id: number; nome?: string }) => ({
+            id: x.id,
+            nome: x.nome ?? "-",
+          }));
+          setStockHistoryItemOptions(list);
+        })
+        .catch(() => {
+          if (!cancelled) setStockHistoryItemOptions([]);
+        })
+        .finally(() => {
+          if (!cancelled) setLoadingStockHistoryItemSearch(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, 300);
+    return () => clearTimeout(t);
+  }, [stockHistoryItemSearch, stockHistoryItemType]);
 
   async function loadSummary() {
     setLoadingSummary(true);
@@ -953,14 +1028,25 @@ export default function AdminPanel() {
     return { totalPages: pages, from: fromVal, to: toVal };
   }, [insights?.totalFiltered, eventsPage, eventsPageSize]);
 
+  const defaultPermissions: UserPermissions = {
+    read: true,
+    create: false,
+    update: false,
+    delete: false,
+  };
+
   const openEdit = (u: AdminUser) => {
     setEditModal(u);
+    const perms = u.role === "admin"
+      ? { read: true, create: true, update: true, delete: true }
+      : (u.permissions ? { ...defaultPermissions, ...u.permissions } : defaultPermissions);
     setFormEdit({
       firstName: u.firstName ?? "",
       lastName: u.lastName ?? "",
       login: u.login,
       password: "",
       role: u.role,
+      permissions: perms,
     });
   };
 
@@ -968,12 +1054,17 @@ export default function AdminPanel() {
     if (!editModal) return;
     setSaving(true);
     try {
+      const permissionsToSend =
+        formEdit.role === "admin"
+          ? { read: true, create: true, update: true, delete: true }
+          : formEdit.permissions;
       await updateAdminUser(editModal.id, {
         firstName: formEdit.firstName,
         lastName: formEdit.lastName,
         login: formEdit.login,
         ...(formEdit.password ? { password: formEdit.password } : {}),
         role: formEdit.role,
+        permissions: permissionsToSend,
       });
       toast({ title: "Usuário atualizado", variant: "success" });
       setEditModal(null);
@@ -1011,7 +1102,7 @@ export default function AdminPanel() {
   return (
     <Layout title="Painel administrativo">
       <Tabs defaultValue="resumo" className="w-full">
-        <TabsList className="grid grid-cols-6 gap-1 w-full p-1">
+        <TabsList className="grid grid-cols-5 gap-1 w-full p-1">
           <TabsTrigger
             value="resumo"
             className="gap-1.5 min-w-0 text-xs sm:text-sm"
@@ -1046,13 +1137,6 @@ export default function AdminPanel() {
           >
             <Edit className="h-4 w-4 shrink-0" />
             <span className="truncate">Auditoria</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="stock-history"
-            className="gap-1.5 min-w-0 text-xs sm:text-sm"
-          >
-            <Archive className="h-4 w-4 shrink-0" />
-            <span className="truncate">Histórico estoque</span>
           </TabsTrigger>
         </TabsList>
 
@@ -1505,6 +1589,194 @@ export default function AdminPanel() {
                   </Table>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>
+                Histórico por item ou lote (rastreabilidade)
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Consulte movimentações por medicamento/insumo (busque pelo nome) ou por lote.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap items-end gap-4">
+                <div>
+                  <Label className="text-xs">Buscar por item (nome)</Label>
+                  <div className="flex gap-2 mt-1 items-center flex-wrap">
+                    <Select
+                      value={stockHistoryItemType}
+                      onValueChange={(v) => {
+                        setStockHistoryItemType(v as "medicamento" | "insumo");
+                        setStockHistoryItemOptions([]);
+                        setStockHistorySelectedItem(null);
+                        setStockHistoryItemSearch("");
+                      }}
+                    >
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="medicamento">Medicamento</SelectItem>
+                        <SelectItem value="insumo">Insumo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Popover open={stockHistoryItemPopoverOpen} onOpenChange={setStockHistoryItemPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="min-w-[220px] justify-between">
+                          {stockHistorySelectedItem
+                            ? stockHistorySelectedItem.nome
+                            : "Digite para buscar pelo nome..."}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                        <Command
+                          shouldFilter={false}
+                          onValueChange={(value) => setStockHistoryItemSearch(value)}
+                        >
+                          <CommandInput
+                            placeholder={
+                              stockHistoryItemType === "medicamento"
+                                ? "Buscar medicamento..."
+                                : "Buscar insumo..."
+                            }
+                            value={stockHistoryItemSearch}
+                          />
+                          <CommandEmpty>
+                            {loadingStockHistoryItemSearch
+                              ? "Carregando..."
+                              : stockHistoryItemSearch.length < 2
+                                ? "Digite ao menos 2 caracteres"
+                                : "Nenhum resultado."}
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {stockHistoryItemOptions.map((opt) => (
+                              <CommandItem
+                                key={opt.id}
+                                value={String(opt.id)}
+                                onSelect={() => {
+                                  setStockHistorySelectedItem(opt);
+                                  setStockHistoryItemSearch("");
+                                  setStockHistoryItemPopoverOpen(false);
+                                  setStockHistoryPage(1);
+                                  setLoadingStockHistory(true);
+                                  getAdminStockHistory({
+                                    itemType: stockHistoryItemType,
+                                    itemId: opt.id,
+                                    page: 1,
+                                    limit: 25,
+                                  })
+                                    .then((res) => {
+                                      setStockHistoryData(res.data);
+                                      setStockHistoryTotal(res.total);
+                                    })
+                                    .catch(() => {
+                                      setStockHistoryData([]);
+                                      setStockHistoryTotal(0);
+                                    })
+                                    .finally(() => setLoadingStockHistory(false));
+                                }}
+                              >
+                                {opt.nome}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                <div className="flex items-end gap-2">
+                  <div>
+                    <Label className="text-xs">Buscar por lote</Label>
+                    <Input
+                      placeholder="Lote"
+                      value={stockHistoryLote}
+                      onChange={(e) => setStockHistoryLote(e.target.value)}
+                      className="w-[160px] mt-1"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={loadingStockHistory || !stockHistoryLote.trim()}
+                    onClick={async () => {
+                      setStockHistorySelectedItem(null);
+                      setStockHistoryPage(1);
+                      setLoadingStockHistory(true);
+                      try {
+                        const res = await getAdminStockHistory({
+                          lote: stockHistoryLote.trim(),
+                          page: 1,
+                          limit: 25,
+                        });
+                        setStockHistoryData(res.data);
+                        setStockHistoryTotal(res.total);
+                      } catch {
+                        setStockHistoryData([]);
+                        setStockHistoryTotal(0);
+                      } finally {
+                        setLoadingStockHistory(false);
+                      }
+                    }}
+                  >
+                    Buscar por lote
+                  </Button>
+                </div>
+              </div>
+              {loadingStockHistory && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Carregando...
+                </div>
+              )}
+              {stockHistoryData.length > 0 && (
+                <>
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Data</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Produto</TableHead>
+                          <TableHead>Quantidade</TableHead>
+                          <TableHead>Setor</TableHead>
+                          <TableHead>Lote</TableHead>
+                          <TableHead>Operador</TableHead>
+                          <TableHead>Residente</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {stockHistoryData.map((row) => (
+                          <TableRow key={row.id}>
+                            <TableCell>{row.data}</TableCell>
+                            <TableCell>{row.tipo}</TableCell>
+                            <TableCell>{row.nome}</TableCell>
+                            <TableCell>{row.quantidade}</TableCell>
+                            <TableCell>{row.setor}</TableCell>
+                            <TableCell>{row.lote ?? "-"}</TableCell>
+                            <TableCell>{row.operador}</TableCell>
+                            <TableCell>{row.residente ?? "-"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Total: {stockHistoryTotal} registro(s).
+                  </p>
+                </>
+              )}
+              {!loadingStockHistory &&
+                stockHistoryData.length === 0 &&
+                stockHistoryTotal === 0 &&
+                (stockHistorySelectedItem || stockHistoryLote.trim()) && (
+                  <p className="text-muted-foreground">
+                    Nenhum movimento encontrado.
+                  </p>
+                )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -2046,15 +2318,25 @@ export default function AdminPanel() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Login</TableHead>
+                      <TableHead>E-mail</TableHead>
                       <TableHead>Nome</TableHead>
                       <TableHead>Sobrenome</TableHead>
                       <TableHead>Privilégio</TableHead>
+                      <TableHead className="text-center">Leitura</TableHead>
+                      <TableHead className="text-center">Criar</TableHead>
+                      <TableHead className="text-center">Editar</TableHead>
+                      <TableHead className="text-center">Remover</TableHead>
                       <TableHead className="w-[120px]">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map((u) => (
+                    {users.map((u) => {
+                      const p = u.permissions ?? { read: true, create: false, update: false, delete: false };
+                      const canRead = u.role === "admin" || p.read;
+                      const canCreate = u.role === "admin" || p.create;
+                      const canUpdate = u.role === "admin" || p.update;
+                      const canDelete = u.role === "admin" || p.delete;
+                      return (
                       <TableRow key={u.id}>
                         <TableCell>{u.login}</TableCell>
                         <TableCell>{u.firstName ?? "-"}</TableCell>
@@ -2070,6 +2352,10 @@ export default function AdminPanel() {
                             {u.role === "admin" ? "Administrador" : "Usuário"}
                           </span>
                         </TableCell>
+                        <TableCell className="text-center text-muted-foreground">{canRead ? "Sim" : "Não"}</TableCell>
+                        <TableCell className="text-center text-muted-foreground">{canCreate ? "Sim" : "Não"}</TableCell>
+                        <TableCell className="text-center text-muted-foreground">{canUpdate ? "Sim" : "Não"}</TableCell>
+                        <TableCell className="text-center text-muted-foreground">{canDelete ? "Sim" : "Não"}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             <Button
@@ -2093,7 +2379,8 @@ export default function AdminPanel() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    );
+                    })}
                   </TableBody>
                 </Table>
               )}
@@ -2372,167 +2659,6 @@ export default function AdminPanel() {
             </CardContent>
           </Card>
         </TabsContent>
-
-        <TabsContent value="stock-history" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                Histórico por item ou lote (rastreabilidade)
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Consulte movimentações por medicamento/insumo (ID) ou por lote.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap items-end gap-4">
-                <div>
-                  <Label className="text-xs">Buscar por item</Label>
-                  <div className="flex gap-2 mt-1">
-                    <Select
-                      value={stockHistoryItemType}
-                      onValueChange={(v) =>
-                        setStockHistoryItemType(v as "medicamento" | "insumo")
-                      }
-                    >
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="medicamento">Medicamento</SelectItem>
-                        <SelectItem value="insumo">Insumo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      type="number"
-                      placeholder="ID do item"
-                      value={stockHistoryItemId}
-                      onChange={(e) => setStockHistoryItemId(e.target.value)}
-                      className="w-[100px]"
-                      min={1}
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={
-                        loadingStockHistory || !stockHistoryItemId.trim()
-                      }
-                      onClick={async () => {
-                        const id = Number(stockHistoryItemId.trim());
-                        if (Number.isNaN(id) || id < 1) return;
-                        setLoadingStockHistory(true);
-                        setStockHistoryPage(1);
-                        try {
-                          const res = await getAdminStockHistory({
-                            itemType: stockHistoryItemType,
-                            itemId: id,
-                            page: 1,
-                            limit: 25,
-                          });
-                          setStockHistoryData(res.data);
-                          setStockHistoryTotal(res.total);
-                        } catch {
-                          setStockHistoryData([]);
-                          setStockHistoryTotal(0);
-                        } finally {
-                          setLoadingStockHistory(false);
-                        }
-                      }}
-                    >
-                      Buscar por item
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex items-end gap-2">
-                  <div>
-                    <Label className="text-xs">Buscar por lote</Label>
-                    <Input
-                      placeholder="Lote"
-                      value={stockHistoryLote}
-                      onChange={(e) => setStockHistoryLote(e.target.value)}
-                      className="w-[160px] mt-1"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={loadingStockHistory || !stockHistoryLote.trim()}
-                    onClick={async () => {
-                      setLoadingStockHistory(true);
-                      setStockHistoryPage(1);
-                      try {
-                        const res = await getAdminStockHistory({
-                          lote: stockHistoryLote.trim(),
-                          page: 1,
-                          limit: 25,
-                        });
-                        setStockHistoryData(res.data);
-                        setStockHistoryTotal(res.total);
-                      } catch {
-                        setStockHistoryData([]);
-                        setStockHistoryTotal(0);
-                      } finally {
-                        setLoadingStockHistory(false);
-                      }
-                    }}
-                  >
-                    Buscar por lote
-                  </Button>
-                </div>
-              </div>
-              {loadingStockHistory && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Carregando...
-                </div>
-              )}
-              {stockHistoryData.length > 0 && (
-                <>
-                  <div className="rounded-md border overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Data</TableHead>
-                          <TableHead>Tipo</TableHead>
-                          <TableHead>Produto</TableHead>
-                          <TableHead>Quantidade</TableHead>
-                          <TableHead>Setor</TableHead>
-                          <TableHead>Lote</TableHead>
-                          <TableHead>Operador</TableHead>
-                          <TableHead>Residente</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {stockHistoryData.map((row) => (
-                          <TableRow key={row.id}>
-                            <TableCell>{row.data}</TableCell>
-                            <TableCell>{row.tipo}</TableCell>
-                            <TableCell>{row.nome}</TableCell>
-                            <TableCell>{row.quantidade}</TableCell>
-                            <TableCell>{row.setor}</TableCell>
-                            <TableCell>{row.lote ?? "-"}</TableCell>
-                            <TableCell>{row.operador}</TableCell>
-                            <TableCell>{row.residente ?? "-"}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Total: {stockHistoryTotal} registro(s).
-                  </p>
-                </>
-              )}
-              {!loadingStockHistory &&
-                stockHistoryData.length === 0 &&
-                stockHistoryTotal === 0 &&
-                (stockHistoryItemId.trim() || stockHistoryLote.trim()) && (
-                  <p className="text-muted-foreground">
-                    Nenhum movimento encontrado.
-                  </p>
-                )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       <Dialog
@@ -2660,7 +2786,7 @@ export default function AdminPanel() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>Login</Label>
+              <Label>E-mail</Label>
               <Input
                 value={formEdit.login}
                 onChange={(e) =>
@@ -2704,7 +2830,13 @@ export default function AdminPanel() {
               <Select
                 value={formEdit.role}
                 onValueChange={(v: "admin" | "user") =>
-                  setFormEdit((p) => ({ ...p, role: v }))
+                  setFormEdit((p) => ({
+                    ...p,
+                    role: v,
+                    permissions: v === "admin"
+                      ? { read: true, create: true, update: true, delete: true }
+                      : p.permissions,
+                  }))
                 }
               >
                 <SelectTrigger>
@@ -2715,6 +2847,54 @@ export default function AdminPanel() {
                   <SelectItem value="admin">Administrador</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid gap-3 border-t pt-4">
+              <Label>Permissões</Label>
+              <p className="text-xs text-muted-foreground">
+                Leitura é obrigatória para todos. Marque as permissões de escrita para este usuário.
+              </p>
+              <div className="flex flex-wrap gap-6">
+                <label className="flex items-center gap-2 cursor-not-allowed opacity-70">
+                  <Checkbox checked disabled />
+                  <span className="text-sm">Leitura</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={formEdit.permissions.create}
+                    onCheckedChange={(checked) =>
+                      setFormEdit((p) => ({
+                        ...p,
+                        permissions: { ...p.permissions, create: Boolean(checked) },
+                      }))
+                    }
+                  />
+                  <span className="text-sm">Criar</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={formEdit.permissions.update}
+                    onCheckedChange={(checked) =>
+                      setFormEdit((p) => ({
+                        ...p,
+                        permissions: { ...p.permissions, update: Boolean(checked) },
+                      }))
+                    }
+                  />
+                  <span className="text-sm">Editar</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={formEdit.permissions.delete}
+                    onCheckedChange={(checked) =>
+                      setFormEdit((p) => ({
+                        ...p,
+                        permissions: { ...p.permissions, delete: Boolean(checked) },
+                      }))
+                    }
+                  />
+                  <span className="text-sm">Remover</span>
+                </label>
+              </div>
             </div>
           </div>
           <DialogFooter>

@@ -599,6 +599,13 @@ export const logoutRequest = () => api.post("/login/logout");
 
 export const getAdminUsers = () => api.get("/admin/users");
 
+export type UserPermissions = {
+  read: boolean;
+  create: boolean;
+  update: boolean;
+  delete: boolean;
+};
+
 export const updateAdminUser = (
   id: number,
   data: {
@@ -607,6 +614,7 @@ export const updateAdminUser = (
     login?: string;
     password?: string;
     role?: "admin" | "user";
+    permissions?: UserPermissions;
   },
 ) => api.put(`/admin/users/${id}`, data);
 
