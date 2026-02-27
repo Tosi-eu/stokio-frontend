@@ -1,0 +1,209 @@
+import { useEffect, useState } from "react";
+import {
+  getExpiringItems,
+  getConsumptionByItem,
+  getAdminStockHistory,
+  getMedicines,
+  getInputs,
+} from "@/api/requests";
+import type { ExpiringItem, ConsumptionByItemRow } from "@/api/requests";
+import type { StockHistoryEntry } from "@/api/requests";
+
+export function useAdminResumoExtras(isAdmin: boolean) {
+  const [expiringDays, setExpiringDays] = useState<30 | 60 | 90>(30);
+  const [expiringItems, setExpiringItems] = useState<ExpiringItem[]>([]);
+  const [expiringItemsTotal, setExpiringItemsTotal] = useState(0);
+  const [expiringItemsPage, setExpiringItemsPage] = useState(1);
+  const [loadingExpiringItems, setLoadingExpiringItems] = useState(false);
+
+  const [consumptionStart, setConsumptionStart] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 3);
+    return d.toISOString().slice(0, 10);
+  });
+  const [consumptionEnd, setConsumptionEnd] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+  const [consumptionByItemData, setConsumptionByItemData] = useState<{
+    items: ConsumptionByItemRow[];
+    subtotal: { entrada: number; saida: number };
+  }>({ items: [], subtotal: { entrada: 0, saida: 0 } });
+  const [loadingConsumptionByItem, setLoadingConsumptionByItem] =
+    useState(false);
+
+  const [stockHistoryItemType, setStockHistoryItemType] = useState<
+    "medicamento" | "insumo"
+  >("medicamento");
+  const [stockHistoryItemSearch, setStockHistoryItemSearch] = useState("");
+  const [stockHistoryItemOptions, setStockHistoryItemOptions] = useState<
+    { id: number; nome: string }[]
+  >([]);
+  const [stockHistorySelectedItem, setStockHistorySelectedItem] = useState<{
+    id: number;
+    nome: string;
+  } | null>(null);
+  const [loadingStockHistoryItemSearch, setLoadingStockHistoryItemSearch] =
+    useState(false);
+  const [stockHistoryItemPopoverOpen, setStockHistoryItemPopoverOpen] =
+    useState(false);
+  const [stockHistoryLote, setStockHistoryLote] = useState("");
+  const [stockHistoryData, setStockHistoryData] = useState<StockHistoryEntry[]>(
+    [],
+  );
+  const [stockHistoryTotal, setStockHistoryTotal] = useState(0);
+  const [stockHistoryPage, setStockHistoryPage] = useState(1);
+  const [loadingStockHistory, setLoadingStockHistory] = useState(false);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    setLoadingExpiringItems(true);
+    getExpiringItems(expiringDays, expiringItemsPage, 10)
+      .then((res) => {
+        if (!cancelled) {
+          setExpiringItems(res.data);
+          setExpiringItemsTotal(res.total);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setExpiringItems([]);
+          setExpiringItemsTotal(0);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingExpiringItems(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, expiringDays, expiringItemsPage]);
+
+  function fetchConsumptionByItem() {
+    setLoadingConsumptionByItem(true);
+    getConsumptionByItem(consumptionStart, consumptionEnd)
+      .then(setConsumptionByItemData)
+      .catch(() =>
+        setConsumptionByItemData({
+          items: [],
+          subtotal: { entrada: 0, saida: 0 },
+        }),
+      )
+      .finally(() => setLoadingConsumptionByItem(false));
+  }
+
+  useEffect(() => {
+    if (isAdmin) fetchConsumptionByItem();
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!stockHistoryItemSearch.trim() || stockHistoryItemSearch.length < 2) {
+      setStockHistoryItemOptions([]);
+      return;
+    }
+    const t = setTimeout(() => {
+      let cancelled = false;
+      setLoadingStockHistoryItemSearch(true);
+      const search = stockHistoryItemSearch.trim();
+      (stockHistoryItemType === "medicamento"
+        ? getMedicines(1, 25, search)
+        : getInputs(1, 25, search)
+      )
+        .then((res) => {
+          if (cancelled) return;
+          const list = (res.data ?? []).map(
+            (x: { id: number; nome?: string }) => ({
+              id: x.id,
+              nome: x.nome ?? "-",
+            }),
+          );
+          setStockHistoryItemOptions(list);
+        })
+        .catch(() => {
+          if (!cancelled) setStockHistoryItemOptions([]);
+        })
+        .finally(() => {
+          if (!cancelled) setLoadingStockHistoryItemSearch(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, 300);
+    return () => clearTimeout(t);
+  }, [stockHistoryItemSearch, stockHistoryItemType]);
+
+  async function fetchStockHistoryByItem(itemId: number) {
+    setStockHistoryPage(1);
+    setLoadingStockHistory(true);
+    try {
+      const res = await getAdminStockHistory({
+        itemType: stockHistoryItemType,
+        itemId,
+        page: 1,
+        limit: 25,
+      });
+      setStockHistoryData(res.data);
+      setStockHistoryTotal(res.total);
+    } catch {
+      setStockHistoryData([]);
+      setStockHistoryTotal(0);
+    } finally {
+      setLoadingStockHistory(false);
+    }
+  }
+
+  async function fetchStockHistoryByLote() {
+    setStockHistorySelectedItem(null);
+    setStockHistoryPage(1);
+    setLoadingStockHistory(true);
+    try {
+      const res = await getAdminStockHistory({
+        lote: stockHistoryLote.trim(),
+        page: 1,
+        limit: 25,
+      });
+      setStockHistoryData(res.data);
+      setStockHistoryTotal(res.total);
+    } catch {
+      setStockHistoryData([]);
+      setStockHistoryTotal(0);
+    } finally {
+      setLoadingStockHistory(false);
+    }
+  }
+
+  return {
+    expiringDays,
+    setExpiringDays,
+    expiringItems,
+    expiringItemsTotal,
+    expiringItemsPage,
+    setExpiringItemsPage,
+    loadingExpiringItems,
+    consumptionStart,
+    setConsumptionStart,
+    consumptionEnd,
+    setConsumptionEnd,
+    consumptionByItemData,
+    loadingConsumptionByItem,
+    fetchConsumptionByItem,
+    stockHistoryItemType,
+    setStockHistoryItemType,
+    stockHistoryItemSearch,
+    setStockHistoryItemSearch,
+    stockHistoryItemOptions,
+    setStockHistoryItemOptions,
+    stockHistorySelectedItem,
+    setStockHistorySelectedItem,
+    loadingStockHistoryItemSearch,
+    stockHistoryItemPopoverOpen,
+    setStockHistoryItemPopoverOpen,
+    stockHistoryLote,
+    setStockHistoryLote,
+    stockHistoryData,
+    stockHistoryTotal,
+    loadingStockHistory,
+    fetchStockHistoryByItem,
+    fetchStockHistoryByLote,
+  };
+}

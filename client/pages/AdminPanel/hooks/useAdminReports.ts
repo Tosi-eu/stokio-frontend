@@ -1,0 +1,230 @@
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "@/hooks/use-toast.hook";
+import { getReport, getResidents } from "@/api/requests";
+import { fetchAllPaginated } from "@/helpers/paginacao.helper";
+import {
+  createStockPDF,
+  MovementPeriod,
+  MovementsParams,
+} from "@/components/StockReporter";
+import { parseYearMonthToDate } from "@/helpers/dates.helper";
+import { pdf } from "@react-pdf/renderer";
+import type { ResidentOption } from "../types";
+
+export function useAdminReports() {
+  const [selectedReportType, setSelectedReportType] = useState("");
+  const [reportResidents, setReportResidents] = useState<ResidentOption[]>([]);
+  const [selectedReportResident, setSelectedReportResident] = useState<
+    number | null
+  >(null);
+  const [reportMovementPeriod, setReportMovementPeriod] =
+    useState<MovementPeriod>(MovementPeriod.DIARIO);
+  const [reportMovementDate, setReportMovementDate] = useState<Date | null>(
+    null,
+  );
+  const [reportMovementMonth, setReportMovementMonth] = useState("");
+  const [reportStartDate, setReportStartDate] = useState<Date | null>(null);
+  const [reportEndDate, setReportEndDate] = useState<Date | null>(null);
+  const [reportTransferDate, setReportTransferDate] = useState<Date | null>(
+    null,
+  );
+  const [reportTransferPeriod, setReportTransferPeriod] =
+    useState<MovementPeriod>(MovementPeriod.DIARIO);
+  const [reportStatus, setReportStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+  const [reportPreviewUrl, setReportPreviewUrl] = useState<string | null>(null);
+  const [reportPreviewLoading, setReportPreviewLoading] = useState(false);
+  const [loadingReportResidents, setLoadingReportResidents] = useState(false);
+  const [reportResidentSearch, setReportResidentSearch] = useState("");
+
+  const showReportResidentSelector =
+    selectedReportType === "residente_consumo" ||
+    selectedReportType === "medicamentos_residente";
+  const showReportMovementFilters = selectedReportType === "movimentacoes";
+  const showReportTransferFilters = selectedReportType === "transferencias";
+
+  const filteredReportResidents = useMemo(
+    () =>
+      reportResidents.filter((r) => {
+        if (!reportResidentSearch.trim()) return true;
+        return r.casela.toString().startsWith(reportResidentSearch.trim());
+      }),
+    [reportResidents, reportResidentSearch],
+  );
+
+  useEffect(() => {
+    if (showReportResidentSelector) loadReportResidents();
+  }, [selectedReportType]);
+
+  async function loadReportResidents() {
+    setLoadingReportResidents(true);
+    try {
+      const list = await fetchAllPaginated<ResidentOption>(
+        (p, l) =>
+          getResidents(p, l).then((r) => ({
+            data: (r.data ?? []) as ResidentOption[],
+            hasNext: r.hasNext ?? false,
+          })),
+      );
+      setReportResidents(list ?? []);
+    } catch {
+      setReportResidents([]);
+    } finally {
+      setLoadingReportResidents(false);
+    }
+  }
+
+  async function handleGenerateReport() {
+    if (!selectedReportType) {
+      toast({ title: "Selecione um tipo de relatório", variant: "error" });
+      return;
+    }
+    const tipo = selectedReportType;
+    setReportStatus("loading");
+    try {
+      const response = await fetchReportPayload(tipo);
+      const doc = createStockPDF(
+        tipo,
+        response as Parameters<typeof createStockPDF>[1],
+      );
+      const blob = await pdf(doc).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `relatorio-${tipo}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setReportStatus("success");
+      toast({ title: "Relatório gerado", variant: "success" });
+    } catch (e) {
+      console.error(e);
+      setReportStatus("error");
+      toast({ title: "Erro ao gerar relatório", variant: "error" });
+    }
+  }
+
+  async function handlePreviewReport() {
+    if (!selectedReportType) {
+      toast({ title: "Selecione um tipo de relatório", variant: "error" });
+      return;
+    }
+    const tipo = selectedReportType;
+    setReportPreviewLoading(true);
+    try {
+      const response = await fetchReportPayload(tipo);
+      const doc = createStockPDF(
+        tipo,
+        response as Parameters<typeof createStockPDF>[1],
+      );
+      const blob = await pdf(doc).toBlob();
+      const url = URL.createObjectURL(blob);
+      if (reportPreviewUrl) URL.revokeObjectURL(reportPreviewUrl);
+      setReportPreviewUrl(url);
+      toast({ title: "Pré-visualização carregada abaixo", variant: "success" });
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Erro ao gerar pré-visualização", variant: "error" });
+    } finally {
+      setReportPreviewLoading(false);
+    }
+  }
+
+  async function fetchReportPayload(tipo: string): Promise<unknown> {
+    if (tipo === "movimentacoes") {
+      let params: MovementsParams;
+      if (reportMovementPeriod === MovementPeriod.DIARIO) {
+        if (!reportMovementDate) {
+          toast({ title: "Selecione a data", variant: "error" });
+          throw new Error("Data obrigatória");
+        }
+        params = {
+          periodo: MovementPeriod.DIARIO,
+          data: reportMovementDate.toISOString().split("T")[0],
+        };
+      } else if (reportMovementPeriod === MovementPeriod.MENSAL) {
+        if (!reportMovementMonth) {
+          toast({ title: "Selecione o mês", variant: "error" });
+          throw new Error("Mês obrigatório");
+        }
+        params = { periodo: MovementPeriod.MENSAL, mes: reportMovementMonth };
+      } else {
+        if (!reportStartDate || !reportEndDate) {
+          toast({ title: "Selecione o intervalo de datas", variant: "error" });
+          throw new Error("Intervalo obrigatório");
+        }
+        params = {
+          periodo: MovementPeriod.INTERVALO,
+          data_inicial: reportStartDate.toISOString().split("T")[0],
+          data_final: reportEndDate.toISOString().split("T")[0],
+        };
+      }
+      return getReport("movimentacoes", undefined, params);
+    }
+    if (tipo === "transferencias") {
+      let params: MovementsParams;
+      if (reportTransferPeriod === MovementPeriod.DIARIO) {
+        if (!reportTransferDate) {
+          toast({ title: "Selecione a data da transferência", variant: "error" });
+          throw new Error("Data obrigatória");
+        }
+        params = {
+          periodo: MovementPeriod.DIARIO,
+          data: reportTransferDate.toISOString().split("T")[0],
+        };
+      } else {
+        if (!reportStartDate || !reportEndDate) {
+          toast({ title: "Selecione o intervalo de datas", variant: "error" });
+          throw new Error("Intervalo obrigatório");
+        }
+        params = {
+          periodo: MovementPeriod.INTERVALO,
+          data_inicial: reportStartDate.toISOString().split("T")[0],
+          data_final: reportEndDate.toISOString().split("T")[0],
+        };
+      }
+      return getReport("transferencias", undefined, params);
+    }
+    const casela =
+      tipo === "residente_consumo" || tipo === "medicamentos_residente"
+        ? selectedReportResident ?? undefined
+        : undefined;
+    return getReport(tipo, casela);
+  }
+
+  return {
+    selectedReportType,
+    setSelectedReportType,
+    reportResidents,
+    selectedReportResident,
+    setSelectedReportResident,
+    reportMovementPeriod,
+    setReportMovementPeriod,
+    reportMovementDate,
+    setReportMovementDate,
+    reportMovementMonth,
+    setReportMovementMonth,
+    reportStartDate,
+    setReportStartDate,
+    reportEndDate,
+    setReportEndDate,
+    reportTransferDate,
+    setReportTransferDate,
+    reportTransferPeriod,
+    setReportTransferPeriod,
+    reportStatus,
+    reportPreviewUrl,
+    setReportPreviewUrl,
+    reportPreviewLoading,
+    loadingReportResidents,
+    reportResidentSearch,
+    setReportResidentSearch,
+    showReportResidentSelector,
+    showReportMovementFilters,
+    showReportTransferFilters,
+    filteredReportResidents,
+    handleGenerateReport,
+    handlePreviewReport,
+    parseYearMonthToDate,
+  };
+}
