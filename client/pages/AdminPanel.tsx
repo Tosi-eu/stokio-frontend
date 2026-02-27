@@ -48,13 +48,12 @@ import {
   getCabinets,
   getDrawers,
   getExpiringItems,
-  getConsumptionByPeriod,
+  getConsumptionByItem,
 } from "@/api/requests";
-import type { StockHistoryEntry, ExpiringItem, ConsumptionPeriodItem } from "@/api/requests";
+import type { StockHistoryEntry, ExpiringItem, ConsumptionByItemRow } from "@/api/requests";
 import type { StockListAlertItem } from "@/interfaces/interfaces";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import { createStockPDF, MovementPeriod, MovementsParams } from "@/components/StockReporter";
-import { getReportTitle } from "@/helpers/relatorio.helper";
 import { parseYearMonthToDate, formatValidityDate } from "@/helpers/dates.helper";
 import { pdf } from "@react-pdf/renderer";
 import DatePicker from "react-datepicker";
@@ -74,8 +73,6 @@ import {
   Archive,
   Grid,
   Loader2,
-  CalendarClock,
-  BarChart3,
 } from "lucide-react";
 import {
   Popover,
@@ -390,14 +387,18 @@ export default function AdminPanel() {
   const [consumptionEnd, setConsumptionEnd] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
-  const [consumptionGroupBy, setConsumptionGroupBy] = useState<"month" | "quarter">("month");
-  const [consumptionData, setConsumptionData] = useState<ConsumptionPeriodItem[]>([]);
-  const [loadingConsumption, setLoadingConsumption] = useState(false);
+  const [consumptionByItemData, setConsumptionByItemData] = useState<{
+    items: ConsumptionByItemRow[];
+    subtotal: { entrada: number; saida: number };
+  }>({ items: [], subtotal: { entrada: 0, saida: 0 } });
+  const [loadingConsumptionByItem, setLoadingConsumptionByItem] = useState(false);
   const [reportTransferPeriod, setReportTransferPeriod] =
     useState<MovementPeriod>(MovementPeriod.DIARIO);
   const [reportStatus, setReportStatus] = useState<
     "idle" | "loading" | "success" | "error"
   >("idle");
+  const [reportPreviewUrl, setReportPreviewUrl] = useState<string | null>(null);
+  const [reportPreviewLoading, setReportPreviewLoading] = useState(false);
   const [loadingReportResidents, setLoadingReportResidents] = useState(false);
   const [reportResidentSearch, setReportResidentSearch] = useState("");
 
@@ -438,16 +439,16 @@ export default function AdminPanel() {
     return () => { cancelled = true; };
   }, [expiringDays, expiringItemsPage]);
 
-  function fetchConsumption() {
-    setLoadingConsumption(true);
-    getConsumptionByPeriod(consumptionStart, consumptionEnd, consumptionGroupBy)
-      .then(setConsumptionData)
-      .catch(() => setConsumptionData([]))
-      .finally(() => setLoadingConsumption(false));
+  function fetchConsumptionByItem() {
+    setLoadingConsumptionByItem(true);
+    getConsumptionByItem(consumptionStart, consumptionEnd)
+      .then(setConsumptionByItemData)
+      .catch(() => setConsumptionByItemData({ items: [], subtotal: { entrada: 0, saida: 0 } }))
+      .finally(() => setLoadingConsumptionByItem(false));
   }
 
   useEffect(() => {
-    if (user?.role === "admin") fetchConsumption();
+    if (user?.role === "admin") fetchConsumptionByItem();
   }, [user?.role]);
 
   async function loadSummary() {
@@ -730,6 +731,96 @@ export default function AdminPanel() {
     }
   }
 
+  async function handlePreviewReport() {
+    if (!selectedReportType) {
+      toast({ title: "Selecione um tipo de relatório", variant: "error" });
+      return;
+    }
+    const tipo = selectedReportType;
+    setReportPreviewLoading(true);
+    try {
+      let response: unknown;
+      if (tipo === "movimentacoes") {
+        let params: MovementsParams;
+        if (reportMovementPeriod === MovementPeriod.DIARIO) {
+          if (!reportMovementDate) {
+            toast({ title: "Selecione a data", variant: "error" });
+            setReportPreviewLoading(false);
+            return;
+          }
+          params = {
+            periodo: MovementPeriod.DIARIO,
+            data: reportMovementDate.toISOString().split("T")[0],
+          };
+        } else if (reportMovementPeriod === MovementPeriod.MENSAL) {
+          if (!reportMovementMonth) {
+            toast({ title: "Selecione o mês", variant: "error" });
+            setReportPreviewLoading(false);
+            return;
+          }
+          params = { periodo: MovementPeriod.MENSAL, mes: reportMovementMonth };
+        } else {
+          if (!reportStartDate || !reportEndDate) {
+            toast({ title: "Selecione o intervalo de datas", variant: "error" });
+            setReportPreviewLoading(false);
+            return;
+          }
+          params = {
+            periodo: MovementPeriod.INTERVALO,
+            data_inicial: reportStartDate.toISOString().split("T")[0],
+            data_final: reportEndDate.toISOString().split("T")[0],
+          };
+        }
+        response = await getReport("movimentacoes", undefined, params);
+      } else if (tipo === "transferencias") {
+        let params: MovementsParams;
+        if (reportTransferPeriod === MovementPeriod.DIARIO) {
+          if (!reportTransferDate) {
+            toast({ title: "Selecione a data da transferência", variant: "error" });
+            setReportPreviewLoading(false);
+            return;
+          }
+          params = {
+            periodo: MovementPeriod.DIARIO,
+            data: reportTransferDate.toISOString().split("T")[0],
+          };
+        } else {
+          if (!reportStartDate || !reportEndDate) {
+            toast({ title: "Selecione o intervalo de datas", variant: "error" });
+            setReportPreviewLoading(false);
+            return;
+          }
+          params = {
+            periodo: MovementPeriod.INTERVALO,
+            data_inicial: reportStartDate.toISOString().split("T")[0],
+            data_final: reportEndDate.toISOString().split("T")[0],
+          };
+        }
+        response = await getReport("transferencias", undefined, params);
+      } else {
+        const casela =
+          tipo === "residente_consumo" || tipo === "medicamentos_residente"
+            ? selectedReportResident ?? undefined
+            : undefined;
+        response = await getReport(tipo, casela);
+      }
+      const doc = createStockPDF(
+        tipo,
+        response as Parameters<typeof createStockPDF>[1],
+      );
+      const blob = await pdf(doc).toBlob();
+      const url = URL.createObjectURL(blob);
+      if (reportPreviewUrl) URL.revokeObjectURL(reportPreviewUrl);
+      setReportPreviewUrl(url);
+      toast({ title: "Pré-visualização carregada abaixo", variant: "success" });
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Erro ao gerar pré-visualização", variant: "error" });
+    } finally {
+      setReportPreviewLoading(false);
+    }
+  }
+
   const showReportResidentSelector =
     selectedReportType === "residente_consumo" ||
     selectedReportType === "medicamentos_residente";
@@ -844,38 +935,30 @@ export default function AdminPanel() {
   return (
     <Layout title="Painel administrativo">
       <Tabs defaultValue="resumo" className="w-full">
-        <TabsList className="flex flex-wrap gap-1 h-auto p-1 w-full max-w-3xl">
-          <TabsTrigger value="resumo" className="gap-1.5">
-            <LayoutDashboard className="h-4 w-4" />
-            Resumo executivo
+        <TabsList className="grid grid-cols-6 gap-1 w-full p-1">
+          <TabsTrigger value="resumo" className="gap-1.5 min-w-0 text-xs sm:text-sm">
+            <LayoutDashboard className="h-4 w-4 shrink-0" />
+            <span className="truncate">Resumo executivo</span>
           </TabsTrigger>
-          <TabsTrigger value="alertas" className="gap-1.5">
-            <AlertTriangle className="h-4 w-4" />
-            Alertas
+          <TabsTrigger value="alertas" className="gap-1.5 min-w-0 text-xs sm:text-sm">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span className="truncate">Alertas</span>
           </TabsTrigger>
-          <TabsTrigger value="relatorios" className="gap-1.5">
-            <FileText className="h-4 w-4" />
-            Relatórios
+          <TabsTrigger value="relatorios" className="gap-1.5 min-w-0 text-xs sm:text-sm">
+            <FileText className="h-4 w-4 shrink-0" />
+            <span className="truncate">Relatórios</span>
           </TabsTrigger>
-          <TabsTrigger value="users" className="gap-1.5">
-            <Users className="h-4 w-4" />
-            Usuários
+          <TabsTrigger value="users" className="gap-1.5 min-w-0 text-xs sm:text-sm">
+            <Users className="h-4 w-4 shrink-0" />
+            <span className="truncate">Usuários</span>
           </TabsTrigger>
-          <TabsTrigger value="insights" className="gap-1.5">
-            <Edit className="h-4 w-4" />
-            Auditoria
+          <TabsTrigger value="insights" className="gap-1.5 min-w-0 text-xs sm:text-sm">
+            <Edit className="h-4 w-4 shrink-0" />
+            <span className="truncate">Auditoria</span>
           </TabsTrigger>
-          <TabsTrigger value="stock-history" className="gap-1.5">
-            <Archive className="h-4 w-4" />
-            Histórico estoque
-          </TabsTrigger>
-          <TabsTrigger value="expiring" className="gap-1.5">
-            <CalendarClock className="h-4 w-4" />
-            Itens a vencer
-          </TabsTrigger>
-          <TabsTrigger value="consumption" className="gap-1.5">
-            <BarChart3 className="h-4 w-4" />
-            Consumo por período
+          <TabsTrigger value="stock-history" className="gap-1.5 min-w-0 text-xs sm:text-sm">
+            <Archive className="h-4 w-4 shrink-0" />
+            <span className="truncate">Histórico estoque</span>
           </TabsTrigger>
         </TabsList>
 
@@ -1079,6 +1162,178 @@ export default function AdminPanel() {
                 <p className="text-muted-foreground">
                   Não foi possível carregar o resumo.
                 </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="mt-6">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle>Itens a vencer (próximos X dias)</CardTitle>
+              <Select
+                value={String(expiringDays)}
+                onValueChange={(v) => {
+                  setExpiringDays(Number(v) as 30 | 60 | 90);
+                  setExpiringItemsPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30">30 dias</SelectItem>
+                  <SelectItem value="60">60 dias</SelectItem>
+                  <SelectItem value="90">90 dias</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardHeader>
+            <CardContent>
+              {loadingExpiringItems ? (
+                <div className="flex items-center gap-2 text-muted-foreground py-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Carregando...
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Validade</TableHead>
+                          <TableHead>Dias p/ vencer</TableHead>
+                          <TableHead>Qtd</TableHead>
+                          <TableHead>Setor</TableHead>
+                          <TableHead>Lote</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {expiringItems.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center text-muted-foreground py-4">
+                              Nenhum item a vencer no período.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          expiringItems.map((row, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell>{row.nome}</TableCell>
+                              <TableCell>{row.tipo_item}</TableCell>
+                              <TableCell>{row.validade}</TableCell>
+                              <TableCell>{row.dias_para_vencer}</TableCell>
+                              <TableCell>{row.quantidade}</TableCell>
+                              <TableCell>{row.setor}</TableCell>
+                              <TableCell>{row.lote ?? "-"}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex justify-center gap-2 mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={expiringItemsPage === 1}
+                      onClick={() => setExpiringItemsPage((p) => p - 1)}
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-sm text-slate-600 self-center">
+                      Página {expiringItemsPage} ({expiringItemsTotal} itens)
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={expiringItemsPage * 10 >= expiringItemsTotal}
+                      onClick={() => setExpiringItemsPage((p) => p + 1)}
+                    >
+                      Próximo
+                    </Button>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Consumo por período (por item)</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Quantidade de entradas e saídas por medicamento/insumo no intervalo de datas.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap items-end gap-3">
+                <div>
+                  <Label className="text-xs">Início</Label>
+                  <Input
+                    type="date"
+                    value={consumptionStart}
+                    onChange={(e) => setConsumptionStart(e.target.value)}
+                    className="w-[140px]"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Fim</Label>
+                  <Input
+                    type="date"
+                    value={consumptionEnd}
+                    onChange={(e) => setConsumptionEnd(e.target.value)}
+                    className="w-[140px]"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  onClick={fetchConsumptionByItem}
+                  disabled={loadingConsumptionByItem}
+                >
+                  {loadingConsumptionByItem ? "Carregando..." : "Buscar"}
+                </Button>
+              </div>
+              {loadingConsumptionByItem ? (
+                <div className="flex items-center gap-2 text-muted-foreground py-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Carregando...
+                </div>
+              ) : (
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Entradas</TableHead>
+                        <TableHead>Saídas</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {consumptionByItemData.items.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
+                            Nenhum dado no período. Defina as datas e clique em Buscar.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        <>
+                          {consumptionByItemData.items.map((row, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell>{row.nome}</TableCell>
+                              <TableCell>{row.tipo_item === "medicamento" ? "Medicamento" : "Insumo"}</TableCell>
+                              <TableCell>{row.entrada}</TableCell>
+                              <TableCell>{row.saida}</TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow className="bg-slate-100 font-medium">
+                            <TableCell colSpan={2}>Subtotal</TableCell>
+                            <TableCell>{consumptionByItemData.subtotal.entrada}</TableCell>
+                            <TableCell>{consumptionByItemData.subtotal.saida}</TableCell>
+                          </TableRow>
+                        </>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -1494,23 +1749,82 @@ export default function AdminPanel() {
                 </div>
               )}
 
-              <Button
-                onClick={handleGenerateReport}
-                disabled={
-                  !selectedReportType ||
-                  reportStatus === "loading" ||
-                  (showReportResidentSelector && selectedReportResident == null)
-                }
-              >
-                {reportStatus === "loading" ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Gerando PDF...
-                  </>
-                ) : (
-                  <>Gerar e baixar PDF</>
-                )}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={handleGenerateReport}
+                  disabled={
+                    !selectedReportType ||
+                    reportStatus === "loading" ||
+                    (showReportResidentSelector && selectedReportResident == null)
+                  }
+                >
+                  {reportStatus === "loading" ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Gerando PDF...
+                    </>
+                  ) : (
+                    <>Gerar e baixar PDF</>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handlePreviewReport}
+                  disabled={
+                    !selectedReportType ||
+                    reportPreviewLoading ||
+                    reportStatus === "loading" ||
+                    (showReportResidentSelector && selectedReportResident == null)
+                  }
+                >
+                  {reportPreviewLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Carregando...
+                    </>
+                  ) : (
+                    <>Pré-visualizar</>
+                  )}
+                </Button>
+              </div>
+
+              {reportPreviewUrl && (
+                <div className="mt-6 space-y-2 border rounded-lg bg-muted/30 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Pré-visualização do relatório</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        URL.revokeObjectURL(reportPreviewUrl);
+                        setReportPreviewUrl(null);
+                      }}
+                    >
+                      Fechar pré-visualização
+                    </Button>
+                  </div>
+                  <div className="rounded-md border bg-white overflow-hidden min-h-[500px]">
+                    <object
+                      data={reportPreviewUrl}
+                      type="application/pdf"
+                      className="w-full min-h-[500px] h-[70vh]"
+                      title="Pré-visualização do relatório"
+                    >
+                      <p className="p-4 text-sm text-muted-foreground">
+                        Se o PDF não aparecer aqui,{" "}
+                        <button
+                          type="button"
+                          className="text-primary underline hover:no-underline"
+                          onClick={() => window.open(reportPreviewUrl, "_blank")}
+                        >
+                          abra em nova aba
+                        </button>
+                        .
+                      </p>
+                    </object>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -1984,180 +2298,6 @@ export default function AdminPanel() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="expiring" className="mt-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle>Itens a vencer (próximos X dias)</CardTitle>
-              <Select
-                value={String(expiringDays)}
-                onValueChange={(v) => {
-                  setExpiringDays(Number(v) as 30 | 60 | 90);
-                  setExpiringItemsPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="30">30 dias</SelectItem>
-                  <SelectItem value="60">60 dias</SelectItem>
-                  <SelectItem value="90">90 dias</SelectItem>
-                </SelectContent>
-              </Select>
-            </CardHeader>
-            <CardContent>
-              {loadingExpiringItems ? (
-                <div className="flex items-center gap-2 text-muted-foreground py-4">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Carregando...
-                </div>
-              ) : (
-                <>
-                  <div className="rounded-md border overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>Tipo</TableHead>
-                          <TableHead>Validade</TableHead>
-                          <TableHead>Dias p/ vencer</TableHead>
-                          <TableHead>Qtd</TableHead>
-                          <TableHead>Setor</TableHead>
-                          <TableHead>Lote</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {expiringItems.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={7} className="text-center text-muted-foreground py-4">
-                              Nenhum item a vencer no período.
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          expiringItems.map((row, idx) => (
-                            <TableRow key={idx}>
-                              <TableCell>{row.nome}</TableCell>
-                              <TableCell>{row.tipo_item}</TableCell>
-                              <TableCell>{row.validade}</TableCell>
-                              <TableCell>{row.dias_para_vencer}</TableCell>
-                              <TableCell>{row.quantidade}</TableCell>
-                              <TableCell>{row.setor}</TableCell>
-                              <TableCell>{row.lote ?? "-"}</TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  <div className="flex justify-center gap-2 mt-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={expiringItemsPage === 1}
-                      onClick={() => setExpiringItemsPage((p) => p - 1)}
-                    >
-                      Anterior
-                    </Button>
-                    <span className="text-sm text-slate-600 self-center">
-                      Página {expiringItemsPage} ({expiringItemsTotal} itens)
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={expiringItemsPage * 10 >= expiringItemsTotal}
-                      onClick={() => setExpiringItemsPage((p) => p + 1)}
-                    >
-                      Próximo
-                    </Button>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="consumption" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Consumo por período (entradas vs saídas)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap items-end gap-3">
-                <div>
-                  <Label className="text-xs">Início</Label>
-                  <Input
-                    type="date"
-                    value={consumptionStart}
-                    onChange={(e) => setConsumptionStart(e.target.value)}
-                    className="w-[140px]"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Fim</Label>
-                  <Input
-                    type="date"
-                    value={consumptionEnd}
-                    onChange={(e) => setConsumptionEnd(e.target.value)}
-                    className="w-[140px]"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Agrupar por</Label>
-                  <Select
-                    value={consumptionGroupBy}
-                    onValueChange={(v) => setConsumptionGroupBy(v as "month" | "quarter")}
-                  >
-                    <SelectTrigger className="w-[120px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="month">Mês</SelectItem>
-                      <SelectItem value="quarter">Trimestre</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button type="button" onClick={fetchConsumption} disabled={loadingConsumption}>
-                  {loadingConsumption ? "Carregando..." : "Buscar"}
-                </Button>
-              </div>
-              {loadingConsumption ? (
-                <div className="flex items-center gap-2 text-muted-foreground py-4">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Carregando...
-                </div>
-              ) : (
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Período</TableHead>
-                        <TableHead>Entradas</TableHead>
-                        <TableHead>Saídas</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {consumptionData.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={3} className="text-center text-muted-foreground py-4">
-                            Nenhum dado no período.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        consumptionData.map((row, idx) => (
-                          <TableRow key={idx}>
-                            <TableCell>{row.period}</TableCell>
-                            <TableCell>{row.entrada}</TableCell>
-                            <TableCell>{row.saida}</TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       <Dialog open={!!auditCompareEvent} onOpenChange={() => setAuditCompareEvent(null)}>

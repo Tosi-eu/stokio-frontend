@@ -152,6 +152,27 @@ export const getConsumptionByPeriod = (
     params: { start, end, groupBy },
   });
 
+export type ConsumptionByItemRow = {
+  tipo_item: "medicamento" | "insumo";
+  item_id: number;
+  nome: string;
+  entrada: number;
+  saida: number;
+};
+
+export type ConsumptionByItemResponse = {
+  items: ConsumptionByItemRow[];
+  subtotal: { entrada: number; saida: number };
+};
+
+export const getConsumptionByItem = (
+  start: string,
+  end: string,
+): Promise<ConsumptionByItemResponse> =>
+  api.get("/movimentacoes/consumo-por-item", {
+    params: { start, end },
+  });
+
 export const deleteResident = (casela: string | number) =>
   api.delete(`/residentes/${casela}`);
 
