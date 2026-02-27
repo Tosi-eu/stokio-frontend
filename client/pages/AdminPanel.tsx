@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -100,8 +101,8 @@ interface AuditEvent {
   status_code: number;
   duration_ms: number | null;
   created_at: string;
-  old_value: string | null;
-  new_value: string | null;
+  old_value: Record<string, unknown> | string | null;
+  new_value: Record<string, unknown> | string | null;
 }
 
 interface InsightsData {
@@ -148,26 +149,113 @@ function auditStatusLabel(code: number): string {
   if (code >= 500 && code <= 599) return "Erro no servidor";
   return String(code);
 }
-
-function formatAuditValue(raw: string | null | undefined): string {
-  if (raw == null || raw === "") return "—";
-  try {
-    const o = JSON.parse(raw);
-    return JSON.stringify(o, null, 2);
-  } catch {
-    return raw;
-  }
+function auditValuePreview(
+  raw: Record<string, unknown> | string | null | undefined,
+): string {
+  if (raw == null || (typeof raw === "string" && raw === "")) return "—";
+  const o = typeof raw === "object" ? raw : (() => { try { return JSON.parse(raw); } catch { return raw; } })();
+  const one = JSON.stringify(o);
+  return one.length > 60 ? one.slice(0, 57) + "…" : one;
 }
 
-function auditValuePreview(raw: string | null | undefined): string {
-  if (raw == null || raw === "") return "—";
-  try {
-    const o = JSON.parse(raw);
-    const one = JSON.stringify(o);
-    return one.length > 60 ? one.slice(0, 57) + "…" : one;
-  } catch {
-    return String(raw).slice(0, 60);
+type AuditDiffEntry = { key: string; oldVal: unknown; newVal: unknown; changed: boolean };
+
+const FRONTEND_TO_BACKEND_KEY: Record<string, string> = {
+  firstName: "first_name",
+  lastName: "last_name",
+  name: "nome",
+  casela: "num_casela",
+  createdAt: "created_at",
+  updatedAt: "updated_at",
+};
+
+function normalizeAuditKeys(obj: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    const canonical = FRONTEND_TO_BACKEND_KEY[k] ?? k;
+    if (!(canonical in out)) {
+      out[canonical] = v;
+    }
   }
+  return out;
+}
+
+function isIdKey(key: string): boolean {
+  return key === "id" || key.endsWith("_id") || key.endsWith("Id");
+}
+
+function getAuditDiffEntries(
+  oldVal: Record<string, unknown> | null | undefined,
+  newVal: Record<string, unknown> | null | undefined,
+): AuditDiffEntry[] {
+  const oldObj = oldVal && typeof oldVal === "object" && !Array.isArray(oldVal) ? oldVal : {};
+  const newObj = newVal && typeof newVal === "object" && !Array.isArray(newVal) ? newVal : {};
+  const keys = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
+  return Array.from(keys)
+    .filter((key) => !isIdKey(key))
+    .map((key) => {
+      const a = oldObj[key];
+      const b = newObj[key];
+      const aStr = JSON.stringify(a);
+      const bStr = JSON.stringify(b);
+      return { key, oldVal: a, newVal: b, changed: aStr !== bStr };
+    });
+}
+
+function formatDiffValue(v: unknown, key?: string): string {
+  if (v === undefined || v === null) return "—";
+  if (typeof v === "object") return JSON.stringify(v);
+  const str = String(v);
+  if (key === "status") {
+    const lower = str.toLowerCase();
+    if (lower === "suspended") return "suspenso";
+    if (lower === "active") return "ativo";
+  }
+  return str;
+}
+
+const AUDIT_FIELD_LABEL: Record<string, string> = {
+  first_name: "Nome",
+  last_name: "Sobrenome",
+  login: "Login",
+  role: "Privilégio",
+  created_at: "Criado em",
+  updated_at: "Atualizado em",
+  num_casela: "Casela",
+  nome: "Nome",
+  dosagem: "Dosagem",
+  principio_ativo: "Princípio ativo",
+  unidade_medida: "Unidade de medida",
+  estoque_minimo: "Estoque mínimo",
+  descricao: "Descrição",
+  numero: "Número",
+  num_armario: "Número do armário",
+  num_gaveta: "Número da gaveta",
+  categoria_id: "ID da categoria",
+  armario_id: "Armário",
+  gaveta_id: "Gaveta",
+  casela_id: "Casela",
+  medicamento_id: "Medicamento",
+  insumo_id: "Insumo",
+  medicamento_nome: "Medicamento",
+  insumo_nome: "Insumo",
+  quantidade: "Quantidade",
+  validade: "Validade",
+  setor: "Setor",
+  lote: "Lote",
+  origem: "Origem",
+  tipo: "Tipo",
+  observacao: "Observação",
+  dias_para_repor: "Dias para repor",
+  destino: "Destino",
+  status: "Status",
+  preco: "Preço",
+  suspended_at: "Suspenso em",
+  ultima_reposicao: "Última reposição",
+};
+
+function auditFieldLabel(key: string): string {
+  return AUDIT_FIELD_LABEL[key] ?? key;
 }
 
 const REPORT_OPTIONS = [
@@ -188,9 +276,7 @@ export default function AdminPanel() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [insights, setInsights] = useState<InsightsData | null>(null);
   const [loadingUsers, setLoadingUsers] = useState(true);
-  const [loadingInsights, setLoadingInsights] = useState(false);
   const [insightDays, setInsightDays] = useState(30);
   const [insightDaysInput, setInsightDaysInput] = useState("30");
   const [insightFilter, setInsightFilter] = useState<
@@ -198,6 +284,36 @@ export default function AdminPanel() {
   >(null);
   const [eventsPage, setEventsPage] = useState(1);
   const [eventsPageSize, setEventsPageSize] = useState(25);
+  const [auditCompareEvent, setAuditCompareEvent] = useState<AuditEvent | null>(null);
+
+  const {
+    data: insightsData,
+    isLoading: loadingInsights,
+    isError: insightsError,
+    refetch: refetchInsights,
+  } = useQuery({
+    queryKey: ["admin", "insights", insightDays, eventsPage, eventsPageSize, insightFilter],
+    queryFn: () =>
+      getAdminInsights({
+        days: insightDays,
+        limit: eventsPageSize,
+        page: eventsPage,
+        operationType: insightFilter ?? undefined,
+      }),
+    enabled: user?.role === "admin",
+  });
+
+  const insights = useMemo(() => {
+    if (!insightsData) return null;
+    return {
+      created: insightsData.created ?? 0,
+      updated: insightsData.updated ?? 0,
+      deleted: insightsData.deleted ?? 0,
+      total: insightsData.total ?? 0,
+      totalFiltered: insightsData.totalFiltered ?? 0,
+      events: insightsData.events ?? [],
+    } as InsightsData;
+  }, [insightsData]);
   const [editModal, setEditModal] = useState<AdminUser | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [formEdit, setFormEdit] = useState({
@@ -209,7 +325,6 @@ export default function AdminPanel() {
   });
   const [saving, setSaving] = useState(false);
 
-  // Executive summary
   const [summary, setSummary] = useState<ExecutiveSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [expandedSummary, setExpandedSummary] = useState<
@@ -218,7 +333,6 @@ export default function AdminPanel() {
   const [summaryListData, setSummaryListData] = useState<Record<string, unknown>[]>([]);
   const [loadingSummaryList, setLoadingSummaryList] = useState(false);
 
-  // Consolidated alerts
   const [alerts, setAlerts] = useState<{
     noStock: AlertStockItem[];
     belowMin: AlertStockItem[];
@@ -232,7 +346,6 @@ export default function AdminPanel() {
   });
   const [loadingAlerts, setLoadingAlerts] = useState(false);
 
-  // Reports
   const [selectedReportType, setSelectedReportType] = useState<string>("");
   const [reportResidents, setReportResidents] = useState<ResidentOption[]>([]);
   const [selectedReportResident, setSelectedReportResident] = useState<
@@ -316,42 +429,38 @@ export default function AdminPanel() {
       const toList = (
         r: { data?: unknown[]; hasNext?: boolean; total?: number },
         page: number,
-      ) => ({
-        data: r.data ?? [],
+      ): { data: Record<string, unknown>[]; hasNext: boolean } => ({
+        data: (r.data ?? []) as Record<string, unknown>[],
         hasNext: r.hasNext ?? (r.total != null && page * limit < r.total),
       });
-      let list: Record<string, unknown>[] = [];
+      let list: Record<string, unknown>[];
       if (kind === "residents") {
-        list = await fetchAllPaginated(
+        list = await fetchAllPaginated<Record<string, unknown>>(
           (p, l) =>
             getResidents(p, l).then((r: any) => ({
-              data: r.data ?? [],
+              data: (r.data ?? []) as Record<string, unknown>[],
               hasNext: r.hasNext ?? false,
             })),
           limit,
         );
       } else if (kind === "medicines") {
-        list = await fetchAllPaginated(
-          (p, l) =>
-            getMedicines(p, l).then((r: any) => toList(r, p)),
+        list = await fetchAllPaginated<Record<string, unknown>>(
+          (p, l) => getMedicines(p, l).then((r: any) => toList(r, p)),
           limit,
         );
       } else if (kind === "inputs") {
-        list = await fetchAllPaginated(
-          (p, l) =>
-            getInputs(p, l).then((r: any) => toList(r, p)),
+        list = await fetchAllPaginated<Record<string, unknown>>(
+          (p, l) => getInputs(p, l).then((r: any) => toList(r, p)),
           limit,
         );
       } else if (kind === "cabinets") {
-        list = await fetchAllPaginated(
-          (p, l) =>
-            getCabinets(p, l).then((r: any) => toList(r, p)),
+        list = await fetchAllPaginated<Record<string, unknown>>(
+          (p, l) => getCabinets(p, l).then((r: any) => toList(r, p)),
           limit,
         );
       } else {
-        list = await fetchAllPaginated(
-          (p, l) =>
-            getDrawers(p, l).then((r: any) => toList(r, p)),
+        list = await fetchAllPaginated<Record<string, unknown>>(
+          (p, l) => getDrawers(p, l).then((r: any) => toList(r, p)),
           limit,
         );
       }
@@ -554,10 +663,14 @@ export default function AdminPanel() {
     selectedReportType === "medicamentos_residente";
   const showReportMovementFilters = selectedReportType === "movimentacoes";
   const showReportTransferFilters = selectedReportType === "transferencias";
-  const filteredReportResidents = reportResidents.filter((r) => {
-    if (!reportResidentSearch.trim()) return true;
-    return r.casela.toString().startsWith(reportResidentSearch.trim());
-  });
+  const filteredReportResidents = useMemo(
+    () =>
+      reportResidents.filter((r) => {
+        if (!reportResidentSearch.trim()) return true;
+        return r.casela.toString().startsWith(reportResidentSearch.trim());
+      }),
+    [reportResidents, reportResidentSearch],
+  );
 
   async function loadUsers() {
     setLoadingUsers(true);
@@ -575,43 +688,11 @@ export default function AdminPanel() {
     }
   }
 
-  async function loadInsights() {
-    setLoadingInsights(true);
-    try {
-      const data = (await getAdminInsights({
-        days: insightDays,
-        limit: eventsPageSize,
-        page: eventsPage,
-        ...(insightFilter ? { operationType: insightFilter } : {}),
-      })) as InsightsData | null;
-      if (!data) {
-        setInsights(null);
-        return;
-      }
-      setInsights({
-        created: data.created ?? 0,
-        updated: data.updated ?? 0,
-        deleted: data.deleted ?? 0,
-        total: data.total ?? 0,
-        totalFiltered: data.totalFiltered ?? 0,
-        events: data.events ?? [],
-      });
-    } catch (err) {
-      toast({
-        title: "Erro ao carregar insights",
-        variant: "error",
-      });
-      setInsights(null);
-    } finally {
-      setLoadingInsights(false);
-    }
-  }
-
   useEffect(() => {
-    if (user?.role === "admin" && insightDays) {
-      loadInsights();
+    if (insightsError) {
+      toast({ title: "Erro ao carregar insights", variant: "error" });
     }
-  }, [user?.role, insightDays, eventsPage, eventsPageSize, insightFilter]);
+  }, [insightsError]);
 
   const applyInsightDays = () => {
     const n = Math.min(365, Math.max(1, Number(insightDaysInput) || 30));
@@ -625,12 +706,13 @@ export default function AdminPanel() {
   };
 
   const totalFiltered = insights?.totalFiltered ?? 0;
-  const totalPages = Math.max(
-    1,
-    Math.ceil(totalFiltered / eventsPageSize),
-  );
-  const from = totalFiltered === 0 ? 0 : (eventsPage - 1) * eventsPageSize + 1;
-  const to = Math.min(eventsPage * eventsPageSize, totalFiltered);
+  const { totalPages, from, to } = useMemo(() => {
+    const total = insights?.totalFiltered ?? 0;
+    const pages = Math.max(1, Math.ceil(total / eventsPageSize));
+    const fromVal = total === 0 ? 0 : (eventsPage - 1) * eventsPageSize + 1;
+    const toVal = Math.min(eventsPage * eventsPageSize, total);
+    return { totalPages: pages, from: fromVal, to: toVal };
+  }, [insights?.totalFiltered, eventsPage, eventsPageSize]);
 
   const openEdit = (u: AdminUser) => {
     setEditModal(u);
@@ -1581,8 +1663,6 @@ export default function AdminPanel() {
                         <TableRow>
                           <TableHead>Data</TableHead>
                           <TableHead>Ação</TableHead>
-                          <TableHead>Recurso</TableHead>
-                          <TableHead>Rota</TableHead>
                           <TableHead>Resultado</TableHead>
                           <TableHead className="min-w-[140px]">Antes</TableHead>
                           <TableHead className="min-w-[140px]">Depois</TableHead>
@@ -1592,7 +1672,7 @@ export default function AdminPanel() {
                         {insights.events.length === 0 ? (
                           <TableRow>
                             <TableCell
-                              colSpan={7}
+                              colSpan={5}
                               className="text-center text-muted-foreground py-8"
                             >
                               Nenhum evento neste filtro.
@@ -1607,22 +1687,20 @@ export default function AdminPanel() {
                               <TableCell>
                                 {AUDIT_OPERATION_LABEL[e.operation_type] ?? e.operation_type}
                               </TableCell>
-                              <TableCell>{e.resource ?? "-"}</TableCell>
-                              <TableCell className="text-xs max-w-[200px] truncate" title={e.path}>
-                                {e.path}
-                              </TableCell>
                               <TableCell>
                                 {auditStatusLabel(e.status_code)}
                               </TableCell>
                               <TableCell
-                                className="text-xs max-w-[200px] font-mono truncate align-top"
-                                title={formatAuditValue(e.old_value)}
+                                className="text-xs min-w-[200px] max-w-[360px] font-mono truncate align-top cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-950/30"
+                                title="Clique para ver comparação (Antes e Depois)"
+                                onClick={() => setAuditCompareEvent(e)}
                               >
                                 {auditValuePreview(e.old_value)}
                               </TableCell>
                               <TableCell
-                                className="text-xs max-w-[200px] font-mono truncate align-top"
-                                title={formatAuditValue(e.new_value)}
+                                className="text-xs min-w-[200px] max-w-[360px] font-mono truncate align-top cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-950/30"
+                                title="Clique para ver comparação (Antes e Depois)"
+                                onClick={() => setAuditCompareEvent(e)}
                               >
                                 {auditValuePreview(e.new_value)}
                               </TableCell>
@@ -1633,11 +1711,11 @@ export default function AdminPanel() {
                     </Table>
                   </div>
                   {totalFiltered > 0 && (
-                    <div className="flex items-center justify-between gap-4 mt-3">
+                    <div className="flex flex-col items-center justify-center gap-3 mt-3">
                       <p className="text-sm text-muted-foreground">
                         {from}–{to} de {totalFiltered} eventos
                       </p>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-2">
                         <Button
                           type="button"
                           variant="outline"
@@ -1673,7 +1751,92 @@ export default function AdminPanel() {
         </TabsContent>
       </Tabs>
 
-      {/* Edit user modal */}
+      <Dialog open={!!auditCompareEvent} onOpenChange={() => setAuditCompareEvent(null)}>
+        <DialogContent className="max-w-6xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5 text-sky-600" />
+              Comparação: Antes e Depois
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-auto flex-1 min-h-0 border rounded-md">
+            {auditCompareEvent && (() => {
+              const oldRaw = auditCompareEvent.old_value;
+              const newRaw = auditCompareEvent.new_value;
+              const parseObj = (v: Record<string, unknown> | string | null | undefined): Record<string, unknown> => {
+                if (v == null || (typeof v === "string" && v === "")) return {};
+                const o =
+                  typeof v === "object" && !Array.isArray(v)
+                    ? v
+                    : typeof v === "string"
+                      ? (() => { try { return JSON.parse(v) as Record<string, unknown>; } catch { return {}; } })()
+                      : {};
+                return o && typeof o === "object" && !Array.isArray(o) ? o : {};
+              };
+              let oldObj = normalizeAuditKeys(
+                parseObj(oldRaw as Record<string, unknown> | string | null),
+              );
+              let newObj = parseObj(newRaw as Record<string, unknown> | string | null);
+              if (
+                newObj &&
+                typeof newObj.data === "object" &&
+                newObj.data !== null &&
+                !Array.isArray(newObj.data)
+              ) {
+                const d = newObj.data as Record<string, unknown>;
+                newObj =
+                  d.source != null && typeof d.source === "object"
+                    ? (d.source as Record<string, unknown>) 
+                    : d; 
+              }
+              newObj = normalizeAuditKeys(newObj);
+              const entries = getAuditDiffEntries(oldObj, newObj);
+              if (entries.length === 0) {
+                return (
+                  <p className="p-4 text-muted-foreground text-sm">
+                    Nenhum dado para comparar (ambos vazios ou não disponíveis).
+                  </p>
+                );
+              }
+              return (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[200px]">Campo</TableHead>
+                      <TableHead className="min-w-[280px] bg-slate-50 dark:bg-slate-900/50">Antes</TableHead>
+                      <TableHead className="min-w-[280px] bg-slate-50 dark:bg-slate-900/50">Depois</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {entries.map(({ key, oldVal, newVal, changed }) => (
+                      <TableRow
+                        key={key}
+                        className={changed ? "bg-sky-50 dark:bg-sky-950/30 border-l-4 border-l-sky-500" : ""}
+                      >
+                        <TableCell className="font-medium text-xs" title={key}>
+                          {auditFieldLabel(key)}
+                        </TableCell>
+                        <TableCell className="text-xs font-mono break-all min-w-[260px] max-w-[400px] bg-slate-50/50 dark:bg-slate-900/30">
+                          {formatDiffValue(oldVal, key)}
+                        </TableCell>
+                        <TableCell className="text-xs font-mono break-all min-w-[260px] max-w-[400px] bg-slate-50/50 dark:bg-slate-900/30">
+                          {formatDiffValue(newVal, key)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              );
+            })()}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAuditCompareEvent(null)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!editModal} onOpenChange={() => setEditModal(null)}>
         <DialogContent>
           <DialogHeader>
@@ -1749,7 +1912,6 @@ export default function AdminPanel() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirm */}
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>

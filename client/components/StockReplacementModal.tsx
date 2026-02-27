@@ -12,9 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Package } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-/**
- * Tipagem alinhada 100% ao payload da API
- */
 export interface StockReplacementItem {
   id: number;
   destino: string;
