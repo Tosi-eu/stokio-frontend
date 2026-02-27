@@ -92,12 +92,11 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
   // - General medicine: user selects a casela (selectedCasela).
   // - Individual medicine in pharmacy: same resident (item.casela) — so we can reuse the cycle
   //   if that medicine+resident already exists in nursing, or let the user set it.
-  const caselaForDaysFetch =
-    selectedCasela
-      ? Number(selectedCasela)
-      : item?.sector === "farmacia" && item?.casela != null
-        ? item.casela
-        : null;
+  const caselaForDaysFetch = selectedCasela
+    ? Number(selectedCasela)
+    : item?.sector === "farmacia" && item?.casela != null
+      ? item.casela
+      : null;
 
   useEffect(() => {
     if (
@@ -130,9 +129,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
         if (cancelled) return;
         setFetchedDiasParaRepor(null);
         setDaysToReplacement(
-          item?.daysToReplacement != null
-            ? String(item.daysToReplacement)
-            : "",
+          item?.daysToReplacement != null ? String(item.daysToReplacement) : "",
         );
       });
     return () => {
@@ -164,8 +161,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
   const effectiveReadOnlyDias = fetchedDiasParaRepor ?? null;
 
   const hasValidCaselaForDaysToReplacement =
-    isIndividualStock ||
-    (isMedicamento && !isGeneralUse && hasCaselaSelected);
+    isIndividualStock || (isMedicamento && !isGeneralUse && hasCaselaSelected);
 
   const hasValidDiasValue =
     effectiveReadOnlyDias != null ||
@@ -200,15 +196,15 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
         : null;
 
     // Garantir que dias_para_repor só seja enviado quando há casela válida
-    const hasValidCasela = isIndividualStock || (!isGeneralUse && hasCaselaSelected);
+    const hasValidCasela =
+      isIndividualStock || (!isGeneralUse && hasCaselaSelected);
     const valueToSend =
       effectiveReadOnlyDias ??
-      (daysToReplacement !== "" ? Number(daysToReplacement) : item?.daysToReplacement ?? null);
+      (daysToReplacement !== ""
+        ? Number(daysToReplacement)
+        : (item?.daysToReplacement ?? null));
     const shouldSendDaysToReplacement =
-      !isGeneralUse &&
-      isMedicamento &&
-      hasValidCasela &&
-      valueToSend != null;
+      !isGeneralUse && isMedicamento && hasValidCasela && valueToSend != null;
 
     onConfirm(quantityNum, casela, destino, details.trim() || null, {
       bypassCasela: isGeneralUse,
@@ -392,8 +388,8 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                 )}
               {isIndividualStock && item?.sector === "farmacia" && (
                 <p className="text-xs text-slate-500">
-                  Mesmo medicamento e residente: use o ciclo já na enfermaria (se
-                  houver) ou defina os dias para reposição.
+                  Mesmo medicamento e residente: use o ciclo já na enfermaria
+                  (se houver) ou defina os dias para reposição.
                 </p>
               )}
             </div>

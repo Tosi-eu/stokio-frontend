@@ -46,9 +46,9 @@ export default function CreateNotificationForm({
   const [loadingOptions, setLoadingOptions] = useState(true);
 
   const [medicamentos, setMedicamentos] = useState<RawStockMedicine[]>([]);
-  const [residentes, setResidentes] = useState<Array<{ casela: number; name: string }>>(
-    [],
-  );
+  const [residentes, setResidentes] = useState<
+    Array<{ casela: number; name: string }>
+  >([]);
 
   const [form, setForm] = useState({
     medicamento_id: 0,
@@ -72,8 +72,11 @@ export default function CreateNotificationForm({
       setForm({
         medicamento_id: Number(editData.medicamento_id ?? 0),
         residente_id: Number(editData.residente_id ?? 0),
-        destino: (editData.destino ?? NotificationDestiny.SUS) as NotificationDestiny,
-        data_prevista: parseDateFromString(String(editData.data_prevista ?? "")),
+        destino: (editData.destino ??
+          NotificationDestiny.SUS) as NotificationDestiny,
+        data_prevista: parseDateFromString(
+          String(editData.data_prevista ?? ""),
+        ),
         criado_por: Number(editData.criado_por ?? user?.id ?? 0),
         status: (editData.status ?? EventStatus.PENDENTE) as EventStatus,
         id: editData.id == null ? undefined : Number(editData.id),
@@ -132,10 +135,18 @@ export default function CreateNotificationForm({
     try {
       if (form.id) {
         await patchNotificationEvent(form.id, form);
-        toast({ title: "Notificação atualizada", variant: "success", duration: 3000 });
+        toast({
+          title: "Notificação atualizada",
+          variant: "success",
+          duration: 3000,
+        });
       } else {
         await createNotificationEvent(form);
-        toast({ title: "Notificação criada", variant: "success", duration: 3000 });
+        toast({
+          title: "Notificação criada",
+          variant: "success",
+          duration: 3000,
+        });
       }
 
       reload();
@@ -162,36 +173,39 @@ export default function CreateNotificationForm({
       onSubmit={handleSubmit}
       className="space-y-4 pb-20"
     >
+      <CommandSelect
+        label="Medicamento"
+        value={medicamentos.find((m) => m.id === form.medicamento_id)}
+        items={medicamentos}
+        onSelect={(m) => setForm({ ...form, medicamento_id: m.id })}
+        getLabel={(m) => m.nome}
+      />
 
-    <CommandSelect
-      label="Medicamento"
-      value={medicamentos.find((m) => m.id === form.medicamento_id)}
-      items={medicamentos}
-      onSelect={(m) => setForm({ ...form, medicamento_id: m.id })}
-      getLabel={(m) => m.nome}
-    />
+      <CommandSelect
+        label="Residente"
+        value={residentes.find((r) => r.casela === form.residente_id)}
+        items={residentes}
+        onSelect={(r) => setForm({ ...form, residente_id: r.casela })}
+        getLabel={(r) => r.name}
+      />
 
-    <CommandSelect
-      label="Residente"
-      value={residentes.find((r) => r.casela === form.residente_id)}
-      items={residentes}
-      onSelect={(r) => setForm({ ...form, residente_id: r.casela })}
-      getLabel={(r) => r.name}
-    />
+      <CommandSelect
+        label="Destino"
+        value={form.destino}
+        items={Object.values(NotificationDestiny)}
+        onSelect={(d) => setForm({ ...form, destino: d })}
+        getLabel={(d) => NotificationDestinyLabel[d]}
+      />
 
-    <CommandSelect
-      label="Destino"
-      value={form.destino}
-      items={Object.values(NotificationDestiny)}
-      onSelect={(d) => setForm({ ...form, destino: d })}
-      getLabel={(d) => NotificationDestinyLabel[d]}
-    />
-    
       <div className="flex flex-col">
-        <label className="mb-1 text-sm font-medium text-slate-700">Data Prevista</label>
+        <label className="mb-1 text-sm font-medium text-slate-700">
+          Data Prevista
+        </label>
         <DatePicker
           selected={form.data_prevista}
-          onChange={(date: Date | null) => setForm({ ...form, data_prevista: date })}
+          onChange={(date: Date | null) =>
+            setForm({ ...form, data_prevista: date })
+          }
           dateFormat="dd/MM/yyyy"
           locale={ptBR}
           placeholderText="Selecione a data"

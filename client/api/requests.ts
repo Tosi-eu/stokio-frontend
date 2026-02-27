@@ -25,9 +25,12 @@ import type { StockItemRaw } from "@/interfaces/interfaces";
 import type { RawMovement } from "@/interfaces/interfaces";
 
 export const getCabinets = (page = 1, limit = 10) =>
-  api.get<PaginatedResponse<{ numero: number; categoria: string }>>("/armarios", {
-    params: { page, limit },
-  });
+  api.get<PaginatedResponse<{ numero: number; categoria: string }>>(
+    "/armarios",
+    {
+      params: { page, limit },
+    },
+  );
 
 export const getNonMovementProducts = () =>
   api.get("/movimentacoes/produtos-parados");
@@ -35,8 +38,10 @@ export const getNonMovementProducts = () =>
 export const checkCabinetStock = (number: number) =>
   api.get(`/armarios/${number}/check`);
 
-export const deleteCabinet = (number: number, destiny?: Record<string, unknown>) =>
-  api.delete(`/armarios/${number}`, destiny);
+export const deleteCabinet = (
+  number: number,
+  destiny?: Record<string, unknown>,
+) => api.delete(`/armarios/${number}`, destiny);
 
 export const getMedicines = (
   page = 1,
@@ -92,7 +97,9 @@ export const getInputs = (
     limit: String(limit),
   });
   if (name) params.append("name", name);
-  return api.get<PaginatedResponse<RawStockInput>>(`/insumos?${params.toString()}`);
+  return api.get<PaginatedResponse<RawStockInput>>(
+    `/insumos?${params.toString()}`,
+  );
 };
 
 export const deleteInput = (id: number) => api.delete(`/insumos/${id}`);
@@ -246,8 +253,10 @@ export const updateMedicine = (id: number, data: Record<string, unknown>) =>
 export const resetPassword = (login: string, newPassword: string) =>
   api.post(`/login/reset-password`, { login, newPassword });
 
-export const updateResident = (casela: string | number, data: Record<string, unknown>) =>
-  api.put(`/residentes/${casela}`, data);
+export const updateResident = (
+  casela: string | number,
+  data: Record<string, unknown>,
+) => api.put(`/residentes/${casela}`, data);
 
 export const updateUser = (payload: UpdateUserPayload) =>
   api.put("/login", payload);
@@ -362,7 +371,9 @@ export const getNotifications = async ({
     if (visto === false) params.visto = false;
     if (visto === true) params.visto = true;
 
-    const res = await api.get<NotificationsResponse>("/notificacao", { params });
+    const res = await api.get<NotificationsResponse>("/notificacao", {
+      params,
+    });
 
     return {
       items: res?.items ?? [],
@@ -442,13 +453,18 @@ export const getStock = (
     params.append("filter", extraFilter);
   }
 
-  return api.get<PaginatedResponse<StockItemRaw>>(`/estoque?${params.toString()}`);
+  return api.get<PaginatedResponse<StockItemRaw>>(
+    `/estoque?${params.toString()}`,
+  );
 };
 
 export const getCabinetCategories = (page = 1, limit = 5) =>
-  api.get<PaginatedResponse<{ id: number; nome: string }>>("/categoria-armario", {
-    params: { page, limit },
-  });
+  api.get<PaginatedResponse<{ id: number; nome: string }>>(
+    "/categoria-armario",
+    {
+      params: { page, limit },
+    },
+  );
 
 export const createCabinetCategory = (nome: string) =>
   api.post("/categoria-armario", { nome });
@@ -594,15 +610,15 @@ export const updateAdminUser = (
   },
 ) => api.put(`/admin/users/${id}`, data);
 
-export const deleteAdminUser = (id: number) =>
-  api.delete(`/admin/users/${id}`);
+export const deleteAdminUser = (id: number) => api.delete(`/admin/users/${id}`);
 
 export const getAdminInsights = (params?: {
   days?: number;
   limit?: number;
   page?: number;
   operationType?: "create" | "update" | "delete";
-}) => api.get<AdminInsightsResponse>("/admin/insights", { params: params ?? {} });
+}) =>
+  api.get<AdminInsightsResponse>("/admin/insights", { params: params ?? {} });
 
 export type StockHistoryEntry = {
   id: number;

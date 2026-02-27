@@ -84,7 +84,7 @@ export function formatStockItems(raw: unknown[]): StockItem[] {
       detail: item.observacao ?? null,
       daysToReplacement: item.dias_para_repor ?? null,
       medicamentoId:
-        item.tipo_item === "medicamento" ? item.item_id ?? null : null,
+        item.tipo_item === "medicamento" ? (item.item_id ?? null) : null,
       itemType: item.tipo_item,
       sector: item.setor,
       lot: item.lote ?? null,
@@ -112,7 +112,9 @@ export function buildFilterOptions(allRawData: unknown[]): StockFilterOptions {
 
   const caselaIds = Array.from(
     new Set(
-      raw.map((i: Record<string, unknown>) => i.casela_id as number | undefined).filter((id): id is number => id != null),
+      raw
+        .map((i: Record<string, unknown>) => i.casela_id as number | undefined)
+        .filter((id): id is number => id != null),
     ),
   )
     .sort((a, b) => a - b)

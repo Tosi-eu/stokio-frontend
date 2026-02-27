@@ -158,7 +158,9 @@ export default function Auth() {
 
       navigate("/dashboard");
     } catch (err: unknown) {
-      const rawMessage = (err instanceof Error ? err.message : String(err)).toLowerCase();
+      const rawMessage = (
+        err instanceof Error ? err.message : String(err)
+      ).toLowerCase();
 
       let errorTitle = "Erro";
       let errorDescription = "Ocorreu um erro inesperado. Tente novamente.";

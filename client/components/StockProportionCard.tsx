@@ -142,10 +142,11 @@ export default function StockProportionCard({
                 </Pie>
 
                 <Tooltip
-                  formatter={(_v: unknown, _n: string, p: { payload?: { rawValue?: number } }) => [
-                    p.payload?.rawValue ?? 0,
-                    "Quantidade",
-                  ]}
+                  formatter={(
+                    _v: unknown,
+                    _n: string,
+                    p: { payload?: { rawValue?: number } },
+                  ) => [p.payload?.rawValue ?? 0, "Quantidade"]}
                 />
               </PieChart>
             </ResponsiveContainer>

@@ -77,7 +77,11 @@ export default function Dashboard() {
     import("@/components/StockReplacementModal").StockReplacementItem[]
   >([]);
 
-  const { summary, isLoading: loadingSummary, error: summaryError } = useDashboardSummary();
+  const {
+    summary,
+    isLoading: loadingSummary,
+    error: summaryError,
+  } = useDashboardSummary();
 
   useEffect(() => {
     if (summaryError) {
@@ -99,91 +103,89 @@ export default function Dashboard() {
       setLoadingNonMovement(true);
       setLoadingRecentMovements(true);
 
-        const a = summary.alerts || {};
-        setNoStock(a.noStock ?? 0);
-        setBelowMin(a.belowMin ?? 0);
-        setExpired(a.expired ?? 0);
-        setExpiringSoonCount(a.expiringSoon ?? 0);
+      const a = summary.alerts || {};
+      setNoStock(a.noStock ?? 0);
+      setBelowMin(a.belowMin ?? 0);
+      setExpired(a.expired ?? 0);
+      setExpiringSoonCount(a.expiringSoon ?? 0);
 
-        const recent = summary.recentMovements || [];
-        setRecentMovements(
-          recent.slice(0, DEFAULT_PAGE_SIZE).map((m) => ({
-            name: m.MedicineModel?.nome || m.InputModel?.nome || "-",
-            type: m.tipo,
-            operator: m.LoginModel?.login || "-",
-            casela: m.ResidentModel?.num_casela ?? "-",
-            quantity: m.quantidade,
-            patient: m.ResidentModel ? m.ResidentModel.nome : "-",
-            cabinet: m.CabinetModel?.num_armario ?? "-",
-            date: m.data,
+      const recent = summary.recentMovements || [];
+      setRecentMovements(
+        recent.slice(0, DEFAULT_PAGE_SIZE).map((m) => ({
+          name: m.MedicineModel?.nome || m.InputModel?.nome || "-",
+          type: m.tipo,
+          operator: m.LoginModel?.login || "-",
+          casela: m.ResidentModel?.num_casela ?? "-",
+          quantity: m.quantidade,
+          patient: m.ResidentModel ? m.ResidentModel.nome : "-",
+          cabinet: m.CabinetModel?.num_armario ?? "-",
+          date: m.data,
+        })),
+      );
+
+      setNonMovementProducts(
+        Array.isArray(summary.nonMovementProducts)
+          ? summary.nonMovementProducts.slice(0, DEFAULT_PAGE_SIZE)
+          : [],
+      );
+
+      const more = summary.medicineRankingMore?.data || [];
+      setMostMovData(
+        more.map((item) => ({
+          name: item.medicamento?.nome ?? "-",
+          substance: item.medicamento?.principio_ativo ?? "-",
+          total: item.total_movimentado ?? 0,
+          entradas: item.total_entradas ?? 0,
+          saidas: item.total_saidas ?? 0,
+        })),
+      );
+
+      const less = summary.medicineRankingLess?.data || [];
+      setLeastMovData(
+        less.map((item) => ({
+          name: item.medicamento?.nome ?? "-",
+          substance: item.medicamento?.principio_ativo ?? "-",
+          total: item.total_movimentado ?? 0,
+          entradas: item.total_entradas ?? 0,
+          saidas: item.total_saidas ?? 0,
+        })),
+      );
+
+      const nursingRes = summary.nursingProportion;
+      const pharmacyRes = summary.pharmacyProportion;
+      if (nursingRes) {
+        setNursingDistribution(
+          prepareStockDistributionData(nursingRes, SectorType.ENFERMAGEM).sort(
+            (a, b) => b.rawValue - a.rawValue,
+          ),
+        );
+      }
+      if (pharmacyRes) {
+        setPharmacyDistribution(
+          prepareStockDistributionData(pharmacyRes, SectorType.FARMACIA).sort(
+            (a, b) => b.rawValue - a.rawValue,
+          ),
+        );
+      }
+
+      const cabinetRes = summary.cabinetStockData;
+      const drawerRes = summary.drawerStockData;
+      if (cabinetRes?.data) {
+        setCabinetStockData(
+          cabinetRes.data.map((arm) => ({
+            cabinet: arm.armario_id,
+            total: Number(arm.total_geral) || 0,
           })),
         );
-
-        setNonMovementProducts(
-          Array.isArray(summary.nonMovementProducts)
-            ? summary.nonMovementProducts.slice(0, DEFAULT_PAGE_SIZE)
-            : [],
-        );
-
-        const more = summary.medicineRankingMore?.data || [];
-        setMostMovData(
-          more.map((item) => ({
-            name: item.medicamento?.nome ?? "-",
-            substance: item.medicamento?.principio_ativo ?? "-",
-            total: item.total_movimentado ?? 0,
-            entradas: item.total_entradas ?? 0,
-            saidas: item.total_saidas ?? 0,
+      }
+      if (drawerRes?.data) {
+        setDrawerStockData(
+          drawerRes.data.map((drawer) => ({
+            drawer: drawer.gaveta_id,
+            total: Number(drawer.total_geral) || 0,
           })),
         );
-
-        const less = summary.medicineRankingLess?.data || [];
-        setLeastMovData(
-          less.map((item) => ({
-            name: item.medicamento?.nome ?? "-",
-            substance: item.medicamento?.principio_ativo ?? "-",
-            total: item.total_movimentado ?? 0,
-            entradas: item.total_entradas ?? 0,
-            saidas: item.total_saidas ?? 0,
-          })),
-        );
-
-        const nursingRes = summary.nursingProportion;
-        const pharmacyRes = summary.pharmacyProportion;
-        if (nursingRes) {
-          setNursingDistribution(
-            prepareStockDistributionData(
-              nursingRes,
-              SectorType.ENFERMAGEM,
-            ).sort((a, b) => b.rawValue - a.rawValue),
-          );
-        }
-        if (pharmacyRes) {
-          setPharmacyDistribution(
-            prepareStockDistributionData(
-              pharmacyRes,
-              SectorType.FARMACIA,
-            ).sort((a, b) => b.rawValue - a.rawValue),
-          );
-        }
-
-        const cabinetRes = summary.cabinetStockData;
-        const drawerRes = summary.drawerStockData;
-        if (cabinetRes?.data) {
-          setCabinetStockData(
-            cabinetRes.data.map((arm) => ({
-              cabinet: arm.armario_id,
-              total: Number(arm.total_geral) || 0,
-            })),
-          );
-        }
-        if (drawerRes?.data) {
-          setDrawerStockData(
-            drawerRes.data.map((drawer) => ({
-              drawer: drawer.gaveta_id,
-              total: Number(drawer.total_geral) || 0,
-            })),
-          );
-        }
+      }
     } finally {
       setLoadingNonMovement(false);
       setLoadingRecentMovements(false);
@@ -221,7 +223,6 @@ export default function Dashboard() {
 
     fetchReminders();
   }, []);
-  
 
   useEffect(() => {
     async function fetchReplacementReminders() {
@@ -380,7 +381,12 @@ export default function Dashboard() {
                   { key: "patient", label: "Paciente" },
                   { key: "date", label: "Data" },
                 ]}
-                data={paginatedRecentMovements as unknown as Record<string, unknown>[]}
+                data={
+                  paginatedRecentMovements as unknown as Record<
+                    string,
+                    unknown
+                  >[]
+                }
                 minRows={minRowsMovements}
                 showAddons={false}
                 loading={loadingRecentMovements}

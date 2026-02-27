@@ -40,7 +40,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
-
       } catch (error) {
         console.error("Erro ao restaurar sessão:", error);
         sessionStorage.removeItem("user");

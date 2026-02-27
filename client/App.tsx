@@ -75,8 +75,7 @@ const AppContent = () => {
       });
     };
     window.addEventListener("insufficient-privileges", handler);
-    return () =>
-      window.removeEventListener("insufficient-privileges", handler);
+    return () => window.removeEventListener("insufficient-privileges", handler);
   }, []);
 
   return (

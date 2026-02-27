@@ -72,7 +72,12 @@ export interface RawDrawerStockItem {
 
 /** Dashboard summary response from /dashboard/summary. */
 export interface DashboardSummaryResponse {
-  alerts?: { noStock?: number; belowMin?: number; expired?: number; expiringSoon?: number };
+  alerts?: {
+    noStock?: number;
+    belowMin?: number;
+    expired?: number;
+    expiringSoon?: number;
+  };
   recentMovements?: RawDashboardMovement[];
   nonMovementProducts?: unknown[];
   medicineRankingMore?: { data?: RawMedicineRankingItem[] };

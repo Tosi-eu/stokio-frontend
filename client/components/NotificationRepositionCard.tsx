@@ -34,7 +34,8 @@ export function NotificationRepositionCard({
             <b>Quantidade:</b> {quantity ?? "-"}
           </li>
           <li>
-            <b>Intervalo de dias entre reposições:</b> {daysToReposition != null ? daysToReposition : "-"}
+            <b>Intervalo de dias entre reposições:</b>{" "}
+            {daysToReposition != null ? daysToReposition : "-"}
           </li>
           <li>
             <b>Próxima reposição:</b> {nextRepositionDate}

@@ -235,7 +235,9 @@ export default function EditableTable({
         const value = row[colKey];
         if (value === null || value === undefined) return "-";
         const numValue = typeof value === "number" ? value : Number(value);
-        return isNaN(numValue) ? "-" : `${numValue} ${numValue === 1 ? "dia" : "dias"}`;
+        return isNaN(numValue)
+          ? "-"
+          : `${numValue} ${numValue === 1 ? "dia" : "dias"}`;
       }
 
       default: {
@@ -306,7 +308,10 @@ export default function EditableTable({
     } catch (err: unknown) {
       toast({
         title: "Erro ao remover item",
-        description: err instanceof Error ? err.message : "Não foi possível remover o item.",
+        description:
+          err instanceof Error
+            ? err.message
+            : "Não foi possível remover o item.",
         variant: "error",
         duration: 3000,
       });

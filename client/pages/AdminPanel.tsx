@@ -50,11 +50,22 @@ import {
   getExpiringItems,
   getConsumptionByItem,
 } from "@/api/requests";
-import type { StockHistoryEntry, ExpiringItem, ConsumptionByItemRow } from "@/api/requests";
+import type {
+  StockHistoryEntry,
+  ExpiringItem,
+  ConsumptionByItemRow,
+} from "@/api/requests";
 import type { StockListAlertItem } from "@/interfaces/interfaces";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
-import { createStockPDF, MovementPeriod, MovementsParams } from "@/components/StockReporter";
-import { parseYearMonthToDate, formatValidityDate } from "@/helpers/dates.helper";
+import {
+  createStockPDF,
+  MovementPeriod,
+  MovementsParams,
+} from "@/components/StockReporter";
+import {
+  parseYearMonthToDate,
+  formatValidityDate,
+} from "@/helpers/dates.helper";
 import { pdf } from "@react-pdf/renderer";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -157,12 +168,26 @@ function auditValuePreview(
   raw: Record<string, unknown> | string | null | undefined,
 ): string {
   if (raw == null || (typeof raw === "string" && raw === "")) return "—";
-  const o = typeof raw === "object" ? raw : (() => { try { return JSON.parse(raw); } catch { return raw; } })();
+  const o =
+    typeof raw === "object"
+      ? raw
+      : (() => {
+          try {
+            return JSON.parse(raw);
+          } catch {
+            return raw;
+          }
+        })();
   const one = JSON.stringify(o);
   return one.length > 60 ? one.slice(0, 57) + "…" : one;
 }
 
-type AuditDiffEntry = { key: string; oldVal: unknown; newVal: unknown; changed: boolean };
+type AuditDiffEntry = {
+  key: string;
+  oldVal: unknown;
+  newVal: unknown;
+  changed: boolean;
+};
 
 const FRONTEND_TO_BACKEND_KEY: Record<string, string> = {
   firstName: "first_name",
@@ -173,7 +198,9 @@ const FRONTEND_TO_BACKEND_KEY: Record<string, string> = {
   updatedAt: "updated_at",
 };
 
-function normalizeAuditKeys(obj: Record<string, unknown>): Record<string, unknown> {
+function normalizeAuditKeys(
+  obj: Record<string, unknown>,
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
     const canonical = FRONTEND_TO_BACKEND_KEY[k] ?? k;
@@ -192,8 +219,14 @@ function getAuditDiffEntries(
   oldVal: Record<string, unknown> | null | undefined,
   newVal: Record<string, unknown> | null | undefined,
 ): AuditDiffEntry[] {
-  const oldObj = oldVal && typeof oldVal === "object" && !Array.isArray(oldVal) ? oldVal : {};
-  const newObj = newVal && typeof newVal === "object" && !Array.isArray(newVal) ? newVal : {};
+  const oldObj =
+    oldVal && typeof oldVal === "object" && !Array.isArray(oldVal)
+      ? oldVal
+      : {};
+  const newObj =
+    newVal && typeof newVal === "object" && !Array.isArray(newVal)
+      ? newVal
+      : {};
   const keys = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
   return Array.from(keys)
     .filter((key) => !isIdKey(key))
@@ -288,7 +321,9 @@ export default function AdminPanel() {
   >(null);
   const [eventsPage, setEventsPage] = useState(1);
   const [eventsPageSize, setEventsPageSize] = useState(25);
-  const [auditCompareEvent, setAuditCompareEvent] = useState<AuditEvent | null>(null);
+  const [auditCompareEvent, setAuditCompareEvent] = useState<AuditEvent | null>(
+    null,
+  );
 
   const {
     data: insightsData,
@@ -296,7 +331,14 @@ export default function AdminPanel() {
     isError: insightsError,
     refetch: refetchInsights,
   } = useQuery({
-    queryKey: ["admin", "insights", insightDays, eventsPage, eventsPageSize, insightFilter],
+    queryKey: [
+      "admin",
+      "insights",
+      insightDays,
+      eventsPage,
+      eventsPageSize,
+      insightFilter,
+    ],
     queryFn: () =>
       getAdminInsights({
         days: insightDays,
@@ -334,7 +376,9 @@ export default function AdminPanel() {
   const [expandedSummary, setExpandedSummary] = useState<
     "residents" | "medicines" | "inputs" | "cabinets" | "drawers" | null
   >(null);
-  const [summaryListData, setSummaryListData] = useState<Record<string, unknown>[]>([]);
+  const [summaryListData, setSummaryListData] = useState<
+    Record<string, unknown>[]
+  >([]);
   const [loadingSummaryList, setLoadingSummaryList] = useState(false);
 
   const [alerts, setAlerts] = useState<{
@@ -367,10 +411,14 @@ export default function AdminPanel() {
     null,
   );
 
-  const [stockHistoryItemType, setStockHistoryItemType] = useState<"medicamento" | "insumo">("medicamento");
+  const [stockHistoryItemType, setStockHistoryItemType] = useState<
+    "medicamento" | "insumo"
+  >("medicamento");
   const [stockHistoryItemId, setStockHistoryItemId] = useState("");
   const [stockHistoryLote, setStockHistoryLote] = useState("");
-  const [stockHistoryData, setStockHistoryData] = useState<StockHistoryEntry[]>([]);
+  const [stockHistoryData, setStockHistoryData] = useState<StockHistoryEntry[]>(
+    [],
+  );
   const [stockHistoryTotal, setStockHistoryTotal] = useState(0);
   const [stockHistoryPage, setStockHistoryPage] = useState(1);
   const [loadingStockHistory, setLoadingStockHistory] = useState(false);
@@ -391,7 +439,8 @@ export default function AdminPanel() {
     items: ConsumptionByItemRow[];
     subtotal: { entrada: number; saida: number };
   }>({ items: [], subtotal: { entrada: 0, saida: 0 } });
-  const [loadingConsumptionByItem, setLoadingConsumptionByItem] = useState(false);
+  const [loadingConsumptionByItem, setLoadingConsumptionByItem] =
+    useState(false);
   const [reportTransferPeriod, setReportTransferPeriod] =
     useState<MovementPeriod>(MovementPeriod.DIARIO);
   const [reportStatus, setReportStatus] = useState<
@@ -436,14 +485,21 @@ export default function AdminPanel() {
       .finally(() => {
         if (!cancelled) setLoadingExpiringItems(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [expiringDays, expiringItemsPage]);
 
   function fetchConsumptionByItem() {
     setLoadingConsumptionByItem(true);
     getConsumptionByItem(consumptionStart, consumptionEnd)
       .then(setConsumptionByItemData)
-      .catch(() => setConsumptionByItemData({ items: [], subtotal: { entrada: 0, saida: 0 } }))
+      .catch(() =>
+        setConsumptionByItemData({
+          items: [],
+          subtotal: { entrada: 0, saida: 0 },
+        }),
+      )
       .finally(() => setLoadingConsumptionByItem(false));
   }
 
@@ -548,7 +604,9 @@ export default function AdminPanel() {
       const stockList = await fetchAllPaginated<StockListAlertItem>(
         (page, limit) =>
           getStock(page, limit).then((res) => ({
-            data: Array.isArray(res?.data) ? (res.data as StockListAlertItem[]) : [],
+            data: Array.isArray(res?.data)
+              ? (res.data as StockListAlertItem[])
+              : [],
             hasNext: Boolean(res?.hasNext),
           })),
       );
@@ -668,7 +726,10 @@ export default function AdminPanel() {
           params = { periodo: MovementPeriod.MENSAL, mes: reportMovementMonth };
         } else {
           if (!reportStartDate || !reportEndDate) {
-            toast({ title: "Selecione o intervalo de datas", variant: "error" });
+            toast({
+              title: "Selecione o intervalo de datas",
+              variant: "error",
+            });
             setReportStatus("idle");
             return;
           }
@@ -683,7 +744,10 @@ export default function AdminPanel() {
         let params: MovementsParams;
         if (reportTransferPeriod === MovementPeriod.DIARIO) {
           if (!reportTransferDate) {
-            toast({ title: "Selecione a data da transferência", variant: "error" });
+            toast({
+              title: "Selecione a data da transferência",
+              variant: "error",
+            });
             setReportStatus("idle");
             return;
           }
@@ -693,7 +757,10 @@ export default function AdminPanel() {
           };
         } else {
           if (!reportStartDate || !reportEndDate) {
-            toast({ title: "Selecione o intervalo de datas", variant: "error" });
+            toast({
+              title: "Selecione o intervalo de datas",
+              variant: "error",
+            });
             setReportStatus("idle");
             return;
           }
@@ -707,7 +774,7 @@ export default function AdminPanel() {
       } else {
         const casela =
           tipo === "residente_consumo" || tipo === "medicamentos_residente"
-            ? selectedReportResident ?? undefined
+            ? (selectedReportResident ?? undefined)
             : undefined;
         response = await getReport(tipo, casela);
       }
@@ -761,7 +828,10 @@ export default function AdminPanel() {
           params = { periodo: MovementPeriod.MENSAL, mes: reportMovementMonth };
         } else {
           if (!reportStartDate || !reportEndDate) {
-            toast({ title: "Selecione o intervalo de datas", variant: "error" });
+            toast({
+              title: "Selecione o intervalo de datas",
+              variant: "error",
+            });
             setReportPreviewLoading(false);
             return;
           }
@@ -776,7 +846,10 @@ export default function AdminPanel() {
         let params: MovementsParams;
         if (reportTransferPeriod === MovementPeriod.DIARIO) {
           if (!reportTransferDate) {
-            toast({ title: "Selecione a data da transferência", variant: "error" });
+            toast({
+              title: "Selecione a data da transferência",
+              variant: "error",
+            });
             setReportPreviewLoading(false);
             return;
           }
@@ -786,7 +859,10 @@ export default function AdminPanel() {
           };
         } else {
           if (!reportStartDate || !reportEndDate) {
-            toast({ title: "Selecione o intervalo de datas", variant: "error" });
+            toast({
+              title: "Selecione o intervalo de datas",
+              variant: "error",
+            });
             setReportPreviewLoading(false);
             return;
           }
@@ -800,7 +876,7 @@ export default function AdminPanel() {
       } else {
         const casela =
           tipo === "residente_consumo" || tipo === "medicamentos_residente"
-            ? selectedReportResident ?? undefined
+            ? (selectedReportResident ?? undefined)
             : undefined;
         response = await getReport(tipo, casela);
       }
@@ -936,27 +1012,45 @@ export default function AdminPanel() {
     <Layout title="Painel administrativo">
       <Tabs defaultValue="resumo" className="w-full">
         <TabsList className="grid grid-cols-6 gap-1 w-full p-1">
-          <TabsTrigger value="resumo" className="gap-1.5 min-w-0 text-xs sm:text-sm">
+          <TabsTrigger
+            value="resumo"
+            className="gap-1.5 min-w-0 text-xs sm:text-sm"
+          >
             <LayoutDashboard className="h-4 w-4 shrink-0" />
             <span className="truncate">Resumo executivo</span>
           </TabsTrigger>
-          <TabsTrigger value="alertas" className="gap-1.5 min-w-0 text-xs sm:text-sm">
+          <TabsTrigger
+            value="alertas"
+            className="gap-1.5 min-w-0 text-xs sm:text-sm"
+          >
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span className="truncate">Alertas</span>
           </TabsTrigger>
-          <TabsTrigger value="relatorios" className="gap-1.5 min-w-0 text-xs sm:text-sm">
+          <TabsTrigger
+            value="relatorios"
+            className="gap-1.5 min-w-0 text-xs sm:text-sm"
+          >
             <FileText className="h-4 w-4 shrink-0" />
             <span className="truncate">Relatórios</span>
           </TabsTrigger>
-          <TabsTrigger value="users" className="gap-1.5 min-w-0 text-xs sm:text-sm">
+          <TabsTrigger
+            value="users"
+            className="gap-1.5 min-w-0 text-xs sm:text-sm"
+          >
             <Users className="h-4 w-4 shrink-0" />
             <span className="truncate">Usuários</span>
           </TabsTrigger>
-          <TabsTrigger value="insights" className="gap-1.5 min-w-0 text-xs sm:text-sm">
+          <TabsTrigger
+            value="insights"
+            className="gap-1.5 min-w-0 text-xs sm:text-sm"
+          >
             <Edit className="h-4 w-4 shrink-0" />
             <span className="truncate">Auditoria</span>
           </TabsTrigger>
-          <TabsTrigger value="stock-history" className="gap-1.5 min-w-0 text-xs sm:text-sm">
+          <TabsTrigger
+            value="stock-history"
+            className="gap-1.5 min-w-0 text-xs sm:text-sm"
+          >
             <Archive className="h-4 w-4 shrink-0" />
             <span className="truncate">Histórico estoque</span>
           </TabsTrigger>
@@ -984,9 +1078,15 @@ export default function AdminPanel() {
                         <div className="flex items-center gap-2">
                           <Users className="h-8 w-8 text-sky-600" />
                           <div>
-                            <p className="text-2xl font-bold">{summary.residents}</p>
-                            <p className="text-sm text-muted-foreground">Residentes</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">Clique para listar</p>
+                            <p className="text-2xl font-bold">
+                              {summary.residents}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Residentes
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Clique para listar
+                            </p>
                           </div>
                         </div>
                       </CardContent>
@@ -999,9 +1099,15 @@ export default function AdminPanel() {
                         <div className="flex items-center gap-2">
                           <Pill className="h-8 w-8 text-emerald-600" />
                           <div>
-                            <p className="text-2xl font-bold">{summary.medicines}</p>
-                            <p className="text-sm text-muted-foreground">Medicamentos</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">Clique para listar</p>
+                            <p className="text-2xl font-bold">
+                              {summary.medicines}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Medicamentos
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Clique para listar
+                            </p>
                           </div>
                         </div>
                       </CardContent>
@@ -1014,9 +1120,15 @@ export default function AdminPanel() {
                         <div className="flex items-center gap-2">
                           <Package className="h-8 w-8 text-amber-600" />
                           <div>
-                            <p className="text-2xl font-bold">{summary.inputs}</p>
-                            <p className="text-sm text-muted-foreground">Insumos</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">Clique para listar</p>
+                            <p className="text-2xl font-bold">
+                              {summary.inputs}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Insumos
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Clique para listar
+                            </p>
                           </div>
                         </div>
                       </CardContent>
@@ -1029,9 +1141,15 @@ export default function AdminPanel() {
                         <div className="flex items-center gap-2">
                           <Archive className="h-8 w-8 text-violet-600" />
                           <div>
-                            <p className="text-2xl font-bold">{summary.cabinets}</p>
-                            <p className="text-sm text-muted-foreground">Armários</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">Clique para listar</p>
+                            <p className="text-2xl font-bold">
+                              {summary.cabinets}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Armários
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Clique para listar
+                            </p>
                           </div>
                         </div>
                       </CardContent>
@@ -1044,9 +1162,15 @@ export default function AdminPanel() {
                         <div className="flex items-center gap-2">
                           <Grid className="h-8 w-8 text-rose-600" />
                           <div>
-                            <p className="text-2xl font-bold">{summary.drawers}</p>
-                            <p className="text-sm text-muted-foreground">Gavetas</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">Clique para listar</p>
+                            <p className="text-2xl font-bold">
+                              {summary.drawers}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Gavetas
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Clique para listar
+                            </p>
                           </div>
                         </div>
                       </CardContent>
@@ -1055,8 +1179,10 @@ export default function AdminPanel() {
                   {expandedSummary && (
                     <div className="mt-6 border rounded-md overflow-auto max-h-[400px]">
                       <h3 className="text-sm font-medium p-2 border-b bg-slate-50">
-                        {expandedSummary === "residents" && "Lista de residentes"}
-                        {expandedSummary === "medicines" && "Lista de medicamentos"}
+                        {expandedSummary === "residents" &&
+                          "Lista de residentes"}
+                        {expandedSummary === "medicines" &&
+                          "Lista de medicamentos"}
                         {expandedSummary === "inputs" && "Lista de insumos"}
                         {expandedSummary === "cabinets" && "Lista de armários"}
                         {expandedSummary === "drawers" && "Lista de gavetas"}
@@ -1108,49 +1234,77 @@ export default function AdminPanel() {
                             {summaryListData.length === 0 ? (
                               <TableRow>
                                 <TableCell
-                                  colSpan={expandedSummary === "medicines" ? 4 : 2}
+                                  colSpan={
+                                    expandedSummary === "medicines" ? 4 : 2
+                                  }
                                   className="text-center text-muted-foreground"
                                 >
                                   Nenhum registro
                                 </TableCell>
                               </TableRow>
                             ) : (
-                              summaryListData.map((row: Record<string, unknown>, idx: number) => (
-                                <TableRow key={idx}>
-                                  {expandedSummary === "residents" && (
-                                    <>
-                                      <TableCell>{String(row.casela ?? "-")}</TableCell>
-                                      <TableCell>{String(row.nome ?? "-")}</TableCell>
-                                    </>
-                                  )}
-                                  {expandedSummary === "medicines" && (
-                                    <>
-                                      <TableCell>{String(row.nome ?? "-")}</TableCell>
-                                      <TableCell>{String(row.principio_ativo ?? "-")}</TableCell>
-                                      <TableCell>{String(row.dosagem ?? "-")}</TableCell>
-                                      <TableCell>{String(row.unidade_medida ?? "-")}</TableCell>
-                                    </>
-                                  )}
-                                  {expandedSummary === "inputs" && (
-                                    <>
-                                      <TableCell>{String(row.nome ?? "-")}</TableCell>
-                                      <TableCell>{String(row.descricao ?? "-")}</TableCell>
-                                    </>
-                                  )}
-                                  {expandedSummary === "cabinets" && (
-                                    <>
-                                      <TableCell>{String(row.numero ?? "-")}</TableCell>
-                                      <TableCell>{String(row.categoria ?? "-")}</TableCell>
-                                    </>
-                                  )}
-                                  {expandedSummary === "drawers" && (
-                                    <>
-                                      <TableCell>{String(row.numero ?? "-")}</TableCell>
-                                      <TableCell>{String(row.categoria ?? "-")}</TableCell>
-                                    </>
-                                  )}
-                                </TableRow>
-                              ))
+                              summaryListData.map(
+                                (row: Record<string, unknown>, idx: number) => (
+                                  <TableRow key={idx}>
+                                    {expandedSummary === "residents" && (
+                                      <>
+                                        <TableCell>
+                                          {String(row.casela ?? "-")}
+                                        </TableCell>
+                                        <TableCell>
+                                          {String(row.nome ?? "-")}
+                                        </TableCell>
+                                      </>
+                                    )}
+                                    {expandedSummary === "medicines" && (
+                                      <>
+                                        <TableCell>
+                                          {String(row.nome ?? "-")}
+                                        </TableCell>
+                                        <TableCell>
+                                          {String(row.principio_ativo ?? "-")}
+                                        </TableCell>
+                                        <TableCell>
+                                          {String(row.dosagem ?? "-")}
+                                        </TableCell>
+                                        <TableCell>
+                                          {String(row.unidade_medida ?? "-")}
+                                        </TableCell>
+                                      </>
+                                    )}
+                                    {expandedSummary === "inputs" && (
+                                      <>
+                                        <TableCell>
+                                          {String(row.nome ?? "-")}
+                                        </TableCell>
+                                        <TableCell>
+                                          {String(row.descricao ?? "-")}
+                                        </TableCell>
+                                      </>
+                                    )}
+                                    {expandedSummary === "cabinets" && (
+                                      <>
+                                        <TableCell>
+                                          {String(row.numero ?? "-")}
+                                        </TableCell>
+                                        <TableCell>
+                                          {String(row.categoria ?? "-")}
+                                        </TableCell>
+                                      </>
+                                    )}
+                                    {expandedSummary === "drawers" && (
+                                      <>
+                                        <TableCell>
+                                          {String(row.numero ?? "-")}
+                                        </TableCell>
+                                        <TableCell>
+                                          {String(row.categoria ?? "-")}
+                                        </TableCell>
+                                      </>
+                                    )}
+                                  </TableRow>
+                                ),
+                              )
                             )}
                           </TableBody>
                         </Table>
@@ -1210,7 +1364,10 @@ export default function AdminPanel() {
                       <TableBody>
                         {expiringItems.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={7} className="text-center text-muted-foreground py-4">
+                            <TableCell
+                              colSpan={7}
+                              className="text-center text-muted-foreground py-4"
+                            >
                               Nenhum item a vencer no período.
                             </TableCell>
                           </TableRow>
@@ -1260,7 +1417,8 @@ export default function AdminPanel() {
             <CardHeader>
               <CardTitle>Consumo por período (por item)</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Quantidade de entradas e saídas por medicamento/insumo no intervalo de datas.
+                Quantidade de entradas e saídas por medicamento/insumo no
+                intervalo de datas.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1310,8 +1468,12 @@ export default function AdminPanel() {
                     <TableBody>
                       {consumptionByItemData.items.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
-                            Nenhum dado no período. Defina as datas e clique em Buscar.
+                          <TableCell
+                            colSpan={4}
+                            className="text-center text-muted-foreground py-4"
+                          >
+                            Nenhum dado no período. Defina as datas e clique em
+                            Buscar.
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -1319,15 +1481,23 @@ export default function AdminPanel() {
                           {consumptionByItemData.items.map((row, idx) => (
                             <TableRow key={idx}>
                               <TableCell>{row.nome}</TableCell>
-                              <TableCell>{row.tipo_item === "medicamento" ? "Medicamento" : "Insumo"}</TableCell>
+                              <TableCell>
+                                {row.tipo_item === "medicamento"
+                                  ? "Medicamento"
+                                  : "Insumo"}
+                              </TableCell>
                               <TableCell>{row.entrada}</TableCell>
                               <TableCell>{row.saida}</TableCell>
                             </TableRow>
                           ))}
                           <TableRow className="bg-slate-100 font-medium">
                             <TableCell colSpan={2}>Subtotal</TableCell>
-                            <TableCell>{consumptionByItemData.subtotal.entrada}</TableCell>
-                            <TableCell>{consumptionByItemData.subtotal.saida}</TableCell>
+                            <TableCell>
+                              {consumptionByItemData.subtotal.entrada}
+                            </TableCell>
+                            <TableCell>
+                              {consumptionByItemData.subtotal.saida}
+                            </TableCell>
                           </TableRow>
                         </>
                       )}
@@ -1374,7 +1544,10 @@ export default function AdminPanel() {
                         <TableBody>
                           {alerts.noStock.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={6} className="text-center text-muted-foreground">
+                              <TableCell
+                                colSpan={6}
+                                className="text-center text-muted-foreground"
+                              >
                                 Nenhum
                               </TableCell>
                             </TableRow>
@@ -1416,7 +1589,10 @@ export default function AdminPanel() {
                         <TableBody>
                           {alerts.belowMin.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={6} className="text-center text-muted-foreground">
+                              <TableCell
+                                colSpan={6}
+                                className="text-center text-muted-foreground"
+                              >
                                 Nenhum
                               </TableCell>
                             </TableRow>
@@ -1458,7 +1634,10 @@ export default function AdminPanel() {
                         <TableBody>
                           {alerts.expired.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={6} className="text-center text-muted-foreground">
+                              <TableCell
+                                colSpan={6}
+                                className="text-center text-muted-foreground"
+                              >
                                 Nenhum
                               </TableCell>
                             </TableRow>
@@ -1480,7 +1659,9 @@ export default function AdminPanel() {
                   </div>
                   <div>
                     <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
-                      <span className="text-orange-600">Próximos ao vencimento</span>
+                      <span className="text-orange-600">
+                        Próximos ao vencimento
+                      </span>
                       <span className="text-muted-foreground">
                         ({alerts.expiringSoon.length})
                       </span>
@@ -1500,7 +1681,10 @@ export default function AdminPanel() {
                         <TableBody>
                           {alerts.expiringSoon.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={6} className="text-center text-muted-foreground">
+                              <TableCell
+                                colSpan={6}
+                                className="text-center text-muted-foreground"
+                              >
                                 Nenhum
                               </TableCell>
                             </TableRow>
@@ -1538,7 +1722,10 @@ export default function AdminPanel() {
                   value={selectedReportType}
                   onValueChange={(v) => {
                     setSelectedReportType(v);
-                    if (v !== "residente_consumo" && v !== "medicamentos_residente") {
+                    if (
+                      v !== "residente_consumo" &&
+                      v !== "medicamentos_residente"
+                    ) {
                       setSelectedReportResident(null);
                     }
                   }}
@@ -1587,7 +1774,9 @@ export default function AdminPanel() {
                             value={reportResidentSearch}
                             onValueChange={setReportResidentSearch}
                           />
-                          <CommandEmpty>Nenhum residente encontrado.</CommandEmpty>
+                          <CommandEmpty>
+                            Nenhum residente encontrado.
+                          </CommandEmpty>
                           <CommandGroup>
                             {filteredReportResidents.map((r) => (
                               <CommandItem
@@ -1620,8 +1809,12 @@ export default function AdminPanel() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={MovementPeriod.DIARIO}>Diário</SelectItem>
-                      <SelectItem value={MovementPeriod.MENSAL}>Mensal</SelectItem>
+                      <SelectItem value={MovementPeriod.DIARIO}>
+                        Diário
+                      </SelectItem>
+                      <SelectItem value={MovementPeriod.MENSAL}>
+                        Mensal
+                      </SelectItem>
                       <SelectItem value={MovementPeriod.INTERVALO}>
                         Intervalo
                       </SelectItem>
@@ -1704,7 +1897,9 @@ export default function AdminPanel() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={MovementPeriod.DIARIO}>Diário</SelectItem>
+                      <SelectItem value={MovementPeriod.DIARIO}>
+                        Diário
+                      </SelectItem>
                       <SelectItem value={MovementPeriod.INTERVALO}>
                         Intervalo
                       </SelectItem>
@@ -1755,7 +1950,8 @@ export default function AdminPanel() {
                   disabled={
                     !selectedReportType ||
                     reportStatus === "loading" ||
-                    (showReportResidentSelector && selectedReportResident == null)
+                    (showReportResidentSelector &&
+                      selectedReportResident == null)
                   }
                 >
                   {reportStatus === "loading" ? (
@@ -1774,7 +1970,8 @@ export default function AdminPanel() {
                     !selectedReportType ||
                     reportPreviewLoading ||
                     reportStatus === "loading" ||
-                    (showReportResidentSelector && selectedReportResident == null)
+                    (showReportResidentSelector &&
+                      selectedReportResident == null)
                   }
                 >
                   {reportPreviewLoading ? (
@@ -1791,7 +1988,9 @@ export default function AdminPanel() {
               {reportPreviewUrl && (
                 <div className="mt-6 space-y-2 border rounded-lg bg-muted/30 p-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Pré-visualização do relatório</span>
+                    <span className="text-sm font-medium">
+                      Pré-visualização do relatório
+                    </span>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1815,7 +2014,9 @@ export default function AdminPanel() {
                         <button
                           type="button"
                           className="text-primary underline hover:no-underline"
-                          onClick={() => window.open(reportPreviewUrl, "_blank")}
+                          onClick={() =>
+                            window.open(reportPreviewUrl, "_blank")
+                          }
                         >
                           abra em nova aba
                         </button>
@@ -1834,7 +2035,8 @@ export default function AdminPanel() {
             <CardHeader>
               <CardTitle>Usuários do sistema</CardTitle>
               <p className="text-sm text-muted-foreground">
-                O administrador pode editar e remover usuários. A criação de novos usuários é feita pelo fluxo de cadastro do sistema.
+                O administrador pode editar e remover usuários. A criação de
+                novos usuários é feita pelo fluxo de cadastro do sistema.
               </p>
             </CardHeader>
             <CardContent>
@@ -1904,7 +2106,10 @@ export default function AdminPanel() {
             <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-4">
               <CardTitle>Auditoria e insights</CardTitle>
               <div className="flex items-center gap-2">
-                <Label htmlFor="insight-days" className="text-sm whitespace-nowrap">
+                <Label
+                  htmlFor="insight-days"
+                  className="text-sm whitespace-nowrap"
+                >
                   Últimos
                 </Label>
                 <Input
@@ -1918,10 +2123,18 @@ export default function AdminPanel() {
                   onBlur={applyInsightDays}
                   onKeyDown={(e) => e.key === "Enter" && applyInsightDays()}
                 />
-                <Label htmlFor="insight-days" className="text-sm whitespace-nowrap">
+                <Label
+                  htmlFor="insight-days"
+                  className="text-sm whitespace-nowrap"
+                >
                   dias
                 </Label>
-                <Button type="button" variant="secondary" size="sm" onClick={applyInsightDays}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={applyInsightDays}
+                >
                   Aplicar
                 </Button>
               </div>
@@ -1939,7 +2152,9 @@ export default function AdminPanel() {
                           : ""
                       }`}
                       onClick={() => {
-                        setInsightFilter((f) => (f === "create" ? null : "create"));
+                        setInsightFilter((f) =>
+                          f === "create" ? null : "create",
+                        );
                         setEventsPage(1);
                       }}
                     >
@@ -1963,7 +2178,9 @@ export default function AdminPanel() {
                           : ""
                       }`}
                       onClick={() => {
-                        setInsightFilter((f) => (f === "update" ? null : "update"));
+                        setInsightFilter((f) =>
+                          f === "update" ? null : "update",
+                        );
                         setEventsPage(1);
                       }}
                     >
@@ -1987,7 +2204,9 @@ export default function AdminPanel() {
                           : ""
                       }`}
                       onClick={() => {
-                        setInsightFilter((f) => (f === "delete" ? null : "delete"));
+                        setInsightFilter((f) =>
+                          f === "delete" ? null : "delete",
+                        );
                         setEventsPage(1);
                       }}
                     >
@@ -2033,7 +2252,10 @@ export default function AdminPanel() {
                       )}
                     </p>
                     <div className="flex items-center gap-2">
-                      <Label htmlFor="page-size" className="text-sm whitespace-nowrap">
+                      <Label
+                        htmlFor="page-size"
+                        className="text-sm whitespace-nowrap"
+                      >
                         Por página
                       </Label>
                       <Select
@@ -2063,7 +2285,9 @@ export default function AdminPanel() {
                           <TableHead>Ação</TableHead>
                           <TableHead>Resultado</TableHead>
                           <TableHead className="min-w-[140px]">Antes</TableHead>
-                          <TableHead className="min-w-[140px]">Depois</TableHead>
+                          <TableHead className="min-w-[140px]">
+                            Depois
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -2083,7 +2307,8 @@ export default function AdminPanel() {
                                 {new Date(e.created_at).toLocaleString("pt-BR")}
                               </TableCell>
                               <TableCell>
-                                {AUDIT_OPERATION_LABEL[e.operation_type] ?? e.operation_type}
+                                {AUDIT_OPERATION_LABEL[e.operation_type] ??
+                                  e.operation_type}
                               </TableCell>
                               <TableCell>
                                 {auditStatusLabel(e.status_code)}
@@ -2151,7 +2376,9 @@ export default function AdminPanel() {
         <TabsContent value="stock-history" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Histórico por item ou lote (rastreabilidade)</CardTitle>
+              <CardTitle>
+                Histórico por item ou lote (rastreabilidade)
+              </CardTitle>
               <p className="text-sm text-muted-foreground">
                 Consulte movimentações por medicamento/insumo (ID) ou por lote.
               </p>
@@ -2163,7 +2390,9 @@ export default function AdminPanel() {
                   <div className="flex gap-2 mt-1">
                     <Select
                       value={stockHistoryItemType}
-                      onValueChange={(v) => setStockHistoryItemType(v as "medicamento" | "insumo")}
+                      onValueChange={(v) =>
+                        setStockHistoryItemType(v as "medicamento" | "insumo")
+                      }
                     >
                       <SelectTrigger className="w-[140px]">
                         <SelectValue />
@@ -2184,7 +2413,9 @@ export default function AdminPanel() {
                     <Button
                       type="button"
                       variant="secondary"
-                      disabled={loadingStockHistory || !stockHistoryItemId.trim()}
+                      disabled={
+                        loadingStockHistory || !stockHistoryItemId.trim()
+                      }
                       onClick={async () => {
                         const id = Number(stockHistoryItemId.trim());
                         if (Number.isNaN(id) || id < 1) return;
@@ -2291,16 +2522,23 @@ export default function AdminPanel() {
                   </p>
                 </>
               )}
-              {!loadingStockHistory && stockHistoryData.length === 0 && stockHistoryTotal === 0 && (stockHistoryItemId.trim() || stockHistoryLote.trim()) && (
-                <p className="text-muted-foreground">Nenhum movimento encontrado.</p>
-              )}
+              {!loadingStockHistory &&
+                stockHistoryData.length === 0 &&
+                stockHistoryTotal === 0 &&
+                (stockHistoryItemId.trim() || stockHistoryLote.trim()) && (
+                  <p className="text-muted-foreground">
+                    Nenhum movimento encontrado.
+                  </p>
+                )}
             </CardContent>
           </Card>
         </TabsContent>
-
       </Tabs>
 
-      <Dialog open={!!auditCompareEvent} onOpenChange={() => setAuditCompareEvent(null)}>
+      <Dialog
+        open={!!auditCompareEvent}
+        onOpenChange={() => setAuditCompareEvent(null)}
+      >
         <DialogContent className="max-w-6xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -2309,77 +2547,106 @@ export default function AdminPanel() {
             </DialogTitle>
           </DialogHeader>
           <div className="overflow-auto flex-1 min-h-0 border rounded-md">
-            {auditCompareEvent && (() => {
-              const oldRaw = auditCompareEvent.old_value;
-              const newRaw = auditCompareEvent.new_value;
-              const parseObj = (v: Record<string, unknown> | string | null | undefined): Record<string, unknown> => {
-                if (v == null || (typeof v === "string" && v === "")) return {};
-                const o =
-                  typeof v === "object" && !Array.isArray(v)
-                    ? v
-                    : typeof v === "string"
-                      ? (() => { try { return JSON.parse(v) as Record<string, unknown>; } catch { return {}; } })()
-                      : {};
-                return o && typeof o === "object" && !Array.isArray(o) ? o : {};
-              };
-              let oldObj = normalizeAuditKeys(
-                parseObj(oldRaw as Record<string, unknown> | string | null),
-              );
-              let newObj = parseObj(newRaw as Record<string, unknown> | string | null);
-              if (
-                newObj &&
-                typeof newObj.data === "object" &&
-                newObj.data !== null &&
-                !Array.isArray(newObj.data)
-              ) {
-                const d = newObj.data as Record<string, unknown>;
-                newObj =
-                  d.source != null && typeof d.source === "object"
-                    ? (d.source as Record<string, unknown>) 
-                    : d; 
-              }
-              newObj = normalizeAuditKeys(newObj);
-              const entries = getAuditDiffEntries(oldObj, newObj);
-              if (entries.length === 0) {
-                return (
-                  <p className="p-4 text-muted-foreground text-sm">
-                    Nenhum dado para comparar (ambos vazios ou não disponíveis).
-                  </p>
+            {auditCompareEvent &&
+              (() => {
+                const oldRaw = auditCompareEvent.old_value;
+                const newRaw = auditCompareEvent.new_value;
+                const parseObj = (
+                  v: Record<string, unknown> | string | null | undefined,
+                ): Record<string, unknown> => {
+                  if (v == null || (typeof v === "string" && v === ""))
+                    return {};
+                  const o =
+                    typeof v === "object" && !Array.isArray(v)
+                      ? v
+                      : typeof v === "string"
+                        ? (() => {
+                            try {
+                              return JSON.parse(v) as Record<string, unknown>;
+                            } catch {
+                              return {};
+                            }
+                          })()
+                        : {};
+                  return o && typeof o === "object" && !Array.isArray(o)
+                    ? o
+                    : {};
+                };
+                let oldObj = normalizeAuditKeys(
+                  parseObj(oldRaw as Record<string, unknown> | string | null),
                 );
-              }
-              return (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[200px]">Campo</TableHead>
-                      <TableHead className="min-w-[280px] bg-slate-50 dark:bg-slate-900/50">Antes</TableHead>
-                      <TableHead className="min-w-[280px] bg-slate-50 dark:bg-slate-900/50">Depois</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {entries.map(({ key, oldVal, newVal, changed }) => (
-                      <TableRow
-                        key={key}
-                        className={changed ? "bg-sky-50 dark:bg-sky-950/30 border-l-4 border-l-sky-500" : ""}
-                      >
-                        <TableCell className="font-medium text-xs" title={key}>
-                          {auditFieldLabel(key)}
-                        </TableCell>
-                        <TableCell className="text-xs font-mono break-all min-w-[260px] max-w-[400px] bg-slate-50/50 dark:bg-slate-900/30">
-                          {formatDiffValue(oldVal, key)}
-                        </TableCell>
-                        <TableCell className="text-xs font-mono break-all min-w-[260px] max-w-[400px] bg-slate-50/50 dark:bg-slate-900/30">
-                          {formatDiffValue(newVal, key)}
-                        </TableCell>
+                let newObj = parseObj(
+                  newRaw as Record<string, unknown> | string | null,
+                );
+                if (
+                  newObj &&
+                  typeof newObj.data === "object" &&
+                  newObj.data !== null &&
+                  !Array.isArray(newObj.data)
+                ) {
+                  const d = newObj.data as Record<string, unknown>;
+                  newObj =
+                    d.source != null && typeof d.source === "object"
+                      ? (d.source as Record<string, unknown>)
+                      : d;
+                }
+                newObj = normalizeAuditKeys(newObj);
+                const entries = getAuditDiffEntries(oldObj, newObj);
+                if (entries.length === 0) {
+                  return (
+                    <p className="p-4 text-muted-foreground text-sm">
+                      Nenhum dado para comparar (ambos vazios ou não
+                      disponíveis).
+                    </p>
+                  );
+                }
+                return (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[200px]">Campo</TableHead>
+                        <TableHead className="min-w-[280px] bg-slate-50 dark:bg-slate-900/50">
+                          Antes
+                        </TableHead>
+                        <TableHead className="min-w-[280px] bg-slate-50 dark:bg-slate-900/50">
+                          Depois
+                        </TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              );
-            })()}
+                    </TableHeader>
+                    <TableBody>
+                      {entries.map(({ key, oldVal, newVal, changed }) => (
+                        <TableRow
+                          key={key}
+                          className={
+                            changed
+                              ? "bg-sky-50 dark:bg-sky-950/30 border-l-4 border-l-sky-500"
+                              : ""
+                          }
+                        >
+                          <TableCell
+                            className="font-medium text-xs"
+                            title={key}
+                          >
+                            {auditFieldLabel(key)}
+                          </TableCell>
+                          <TableCell className="text-xs font-mono break-all min-w-[260px] max-w-[400px] bg-slate-50/50 dark:bg-slate-900/30">
+                            {formatDiffValue(oldVal, key)}
+                          </TableCell>
+                          <TableCell className="text-xs font-mono break-all min-w-[260px] max-w-[400px] bg-slate-50/50 dark:bg-slate-900/30">
+                            {formatDiffValue(newVal, key)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                );
+              })()}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAuditCompareEvent(null)}>
+            <Button
+              variant="outline"
+              onClick={() => setAuditCompareEvent(null)}
+            >
               Fechar
             </Button>
           </DialogFooter>

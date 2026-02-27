@@ -69,7 +69,9 @@ export default function RegisterCabinet() {
       if (!finalCategoryId) {
         const res = await createCabinetCategory(category.trim());
         finalCategoryId = res.id;
-        await queryClient.invalidateQueries({ queryKey: ["cabinet-categories"] });
+        await queryClient.invalidateQueries({
+          queryKey: ["cabinet-categories"],
+        });
       }
 
       await createCabinet(numero, finalCategoryId);

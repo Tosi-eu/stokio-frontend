@@ -68,7 +68,9 @@ export default function RegisterDrawer() {
       if (!finalCategoryId) {
         const res = await createDrawerCategory(category.trim());
         finalCategoryId = res.id;
-        await queryClient.invalidateQueries({ queryKey: ["drawer-categories"] });
+        await queryClient.invalidateQueries({
+          queryKey: ["drawer-categories"],
+        });
       }
 
       await createDrawer(numero, finalCategoryId);

@@ -41,7 +41,12 @@ export default function EditStock() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { cabinets, drawers, residents, isLoading: loadingData } = useEditStockData();
+  const {
+    cabinets,
+    drawers,
+    residents,
+    isLoading: loadingData,
+  } = useEditStockData();
   const [stockItem, setStockItem] = useState<StockItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -85,54 +90,53 @@ export default function EditStock() {
       try {
         setStockItem(item);
 
-          let validadeDate: Date | null = null;
-          if (item.expiry && item.expiry !== "-") {
-            if (item.expiry.includes("/")) {
-              validadeDate = parseDateFromString(item.expiry);
-            } else {
-              const parsed = new Date(item.expiry);
-              validadeDate = isNaN(parsed.getTime()) ? null : parsed;
-            }
+        let validadeDate: Date | null = null;
+        if (item.expiry && item.expiry !== "-") {
+          if (item.expiry.includes("/")) {
+            validadeDate = parseDateFromString(item.expiry);
+          } else {
+            const parsed = new Date(item.expiry);
+            validadeDate = isNaN(parsed.getTime()) ? null : parsed;
           }
+        }
 
-          let rawTipo = item.tipo || "";
-          if (!rawTipo && item.stockType) {
-            const tipoMap: Record<string, string> = {
-              "Estoque geral": "geral",
-              "Estoque individual": "individual",
-              "Carrinho de emergência": "carrinho_emergencia",
-            };
-            rawTipo = tipoMap[item.stockType] || "";
-          }
+        let rawTipo = item.tipo || "";
+        if (!rawTipo && item.stockType) {
+          const tipoMap: Record<string, string> = {
+            "Estoque geral": "geral",
+            "Estoque individual": "individual",
+            "Carrinho de emergência": "carrinho_emergencia",
+          };
+          rawTipo = tipoMap[item.stockType] || "";
+        }
 
-          let validTipo: ItemStockType = ItemStockType.GERAL;
-          if (
-            rawTipo === ItemStockType.GERAL ||
-            rawTipo === ItemStockType.INDIVIDUAL ||
-            rawTipo === ItemStockType.CARRINHO ||
-            rawTipo === ItemStockType.CARRINHO_PSICOTROPICOS
-          ) {
-            validTipo = rawTipo as ItemStockType;
-          }
+        let validTipo: ItemStockType = ItemStockType.GERAL;
+        if (
+          rawTipo === ItemStockType.GERAL ||
+          rawTipo === ItemStockType.INDIVIDUAL ||
+          rawTipo === ItemStockType.CARRINHO ||
+          rawTipo === ItemStockType.CARRINHO_PSICOTROPICOS
+        ) {
+          validTipo = rawTipo as ItemStockType;
+        }
 
-
-          const isMedicineItem = item.itemType === "medicamento";
-          reset({
-            quantidade: item.quantity || 0,
-            armario_id: typeof item.cabinet === "number" ? item.cabinet : null,
-            gaveta_id: typeof item.drawer === "number" ? item.drawer : null,
-            validade: validadeDate,
-            origem: isMedicineItem
-              ? (item.origin as OriginType) || null
-              : undefined,
-            setor: (item.sector as SectorType) || SectorType.FARMACIA,
-            lote: item.lot || null,
-            casela_id: typeof item.casela === "number" ? item.casela : null,
-            tipo: validTipo,
-            preco: item.preco ? item.preco.toFixed(2).replace(".", ",") : "",
-            observacao: item.detail ?? "",
-            dias_para_repor: item.daysToReplacement ?? null,
-          });
+        const isMedicineItem = item.itemType === "medicamento";
+        reset({
+          quantidade: item.quantity || 0,
+          armario_id: typeof item.cabinet === "number" ? item.cabinet : null,
+          gaveta_id: typeof item.drawer === "number" ? item.drawer : null,
+          validade: validadeDate,
+          origem: isMedicineItem
+            ? (item.origin as OriginType) || null
+            : undefined,
+          setor: (item.sector as SectorType) || SectorType.FARMACIA,
+          lote: item.lot || null,
+          casela_id: typeof item.casela === "number" ? item.casela : null,
+          tipo: validTipo,
+          preco: item.preco ? item.preco.toFixed(2).replace(".", ",") : "",
+          observacao: item.detail ?? "",
+          dias_para_repor: item.daysToReplacement ?? null,
+        });
       } catch (err: unknown) {
         toast({
           title: "Erro",

@@ -172,14 +172,11 @@ async function request(path: string, options: RequestInit = {}) {
       window.dispatchEvent(
         new CustomEvent("insufficient-privileges", {
           detail: {
-            message:
-              data?.error || rawMsg || INSUFFICIENT_PRIVILEGES_MESSAGE,
+            message: data?.error || rawMsg || INSUFFICIENT_PRIVILEGES_MESSAGE,
           },
         }),
       );
-      throw new Error(
-        data?.error || rawMsg || INSUFFICIENT_PRIVILEGES_MESSAGE,
-      );
+      throw new Error(data?.error || rawMsg || INSUFFICIENT_PRIVILEGES_MESSAGE);
     }
 
     const sanitizedMsg = sanitizeErrorMessage(String(rawMsg));
@@ -190,8 +187,13 @@ async function request(path: string, options: RequestInit = {}) {
 }
 
 export const api = {
-  get: <T = unknown>(path: string, options?: { params?: Record<string, unknown> }) =>
-    request(`${path}${buildQueryString(options?.params)}`, { method: "GET" }) as Promise<T>,
+  get: <T = unknown>(
+    path: string,
+    options?: { params?: Record<string, unknown> },
+  ) =>
+    request(`${path}${buildQueryString(options?.params)}`, {
+      method: "GET",
+    }) as Promise<T>,
 
   post: (path: string, body?: any) =>
     request(path, { method: "POST", body: JSON.stringify(body) }),
