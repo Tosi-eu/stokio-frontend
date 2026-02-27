@@ -252,7 +252,7 @@ export default function Stock() {
   const columns = [
     { key: "stockType", label: "Tipo", editable: false },
     { key: "name", label: "Nome", editable: true },
-    { key: "activeSubstance", label: "P. Ativo", editable: true },
+    { key: "activeSubstance", label: "Princípio Ativo", editable: true },
     { key: "description", label: "Descrição", editable: true },
     { key: "expiry", label: "Validade", editable: true },
     { key: "quantity", label: "Quantidade", editable: true },
