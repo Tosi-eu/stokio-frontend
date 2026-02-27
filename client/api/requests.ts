@@ -106,8 +106,51 @@ export const getResidentsCount = () => api.get("/residentes/count");
 export const getCabinetsCount = () => api.get("/armarios/count");
 export const getDrawersCount = () => api.get("/gavetas/count");
 
-export const getDashboardSummary = () =>
-  api.get<DashboardSummaryResponse>("/dashboard/summary");
+export const getDashboardSummary = (params?: { expiringDays?: number }) =>
+  api.get<DashboardSummaryResponse>("/dashboard/summary", {
+    params: params as Record<string, unknown>,
+  });
+
+export type ExpiringItem = {
+  tipo_item: "medicamento" | "insumo";
+  item_id: number;
+  estoque_id: number;
+  nome: string;
+  principio_ativo?: string | null;
+  dosagem?: string | null;
+  unidade_medida?: string | null;
+  descricao?: string | null;
+  validade: string | null;
+  quantidade: number;
+  lote: string | null;
+  setor: string | null;
+  paciente: string | null;
+  dias_para_vencer: number;
+};
+
+export const getExpiringItems = (
+  days: number,
+  page = 1,
+  limit = 50,
+): Promise<{ data: ExpiringItem[]; total: number; hasNext: boolean }> =>
+  api.get("/dashboard/expiring-items", {
+    params: { days, page, limit },
+  });
+
+export type ConsumptionPeriodItem = {
+  period: string;
+  entrada: number;
+  saida: number;
+};
+
+export const getConsumptionByPeriod = (
+  start: string,
+  end: string,
+  groupBy: "month" | "quarter" = "month",
+): Promise<ConsumptionPeriodItem[]> =>
+  api.get("/movimentacoes/consumo", {
+    params: { start, end, groupBy },
+  });
 
 export const deleteResident = (casela: string | number) =>
   api.delete(`/residentes/${casela}`);
@@ -539,3 +582,32 @@ export const getAdminInsights = (params?: {
   page?: number;
   operationType?: "create" | "update" | "delete";
 }) => api.get<AdminInsightsResponse>("/admin/insights", { params: params ?? {} });
+
+export type StockHistoryEntry = {
+  id: number;
+  tipo: string;
+  data: string;
+  quantidade: number;
+  setor: string;
+  lote: string | null;
+  nome: string;
+  operador: string;
+  armario_id: number | null;
+  casela_id: number | null;
+  residente: string | null;
+  item_type?: "medicamento" | "insumo";
+};
+
+export const getAdminStockHistory = (params: {
+  itemType?: "medicamento" | "insumo";
+  itemId?: number;
+  lote?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{
+  data: StockHistoryEntry[];
+  total: number;
+  hasNext: boolean;
+  page: number;
+  limit: number;
+}> => api.get("/admin/stock-history", { params });

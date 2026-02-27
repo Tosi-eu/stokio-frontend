@@ -244,7 +244,7 @@ export default function Dashboard() {
     }
 
     fetchReplacementReminders();
-  }, []);  
+  }, []);
 
   const stats = useMemo(
     () => [
