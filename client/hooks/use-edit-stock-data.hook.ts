@@ -3,7 +3,6 @@ import { getCabinets, getDrawers, getResidents } from "@/api/requests";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import type { Cabinet, Drawer, Patient } from "@/interfaces/interfaces";
 
-/** Cache cabinets, drawers, residents for 5 minutes—EditStock dropdowns. */
 const STALE_MS = 5 * 60 * 1000;
 
 async function fetchAllCabinets(): Promise<Cabinet[]> {

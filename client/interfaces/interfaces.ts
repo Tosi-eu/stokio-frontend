@@ -123,7 +123,6 @@ export interface InputInventory {
   quantity: number;
 }
 
-/** Stock list item from API used in AdminPanel alerts. */
 export interface StockListAlertItem {
   nome?: string;
   principio_ativo?: string;

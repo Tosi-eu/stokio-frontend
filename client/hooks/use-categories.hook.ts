@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getCabinetCategories, getDrawerCategories } from "@/api/requests";
 
-/** Cache categories for 5 minutes—they change rarely. */
 const CATEGORIES_STALE_MS = 5 * 60 * 1000;
 
 export function useCabinetCategories() {

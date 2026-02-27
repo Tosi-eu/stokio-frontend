@@ -4,7 +4,6 @@ export const AUDIT_OPERATION_LABEL: Record<string, string> = {
   delete: "Remoção",
 };
 
-/** Rótulos amigáveis para o campo "Entidade" na tabela de auditoria (primeiro segmento da rota). */
 export const AUDIT_RESOURCE_LABEL: Record<string, string> = {
   login: "Usuários",
   admin: "Administração",

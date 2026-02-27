@@ -28,10 +28,6 @@ export const parseYearMonthToDate = (yearMonth: string) => {
   return new Date(year, month - 1, 1);
 };
 
-/**
- * Format a date that may be only year/month/day (no time).
- * Returns "-" for null, undefined, or invalid date strings to avoid "Invalid Date" in tables.
- */
 export function formatValidityDate(
   input: string | Date | undefined | null,
 ): string {
@@ -41,7 +37,6 @@ export function formatValidityDate(
   }
   const str = String(input).trim();
   if (!str) return "-";
-  // YYYY-MM-DD (with optional time part)
   const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (isoMatch) {
     const [, y, m, d] = isoMatch;
@@ -52,7 +47,6 @@ export function formatValidityDate(
       return `${String(numD).padStart(2, "0")}/${String(numM).padStart(2, "0")}/${numY}`;
     }
   }
-  // DD/MM/YYYY
   if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) return str;
   const parsed = new Date(str);
   return isNaN(parsed.getTime()) ? "-" : formatDateToPtBr(parsed);

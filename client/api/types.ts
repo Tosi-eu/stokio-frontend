@@ -1,4 +1,4 @@
-/** Paginated API response shape from backend. */
+
 export interface PaginatedResponse<T> {
   data: T[];
   hasNext: boolean;
@@ -7,7 +7,6 @@ export interface PaginatedResponse<T> {
   total?: number;
 }
 
-/** Admin insights response from /admin/insights. */
 export interface AdminInsightsResponse {
   created: number;
   updated: number;
@@ -29,7 +28,6 @@ export interface AdminInsightsResponse {
   }>;
 }
 
-/** Notifications list response from /notificacao. */
 export interface NotificationsResponse {
   items?: unknown[];
   total?: number;
@@ -38,7 +36,6 @@ export interface NotificationsResponse {
 
 import type { StockProportionResponse } from "@/interfaces/interfaces";
 
-/** Raw movement item from dashboard summary. */
 export interface RawDashboardMovement {
   tipo?: string;
   quantidade?: number;
@@ -50,7 +47,6 @@ export interface RawDashboardMovement {
   CabinetModel?: { num_armario?: number };
 }
 
-/** Raw medicine ranking item from dashboard summary. */
 export interface RawMedicineRankingItem {
   medicamento?: { nome?: string; principio_ativo?: string };
   total_movimentado?: number;
@@ -58,19 +54,16 @@ export interface RawMedicineRankingItem {
   total_saidas?: number;
 }
 
-/** Raw cabinet stock item from dashboard summary. */
 export interface RawCabinetStockItem {
   armario_id?: number;
   total_geral?: number;
 }
 
-/** Raw drawer stock item from dashboard summary. */
 export interface RawDrawerStockItem {
   gaveta_id?: number;
   total_geral?: number;
 }
 
-/** Dashboard summary response from /dashboard/summary. */
 export interface DashboardSummaryResponse {
   alerts?: {
     noStock?: number;

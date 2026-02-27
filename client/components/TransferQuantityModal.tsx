@@ -30,9 +30,7 @@ interface TransferQuantityModalProps {
     itemType?: "medicamento" | "insumo";
     isGeneralMedicine?: boolean;
     casela?: number | null;
-    /** Existing days-to-replacement for this stock row (e.g. already in nursing) */
     daysToReplacement?: number | null;
-    /** Medicine id; used to fetch saved dias_para_repor when user selects a casela */
     medicamentoId?: number | null;
   } | null;
   residents?: Array<{ casela: number; name: string }>;
@@ -88,10 +86,6 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
     }
   }, [open, item?.daysToReplacement]);
 
-  // Fetch "dias para repor" when we have a casela to transfer to (nursing):
-  // - General medicine: user selects a casela (selectedCasela).
-  // - Individual medicine in pharmacy: same resident (item.casela) — so we can reuse the cycle
-  //   if that medicine+resident already exists in nursing, or let the user set it.
   const caselaForDaysFetch = selectedCasela
     ? Number(selectedCasela)
     : item?.sector === "farmacia" && item?.casela != null
@@ -156,8 +150,6 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
   const hasCaselaSelected = selectedCasela.length > 0;
   const hasDestination = destination.trim().length > 0;
 
-  // Read-only only when we fetched from nursing (same medicine+resident already in nursing).
-  // When source is individual in pharmacy, allow editing so user can set the replacement cycle.
   const effectiveReadOnlyDias = fetchedDiasParaRepor ?? null;
 
   const hasValidCaselaForDaysToReplacement =
@@ -194,8 +186,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
       (isIndividualStock || isInput) && hasDestination
         ? destination.trim()
         : null;
-
-    // Garantir que dias_para_repor só seja enviado quando há casela válida
+    
     const hasValidCasela =
       isIndividualStock || (!isGeneralUse && hasCaselaSelected);
     const valueToSend =
