@@ -44,8 +44,8 @@ import { useMaxSectionRows } from "@/hooks/use-max-selection-rows";
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  const [noStock, setNoStock] = useState<number>(0);
   const [belowMin, setBelowMin] = useState<number>(0);
+  const [nearMin, setNearMin] = useState<number>(0);
   const [expired, setExpired] = useState<number>(0);
   const [expiringSoonCount, setExpiringSoonCount] = useState<number>(0);
   const [cabinetStockData, setCabinetStockData] = useState<CabinetStockItem[]>(
@@ -104,8 +104,8 @@ export default function Dashboard() {
       setLoadingRecentMovements(true);
 
       const a = summary.alerts || {};
-      setNoStock(a.noStock ?? 0);
       setBelowMin(a.belowMin ?? 0);
+      setNearMin(a.nearMin ?? 0);
       setExpired(a.expired ?? 0);
       setExpiringSoonCount(a.expiringSoon ?? 0);
 
@@ -251,12 +251,12 @@ export default function Dashboard() {
     () => [
       {
         label: "Itens Abaixo do Estoque Mínimo",
-        value: noStock,
+        value: belowMin,
         onClick: () => navigate("/stock?filter=belowMin"),
       },
       {
         label: "Itens Próximos do Estoque Mínimo",
-        value: belowMin,
+        value: nearMin,
         onClick: () => navigate("/stock?filter=nearMin"),
       },
       {
@@ -270,7 +270,7 @@ export default function Dashboard() {
         onClick: () => navigate("/stock?filter=expiringSoon"),
       },
     ],
-    [noStock, belowMin, expired, expiringSoonCount, navigate],
+    [belowMin, nearMin, expired, expiringSoonCount, navigate],
   );
 
   const COLORS = useMemo(

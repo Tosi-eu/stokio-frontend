@@ -68,6 +68,7 @@ export interface DashboardSummaryResponse {
   alerts?: {
     noStock?: number;
     belowMin?: number;
+    nearMin?: number;
     expired?: number;
     expiringSoon?: number;
   };
