@@ -36,10 +36,10 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
   const { user } = useAuth();
 
   const navigationTabs = [
-    ...baseNavigationTabs,
     ...(user?.role === "admin"
       ? [{ name: "Painel administrativo", href: "/admin", icon: ShieldCheck }]
       : []),
+    ...baseNavigationTabs,
   ];
 
   return (

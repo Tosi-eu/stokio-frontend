@@ -291,7 +291,7 @@ export function AdminTabResumo({
                               {expandedSummary === "residents" && (
                                 <>
                                   <TableCell>{String(row.casela ?? "-")}</TableCell>
-                                  <TableCell>{String(row.nome ?? "-")}</TableCell>
+                                  <TableCell>{String(row.name ?? "-")}</TableCell>
                                 </>
                               )}
                               {expandedSummary === "medicines" && (

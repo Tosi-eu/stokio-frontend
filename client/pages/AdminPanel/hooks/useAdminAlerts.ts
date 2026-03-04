@@ -33,7 +33,7 @@ export function useAdminAlerts(isAdmin: boolean) {
           })),
       );
       const noStock = stockList
-        .filter((i) => i.st_quantidade === "critical")
+        .filter((i) => (Number(i.quantidade) ?? 0) === 0)
         .map((i) => ({
           nome: i.nome ?? "-",
           detalhe: i.principio_ativo ?? i.descricao ?? null,
@@ -44,7 +44,10 @@ export function useAdminAlerts(isAdmin: boolean) {
           tipo_item: i.tipo_item ?? "-",
         }));
       const belowMin = stockList
-        .filter((i) => i.st_quantidade === "low")
+        .filter(
+          (i) =>
+            i.st_quantidade === "critical" && (Number(i.quantidade) ?? 0) > 0,
+        )
         .map((i) => ({
           nome: i.nome ?? "-",
           detalhe: i.principio_ativo ?? i.descricao ?? null,

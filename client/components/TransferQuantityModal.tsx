@@ -150,13 +150,13 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
   const hasCaselaSelected = selectedCasela.length > 0;
   const hasDestination = destination.trim().length > 0;
 
-  const effectiveReadOnlyDias = fetchedDiasParaRepor ?? null;
+  const suggestedDiasParaRepor = fetchedDiasParaRepor ?? null;
 
   const hasValidCaselaForDaysToReplacement =
     isIndividualStock || (isMedicamento && !isGeneralUse && hasCaselaSelected);
 
   const hasValidDiasValue =
-    effectiveReadOnlyDias != null ||
+    suggestedDiasParaRepor != null ||
     (hasValidCaselaForDaysToReplacement && daysToReplacement !== "");
 
   const isValidDaysToReplacement =
@@ -190,10 +190,9 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
     const hasValidCasela =
       isIndividualStock || (!isGeneralUse && hasCaselaSelected);
     const valueToSend =
-      effectiveReadOnlyDias ??
-      (daysToReplacement !== ""
+      daysToReplacement !== ""
         ? Number(daysToReplacement)
-        : (item?.daysToReplacement ?? null));
+        : suggestedDiasParaRepor ?? item?.daysToReplacement ?? null;
     const shouldSendDaysToReplacement =
       !isGeneralUse && isMedicamento && hasValidCasela && valueToSend != null;
 
@@ -356,11 +355,10 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                 onChange={(e) => setDaysToReplacement(e.target.value)}
                 disabled={loading}
                 className={
-                  effectiveReadOnlyDias != null
+                  suggestedDiasParaRepor != null
                     ? "border-sky-200 bg-sky-50 text-sky-800 font-medium"
                     : undefined
                 }
-                readOnly={effectiveReadOnlyDias != null}
               />
               {daysToReplacement === "" &&
                 !isIndividualStock &&
@@ -381,6 +379,11 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                 <p className="text-xs text-slate-500">
                   Mesmo medicamento e residente: use o ciclo já na enfermaria
                   (se houver) ou defina os dias para reposição.
+                </p>
+              )}
+              {suggestedDiasParaRepor != null && (
+                <p className="text-xs text-slate-500">
+                  Valor preenchido automaticamente; você pode alterar se quiser.
                 </p>
               )}
             </div>
