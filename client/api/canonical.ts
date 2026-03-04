@@ -11,6 +11,9 @@ if (!API_BASE_URL) {
   );
 }
 
+const INSUFFICIENT_PRIVILEGES_MESSAGE =
+  "Você não tem os privilégios necessários. Contate o administrador.";
+
 export class InvalidSessionError extends Error {
   constructor(message: string) {
     super(message);
@@ -165,6 +168,17 @@ async function request(path: string, options: RequestInit = {}) {
       }
     }
 
+    if (res?.status === 403) {
+      window.dispatchEvent(
+        new CustomEvent("insufficient-privileges", {
+          detail: {
+            message: data?.error || rawMsg || INSUFFICIENT_PRIVILEGES_MESSAGE,
+          },
+        }),
+      );
+      throw new Error(data?.error || rawMsg || INSUFFICIENT_PRIVILEGES_MESSAGE);
+    }
+
     const sanitizedMsg = sanitizeErrorMessage(String(rawMsg));
     throw new Error(sanitizedMsg);
   }
@@ -173,8 +187,13 @@ async function request(path: string, options: RequestInit = {}) {
 }
 
 export const api = {
-  get: (path: string, options?: { params?: Record<string, any> }) =>
-    request(`${path}${buildQueryString(options?.params)}`, { method: "GET" }),
+  get: <T = unknown>(
+    path: string,
+    options?: { params?: Record<string, unknown> },
+  ) =>
+    request(`${path}${buildQueryString(options?.params)}`, {
+      method: "GET",
+    }) as Promise<T>,
 
   post: (path: string, body?: any) =>
     request(path, { method: "POST", body: JSON.stringify(body) }),

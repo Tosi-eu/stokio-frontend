@@ -6,13 +6,31 @@ import {
   SectorType,
 } from "@/utils/enums";
 import { api } from "./canonical";
+import type {
+  PaginatedResponse,
+  DashboardSummaryResponse,
+  AdminInsightsResponse,
+  NotificationsResponse,
+} from "./types";
 import { StockItemType, UpdateUserPayload } from "@/interfaces/types";
 import { MovementsParams } from "@/components/StockReporter";
+import type { StockReplacementItem } from "@/components/StockReplacementModal";
+import type {
+  Drawer,
+  DrawerCategory,
+  RawStockInput,
+  RawStockMedicine,
+} from "@/interfaces/interfaces";
+import type { StockItemRaw } from "@/interfaces/interfaces";
+import type { RawMovement } from "@/interfaces/interfaces";
 
 export const getCabinets = (page = 1, limit = 10) =>
-  api.get("/armarios", {
-    params: { page, limit },
-  });
+  api.get<PaginatedResponse<{ numero: number; categoria: string }>>(
+    "/armarios",
+    {
+      params: { page, limit },
+    },
+  );
 
 export const getNonMovementProducts = () =>
   api.get("/movimentacoes/produtos-parados");
@@ -20,11 +38,17 @@ export const getNonMovementProducts = () =>
 export const checkCabinetStock = (number: number) =>
   api.get(`/armarios/${number}/check`);
 
-export const deleteCabinet = (number: number, destiny?: any) =>
-  api.delete(`/armarios/${number}`, destiny);
+export const deleteCabinet = (
+  number: number,
+  destiny?: Record<string, unknown>,
+) => api.delete(`/armarios/${number}`, destiny);
 
-export const getMedicines = (page = 1, limit = 10, name?: string) =>
-  api.get("/medicamentos", {
+export const getMedicines = (
+  page = 1,
+  limit = 10,
+  name?: string,
+): Promise<PaginatedResponse<RawStockMedicine>> =>
+  api.get<PaginatedResponse<RawStockMedicine>>("/medicamentos", {
     params: { page, limit, ...(name ? { name } : {}) },
   });
 
@@ -43,8 +67,8 @@ export const getInputMovements = ({
   limit?: number;
   days?: number;
   type?: string;
-}) =>
-  api.get("/movimentacoes/insumos", {
+}): Promise<PaginatedResponse<RawMovement>> =>
+  api.get<PaginatedResponse<RawMovement>>("/movimentacoes/insumos", {
     params: { page, limit, type, days },
   });
 
@@ -58,24 +82,103 @@ export const getMedicineMovements = ({
   limit?: number;
   days?: number;
   type?: string;
-}) =>
-  api.get("/movimentacoes/medicamentos", {
+}): Promise<PaginatedResponse<RawMovement>> =>
+  api.get<PaginatedResponse<RawMovement>>("/movimentacoes/medicamentos", {
     params: { page, limit, days, type },
   });
 
-export const getInputs = (page = 1, limit = 10, name?: string) => {
+export const getInputs = (
+  page = 1,
+  limit = 10,
+  name?: string,
+): Promise<PaginatedResponse<RawStockInput>> => {
   const params = new URLSearchParams({
     page: String(page),
     limit: String(limit),
   });
   if (name) params.append("name", name);
-  return api.get(`/insumos?${params.toString()}`);
+  return api.get<PaginatedResponse<RawStockInput>>(
+    `/insumos?${params.toString()}`,
+  );
 };
 
 export const deleteInput = (id: number) => api.delete(`/insumos/${id}`);
 
 export const getResidents = (page = 1, limit = 20) =>
-  api.get("/residentes", { params: { page, limit } });
+  api.get<PaginatedResponse<{ casela: number; name: string }>>("/residentes", {
+    params: { page, limit },
+  });
+
+export const getResidentsCount = () => api.get("/residentes/count");
+export const getCabinetsCount = () => api.get("/armarios/count");
+export const getDrawersCount = () => api.get("/gavetas/count");
+
+export const getDashboardSummary = (params?: { expiringDays?: number }) =>
+  api.get<DashboardSummaryResponse>("/dashboard/summary", {
+    params: params as Record<string, unknown>,
+  });
+
+export type ExpiringItem = {
+  tipo_item: "medicamento" | "insumo";
+  item_id: number;
+  estoque_id: number;
+  nome: string;
+  principio_ativo?: string | null;
+  dosagem?: string | null;
+  unidade_medida?: string | null;
+  descricao?: string | null;
+  validade: string | null;
+  quantidade: number;
+  lote: string | null;
+  setor: string | null;
+  paciente: string | null;
+  dias_para_vencer: number;
+};
+
+export const getExpiringItems = (
+  days: number,
+  page = 1,
+  limit = 50,
+): Promise<{ data: ExpiringItem[]; total: number; hasNext: boolean }> =>
+  api.get("/dashboard/expiring-items", {
+    params: { days, page, limit },
+  });
+
+export type ConsumptionPeriodItem = {
+  period: string;
+  entrada: number;
+  saida: number;
+};
+
+export const getConsumptionByPeriod = (
+  start: string,
+  end: string,
+  groupBy: "month" | "quarter" = "month",
+): Promise<ConsumptionPeriodItem[]> =>
+  api.get("/movimentacoes/consumo", {
+    params: { start, end, groupBy },
+  });
+
+export type ConsumptionByItemRow = {
+  tipo_item: "medicamento" | "insumo";
+  item_id: number;
+  nome: string;
+  entrada: number;
+  saida: number;
+};
+
+export type ConsumptionByItemResponse = {
+  items: ConsumptionByItemRow[];
+  subtotal: { entrada: number; saida: number };
+};
+
+export const getConsumptionByItem = (
+  start: string,
+  end: string,
+): Promise<ConsumptionByItemResponse> =>
+  api.get("/movimentacoes/consumo-por-item", {
+    params: { start, end },
+  });
 
 export const deleteResident = (casela: string | number) =>
   api.delete(`/residentes/${casela}`);
@@ -111,7 +214,19 @@ export const getDailyMovementsReport = () => {
 export const login = (login: string, password: string) =>
   api.post("/login/authenticate", { login, password });
 
-export const getCurrentUser = () => api.get("/login/usuario-logado");
+export type CurrentUserResponse = {
+  id?: number;
+  login?: string;
+  role?: "admin" | "user";
+  firstName?: string;
+  lastName?: string;
+  // Some endpoints may still return snake_case
+  first_name?: string;
+  last_name?: string;
+};
+
+export const getCurrentUser = (): Promise<CurrentUserResponse> =>
+  api.get<CurrentUserResponse>("/login/usuario-logado");
 
 export const register = (
   login: string,
@@ -126,20 +241,22 @@ export const register = (
     last_name: lastName,
   });
 
-export const updateInput = (id: number, data: any) =>
+export const updateInput = (id: number, data: Record<string, unknown>) =>
   api.put(`/insumos/${id}`, data);
 
-export const updateCabinet = (id: number, data: any) =>
+export const updateCabinet = (id: number, data: Record<string, unknown>) =>
   api.put(`/armarios/${id}`, data);
 
-export const updateMedicine = (id: number, data: any) =>
+export const updateMedicine = (id: number, data: Record<string, unknown>) =>
   api.put(`/medicamentos/${id}`, data);
 
 export const resetPassword = (login: string, newPassword: string) =>
   api.post(`/login/reset-password`, { login, newPassword });
 
-export const updateResident = (casela: string | number, data: any) =>
-  api.put(`/residentes/${casela}`, data);
+export const updateResident = (
+  casela: string | number,
+  data: Record<string, unknown>,
+) => api.put(`/residentes/${casela}`, data);
 
 export const updateUser = (payload: UpdateUserPayload) =>
   api.put("/login", payload);
@@ -232,6 +349,7 @@ export const getNotifications = async ({
   status,
   date,
   residente_nome,
+  visto,
 }: {
   page?: number;
   limit?: number;
@@ -239,10 +357,22 @@ export const getNotifications = async ({
   status?: string;
   date?: "today" | "tomorrow" | string;
   residente_nome?: string;
+  visto?: boolean;
 }) => {
   try {
-    const res = await api.get("/notificacao", {
-      params: { page, limit, type, status, date, residente_nome },
+    const params: Record<string, string | number | boolean | undefined> = {
+      page,
+      limit,
+      type,
+      status,
+      date,
+      residente_nome,
+    };
+    if (visto === false) params.visto = false;
+    if (visto === true) params.visto = true;
+
+    const res = await api.get<NotificationsResponse>("/notificacao", {
+      params,
     });
 
     return {
@@ -277,14 +407,21 @@ export const getTodayMedicineNotifications = () =>
     type: "medicamento",
     date: "today",
     status: EventStatus.PENDENTE,
+    visto: false,
   });
 
-export const getTomorrowReplacementNotifications = () =>
-  getNotifications({
+export const getTomorrowReplacementNotifications = async () => {
+  const res = await getNotifications({
     type: "reposicao_estoque",
     date: "tomorrow",
     status: EventStatus.PENDENTE,
+    visto: false,
   });
+  return {
+    ...res,
+    items: res.items as StockReplacementItem[],
+  };
+};
 
 export const getStock = (
   page = 1,
@@ -316,13 +453,18 @@ export const getStock = (
     params.append("filter", extraFilter);
   }
 
-  return api.get(`/estoque?${params.toString()}`);
+  return api.get<PaginatedResponse<StockItemRaw>>(
+    `/estoque?${params.toString()}`,
+  );
 };
 
 export const getCabinetCategories = (page = 1, limit = 5) =>
-  api.get("/categoria-armario", {
-    params: { page, limit },
-  });
+  api.get<PaginatedResponse<{ id: number; nome: string }>>(
+    "/categoria-armario",
+    {
+      params: { page, limit },
+    },
+  );
 
 export const createCabinetCategory = (nome: string) =>
   api.post("/categoria-armario", { nome });
@@ -337,7 +479,7 @@ export const getMedicineRanking = (
   });
 
 export const getDrawers = (page = 1, limit = 10) =>
-  api.get("/gavetas", {
+  api.get<PaginatedResponse<Drawer>>("/gavetas", {
     params: { page, limit },
   });
 
@@ -354,7 +496,7 @@ export const deleteDrawer = (numero: number) =>
   api.delete(`/gavetas/${numero}`);
 
 export const getDrawerCategories = (page = 1, limit = 10) =>
-  api.get("/categoria-gaveta", {
+  api.get<PaginatedResponse<DrawerCategory>>("/categoria-gaveta", {
     params: { page, limit },
   });
 
@@ -372,6 +514,14 @@ export const deleteDrawerCategory = (id: number) =>
 
 export const removeIndividualMedicineFromStock = (stockId: number) =>
   api.patch(`/estoque/medicamento/${stockId}/remover-individual`);
+
+export const getDaysForReplacementForNursing = (
+  medicamentoId: number,
+  caselaId: number,
+) =>
+  api.get("/estoque/medicamento/dias-para-repor", {
+    params: { medicamento_id: medicamentoId, casela_id: caselaId },
+  });
 
 export const suspendMedicineFromStock = (stockId: number) =>
   api.patch(`/estoque/medicamento/${stockId}/suspender`);
@@ -446,3 +596,63 @@ export const updateStockItem = (
 export const getBackendLoadingStatus = () => api.get("/status");
 
 export const logoutRequest = () => api.post("/login/logout");
+
+export const getAdminUsers = () => api.get("/admin/users");
+
+export type UserPermissions = {
+  read: boolean;
+  create: boolean;
+  update: boolean;
+  delete: boolean;
+};
+
+export const updateAdminUser = (
+  id: number,
+  data: {
+    firstName?: string;
+    lastName?: string;
+    login?: string;
+    password?: string;
+    role?: "admin" | "user";
+    permissions?: UserPermissions;
+  },
+) => api.put(`/admin/users/${id}`, data);
+
+export const deleteAdminUser = (id: number) => api.delete(`/admin/users/${id}`);
+
+export const getAdminInsights = (params?: {
+  days?: number;
+  limit?: number;
+  page?: number;
+  operationType?: "create" | "update" | "delete";
+}) =>
+  api.get<AdminInsightsResponse>("/admin/insights", { params: params ?? {} });
+
+export type StockHistoryEntry = {
+  id: number;
+  tipo: string;
+  data: string;
+  quantidade: number;
+  setor: string;
+  lote: string | null;
+  nome: string;
+  operador: string;
+  armario_id: number | null;
+  casela_id: number | null;
+  residente: string | null;
+  item_type?: "medicamento" | "insumo";
+};
+
+export const getAdminStockHistory = (params: {
+  itemType?: "medicamento" | "insumo";
+  itemId?: number;
+  lote?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{
+  data: StockHistoryEntry[];
+  total: number;
+  hasNext: boolean;
+  page: number;
+  limit: number;
+}> => api.get("/admin/stock-history", { params });

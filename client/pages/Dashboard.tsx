@@ -1,15 +1,12 @@
 import Layout from "@/components/Layout";
 import { useEffect, useState, useMemo, lazy, Suspense } from "react";
+import { useDashboardSummary } from "@/hooks/use-dashboard-summary.hook";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast.hook";
 import { SkeletonCard } from "@/components/SkeletonCard";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  DEFAULT_PAGE_SIZE,
-  fetchAllPaginated,
-  paginate,
-} from "@/helpers/paginacao.helper";
+import { DEFAULT_PAGE_SIZE, paginate } from "@/helpers/paginacao.helper";
 
 import EditableTable from "@/components/EditableTable";
 import { DashboardStatsCard } from "@/components/DashboardStatsCard";
@@ -20,23 +17,15 @@ const DashboardChartCard = lazy(() =>
   })),
 );
 import {
-  getInputMovements,
-  getMedicineMovements,
-  getMedicineRanking,
-  getNonMovementProducts,
-  getStock,
-  getStockProportions,
   getTodayMedicineNotifications,
   getTomorrowReplacementNotifications,
   updateNotification,
 } from "@/api/requests";
 import {
-  StockStatusItem,
   CabinetStockItem,
   StockDistributionItem,
   RecentMovement,
   MedicineRankingItem,
-  RawMovement,
   DrawerStockItem,
 } from "@/interfaces/interfaces";
 const NotificationReminderModal = lazy(
@@ -55,10 +44,10 @@ import { useMaxSectionRows } from "@/hooks/use-max-selection-rows";
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  const [noStock, setNoStock] = useState<number>(0);
   const [belowMin, setBelowMin] = useState<number>(0);
+  const [nearMin, setNearMin] = useState<number>(0);
   const [expired, setExpired] = useState<number>(0);
-  const [expiringSoon, setExpiringSoon] = useState<StockStatusItem[]>([]);
+  const [expiringSoonCount, setExpiringSoonCount] = useState<number>(0);
   const [cabinetStockData, setCabinetStockData] = useState<CabinetStockItem[]>(
     [],
   );
@@ -77,7 +66,7 @@ export default function Dashboard() {
 
   const [mostMovData, setMostMovData] = useState<MedicineRankingItem[]>([]);
   const [leastMovData, setLeastMovData] = useState<MedicineRankingItem[]>([]);
-  const [nonMovementProducts, setNonMovementProducts] = useState<any[]>([]);
+  const [nonMovementProducts, setNonMovementProducts] = useState<unknown[]>([]);
   const [loadingNonMovement, setLoadingNonMovement] = useState(true);
   const [loadingRecentMovements, setLoadingRecentMovements] = useState(true);
 
@@ -88,171 +77,132 @@ export default function Dashboard() {
     import("@/components/StockReplacementModal").StockReplacementItem[]
   >([]);
 
+  const {
+    summary,
+    isLoading: loadingSummary,
+    error: summaryError,
+  } = useDashboardSummary();
+
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoadingNonMovement(true);
-        setLoadingRecentMovements(true);
-        const [
-          stockList,
-          medicamentosMov,
-          insumosMov,
-          nursingRes,
-          pharmacyRes,
-          cabinetRes,
-          drawerRes,
-        ] = await Promise.all([
-          fetchAllPaginated((page, limit) =>
-            getStock(page, limit).then((res) => res),
-          ),
+    if (summaryError) {
+      toast({
+        title: "Erro ao carregar dados",
+        description:
+          summaryError instanceof Error
+            ? summaryError.message
+            : "Não foi possível carregar os dados do dashboard.",
+        variant: "error",
+        duration: 3000,
+      });
+    }
+  }, [summaryError]);
 
-          fetchAllPaginated((page, limit) =>
-            getMedicineMovements({ page, limit, days: 7 }).then((res) => res),
-          ),
+  useEffect(() => {
+    if (!summary) return;
+    try {
+      setLoadingNonMovement(true);
+      setLoadingRecentMovements(true);
 
-          fetchAllPaginated((page, limit) =>
-            getInputMovements({ page, limit, days: 7 }).then((res) => res),
-          ),
+      const a = summary.alerts || {};
+      setBelowMin(a.belowMin ?? 0);
+      setNearMin(a.nearMin ?? 0);
+      setExpired(a.expired ?? 0);
+      setExpiringSoonCount(a.expiringSoon ?? 0);
 
-          getStockProportions("enfermagem"),
-          getStockProportions("farmacia"),
-          getStock(1, 10, { type: "armarios" }),
-          getStock(1, 20, { type: "gavetas" }),
-        ]);
+      const recent = summary.recentMovements || [];
+      setRecentMovements(
+        recent.slice(0, DEFAULT_PAGE_SIZE).map((m) => ({
+          name: m.MedicineModel?.nome || m.InputModel?.nome || "-",
+          type: m.tipo,
+          operator: m.LoginModel?.login || "-",
+          casela: m.ResidentModel?.num_casela ?? "-",
+          quantity: m.quantidade,
+          patient: m.ResidentModel ? m.ResidentModel.nome : "-",
+          cabinet: m.CabinetModel?.num_armario ?? "-",
+          date: m.data,
+        })),
+      );
 
-        const [medMoreRes, medLessRes, nonMovementRes] = await Promise.all([
-          getMedicineRanking("more"),
-          getMedicineRanking("less"),
-          getNonMovementProducts(),
-        ]);
+      setNonMovementProducts(
+        Array.isArray(summary.nonMovementProducts)
+          ? summary.nonMovementProducts.slice(0, DEFAULT_PAGE_SIZE)
+          : [],
+      );
 
-        const recentMovements = [
-          ...medicamentosMov.map((m: RawMovement) => ({
-            name: m.MedicineModel?.nome || "-",
-            type: m.tipo,
-            operator: m.LoginModel?.login || "-",
-            casela: m.ResidentModel?.num_casela ?? "-",
-            quantity: m.quantidade,
-            patient: m.ResidentModel ? m.ResidentModel.nome : "-",
-            cabinet: m.CabinetModel?.num_armario ?? "-",
-            date: m.data,
-          })),
+      const more = summary.medicineRankingMore?.data || [];
+      setMostMovData(
+        more.map((item) => ({
+          name: item.medicamento?.nome ?? "-",
+          substance: item.medicamento?.principio_ativo ?? "-",
+          total: item.total_movimentado ?? 0,
+          entradas: item.total_entradas ?? 0,
+          saidas: item.total_saidas ?? 0,
+        })),
+      );
 
-          ...insumosMov.map((m: RawMovement) => ({
-            name: m.InputModel?.nome || "-",
-            type: m.tipo,
-            operator: m.LoginModel?.login || "-",
-            casela: m.ResidentModel?.num_casela ?? "-",
-            quantity: m.quantidade,
-            patient: m.ResidentModel ? m.ResidentModel.nome : "-",
-            cabinet: m.CabinetModel?.num_armario ?? "-",
-            date: m.data,
-          })),
-        ].sort((a, b) => Number(new Date(b.date)) - Number(new Date(a.date)));
+      const less = summary.medicineRankingLess?.data || [];
+      setLeastMovData(
+        less.map((item) => ({
+          name: item.medicamento?.nome ?? "-",
+          substance: item.medicamento?.principio_ativo ?? "-",
+          total: item.total_movimentado ?? 0,
+          entradas: item.total_entradas ?? 0,
+          saidas: item.total_saidas ?? 0,
+        })),
+      );
 
-        const noStockItems = (stockList as any).filter(
-          (i) => i.st_quantidade === "critical",
-        );
-
-        const itemsInStockWarning = (stockList as any).filter(
-          (i) => i.st_quantidade === "low",
-        );
-
-        const expiredItems = (stockList as any).filter(
-          (i) => i.st_expiracao === "expired" && i.quantidade > 0,
-        );
-
-        const expiringSoonItems = (stockList as any).filter(
-          (i) =>
-            i.st_expiracao === "warning" ||
-            (i.st_expiracao === "critical" && i.quantidade > 0),
-        );
-
-        setNoStock(noStockItems.length);
-        setBelowMin(itemsInStockWarning.length);
-        setExpired(expiredItems.length);
-        setExpiringSoon(expiringSoonItems);
-
-        setRecentMovements(recentMovements.slice(0, DEFAULT_PAGE_SIZE));
-        setNonMovementProducts(
-          Array.isArray(nonMovementRes)
-            ? nonMovementRes.slice(0, DEFAULT_PAGE_SIZE)
-            : [],
-        );
-
-        setMostMovData(
-          medMoreRes.data.map((item) => ({
-            name: item.medicamento.nome,
-            substance: item.medicamento.principio_ativo,
-            total: item.total_movimentado,
-            entradas: item.total_entradas,
-            saidas: item.total_saidas,
-          })),
-        );
-
-        setLeastMovData(
-          medLessRes.data.map((item) => ({
-            name: item.medicamento.nome,
-            substance: item.medicamento.principio_ativo,
-            total: item.total_movimentado,
-            entradas: item.total_entradas,
-            saidas: item.total_saidas,
-          })),
-        );
-
+      const nursingRes = summary.nursingProportion;
+      const pharmacyRes = summary.pharmacyProportion;
+      if (nursingRes) {
         setNursingDistribution(
           prepareStockDistributionData(nursingRes, SectorType.ENFERMAGEM).sort(
             (a, b) => b.rawValue - a.rawValue,
           ),
         );
-
+      }
+      if (pharmacyRes) {
         setPharmacyDistribution(
           prepareStockDistributionData(pharmacyRes, SectorType.FARMACIA).sort(
             (a, b) => b.rawValue - a.rawValue,
           ),
         );
-
-        const formattedCabinetData = cabinetRes.data.map((arm: any) => ({
-          cabinet: arm.armario_id,
-          total: Number(arm.total_geral) || 0,
-        }));
-        setCabinetStockData(formattedCabinetData);
-
-        const formattedDrawerData = drawerRes.data.map((drawer: any) => ({
-          drawer: drawer.gaveta_id,
-          total: Number(drawer.total_geral) || 0,
-        }));
-        setDrawerStockData(formattedDrawerData);
-      } catch (err: any) {
-        toast({
-          title: "Erro ao carregar dados",
-          description:
-            err?.message || "Não foi possível carregar os dados do dashboard.",
-          variant: "error",
-          duration: 3000,
-        });
-      } finally {
-        setLoadingNonMovement(false);
-        setLoadingRecentMovements(false);
       }
-    };
 
-    fetchDashboardData();
-  }, []);
+      const cabinetRes = summary.cabinetStockData;
+      const drawerRes = summary.drawerStockData;
+      if (cabinetRes?.data) {
+        setCabinetStockData(
+          cabinetRes.data.map((arm) => ({
+            cabinet: arm.armario_id,
+            total: Number(arm.total_geral) || 0,
+          })),
+        );
+      }
+      if (drawerRes?.data) {
+        setDrawerStockData(
+          drawerRes.data.map((drawer) => ({
+            drawer: drawer.gaveta_id,
+            total: Number(drawer.total_geral) || 0,
+          })),
+        );
+      }
+    } finally {
+      setLoadingNonMovement(false);
+      setLoadingRecentMovements(false);
+    }
+  }, [summary]);
 
   useEffect(() => {
     async function fetchReminders() {
       try {
         const res = await getTodayMedicineNotifications();
-  
-        const unseenNotifications = res.items.filter((n: any) => n.visto !== true);
-  
-        if (unseenNotifications.length > 0) {
-          setNotifList(unseenNotifications);
+
+        if (res.items.length > 0) {
+          setNotifList(res.items);
           setNotifOpen(true);
-  
+
           await Promise.all(
-            unseenNotifications.map((n: any) =>
+            res.items.map((n: { id: number }) =>
               updateNotification(n.id, { visto: true }),
             ),
           );
@@ -270,27 +220,22 @@ export default function Dashboard() {
         });
       }
     }
-  
+
     fetchReminders();
   }, []);
-  
 
   useEffect(() => {
     async function fetchReplacementReminders() {
       try {
         const res = await getTomorrowReplacementNotifications();
-  
-        const unseenItems = res.items.filter(
-          (item: any) => item.visto !== true,
-        );
-  
-        if (unseenItems.length > 0) {
-          setReplacementItems(unseenItems);
+
+        if (res.items.length > 0) {
+          setReplacementItems(res.items);
           setReplacementOpen(true);
         }
 
         await Promise.all(
-          unseenItems.map((n: any) =>
+          res.items.map((n: { id: number }) =>
             updateNotification(n.id, { visto: true }),
           ),
         );
@@ -298,20 +243,20 @@ export default function Dashboard() {
         /* NO-OP */
       }
     }
-  
+
     fetchReplacementReminders();
-  }, []);  
+  }, []);
 
   const stats = useMemo(
     () => [
       {
         label: "Itens Abaixo do Estoque Mínimo",
-        value: noStock,
+        value: belowMin,
         onClick: () => navigate("/stock?filter=belowMin"),
       },
       {
         label: "Itens Próximos do Estoque Mínimo",
-        value: belowMin,
+        value: nearMin,
         onClick: () => navigate("/stock?filter=nearMin"),
       },
       {
@@ -321,11 +266,11 @@ export default function Dashboard() {
       },
       {
         label: "Itens com Vencimento Próximo",
-        value: expiringSoon.length,
+        value: expiringSoonCount,
         onClick: () => navigate("/stock?filter=expiringSoon"),
       },
     ],
-    [noStock, belowMin, expired, expiringSoon, navigate],
+    [belowMin, nearMin, expired, expiringSoonCount, navigate],
   );
 
   const COLORS = useMemo(
@@ -391,7 +336,7 @@ export default function Dashboard() {
                     label: "Data",
                   },
                 ]}
-                data={paginatedNonMovement}
+                data={paginatedNonMovement as Record<string, unknown>[]}
                 showAddons={false}
                 minRows={minRowsMovements}
                 loading={loadingNonMovement}
@@ -436,7 +381,12 @@ export default function Dashboard() {
                   { key: "patient", label: "Paciente" },
                   { key: "date", label: "Data" },
                 ]}
-                data={paginatedRecentMovements}
+                data={
+                  paginatedRecentMovements as unknown as Record<
+                    string,
+                    unknown
+                  >[]
+                }
                 minRows={minRowsMovements}
                 showAddons={false}
                 loading={loadingRecentMovements}
@@ -481,7 +431,7 @@ export default function Dashboard() {
                   { key: "entradas", label: "Entradas" },
                   { key: "saidas", label: "Saídas" },
                 ]}
-                data={mostMovData}
+                data={mostMovData as unknown as Record<string, unknown>[]}
                 showAddons={false}
               />
             </CardContent>
@@ -502,7 +452,7 @@ export default function Dashboard() {
                   { key: "entradas", label: "Entradas" },
                   { key: "saidas", label: "Saídas" },
                 ]}
-                data={leastMovData}
+                data={leastMovData as unknown as Record<string, unknown>[]}
                 showAddons={false}
               />
             </CardContent>

@@ -36,7 +36,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { getReportTitle } from "@/helpers/relatorio.helper";
 import { parseYearMonthToDate } from "@/helpers/dates.helper";
-import { createStockPDF } from "./StockReporter";
+import { createStockPDF, MovementsParams } from "./StockReporter";
 import { toast } from "@/hooks/use-toast.hook";
 
 type StatusType = "idle" | "loading" | "success" | "error";
@@ -80,13 +80,33 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
     { value: "medicamentos", label: "Medicamentos", icon: Stethoscope },
     { value: "residentes", label: "Residentes", icon: User },
     { value: "psicotropicos", label: "Psicotrópicos", icon: Syringe },
-    { value: "insumos_medicamentos", label: "Insumos e Medicamentos", icon: Check },
+    {
+      value: "insumos_medicamentos",
+      label: "Insumos e Medicamentos",
+      icon: Check,
+    },
     { value: "residente_consumo", label: "Consumo por Residente", icon: Users },
-    { value: "transferencias", label: "Transferências (Farmácia → Enfermaria)", icon: ArrowRightLeft },
+    {
+      value: "transferencias",
+      label: "Transferências (Farmácia → Enfermaria)",
+      icon: ArrowRightLeft,
+    },
     { value: "movimentacoes", label: "Movimentações", icon: Activity },
-    { value: "medicamentos_residente", label: "Medicamentos por Residente", icon: User },
-    { value: "medicamentos_vencidos", label: "Medicamentos Vencidos", icon: AlertTriangle },
-    { value: "expiringSoon", label: "Medicamentos e Insumos Próximos ao Vencimento", icon: AlertTriangle },
+    {
+      value: "medicamentos_residente",
+      label: "Medicamentos por Residente",
+      icon: User,
+    },
+    {
+      value: "medicamentos_vencidos",
+      label: "Medicamentos Vencidos",
+      icon: AlertTriangle,
+    },
+    {
+      value: "expiringSoon",
+      label: "Medicamentos e Insumos Próximos ao Vencimento",
+      icon: AlertTriangle,
+    },
   ];
 
   useEffect(() => {
@@ -116,7 +136,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
     if (status === "success" || status === "error") {
       const timer = setTimeout(() => {
         handleClose();
-      }, 800); 
+      }, 800);
 
       return () => clearTimeout(timer);
     }
@@ -152,7 +172,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
       let response;
 
       if (tipo === "movimentacoes") {
-        let params: any;
+        let params: MovementsParams;
 
         if (movementPeriod === MovementPeriod.DIARIO) {
           if (!movementDate) {
@@ -173,7 +193,10 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
           params = { periodo: MovementPeriod.MENSAL, mes: movementMonth };
         } else if (movementPeriod === MovementPeriod.INTERVALO) {
           if (!startDate || !endDate) {
-            toast({ title: "Selecione o intervalo de datas", variant: "error" });
+            toast({
+              title: "Selecione o intervalo de datas",
+              variant: "error",
+            });
             setStatus("idle");
             return;
           }
@@ -186,10 +209,13 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
 
         response = await getReport("movimentacoes", undefined, params);
       } else if (tipo === "transferencias") {
-        let params: any;
+        let params: MovementsParams;
         if (movementPeriodTransfer === MovementPeriod.DIARIO) {
           if (!transferDate) {
-            toast({ title: "Selecione a data da transferência", variant: "error" });
+            toast({
+              title: "Selecione a data da transferência",
+              variant: "error",
+            });
             setStatus("idle");
             return;
           }
@@ -199,7 +225,10 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
           };
         } else if (movementPeriodTransfer === MovementPeriod.INTERVALO) {
           if (!startDate || !endDate) {
-            toast({ title: "Selecione o intervalo de datas", variant: "error" });
+            toast({
+              title: "Selecione o intervalo de datas",
+              variant: "error",
+            });
             setStatus("idle");
             return;
           }
@@ -302,16 +331,24 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                       {isSelected && value === "transferencias" && (
                         <div className="mt-2 p-3 border rounded-lg grid grid-cols-2 gap-3 text-sm">
                           <div className="col-span-2">
-                            <label className="block mb-1 text-gray-600">Período</label>
+                            <label className="block mb-1 text-gray-600">
+                              Período
+                            </label>
                             <select
                               value={movementPeriodTransfer}
                               onChange={(e) =>
-                                setMovementPeriodTransfer(e.target.value as MovementPeriod)
+                                setMovementPeriodTransfer(
+                                  e.target.value as MovementPeriod,
+                                )
                               }
                               className="w-full border rounded px-2 py-1"
                             >
-                              <option value={MovementPeriod.DIARIO}>Diário</option>
-                              <option value={MovementPeriod.INTERVALO}>Intervalo</option>
+                              <option value={MovementPeriod.DIARIO}>
+                                Diário
+                              </option>
+                              <option value={MovementPeriod.INTERVALO}>
+                                Intervalo
+                              </option>
                             </select>
                           </div>
 
@@ -330,10 +367,13 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                             </div>
                           )}
 
-                          {movementPeriodTransfer === MovementPeriod.INTERVALO && (
+                          {movementPeriodTransfer ===
+                            MovementPeriod.INTERVALO && (
                             <>
                               <div>
-                                <label className="block mb-1 text-gray-600">Data inicial</label>
+                                <label className="block mb-1 text-gray-600">
+                                  Data inicial
+                                </label>
                                 <DatePicker
                                   selected={startDate}
                                   onChange={(date: Date) => setStartDate(date)}
@@ -343,7 +383,9 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                                 />
                               </div>
                               <div>
-                                <label className="block mb-1 text-gray-600">Data final</label>
+                                <label className="block mb-1 text-gray-600">
+                                  Data final
+                                </label>
                                 <DatePicker
                                   selected={endDate}
                                   onChange={(date: Date) => setEndDate(date)}
@@ -360,23 +402,35 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                       {isSelected && showMovementFilters && (
                         <div className="mt-2 p-3 border rounded-lg grid grid-cols-2 gap-3 text-sm">
                           <div className="col-span-2">
-                            <label className="block mb-1 text-gray-600">Período</label>
+                            <label className="block mb-1 text-gray-600">
+                              Período
+                            </label>
                             <select
                               value={movementPeriod}
                               onChange={(e) =>
-                                setMovementPeriod(e.target.value as MovementPeriod)
+                                setMovementPeriod(
+                                  e.target.value as MovementPeriod,
+                                )
                               }
                               className="w-full border rounded px-2 py-1"
                             >
-                              <option value={MovementPeriod.DIARIO}>Diário</option>
-                              <option value={MovementPeriod.MENSAL}>Mensal</option>
-                              <option value={MovementPeriod.INTERVALO}>Intervalo</option>
+                              <option value={MovementPeriod.DIARIO}>
+                                Diário
+                              </option>
+                              <option value={MovementPeriod.MENSAL}>
+                                Mensal
+                              </option>
+                              <option value={MovementPeriod.INTERVALO}>
+                                Intervalo
+                              </option>
                             </select>
                           </div>
 
                           {movementPeriod === MovementPeriod.DIARIO && (
                             <div className="col-span-2">
-                              <label className="block mb-1 text-gray-600">Data</label>
+                              <label className="block mb-1 text-gray-600">
+                                Data
+                              </label>
                               <DatePicker
                                 selected={movementDate}
                                 onChange={(date: Date) => setMovementDate(date)}
@@ -389,12 +443,20 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
 
                           {movementPeriod === MovementPeriod.MENSAL && (
                             <div className="col-span-2">
-                              <label className="block mb-1 text-gray-600">Mês</label>
+                              <label className="block mb-1 text-gray-600">
+                                Mês
+                              </label>
                               <DatePicker
-                                selected={movementMonth ? parseYearMonthToDate(movementMonth) : null}
+                                selected={
+                                  movementMonth
+                                    ? parseYearMonthToDate(movementMonth)
+                                    : null
+                                }
                                 onChange={(date: Date) => {
                                   const year = date.getFullYear();
-                                  const month = String(date.getMonth() + 1).padStart(2, "0");
+                                  const month = String(
+                                    date.getMonth() + 1,
+                                  ).padStart(2, "0");
                                   setMovementMonth(`${year}-${month}`);
                                 }}
                                 dateFormat="MM/yyyy"
@@ -409,7 +471,9 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                           {movementPeriod === MovementPeriod.INTERVALO && (
                             <>
                               <div>
-                                <label className="block mb-1 text-gray-600">Data inicial</label>
+                                <label className="block mb-1 text-gray-600">
+                                  Data inicial
+                                </label>
                                 <DatePicker
                                   selected={startDate}
                                   onChange={(date: Date) => setStartDate(date)}
@@ -419,7 +483,9 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                                 />
                               </div>
                               <div>
-                                <label className="block mb-1 text-gray-600">Data final</label>
+                                <label className="block mb-1 text-gray-600">
+                                  Data final
+                                </label>
                                 <DatePicker
                                   selected={endDate}
                                   onChange={(date: Date) => setEndDate(date)}
@@ -435,7 +501,9 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
 
                       {isSelected && showResidentSelector && (
                         <div className="mt-2 p-3 border rounded-lg">
-                          <label className="block mb-1 text-gray-600 text-sm">Residente</label>
+                          <label className="block mb-1 text-gray-600 text-sm">
+                            Residente
+                          </label>
 
                           {loadingResidents ? (
                             <div className="flex justify-center py-2">
@@ -450,21 +518,37 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                                   className="w-full justify-between text-sm"
                                 >
                                   {selectedResident
-                                    ? residents.find((r) => r.casela === selectedResident)?.name
+                                    ? residents.find(
+                                        (r) => r.casela === selectedResident,
+                                      )?.name
                                     : "Selecionar residente"}
                                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
                               </PopoverTrigger>
 
-                              <PopoverContent side="bottom" align="start" sideOffset={4} avoidCollisions={false} className="w-full p-0">
+                              <PopoverContent
+                                side="bottom"
+                                align="start"
+                                sideOffset={4}
+                                avoidCollisions={false}
+                                className="w-full p-0"
+                              >
                                 <Command shouldFilter={false}>
-                                  <CommandInput placeholder="Buscar residente" value={residentSearch} onValueChange={setResidentSearch} />
-                                  <CommandEmpty>Nenhum residente encontrado.</CommandEmpty>
+                                  <CommandInput
+                                    placeholder="Buscar residente"
+                                    value={residentSearch}
+                                    onValueChange={setResidentSearch}
+                                  />
+                                  <CommandEmpty>
+                                    Nenhum residente encontrado.
+                                  </CommandEmpty>
                                   <CommandGroup>
                                     {filteredResidents.map((r) => (
                                       <CommandItem
                                         key={r.casela}
-                                        value={r.casela?.toString() + " - " + r.name}
+                                        value={
+                                          r.casela?.toString() + " - " + r.name
+                                        }
                                         onSelect={() => {
                                           setSelectedResident(r.casela);
                                           setResidentSearch("");
@@ -486,7 +570,10 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
 
                 <Button
                   className="mt-4 w-full max-w-md bg-sky-600 hover:bg-sky-700 text-white"
-                  disabled={!selectedReports.length || (showResidentSelector && !selectedResident)}
+                  disabled={
+                    !selectedReports.length ||
+                    (showResidentSelector && !selectedResident)
+                  }
                   onClick={handleGenerate}
                 >
                   Gerar relatório
@@ -512,7 +599,12 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ delay: 0.1, type: "spring", stiffness: 200, damping: 10 }}
+                transition={{
+                  delay: 0.1,
+                  type: "spring",
+                  stiffness: 200,
+                  damping: 10,
+                }}
                 className="relative"
               >
                 <motion.div
@@ -520,10 +612,15 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                   animate={{ scale: [0, 1.2, 1] }}
                   transition={{ delay: 0.2, duration: 0.4 }}
                   className="absolute inset-0 bg-green-100 rounded-full"
-                  style={{ width: iconSize + 40, height: iconSize + 40, marginLeft: -20, marginTop: -20 }}
+                  style={{
+                    width: iconSize + 40,
+                    height: iconSize + 40,
+                    marginLeft: -20,
+                    marginTop: -20,
+                  }}
                 />
-                <Check 
-                  className="text-green-600 relative z-10" 
+                <Check
+                  className="text-green-600 relative z-10"
                   style={{ width: iconSize, height: iconSize }}
                   strokeWidth={3}
                 />
@@ -550,7 +647,12 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
               <motion.div
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
-                transition={{ delay: 0.1, type: "spring", stiffness: 200, damping: 10 }}
+                transition={{
+                  delay: 0.1,
+                  type: "spring",
+                  stiffness: 200,
+                  damping: 10,
+                }}
                 className="relative"
               >
                 <motion.div
@@ -558,10 +660,15 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                   animate={{ scale: [0, 1.2, 1] }}
                   transition={{ delay: 0.2, duration: 0.4 }}
                   className="absolute inset-0 bg-red-100 rounded-full"
-                  style={{ width: iconSize + 40, height: iconSize + 40, marginLeft: -20, marginTop: -20 }}
+                  style={{
+                    width: iconSize + 40,
+                    height: iconSize + 40,
+                    marginLeft: -20,
+                    marginTop: -20,
+                  }}
                 />
-                <X 
-                  className="text-red-600 relative z-10" 
+                <X
+                  className="text-red-600 relative z-10"
                   style={{ width: iconSize, height: iconSize }}
                   strokeWidth={3}
                 />

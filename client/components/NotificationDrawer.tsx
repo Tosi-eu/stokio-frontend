@@ -22,20 +22,26 @@ export function NotificationDrawer() {
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const [mode, setMode] = useState<"list" | "create">("list");
-  const [editingNotification, setEditingNotification] = useState<any | null>(null);
-  const [activeTab, setActiveTab] = useState<"receita" | "reposicao">("receita");
+  const [editingNotification, setEditingNotification] = useState<any | null>(
+    null,
+  );
+  const [activeTab, setActiveTab] = useState<"receita" | "reposicao">(
+    "receita",
+  );
   const [loading, setLoading] = useState(false);
 
   const [filterResidentName, setFilterResidentName] = useState("");
 
   // Timeout para filtro leve
-  const [filterTimeout, setFilterTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [filterTimeout, setFilterTimeout] = useState<NodeJS.Timeout | null>(
+    null,
+  );
 
   const fetchItems = useCallback(
     async (p = 1, append = false) => {
       setLoading(true);
       try {
-        const params: any = {
+        const params: Parameters<typeof getNotifications>[0] = {
           page: p,
           limit: 5, // limite ajustado
           type: activeTab === "receita" ? "medicamento" : "reposicao_estoque",
@@ -65,7 +71,7 @@ export function NotificationDrawer() {
         setLoading(false);
       }
     },
-    [activeTab, filterResidentName, setCount]
+    [activeTab, filterResidentName, setCount],
   );
 
   // Carrega itens quando o drawer abre ou muda de aba
@@ -95,7 +101,7 @@ export function NotificationDrawer() {
   const handleRemove = async (
     id: number,
     status: "sent" | "cancelled",
-    message: string
+    message: string,
   ) => {
     try {
       await updateNotification(id, { status });
@@ -121,8 +127,8 @@ export function NotificationDrawer() {
                 ? "Notificações de Receita"
                 : "Notificações de Reposição"
               : editingNotification
-              ? "Editar Notificação"
-              : "Criar Notificação"}
+                ? "Editar Notificação"
+                : "Criar Notificação"}
           </DrawerTitle>
         </DrawerHeader>
 
@@ -214,7 +220,11 @@ export function NotificationDrawer() {
                             handleRemove(n.id, "sent", "Notificação concluída")
                           }
                           onCancel={() =>
-                            handleRemove(n.id, "cancelled", "Notificação cancelada")
+                            handleRemove(
+                              n.id,
+                              "cancelled",
+                              "Notificação cancelada",
+                            )
                           }
                           onEdit={() => {
                             setMode("create");
@@ -240,7 +250,11 @@ export function NotificationDrawer() {
                             handleRemove(n.id, "sent", "Reposição concluída")
                           }
                           onCancel={() =>
-                            handleRemove(n.id, "cancelled", "Reposição cancelada")
+                            handleRemove(
+                              n.id,
+                              "cancelled",
+                              "Reposição cancelada",
+                            )
                           }
                         />
                       )}
@@ -301,7 +315,9 @@ export function NotificationDrawer() {
                 type="submit"
                 className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg w-full"
               >
-                {editingNotification ? "Salvar Alterações" : "Criar Notificação"}
+                {editingNotification
+                  ? "Salvar Alterações"
+                  : "Criar Notificação"}
               </button>
             </DrawerFooter>
           </>

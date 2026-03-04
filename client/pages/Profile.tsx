@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast.hook";
 import Layout from "@/components/Layout";
 import { getCurrentUser, updateUser } from "@/api/requests";
 import { profileSchema, type ProfileFormData } from "@/schemas/profile.schema";
+import type { UpdateUserPayload } from "@/interfaces/types";
 
 import {
   Card,
@@ -48,13 +49,16 @@ export default function Profile() {
     const loadUser = async () => {
       try {
         const data = await getCurrentUser();
+        const firstName = data.firstName ?? data.first_name ?? "";
+        const lastName = data.lastName ?? data.last_name ?? "";
+        const login = data.login ?? "";
 
         reset({
-          firstName: data.firstName || "",
-          lastName: data.lastName || "",
-          currentLogin: data.login || "",
+          firstName,
+          lastName,
+          currentLogin: login,
           currentPassword: "",
-          login: data.login || "",
+          login,
           password: "",
         });
       } catch (error) {
@@ -67,7 +71,7 @@ export default function Profile() {
 
   const onSubmit = async (data: ProfileFormData) => {
     try {
-      const payload: any = {
+      const payload: UpdateUserPayload = {
         currentPassword: data.currentPassword,
       };
 
@@ -85,13 +89,16 @@ export default function Profile() {
       await updateUser(payload);
 
       const user = await getCurrentUser();
+      const firstName = user.firstName ?? user.first_name ?? "";
+      const lastName = user.lastName ?? user.last_name ?? "";
+      const login = user.login ?? "";
 
       reset({
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
-        currentLogin: user.login || "",
+        firstName,
+        lastName,
+        currentLogin: login,
         currentPassword: "",
-        login: user.login || "",
+        login,
         password: "",
       });
 

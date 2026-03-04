@@ -157,8 +157,10 @@ export default function Auth() {
       }
 
       navigate("/dashboard");
-    } catch (err: any) {
-      const rawMessage = err?.message?.toLowerCase() || "";
+    } catch (err: unknown) {
+      const rawMessage = (
+        err instanceof Error ? err.message : String(err)
+      ).toLowerCase();
 
       let errorTitle = "Erro";
       let errorDescription = "Ocorreu um erro inesperado. Tente novamente.";
@@ -185,7 +187,7 @@ export default function Auth() {
         } else {
           errorTitle = "Erro ao fazer login";
           errorDescription =
-            err?.message ||
+            (err instanceof Error ? err.message : null) ||
             "Não foi possível fazer login. Verifique suas credenciais e tente novamente.";
         }
       } else {
@@ -213,7 +215,7 @@ export default function Auth() {
         } else {
           errorTitle = "Erro ao cadastrar";
           errorDescription =
-            err?.message ||
+            (err instanceof Error ? err.message : null) ||
             "Não foi possível criar a conta. Verifique os dados e tente novamente.";
         }
       }

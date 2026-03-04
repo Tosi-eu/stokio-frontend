@@ -5,13 +5,17 @@ import { useMemo, useState } from "react";
 
 function normalizeText(text: string | undefined | null) {
   if (!text) return "";
-  return text.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return text
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function matchSequence(label: string | undefined | null, search: string) {
   const l = normalizeText(label);
   const s = normalizeText(search);
-  if (!s) return true; 
+  if (!s) return true;
   return l.includes(s);
 }
 
@@ -40,12 +44,14 @@ export function CommandSelect<T>({
 
       <Popover
         onOpenChange={(isOpen) => {
-          if (isOpen) setSearch(""); 
+          if (isOpen) setSearch("");
         }}
       >
         <PopoverTrigger asChild>
           <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white">
-            <span>{value ? getLabel(value) : `Selecione ${label.toLowerCase()}`}</span>
+            <span>
+              {value ? getLabel(value) : `Selecione ${label.toLowerCase()}`}
+            </span>
             <ChevronDown className="w-4 h-4 opacity-50" />
           </button>
         </PopoverTrigger>
@@ -60,7 +66,7 @@ export function CommandSelect<T>({
             <CommandGroup>
               {filteredItems.map((item, index) => (
                 <CommandItem
-                  key={`${getLabel(item) || ""}-${index}`} 
+                  key={`${getLabel(item) || ""}-${index}`}
                   value={getLabel(item) || ""}
                   onSelect={() => {
                     onSelect(item);

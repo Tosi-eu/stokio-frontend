@@ -2,8 +2,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 interface RepositionCardProps {
   medicineName: string;
-  quantity: number;
-  daysToReposition: number;
+  quantity: number | null;
+  daysToReposition: number | null;
   nextRepositionDate: string;
   residentName: string;
   onComplete?: () => Promise<void>;
@@ -31,10 +31,11 @@ export function NotificationRepositionCard({
             <b>Residente:</b> {residentName}
           </li>
           <li>
-            <b>Quantidade:</b> {quantity}
+            <b>Quantidade:</b> {quantity ?? "-"}
           </li>
           <li>
-            <b>Intervalo de dias entre reposições:</b> {daysToReposition}
+            <b>Intervalo de dias entre reposições:</b>{" "}
+            {daysToReposition != null ? daysToReposition : "-"}
           </li>
           <li>
             <b>Próxima reposição:</b> {nextRepositionDate}

@@ -100,6 +100,20 @@ export interface ExpiringSoonReport {
   gaveta?: number | null;
 }
 
+interface MovementsReportPayload {
+  data: PeriodMovementReport[];
+  _reportMeta?: { period?: MovementPeriod };
+}
+
+interface InsumosMedicamentosReport {
+  medicamentos?: unknown[];
+  insumos?: unknown[];
+}
+
+interface PsicotropicosReport {
+  psicotropico?: unknown[];
+}
+
 interface ResidentConsumptionReport {
   residente: string;
   casela: number;
@@ -147,7 +161,7 @@ interface RowData {
   gaveta?: number | string;
   medicamentos?: RowData[];
   insumos?: RowData[];
-  [key: string]: any; // Permite propriedades adicionais para flexibilidade
+  [key: string]: unknown;
 }
 
 const styles = StyleSheet.create({
@@ -253,7 +267,11 @@ interface ColumnConfig {
 function renderTableWithConfig(
   columns: ColumnConfig[],
   rows: RowData[],
-  customCellRenderer?: (row: RowData, column: ColumnConfig, index: number) => React.ReactNode,
+  customCellRenderer?: (
+    row: RowData,
+    column: ColumnConfig,
+    index: number,
+  ) => React.ReactNode,
 ) {
   return (
     <>
@@ -284,7 +302,7 @@ function renderTableWithConfig(
               .toLowerCase()
               .replace(/\s+/g, "_");
 
-            let value: any = row[key as keyof RowData] ?? "";
+            const value = (row[key as keyof RowData] ?? "") as string | number;
 
             return (
               <Text
@@ -308,7 +326,7 @@ function renderTable(headers: string[], rows: RowData[]) {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .replace(/\s+/g, "_");
-    
+
     const numericColumns = [
       "quantidade",
       "armario",
@@ -319,7 +337,7 @@ function renderTable(headers: string[], rows: RowData[]) {
       "consumo_mensal",
       "item",
     ];
-    
+
     return {
       header: h,
       key: normalized,
@@ -337,7 +355,7 @@ export function createStockPDF(
     | ResidentesResponse
     | ResidentConsumptionReport
     | TransferReport[]
-    | PeriodMovementReport[]
+    | MovementsReportPayload
     | ResidentMedicinesReport[]
     | ExpiredMedicineReport[]
     | ExpiringSoonReport[],
@@ -355,7 +373,7 @@ export function createStockPDF(
   const transferData = isTransferReport ? (data as TransferReport[]) : null;
 
   const movementsData = isMovementsReport
-    ? ((data as any).data as PeriodMovementReport[])
+    ? (data as MovementsReportPayload).data
     : null;
   const residentMedicinesData = isResidentMedicines
     ? (data as ResidentMedicinesReport[])
@@ -367,7 +385,9 @@ export function createStockPDF(
     ? (data as ExpiringSoonReport[])
     : null;
 
-  const movementsPayload = isMovementsReport ? (data as any) : null;
+  const movementsPayload = isMovementsReport
+    ? (data as MovementsReportPayload)
+    : null;
 
   const movementHeading =
     movementsPayload?._reportMeta?.period === MovementPeriod.MENSAL
@@ -445,15 +465,16 @@ export function createStockPDF(
                   <Text style={styles.cell}>Observação</Text>
                 </View>
                 {consumptionData.medicamentos.map((med, idx) => {
-                  const nomeCompleto = [
-                    med.nome || "",
-                    med.dosagem || "",
-                    med.unidade_medida || "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")
-                    .trim() || "-";
-                  
+                  const nomeCompleto =
+                    [
+                      med.nome || "",
+                      med.dosagem || "",
+                      med.unidade_medida || "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")
+                      .trim() || "-";
+
                   return (
                     <View
                       key={idx}
@@ -674,9 +695,17 @@ export function createStockPDF(
                     { header: "Tipo", key: "tipo" },
                     { header: "Nome", key: "nome" },
                     { header: "Complemento", key: "complemento" },
-                    { header: "Quantidade", key: "quantidade", isNumeric: true },
+                    {
+                      header: "Quantidade",
+                      key: "quantidade",
+                      isNumeric: true,
+                    },
                     { header: "Validade", key: "validade" },
-                    { header: "Dias para Vencer", key: "dias_para_vencer", isNumeric: true },
+                    {
+                      header: "Dias para Vencer",
+                      key: "dias_para_vencer",
+                      isNumeric: true,
+                    },
                     { header: "Setor", key: "setor" },
                     { header: "Armário", key: "armario", isNumeric: true },
                     { header: "Gaveta", key: "gaveta", isNumeric: true },
@@ -684,7 +713,8 @@ export function createStockPDF(
                     { header: "Residente", key: "residente" },
                   ],
                   expiringSoonData.map((item) => ({
-                    tipo: item.tipo === "medicamento" ? "Medicamento" : "Insumo",
+                    tipo:
+                      item.tipo === "medicamento" ? "Medicamento" : "Insumo",
                     nome: item.nome || "-",
                     complemento: item.principio_ativo || item.descricao || "-",
                     quantidade: item.quantidade ?? "-",
@@ -717,13 +747,14 @@ export function createStockPDF(
                 "Validade",
                 "Residente",
               ],
-              (data as any).medicamentos ?? [],
+              ((data as InsumosMedicamentosReport).medicamentos ??
+                []) as RowData[],
             )}
 
             <Text style={styles.sectionTitle}>Insumos</Text>
             {renderTable(
               ["Insumo", "Quantidade", "Armario"],
-              (data as any).insumos ?? [],
+              ((data as InsumosMedicamentosReport).insumos ?? []) as RowData[],
             )}
           </>
         )}
@@ -739,14 +770,13 @@ export function createStockPDF(
                 "Data Movimentação",
                 "Quantidade",
               ],
-              (data as any).psicotropico ?? [],
+              ((data as PsicotropicosReport).psicotropico ?? []) as RowData[],
             )}
           </>
         )}
 
         {isTransferReport && transferData && (
           <>
-
             {transferData.length > 0 ? (
               <>
                 {renderTableWithConfig(
@@ -754,7 +784,11 @@ export function createStockPDF(
                     { header: "Data", key: "data" },
                     { header: "Item", key: "nome" },
                     { header: "Complemento", key: "complemento" },
-                    { header: "Quantidade", key: "quantidade", isNumeric: true },
+                    {
+                      header: "Quantidade",
+                      key: "quantidade",
+                      isNumeric: true,
+                    },
                     { header: "Armário", key: "armario", isNumeric: true },
                     { header: "Casela", key: "casela", isNumeric: true },
                     { header: "Residente", key: "residente" },
@@ -765,7 +799,8 @@ export function createStockPDF(
                   transferData.map((transfer) => ({
                     data: transfer.data || "-",
                     nome: transfer.nome || "-",
-                    complemento: transfer.principio_ativo || transfer.descricao || "-",
+                    complemento:
+                      transfer.principio_ativo || transfer.descricao || "-",
                     quantidade: transfer.quantidade ?? "-",
                     armario: transfer.armario ?? "-",
                     casela: transfer.casela ?? "-",
@@ -796,7 +831,11 @@ export function createStockPDF(
                     { header: "Tipo", key: "tipo_movimentacao" },
                     { header: "Item", key: "nome" },
                     { header: "Complemento", key: "complemento" },
-                    { header: "Quantidade", key: "quantidade", isNumeric: true },
+                    {
+                      header: "Quantidade",
+                      key: "quantidade",
+                      isNumeric: true,
+                    },
                     { header: "Setor", key: "setor" },
                     { header: "Casela", key: "casela", isNumeric: true },
                     {
@@ -811,12 +850,17 @@ export function createStockPDF(
                     data: movement.data || "-",
                     tipo_movimentacao: movement.tipo_movimentacao || "-",
                     nome: movement.nome || "-",
-                    complemento: movement.principio_ativo ?? movement.descricao ?? "-",
+                    complemento:
+                      movement.principio_ativo ?? movement.descricao ?? "-",
                     quantidade: movement.quantidade ?? "-",
                     setor: movement.setor || "-",
                     casela: movement.casela ?? "-",
-                    armario: showCabinetColumn ? (movement.armario ?? "-") : undefined,
-                    gaveta: !showCabinetColumn ? (movement.gaveta ?? "-") : undefined,
+                    armario: showCabinetColumn
+                      ? (movement.armario ?? "-")
+                      : undefined,
+                    gaveta: !showCabinetColumn
+                      ? (movement.gaveta ?? "-")
+                      : undefined,
                     lote: movement.lote ?? "-",
                     destino: movement.destino ?? "-",
                   })),
@@ -853,7 +897,11 @@ export function createStockPDF(
                   [
                     { header: "Medicamento", key: "medicamento" },
                     { header: "Princípio Ativo", key: "principio_ativo" },
-                    { header: "Quantidade", key: "quantidade", isNumeric: true },
+                    {
+                      header: "Quantidade",
+                      key: "quantidade",
+                      isNumeric: true,
+                    },
                     { header: "Validade", key: "validade" },
                   ],
                   residentMedicinesData.map((item) => ({
@@ -882,9 +930,17 @@ export function createStockPDF(
                   [
                     { header: "Medicamento", key: "medicamento" },
                     { header: "Princípio Ativo", key: "principio_ativo" },
-                    { header: "Quantidade", key: "quantidade", isNumeric: true },
+                    {
+                      header: "Quantidade",
+                      key: "quantidade",
+                      isNumeric: true,
+                    },
                     { header: "Validade", key: "validade" },
-                    { header: "Dias Vencido", key: "dias_vencido", isNumeric: true },
+                    {
+                      header: "Dias Vencido",
+                      key: "dias_vencido",
+                      isNumeric: true,
+                    },
                     { header: "Lote", key: "lote" },
                     { header: "Setor", key: "setor" },
                     { header: "Residente", key: "residente" },

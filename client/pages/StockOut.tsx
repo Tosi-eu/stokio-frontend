@@ -169,10 +169,10 @@ export default function StockOut() {
       });
 
       navigate("/stock");
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: "Erro ao registrar saída",
-        description: err.message || "Erro inesperado.",
+        description: err instanceof Error ? err.message : "Erro inesperado.",
         variant: "error",
         duration: 3000,
       });

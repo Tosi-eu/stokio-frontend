@@ -33,13 +33,13 @@ export interface Column {
 }
 
 export interface EditableTableProps {
-  data: Record<string, any>[];
+  data: Record<string, unknown>[];
   columns: Column[];
   entityType?: string;
   showAddons?: boolean;
   minRows?: number;
-  onAdd?: (newRow: Record<string, any>) => void;
-  onEdit?: (updatedRow: Record<string, any>, index: number) => void;
+  onAdd?: (newRow: Record<string, unknown>) => void;
+  onEdit?: (updatedRow: Record<string, unknown>, index: number) => void;
   onDelete?: (index: number) => void;
 }
 
@@ -63,8 +63,9 @@ export interface User {
 export interface LoggedUser {
   id: number;
   login: string;
-  first_name: string;
-  last_name: string;
+  first_name?: string;
+  last_name?: string;
+  role?: "admin" | "user";
 }
 
 export interface AuthContextType {
@@ -120,6 +121,19 @@ export interface InputInventory {
   inputId: number;
   cabinetId: number;
   quantity: number;
+}
+
+export interface StockListAlertItem {
+  nome?: string;
+  principio_ativo?: string;
+  descricao?: string | null;
+  quantidade?: number;
+  minimo?: number;
+  validade?: string;
+  setor?: string;
+  tipo_item?: string;
+  st_quantidade?: string | null;
+  st_expiracao?: string | null;
 }
 
 export interface StockItemRaw {
@@ -180,6 +194,7 @@ export interface StockItem {
   destino?: string | null;
   detail?: string | null;
   daysToReplacement?: number | null;
+  medicamentoId?: number | null;
 }
 
 export interface InputFormProps {
@@ -310,35 +325,47 @@ export interface MedicineRankingItem {
 }
 
 export interface RawMovement {
-  tipo: string;
-  quantidade: number;
-  data: string;
+  id?: number;
+  tipo?: string;
+  quantidade?: number;
+  data?: string;
+
+  medicamento_id?: number | null;
+  insumo_id?: number | null;
+  armario_id?: number | null;
+  gaveta_id?: number | null;
+  setor?: string | null;
+  lote?: string | null;
 
   MedicineModel?: {
-    nome: string;
+    nome?: string;
+    principio_ativo?: string | null;
   };
 
   InputModel?: {
-    nome: string;
+    nome?: string;
+    descricao?: string | null;
   };
 
   LoginModel?: {
-    login: string;
+    login?: string;
+    first_name?: string;
+    last_name?: string;
   };
 
   ResidentModel?: {
-    nome: string;
-    num_casela: number;
+    nome?: string;
+    num_casela?: number;
   };
 
   CabinetModel?: {
-    num_armario: number;
+    num_armario?: number;
   };
 }
 
 export interface Drawer {
   numero: number;
-  categoria_id: number;
+  categoria_id?: number;
   categoria: string;
 }
 

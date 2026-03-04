@@ -9,12 +9,7 @@ import {
   editStockSchema,
   type EditStockFormData,
 } from "@/schemas/edit-stock.schema";
-import {
-  updateStockItem,
-  getCabinets,
-  getDrawers,
-  getResidents,
-} from "@/api/requests";
+import { updateStockItem } from "@/api/requests";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +29,7 @@ import {
   ItemStockType,
   StockTypeLabels,
 } from "@/utils/enums";
-import { fetchAllPaginated } from "@/helpers/paginacao.helper";
+import { useEditStockData } from "@/hooks/use-edit-stock-data.hook";
 import ConfirmActionModal from "@/components/ConfirmationActionModal";
 import DatePicker from "react-datepicker";
 import { ptBR } from "date-fns/locale";
@@ -42,56 +37,17 @@ import "react-datepicker/dist/react-datepicker.css";
 import { parseDateFromString } from "@/utils/utils";
 import { SkeletonForm } from "@/components/SkeletonForm";
 
-const cache = {
-  cabinets: null as Cabinet[] | null,
-  drawers: null as Drawer[] | null,
-  residents: null as Patient[] | null,
-  timestamp: 0,
-  TTL: 5 * 60 * 1000, // 5 minutes
-};
-
-const getCachedData = async () => {
-  const now = Date.now();
-
-  if (
-    cache.cabinets &&
-    cache.drawers &&
-    cache.residents &&
-    now - cache.timestamp < cache.TTL
-  ) {
-    return {
-      cabinets: cache.cabinets,
-      drawers: cache.drawers,
-      residents: cache.residents,
-    };
-  }
-
-  const [cabinets, drawers, residents] = await Promise.all([
-    fetchAllPaginated(getCabinets),
-    fetchAllPaginated(getDrawers),
-    fetchAllPaginated(getResidents),
-  ]);
-
-  cache.cabinets = cabinets as unknown as Cabinet[];
-  cache.drawers = drawers as unknown as Drawer[];
-  cache.residents = residents as unknown as Patient[];
-  cache.timestamp = now;
-
-  return {
-    cabinets: cache.cabinets,
-    drawers: cache.drawers,
-    residents: cache.residents,
-  };
-};
-
 export default function EditStock() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const {
+    cabinets,
+    drawers,
+    residents,
+    isLoading: loadingData,
+  } = useEditStockData();
   const [stockItem, setStockItem] = useState<StockItem | null>(null);
-  const [cabinets, setCabinets] = useState<Cabinet[]>([]);
-  const [drawers, setDrawers] = useState<Drawer[]>([]);
-  const [residents, setResidents] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -128,74 +84,59 @@ export default function EditStock() {
   const watchedTipo = watch("tipo");
 
   useEffect(() => {
-    const loadData = async () => {
+    if (!location.state?.item || loadingData) return;
+    const item = location.state.item as StockItem;
+    const loadData = () => {
       try {
-        if (location.state?.item) {
-          const item = location.state.item as StockItem;
-          console.log("Carregando item para edição:", item);
-          setStockItem(item);
+        setStockItem(item);
 
-          let validadeDate: Date | null = null;
-          if (item.expiry && item.expiry !== "-") {
-            if (item.expiry.includes("/")) {
-              validadeDate = parseDateFromString(item.expiry);
-            } else {
-              const parsed = new Date(item.expiry);
-              validadeDate = isNaN(parsed.getTime()) ? null : parsed;
-            }
+        let validadeDate: Date | null = null;
+        if (item.expiry && item.expiry !== "-") {
+          if (item.expiry.includes("/")) {
+            validadeDate = parseDateFromString(item.expiry);
+          } else {
+            const parsed = new Date(item.expiry);
+            validadeDate = isNaN(parsed.getTime()) ? null : parsed;
           }
-
-          let rawTipo = item.tipo || "";
-          if (!rawTipo && item.stockType) {
-            const tipoMap: Record<string, string> = {
-              "Estoque geral": "geral",
-              "Estoque individual": "individual",
-              "Carrinho de emergência": "carrinho_emergencia",
-            };
-            rawTipo = tipoMap[item.stockType] || "";
-          }
-
-          let validTipo: ItemStockType = ItemStockType.GERAL;
-          if (
-            rawTipo === ItemStockType.GERAL ||
-            rawTipo === ItemStockType.INDIVIDUAL ||
-            rawTipo === ItemStockType.CARRINHO ||
-            rawTipo === ItemStockType.CARRINHO_PSICOTROPICOS
-          ) {
-            validTipo = rawTipo as ItemStockType;
-          }
-
-          const cached = await getCachedData();
-          setCabinets(cached.cabinets);
-          setDrawers(cached.drawers);
-          setResidents(cached.residents);
-
-          const isMedicineItem = item.itemType === "medicamento";
-          reset({
-            quantidade: item.quantity || 0,
-            armario_id: typeof item.cabinet === "number" ? item.cabinet : null,
-            gaveta_id: typeof item.drawer === "number" ? item.drawer : null,
-            validade: validadeDate,
-            origem: isMedicineItem
-              ? (item.origin as OriginType) || null
-              : undefined,
-            setor: (item.sector as SectorType) || SectorType.FARMACIA,
-            lote: item.lot || null,
-            casela_id: typeof item.casela === "number" ? item.casela : null,
-            tipo: validTipo,
-            preco: item.preco ? item.preco.toFixed(2).replace(".", ",") : "",
-            observacao: item.detail ?? "",
-            dias_para_repor: item.daysToReplacement ?? null,
-          });
-        } else {
-          toast({
-            title: "Erro",
-            description: "Item de estoque não encontrado.",
-            variant: "error",
-            duration: 3000,
-          });
-          navigate("/stock");
         }
+
+        let rawTipo = item.tipo || "";
+        if (!rawTipo && item.stockType) {
+          const tipoMap: Record<string, string> = {
+            "Estoque geral": "geral",
+            "Estoque individual": "individual",
+            "Carrinho de emergência": "carrinho_emergencia",
+          };
+          rawTipo = tipoMap[item.stockType] || "";
+        }
+
+        let validTipo: ItemStockType = ItemStockType.GERAL;
+        if (
+          rawTipo === ItemStockType.GERAL ||
+          rawTipo === ItemStockType.INDIVIDUAL ||
+          rawTipo === ItemStockType.CARRINHO ||
+          rawTipo === ItemStockType.CARRINHO_PSICOTROPICOS
+        ) {
+          validTipo = rawTipo as ItemStockType;
+        }
+
+        const isMedicineItem = item.itemType === "medicamento";
+        reset({
+          quantidade: item.quantity || 0,
+          armario_id: typeof item.cabinet === "number" ? item.cabinet : null,
+          gaveta_id: typeof item.drawer === "number" ? item.drawer : null,
+          validade: validadeDate,
+          origem: isMedicineItem
+            ? (item.origin as OriginType) || null
+            : undefined,
+          setor: (item.sector as SectorType) || SectorType.FARMACIA,
+          lote: item.lot || null,
+          casela_id: typeof item.casela === "number" ? item.casela : null,
+          tipo: validTipo,
+          preco: item.preco ? item.preco.toFixed(2).replace(".", ",") : "",
+          observacao: item.detail ?? "",
+          dias_para_repor: item.daysToReplacement ?? null,
+        });
       } catch (err: unknown) {
         toast({
           title: "Erro",
@@ -210,7 +151,7 @@ export default function EditStock() {
     };
 
     loadData();
-  }, [location.state, navigate, reset, isMedicine]);
+  }, [location.state, loadingData, navigate, reset]);
 
   useEffect(() => {
     if (watchedGavetaId !== null) {
@@ -251,7 +192,7 @@ export default function EditStock() {
     try {
       const formData = watch();
 
-      const updatePayload: any = {
+      const updatePayload: Record<string, unknown> = {
         quantidade: formData.quantidade,
         armario_id: formData.armario_id,
         gaveta_id: formData.gaveta_id,
@@ -270,15 +211,18 @@ export default function EditStock() {
         dias_para_repor: formData.dias_para_repor ?? null,
       };
 
-      await updateStockItem(
+      const result = await updateStockItem(
         stockItem.id,
         stockItem.itemType === "medicamento" ? "medicamento" : "insumo",
         updatePayload,
       );
 
+      const message =
+        (result as { message?: string } | undefined)?.message ??
+        "O item de estoque foi atualizado com sucesso.";
       toast({
         title: "Item atualizado",
-        description: "O item de estoque foi atualizado com sucesso.",
+        description: message,
         variant: "success",
         duration: 3000,
       });
@@ -296,7 +240,7 @@ export default function EditStock() {
     }
   };
 
-  if (loading) {
+  if (loading || loadingData) {
     return (
       <Layout title="Editar Estoque">
         <SkeletonForm />

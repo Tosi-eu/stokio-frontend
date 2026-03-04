@@ -89,7 +89,7 @@ export function usePagination<T extends Record<string, unknown>>(
     if (autoFetch) {
       fetchData(initialPage);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [autoFetch, initialPage, fetchData]);
 
   return {
     data,

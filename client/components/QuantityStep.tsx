@@ -2,10 +2,12 @@ import { StockItemRaw } from "@/interfaces/interfaces";
 import { StockCard } from "@/components/StockCard";
 import clsx from "clsx";
 
+import type { UseFormRegisterReturn } from "react-hook-form";
+
 interface Props {
   item: StockItemRaw | null;
   quantity: number;
-  quantityRegister: any;
+  quantityRegister: UseFormRegisterReturn<"quantity">;
   quantityErrors: { quantity?: { message?: string } };
   isSubmitting: boolean;
   onBack: () => void;
