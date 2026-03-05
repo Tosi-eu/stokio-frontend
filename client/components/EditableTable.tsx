@@ -410,13 +410,16 @@ export default function EditableTable({
                           {row && (
                             <>
                               <button
+                                type="button"
                                 onClick={() => handleEditClick(row)}
-                                className="text-sky-700 hover:text-sky-900"
+                                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-sky-700 hover:text-sky-900 hover:bg-sky-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                                aria-label="Editar"
                               >
                                 <Pencil size={16} />
                               </button>
 
                               <button
+                                type="button"
                                 onClick={() => {
                                   if (entityType === "stock") {
                                     setDeleteIndex(i);
@@ -425,37 +428,42 @@ export default function EditableTable({
                                     setDeleteIndex(i);
                                   }
                                 }}
-                                className="text-red-600 hover:text-red-800"
+                                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-red-600 hover:text-red-800 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                                aria-label="Excluir"
                               >
                                 <Trash2 size={16} />
                               </button>
 
                               <button
+                                type="button"
                                 onClick={() => onRemoveIndividual?.(row)}
                                 disabled={!isIndividualMedicine(row)}
-                                className={`text-orange-600 ${
+                                className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-orange-600 hover:bg-orange-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${
                                   !isIndividualMedicine(row) &&
                                   disabledActionClass
                                 }`}
+                                aria-label="Remover individual"
                               >
                                 <UserMinus size={16} />
                               </button>
 
                               <button
+                                type="button"
                                 onClick={() =>
                                   isActive(row)
                                     ? onSuspend?.(row)
                                     : onResume?.(row)
                                 }
                                 disabled={!isIndividualMedicine(row)}
-                                className={`${
+                                className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded focus:outline-none focus-visible:ring-2 ${
                                   isActive(row)
-                                    ? "text-yellow-600"
-                                    : "text-green-600"
+                                    ? "text-yellow-600 hover:bg-amber-50 focus-visible:ring-amber-500"
+                                    : "text-green-600 hover:bg-green-50 focus-visible:ring-green-500"
                                 } ${
                                   !isIndividualMedicine(row) &&
                                   disabledActionClass
                                 }`}
+                                aria-label={isActive(row) ? "Suspender" : "Retomar"}
                               >
                                 {isActive(row) ? (
                                   <PauseCircle size={16} />
@@ -465,14 +473,16 @@ export default function EditableTable({
                               </button>
                               {entityType === "stock" && onTransferSector && (
                                 <button
+                                  type="button"
                                   onClick={() => {
                                     if (!canTransfer(row)) return;
                                     onTransferSector(row);
                                   }}
                                   disabled={!canTransfer(row)}
-                                  className={`text-indigo-600 hover:text-indigo-800 ${
+                                  className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                                     !canTransfer(row) && disabledActionClass
                                   }`}
+                                  aria-label="Transferir setor"
                                 >
                                   <ArrowLeftRight size={16} />
                                 </button>

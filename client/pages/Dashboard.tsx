@@ -4,6 +4,7 @@ import { useDashboardSummary } from "@/hooks/use-dashboard-summary.hook";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast.hook";
 import { SkeletonCard } from "@/components/SkeletonCard";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DEFAULT_PAGE_SIZE, paginate } from "@/helpers/paginacao.helper";
@@ -307,14 +308,25 @@ export default function Dashboard() {
       <div className="space-y-10 pt-10">
         <section>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {stats.map((stat, index) => (
-              <DashboardStatsCard
-                key={index}
-                label={stat.label}
-                value={stat.value}
-                onClick={stat.onClick}
-              />
-            ))}
+            {loadingSummary ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i} className="overflow-hidden">
+                  <CardContent className="flex flex-col items-center py-8">
+                    <Skeleton className="h-4 w-24 mb-2" />
+                    <Skeleton className="h-12 w-16" />
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              stats.map((stat, index) => (
+                <DashboardStatsCard
+                  key={index}
+                  label={stat.label}
+                  value={stat.value}
+                  onClick={stat.onClick}
+                />
+              ))
+            )}
           </div>
         </section>
 
@@ -341,25 +353,33 @@ export default function Dashboard() {
                 minRows={minRowsMovements}
                 loading={loadingNonMovement}
               />
-              <div className="flex justify-center gap-2 mt-4">
-                <button
-                  className="px-3 py-1 text-sm border rounded disabled:opacity-50"
-                  disabled={nonMovementPage === 1}
-                  onClick={() => setNonMovementPage((p) => p - 1)}
-                >
-                  Anterior
-                </button>
-
-                <button
-                  className="px-3 py-1 text-sm border rounded disabled:opacity-50"
-                  disabled={
-                    nonMovementPage * DEFAULT_PAGE_SIZE >=
-                    nonMovementProducts.length
-                  }
-                  onClick={() => setNonMovementPage((p) => p + 1)}
-                >
-                  Próximo
-                </button>
+              <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
+                <span className="text-sm text-slate-500">
+                  Página {nonMovementPage} de{" "}
+                  {Math.max(
+                    1,
+                    Math.ceil(nonMovementProducts.length / DEFAULT_PAGE_SIZE),
+                  )}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    className="px-3 py-1 text-sm border rounded disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    disabled={nonMovementPage === 1}
+                    onClick={() => setNonMovementPage((p) => p - 1)}
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    className="px-3 py-1 text-sm border rounded disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    disabled={
+                      nonMovementPage * DEFAULT_PAGE_SIZE >=
+                      nonMovementProducts.length
+                    }
+                    onClick={() => setNonMovementPage((p) => p + 1)}
+                  >
+                    Próximo
+                  </button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -391,25 +411,33 @@ export default function Dashboard() {
                 showAddons={false}
                 loading={loadingRecentMovements}
               />
-              <div className="flex justify-center gap-2 mt-4">
-                <button
-                  className="px-3 py-1 text-sm border rounded disabled:opacity-50"
-                  disabled={recentMovementsPage === 1}
-                  onClick={() => setRecentMovementsPage((p) => p - 1)}
-                >
-                  Anterior
-                </button>
-
-                <button
-                  className="px-3 py-1 text-sm border rounded disabled:opacity-50"
-                  disabled={
-                    recentMovementsPage * DEFAULT_PAGE_SIZE >=
-                    recentMovements.length
-                  }
-                  onClick={() => setRecentMovementsPage((p) => p + 1)}
-                >
-                  Próximo
-                </button>
+              <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
+                <span className="text-sm text-slate-500">
+                  Página {recentMovementsPage} de{" "}
+                  {Math.max(
+                    1,
+                    Math.ceil(recentMovements.length / DEFAULT_PAGE_SIZE),
+                  )}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    className="px-3 py-1 text-sm border rounded disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    disabled={recentMovementsPage === 1}
+                    onClick={() => setRecentMovementsPage((p) => p - 1)}
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    className="px-3 py-1 text-sm border rounded disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    disabled={
+                      recentMovementsPage * DEFAULT_PAGE_SIZE >=
+                      recentMovements.length
+                    }
+                    onClick={() => setRecentMovementsPage((p) => p + 1)}
+                  >
+                    Próximo
+                  </button>
+                </div>
               </div>
             </CardContent>
           </Card>

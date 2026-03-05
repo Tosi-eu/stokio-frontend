@@ -247,15 +247,6 @@ export default function Profile() {
                 >
                   {isSubmitting ? "Salvando..." : "Salvar"}
                 </Button>
-
-                <Button
-                  type="button"
-                  variant="destructive"
-                  className="whitespace-nowrap"
-                  onClick={() => setLogoutOpen(true)}
-                >
-                  Sair
-                </Button>
               </CardFooter>
             </form>
           </CardContent>
