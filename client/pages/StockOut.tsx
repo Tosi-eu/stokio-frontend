@@ -45,6 +45,8 @@ export default function StockOut() {
   const [filters, setFilters] = useState({
     nome: "",
     casela: "",
+    setor: "",
+    lote: "",
   });
 
   const [step, setStep] = useState<StockWizardSteps>(StockWizardSteps.TIPO);
@@ -109,11 +111,35 @@ export default function StockOut() {
     [items],
   );
 
+  const setorOptions = useMemo(
+    () =>
+      Array.from(new Set(items.map((i) => i.setor).filter(Boolean)) as Set<string>)
+        .sort()
+        .map((s) => ({ label: s, value: s })),
+    [items],
+  );
+
+  const loteOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          items
+            .map((i) => i.lote)
+            .filter((l): l is string => l != null && l !== ""),
+        ),
+      )
+        .sort()
+        .map((l) => ({ label: l, value: l })),
+    [items],
+  );
+
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       if (filters.nome && item.nome !== filters.nome) return false;
       if (filters.casela && String(item.casela_id ?? "") !== filters.casela)
         return false;
+      if (filters.setor && (item.setor ?? "") !== filters.setor) return false;
+      if (filters.lote && (item.lote ?? "") !== filters.lote) return false;
       return true;
     });
   }, [items, filters]);
@@ -195,7 +221,7 @@ export default function StockOut() {
   return (
     <Layout title="Saída de Estoque">
       <div className="bg-white p-6 rounded-lg border border-gray-300 max-w-7xl mx-auto mt-6 shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-xs text-gray-700 mb-1">Nome</label>
             <Popover>
@@ -284,6 +310,118 @@ export default function StockOut() {
                           className={cn(
                             "mr-2 h-4 w-4",
                             filters.casela === o.value
+                              ? "opacity-100"
+                              : "opacity-0",
+                          )}
+                        />
+                        {o.label}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-700 mb-1">Setor</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white">
+                  {filters.setor || "Selecione"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar setor..." />
+                  <CommandEmpty>Nenhum setor encontrado</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value=""
+                      onSelect={() =>
+                        setFilters((prev) => ({ ...prev, setor: "" }))
+                      }
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          !filters.setor ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                      Todos
+                    </CommandItem>
+                    {setorOptions.map((o) => (
+                      <CommandItem
+                        key={o.value}
+                        value={o.value}
+                        onSelect={() =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            setor: prev.setor === o.value ? "" : o.value,
+                          }))
+                        }
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            filters.setor === o.value
+                              ? "opacity-100"
+                              : "opacity-0",
+                          )}
+                        />
+                        {o.label}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-700 mb-1">Lote</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white">
+                  {filters.lote || "Selecione"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar lote..." />
+                  <CommandEmpty>Nenhum lote encontrado</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value=""
+                      onSelect={() =>
+                        setFilters((prev) => ({ ...prev, lote: "" }))
+                      }
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          !filters.lote ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                      Todos
+                    </CommandItem>
+                    {loteOptions.map((o) => (
+                      <CommandItem
+                        key={o.value}
+                        value={o.value}
+                        onSelect={() =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            lote: prev.lote === o.value ? "" : o.value,
+                          }))
+                        }
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            filters.lote === o.value
                               ? "opacity-100"
                               : "opacity-0",
                           )}

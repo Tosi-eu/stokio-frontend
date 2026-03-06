@@ -46,15 +46,33 @@ import {
   CommandInput,
   CommandItem,
 } from "@/components/ui/command";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TableFilter } from "@/components/TableFilter";
+
+const FILTER_LABELS: Record<string, string> = {
+  belowMin: "Abaixo do estoque mínimo",
+  nearMin: "Próximos do estoque mínimo",
+  expired: "Vencidos",
+  expiringSoon: "Vencimento próximo",
+};
 
 export default function Stock() {
   const navigate = useNavigate();
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const filter = params.get("filter"); // "noStock" | "belowMin" | "expired" | "expiringSoon"
+
+  const stockBreadcrumb = useMemo(
+    () =>
+      filter && FILTER_LABELS[filter]
+        ? [
+            { label: "Estoque", path: "/stock" },
+            { label: FILTER_LABELS[filter] },
+          ]
+        : undefined,
+    [filter],
+  );
 
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [items, setItems] = useState<StockItem[]>([]);
@@ -224,9 +242,20 @@ export default function Stock() {
     }
   }, [effectiveFilters]);
 
+  const prevFilterRef = useRef<string | null>(undefined);
+
+  useEffect(() => {
+    const hadFilter = prevFilterRef.current != null && prevFilterRef.current !== undefined;
+    const nowCleared = filter == null;
+    prevFilterRef.current = filter ?? null;
+    if (hadFilter && nowCleared) {
+      setPage(1);
+    }
+  }, [filter]);
+
   useEffect(() => {
     loadStock(page, effectiveFilters);
-  }, [page, effectiveFilters]);
+  }, [page, effectiveFilters, filter]);
 
   const filterOptions = useMemo(
     () => buildFilterOptions(allRawData),
@@ -426,7 +455,10 @@ export default function Stock() {
   };
 
   return (
-    <Layout title="Estoque de Medicamentos e Insumos">
+    <Layout
+      title="Estoque de Medicamentos e Insumos"
+      breadcrumb={stockBreadcrumb}
+    >
       <div className="space-y-6 max-w-7xl mx-auto">
         <div className="flex flex-wrap gap-3 justify-end mt-8">
           <button
@@ -459,6 +491,28 @@ export default function Stock() {
             Gerar Relatório
           </button>
         </div>
+
+        {filter && FILTER_LABELS[filter] && (
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm text-slate-600">
+              Exibindo:{" "}
+              <span className="font-medium text-slate-800">
+                {FILTER_LABELS[filter]}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setPage(1);
+                navigate("/stock");
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+            >
+              <X className="h-4 w-4" />
+              Limpar filtro
+            </button>
+          </div>
+        )}
 
         {allRawData.length > 0 && (
           <div className="bg-white p-6 rounded-lg border border-gray-300 shadow-sm">

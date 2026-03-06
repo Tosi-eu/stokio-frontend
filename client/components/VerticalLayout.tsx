@@ -93,7 +93,15 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
       </nav>
 
       {user && (
-        <div className="p-3 border-t border-sky-200">
+        <div className="p-3 border-t border-sky-200 space-y-2">
+          <p
+            className="px-3 py-1 text-xs text-slate-500 truncate"
+            title={user.login}
+          >
+            {user.first_name && user.last_name
+              ? `${user.first_name} ${user.last_name}`.trim()
+              : user.login ?? "Usuário"}
+          </p>
           <button
             onClick={onLogout}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"

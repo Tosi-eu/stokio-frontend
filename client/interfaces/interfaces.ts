@@ -43,9 +43,15 @@ export interface EditableTableProps {
   onDelete?: (index: number) => void;
 }
 
+export interface BreadcrumbItem {
+  label: string;
+  path?: string;
+}
+
 export interface LayoutProps {
   children: ReactNode;
   title?: string;
+  breadcrumb?: BreadcrumbItem[];
 }
 
 export interface DeletePopUpProps {
