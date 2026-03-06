@@ -92,7 +92,15 @@ export function formatStockItems(raw: unknown[]): StockItem[] {
   });
 }
 
-export function buildFilterOptions(allRawData: unknown[]): StockFilterOptions {
+export interface BuildFilterOptionsParams {
+  residents?: Array<{ casela: number; name: string }>;
+  setor?: string;
+}
+
+export function buildFilterOptions(
+  allRawData: unknown[],
+  options?: BuildFilterOptionsParams,
+): StockFilterOptions {
   const raw = Array.isArray(allRawData) ? allRawData : [];
 
   const sectors: StockFilterOption[] = [
@@ -110,15 +118,20 @@ export function buildFilterOptions(allRawData: unknown[]): StockFilterOptions {
     .sort((a, b) => a - b)
     .map((id) => ({ value: String(id), label: `Armário ${id}` }));
 
-  const caselaIds = Array.from(
-    new Set(
-      raw
-        .map((i: Record<string, unknown>) => i.casela_id as number | undefined)
-        .filter((id): id is number => id != null),
-    ),
-  )
-    .sort((a, b) => a - b)
-    .map((id) => ({ value: String(id), label: `Casela ${id}` }));
+  const isEnfermagem = options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
+  const caselaIds: StockFilterOption[] = isEnfermagem
+    ? [...(options!.residents!)]
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+        .map((r) => ({ value: String(r.casela), label: r.name }))
+    : Array.from(
+        new Set(
+          raw
+            .map((i: Record<string, unknown>) => i.casela_id as number | undefined)
+            .filter((id): id is number => id != null),
+        ),
+      )
+        .sort((a, b) => a - b)
+        .map((id) => ({ value: String(id), label: `Casela ${id}` }));
 
   const lotes = Array.from(
     new Set(

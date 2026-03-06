@@ -3,7 +3,8 @@ import Layout from "@/components/Layout";
 import { toast } from "@/hooks/use-toast.hook";
 import { useAuth } from "@/hooks/use-auth.hook";
 import { useNavigate, useLocation } from "react-router-dom";
-import { createStockOut } from "@/api/requests";
+import { createStockOut, getResidents } from "@/api/requests";
+import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import { useFormWithZod } from "@/hooks/use-form-with-zod";
 import { stockOutQuantitySchema } from "@/schemas/stock-out.schema";
 
@@ -38,6 +39,9 @@ export default function StockOut() {
   const location = useLocation();
   const { data: passedData } = location.state || {};
   const [items, setItems] = useState<StockItemRaw[]>([]);
+  const [residents, setResidents] = useState<
+    Array<{ casela: number; name: string }>
+  >([]);
 
   const [uiPage, setUiPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -89,6 +93,27 @@ export default function StockOut() {
     setSelected(null);
   }, [operationType]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await fetchAllPaginated(
+          (page, limit) => getResidents(page, limit),
+          100,
+        );
+        const mapped = (list as Array<{ casela: number; name: string }>).map(
+          (r) => ({ casela: r.casela, name: r.name }),
+        );
+        if (!cancelled) setResidents(mapped);
+      } catch {
+        if (!cancelled) setResidents([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const nameOptions = useMemo(
     () =>
       Array.from(new Set(items.map((i) => i.nome).filter(Boolean))).map(
@@ -97,7 +122,7 @@ export default function StockOut() {
     [items],
   );
 
-  const caselaOptions = useMemo(
+  const caselaIdsFromItems = useMemo(
     () =>
       Array.from(
         new Set(
@@ -105,11 +130,21 @@ export default function StockOut() {
             .map((i) => i.casela_id)
             .filter((id): id is number => id !== null && id !== undefined),
         ),
-      )
-        .sort((a, b) => a - b)
-        .map((id) => ({ label: `Casela ${id}`, value: String(id) })),
+      ),
     [items],
   );
+
+  const caselaOptions = useMemo(() => {
+    if (filters.setor === "enfermagem" && residents.length > 0) {
+      return residents
+        .filter((r) => caselaIdsFromItems.includes(r.casela))
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+        .map((r) => ({ label: r.name, value: String(r.casela) }));
+    }
+    return caselaIdsFromItems
+      .sort((a, b) => a - b)
+      .map((id) => ({ label: `Casela ${id}`, value: String(id) }));
+  }, [items, residents, filters.setor, caselaIdsFromItems]);
 
   const setorOptions = useMemo(
     () =>
@@ -269,7 +304,13 @@ export default function StockOut() {
             <Popover>
               <PopoverTrigger asChild>
                 <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white">
-                  {filters.casela ? `Casela ${filters.casela}` : "Selecione"}
+                  {filters.casela
+                    ? filters.setor === "enfermagem"
+                      ? residents.find(
+                          (r) => r.casela === Number(filters.casela),
+                        )?.name ?? `Casela ${filters.casela}`
+                      : `Casela ${filters.casela}`
+                    : "Selecione"}
                   <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
                 </button>
               </PopoverTrigger>
