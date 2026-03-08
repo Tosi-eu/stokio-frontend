@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Controller } from "react-hook-form";
 import Layout from "@/components/Layout";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -254,6 +254,15 @@ export default function EditStock() {
 
   const selectedResident = residents.find((r) => r.casela === watchedCaselaId);
 
+  const caselaResidentsList = useMemo(() => {
+    if (stockItem?.sector === "enfermagem") {
+      return [...residents].sort((a, b) =>
+        a.name.localeCompare(b.name, "pt-BR"),
+      );
+    }
+    return residents;
+  }, [residents, stockItem?.sector]);
+
   return (
     <Layout title="Editar Item de Estoque">
       <Card className="max-w-2xl mx-auto mt-10 rounded-lg shadow-md hover:shadow-lg transition-shadow border border-slate-200">
@@ -399,12 +408,14 @@ export default function EditStock() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Nenhuma</SelectItem>
-                          {residents.map((resident) => (
+                          {caselaResidentsList.map((resident) => (
                             <SelectItem
                               key={resident.casela}
                               value={resident.casela.toString()}
                             >
-                              {resident.casela}
+                              {stockItem?.sector === "enfermagem"
+                                ? resident.name
+                                : resident.casela}
                             </SelectItem>
                           ))}
                         </SelectContent>

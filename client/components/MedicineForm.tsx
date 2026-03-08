@@ -1,4 +1,4 @@
-import { useEffect, useState, memo } from "react";
+import { useEffect, useState, memo, useMemo } from "react";
 import { Controller } from "react-hook-form";
 import DatePicker from "react-datepicker";
 import { ptBR } from "date-fns/locale";
@@ -46,6 +46,7 @@ export const MedicineForm = memo(function MedicineForm({
 }: MedicineFormProps) {
   const navigate = useNavigate();
   const [medicineOpen, setMedicineOpen] = useState(false);
+  const [caselaOpen, setCaselaOpen] = useState(false);
 
   const {
     register,
@@ -71,10 +72,19 @@ export const MedicineForm = memo(function MedicineForm({
   });
 
   const stockType = watch("stockType");
+  const sector = watch("sector");
   const selectedMedicineId = watch("id");
   const casela = watch("casela");
 
   const selectedMedicine = medicines.find((m) => m.id === selectedMedicineId);
+  const caselasForSelect = useMemo(() => {
+    if (sector === SectorType.ENFERMAGEM) {
+      return [...(caselas ?? [])].sort((a, b) =>
+        a.name.localeCompare(b.name, "pt-BR"),
+      );
+    }
+    return caselas ?? [];
+  }, [caselas, sector]);
   const isEmergencyCart = stockType === ItemStockType.CARRINHO;
   const isPsychotropicCart = stockType === ItemStockType.CARRINHO_PSICOTROPICOS;
   const isCart = isEmergencyCart || isPsychotropicCart;
@@ -274,6 +284,33 @@ export const MedicineForm = memo(function MedicineForm({
 
       <div className="grid gap-2">
         <label className="text-sm font-semibold text-slate-700">
+          Setor <span className="text-red-500">*</span>
+        </label>
+        <select
+          {...register("sector")}
+          disabled={isCart}
+          className={cn(
+            "w-full border rounded-lg px-3 py-2 text-sm bg-white",
+            errors.sector ? "border-red-500" : "border-slate-300",
+            isCart && "bg-slate-100 text-slate-500 cursor-not-allowed",
+          )}
+        >
+          <option value="" disabled hidden>
+            Selecione
+          </option>
+          {Object.values(SectorType).map((s) => (
+            <option key={s} value={s}>
+              {s === SectorType.FARMACIA ? "Farmácia" : "Enfermagem"}
+            </option>
+          ))}
+        </select>
+        {errors.sector && (
+          <p className="text-sm text-red-500 mt-1">{errors.sector.message}</p>
+        )}
+      </div>
+
+      <div className="grid gap-2">
+        <label className="text-sm font-semibold text-slate-700">
           Tipo de estoque <span className="text-red-500">*</span>
         </label>
         <select
@@ -299,48 +336,131 @@ export const MedicineForm = memo(function MedicineForm({
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="grid gap-2">
-          <label className="text-sm font-semibold text-slate-700">Casela</label>
-          <select
-            {...register("casela", { valueAsNumber: true })}
-            disabled={!isIndividual}
-            className={cn(
-              "w-full border rounded-lg px-3 py-2 text-sm",
-              errors.casela ? "border-red-500" : "border-slate-300",
-              !isIndividual
-                ? "bg-slate-100 text-slate-500 cursor-not-allowed"
-                : "bg-white",
-            )}
-          >
-            <option value="">Selecione</option>
-            {caselas.map((c) => (
-              <option key={c.casela} value={c.casela}>
-                {c.casela}
-              </option>
-            ))}
-          </select>
-          {errors.casela && (
-            <p className="text-sm text-red-500 mt-1">{errors.casela.message}</p>
-          )}
-        </div>
+      <div
+        className={cn(
+          "grid gap-6",
+          sector === SectorType.ENFERMAGEM
+            ? "grid-cols-1"
+            : "grid-cols-1 md:grid-cols-2",
+        )}
+      >
         <div className="grid gap-2">
           <label className="text-sm font-semibold text-slate-700">
-            Residente
+            {sector === SectorType.ENFERMAGEM ? "Casela (residente)" : "Casela"}
           </label>
-          <input
-            type="text"
-            value={selectedCasela?.name || ""}
-            readOnly
-            disabled={!isIndividual}
-            className={cn(
-              "w-full border rounded-lg px-3 py-2 text-sm",
-              !isIndividual
-                ? "bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200"
-                : "bg-slate-50 border-slate-200",
+          <Controller
+            name="casela"
+            control={control}
+            render={({ field }) => (
+              <>
+                <Popover open={caselaOpen} onOpenChange={setCaselaOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      disabled={!isIndividual}
+                      className={cn(
+                        "w-full justify-between bg-white",
+                        errors.casela && "border-red-500",
+                        !isIndividual &&
+                          "bg-slate-100 text-slate-500 cursor-not-allowed",
+                      )}
+                    >
+                      {field.value != null && selectedCasela
+                        ? sector === SectorType.ENFERMAGEM
+                          ? selectedCasela.name
+                          : String(selectedCasela.casela)
+                        : sector === SectorType.ENFERMAGEM
+                          ? "Buscar por nome do residente..."
+                          : "Selecione a casela"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="bottom"
+                    align="start"
+                    sideOffset={4}
+                    avoidCollisions={false}
+                    className="w-full p-0"
+                  >
+                    <Command
+                      shouldFilter={true}
+                      filter={(itemValue, search) => {
+                        if (!search?.trim()) return 1;
+                        const term = search.trim().toLowerCase();
+                        return itemValue.toLowerCase().includes(term) ? 1 : 0;
+                      }}
+                    >
+                      <CommandInput
+                        placeholder={
+                          sector === SectorType.ENFERMAGEM
+                            ? "Buscar por nome do residente..."
+                            : "Buscar por número..."
+                        }
+                      />
+                      <CommandEmpty>Nenhuma casela encontrada.</CommandEmpty>
+                      <CommandGroup>
+                        {caselasForSelect.map((c) => {
+                          const label =
+                            sector === SectorType.ENFERMAGEM ? c.name : String(c.casela);
+                          const searchValue = `${c.casela} ${c.name}`;
+                          return (
+                            <CommandItem
+                              key={c.casela}
+                              value={searchValue}
+                              onSelect={() => {
+                                field.onChange(c.casela);
+                                setCaselaOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  field.value === c.casela ? "opacity-100" : "opacity-0",
+                                )}
+                              />
+                              {label}
+                              {sector === SectorType.ENFERMAGEM && (
+                                <span className="ml-2 text-slate-500 text-xs">
+                                  (Casela {c.casela})
+                                </span>
+                              )}
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {errors.casela && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {errors.casela.message}
+                  </p>
+                )}
+              </>
             )}
           />
         </div>
+        {sector === SectorType.FARMACIA && (
+          <div className="grid gap-2">
+            <label className="text-sm font-semibold text-slate-700">
+              Residente
+            </label>
+            <input
+              type="text"
+              value={selectedCasela?.name || ""}
+              readOnly
+              disabled={!isIndividual}
+              className={cn(
+                "w-full border rounded-lg px-3 py-2 text-sm",
+                !isIndividual
+                  ? "bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200"
+                  : "bg-slate-50 border-slate-200",
+              )}
+            />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -410,33 +530,6 @@ export const MedicineForm = memo(function MedicineForm({
             ))}
           </select>
         </div>
-      </div>
-
-      <div className="grid gap-2">
-        <label className="text-sm font-semibold text-slate-700">
-          Setor <span className="text-red-500">*</span>
-        </label>
-        <select
-          {...register("sector")}
-          disabled={isCart}
-          className={cn(
-            "w-full border rounded-lg px-3 py-2 text-sm bg-white",
-            errors.sector ? "border-red-500" : "border-slate-300",
-            isCart && "bg-slate-100 text-slate-500 cursor-not-allowed",
-          )}
-        >
-          <option value="" disabled hidden>
-            Selecione
-          </option>
-          {Object.values(SectorType).map((sector) => (
-            <option key={sector} value={sector}>
-              {sector === SectorType.FARMACIA ? "Farmácia" : "Enfermagem"}
-            </option>
-          ))}
-        </select>
-        {errors.sector && (
-          <p className="text-sm text-red-500 mt-1">{errors.sector.message}</p>
-        )}
       </div>
 
       <div className="grid gap-2">

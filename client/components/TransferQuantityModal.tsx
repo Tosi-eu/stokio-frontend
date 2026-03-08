@@ -1,4 +1,4 @@
-import { FC, useState, useEffect } from "react";
+import { FC, useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -202,7 +202,15 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
     });
   };
 
-  const filteredResidents = residents.filter((r) => {
+  const sortedResidents = useMemo(
+    () =>
+      [...(residents ?? [])].sort((a, b) =>
+        a.name.localeCompare(b.name, "pt-BR"),
+      ),
+    [residents],
+  );
+
+  const filteredResidents = sortedResidents.filter((r) => {
     if (!caselaSearch) return true;
     if (/^\d+$/.test(caselaSearch)) {
       return r.casela === Number(caselaSearch);
