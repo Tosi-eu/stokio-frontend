@@ -25,6 +25,13 @@ import {
 } from "../helpers/audit.helpers";
 import type { InsightsData, AuditEvent } from "../types";
 
+interface AdminUserOption {
+  id: number;
+  login: string;
+  firstName?: string;
+  lastName?: string;
+}
+
 interface AdminTabInsightsProps {
   insights: InsightsData | null;
   loadingInsights: boolean;
@@ -33,6 +40,11 @@ interface AdminTabInsightsProps {
   applyInsightDays: () => void;
   insightFilter: "create" | "update" | "delete" | null;
   setInsightFilter: (v: "create" | "update" | "delete" | null) => void;
+  insightResourceFilter: string;
+  setInsightResourceFilter: (v: string) => void;
+  insightUserIdFilter: number | "";
+  setInsightUserIdFilter: (v: number | "") => void;
+  adminUsers: AdminUserOption[];
   setEventsPage: (v: number) => void;
   eventsPage: number;
   eventsPageSize: number;
@@ -53,6 +65,11 @@ export function AdminTabInsights({
   applyInsightDays,
   insightFilter,
   setInsightFilter,
+  insightResourceFilter,
+  setInsightResourceFilter,
+  insightUserIdFilter,
+  setInsightUserIdFilter,
+  adminUsers,
   setEventsPage,
   eventsPage,
   eventsPageSize,
@@ -89,6 +106,55 @@ export function AdminTabInsights({
           <Button type="button" variant="secondary" size="sm" onClick={applyInsightDays}>
             Aplicar
           </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-4 mt-2">
+          <div className="flex items-center gap-2">
+            <Label className="text-sm whitespace-nowrap">Recurso</Label>
+            <Select
+              value={insightResourceFilter || "all"}
+              onValueChange={(v) => {
+                setInsightResourceFilter(v === "all" ? "" : v);
+                setEventsPage(1);
+              }}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {Object.entries(AUDIT_RESOURCE_LABEL).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="text-sm whitespace-nowrap">Usuário</Label>
+            <Select
+              value={insightUserIdFilter === "" ? "all" : String(insightUserIdFilter)}
+              onValueChange={(v) => {
+                setInsightUserIdFilter(v === "all" ? "" : Number(v));
+                setEventsPage(1);
+              }}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {adminUsers.map((u) => (
+                  <SelectItem key={u.id} value={String(u.id)}>
+                    {u.login}
+                    {u.firstName || u.lastName
+                      ? ` (${[u.firstName, u.lastName].filter(Boolean).join(" ")})`
+                      : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </CardHeader>
       <CardContent>

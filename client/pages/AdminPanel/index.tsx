@@ -8,12 +8,19 @@ import {
   FileText,
   Users,
   Edit,
+  LogIn,
+  Settings,
+  Bell,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth.hook";
 import {
   useAdminSummary,
   useAdminAlerts,
   useAdminUsers,
+  useAdminLoginLog,
+  useAdminConfig,
+  useAdminMetrics,
+  useAdminNotifications,
   useAdminInsights,
   useAdminReports,
   useAdminResumoExtras,
@@ -23,9 +30,13 @@ import {
   AdminTabAlertas,
   AdminTabRelatorios,
   AdminTabUsers,
+  AdminTabAcessos,
+  AdminTabConfig,
+  AdminTabNotificacoes,
   AdminTabInsights,
   AdminAuditCompareDialog,
   AdminUserEditDialog,
+  AdminUserCreateDialog,
   AdminUserDeleteDialog,
 } from "./components";
 import { parseYearMonthToDate } from "@/helpers/dates.helper";
@@ -42,6 +53,10 @@ export default function AdminPanel() {
   const summary = useAdminSummary(isAdmin);
   const alerts = useAdminAlerts(isAdmin);
   const users = useAdminUsers(isAdmin);
+  const loginLog = useAdminLoginLog(isAdmin);
+  const config = useAdminConfig(isAdmin);
+  const metrics = useAdminMetrics(isAdmin);
+  const notifications = useAdminNotifications(isAdmin);
   const insights = useAdminInsights(isAdmin);
   const reports = useAdminReports();
   const resumoExtras = useAdminResumoExtras(isAdmin);
@@ -51,7 +66,7 @@ export default function AdminPanel() {
   return (
     <Layout title="Painel administrativo">
       <Tabs defaultValue="resumo" className="w-full">
-        <TabsList className="grid grid-cols-5 gap-1 w-full p-1">
+        <TabsList className="grid grid-cols-8 gap-1 w-full p-1">
           <TabsTrigger
             value="resumo"
             className="gap-1.5 min-w-0 text-xs sm:text-sm"
@@ -81,6 +96,27 @@ export default function AdminPanel() {
             <span className="truncate">Usuários</span>
           </TabsTrigger>
           <TabsTrigger
+            value="acessos"
+            className="gap-1.5 min-w-0 text-xs sm:text-sm"
+          >
+            <LogIn className="h-4 w-4 shrink-0" />
+            <span className="truncate">Acessos</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="config"
+            className="gap-1.5 min-w-0 text-xs sm:text-sm"
+          >
+            <Settings className="h-4 w-4 shrink-0" />
+            <span className="truncate">Config</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="notificacoes"
+            className="gap-1.5 min-w-0 text-xs sm:text-sm"
+          >
+            <Bell className="h-4 w-4 shrink-0" />
+            <span className="truncate">Notif.</span>
+          </TabsTrigger>
+          <TabsTrigger
             value="insights"
             className="gap-1.5 min-w-0 text-xs sm:text-sm"
           >
@@ -91,6 +127,7 @@ export default function AdminPanel() {
 
         <TabsContent value="resumo" className="mt-6">
           <AdminTabResumo
+            metrics={metrics.metrics}
             summary={summary.summary}
             loadingSummary={summary.loadingSummary}
             expandedSummary={summary.expandedSummary}
@@ -170,6 +207,7 @@ export default function AdminPanel() {
             setReportPreviewUrl={reports.setReportPreviewUrl}
             handleGenerateReport={reports.handleGenerateReport}
             handlePreviewReport={reports.handlePreviewReport}
+            handleExportCSV={reports.handleExportCSV}
           />
         </TabsContent>
 
@@ -179,7 +217,61 @@ export default function AdminPanel() {
             loadingUsers={users.loadingUsers}
             currentUserId={user?.id}
             openEdit={users.openEdit}
+            openCreate={() => users.setCreateModalOpen(true)}
             setDeleteTarget={users.setDeleteTarget}
+          />
+        </TabsContent>
+
+        <TabsContent value="acessos" className="mt-6">
+          <AdminTabAcessos
+            data={loginLog.data}
+            total={loginLog.total}
+            loading={loginLog.loading}
+            page={loginLog.page}
+            setPage={loginLog.setPage}
+            limit={loginLog.limit}
+            setLimit={loginLog.setLimit}
+            loginFilter={loginLog.loginFilter}
+            setLoginFilter={loginLog.setLoginFilter}
+            successFilter={loginLog.successFilter}
+            setSuccessFilter={loginLog.setSuccessFilter}
+            fromDate={loginLog.fromDate}
+            setFromDate={loginLog.setFromDate}
+            toDate={loginLog.toDate}
+            setToDate={loginLog.setToDate}
+            applyFilters={loginLog.applyFilters}
+          />
+        </TabsContent>
+
+        <TabsContent value="config" className="mt-6">
+          <AdminTabConfig
+            form={config.form}
+            setForm={config.setForm}
+            loading={config.loading}
+            saving={config.saving}
+            health={config.health}
+            onSave={config.save}
+          />
+        </TabsContent>
+
+        <TabsContent value="notificacoes" className="mt-6">
+          <AdminTabNotificacoes
+            items={notifications.items}
+            total={notifications.total}
+            loading={notifications.loading}
+            page={notifications.page}
+            setPage={notifications.setPage}
+            limit={notifications.limit}
+            setLimit={notifications.setLimit}
+            tipoFilter={notifications.tipoFilter}
+            setTipoFilter={notifications.setTipoFilter}
+            statusFilter={notifications.statusFilter}
+            setStatusFilter={notifications.setStatusFilter}
+            vistoFilter={notifications.vistoFilter}
+            setVistoFilter={notifications.setVistoFilter}
+            applyFilters={notifications.applyFilters}
+            markAsRead={notifications.markAsRead}
+            archive={notifications.archive}
           />
         </TabsContent>
 
@@ -192,6 +284,11 @@ export default function AdminPanel() {
             applyInsightDays={insights.applyInsightDays}
             insightFilter={insights.insightFilter}
             setInsightFilter={insights.setInsightFilter}
+            insightResourceFilter={insights.insightResourceFilter}
+            setInsightResourceFilter={insights.setInsightResourceFilter}
+            insightUserIdFilter={insights.insightUserIdFilter}
+            setInsightUserIdFilter={insights.setInsightUserIdFilter}
+            adminUsers={users.users}
             setEventsPage={insights.setEventsPage}
             eventsPage={insights.eventsPage}
             eventsPageSize={insights.eventsPageSize}
@@ -218,6 +315,15 @@ export default function AdminPanel() {
         saving={users.saving}
         onClose={() => users.setEditModal(null)}
         onSave={users.handleSaveEdit}
+      />
+
+      <AdminUserCreateDialog
+        open={users.createModalOpen}
+        form={users.formCreate}
+        setForm={users.setFormCreate}
+        saving={users.saving}
+        onClose={() => users.setCreateModalOpen(false)}
+        onSave={users.handleCreate}
       />
 
       <AdminUserDeleteDialog

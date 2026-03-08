@@ -5,7 +5,7 @@ import {
   OperationType,
   SectorType,
 } from "@/utils/enums";
-import { api } from "./canonical";
+import { api, API_BASE_URL } from "./canonical";
 import type {
   PaginatedResponse,
   DashboardSummaryResponse,
@@ -202,6 +202,44 @@ export const getReport = (
 
   return api.get(`/relatorios?${search.toString()}`);
 };
+
+/** Build query params for admin CSV export (same shape as getReport). */
+export function buildAdminExportParams(
+  type: string,
+  casela?: number,
+  params?: MovementsParams,
+): Record<string, string> {
+  const out: Record<string, string> = { type };
+  if (casela != null) out.casela = String(casela);
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      out[key] = String(value);
+    });
+  }
+  return out;
+}
+
+/** Download admin export as CSV (uses credentials). */
+export async function downloadAdminExportCSV(
+  queryParams: Record<string, string>,
+): Promise<void> {
+  const search = new URLSearchParams(queryParams);
+  const res = await fetch(`${API_BASE_URL}/admin/export?${search.toString()}`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.error || "Erro ao exportar");
+  }
+  const text = await res.text();
+  const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `export-${queryParams.type || "relatorio"}-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 export const getTransferReport = () => {
   return api.get("/relatorios?type=transferencias");
@@ -606,6 +644,18 @@ export type UserPermissions = {
   delete: boolean;
 };
 
+export type CreateAdminUserPayload = {
+  login: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+  role?: "admin" | "user";
+  permissions?: UserPermissions;
+};
+
+export const createAdminUser = (data: CreateAdminUserPayload) =>
+  api.post("/admin/users", data);
+
 export const updateAdminUser = (
   id: number,
   data: {
@@ -620,11 +670,95 @@ export const updateAdminUser = (
 
 export const deleteAdminUser = (id: number) => api.delete(`/admin/users/${id}`);
 
+export type LoginLogEntry = {
+  id: number;
+  user_id: number | null;
+  login: string;
+  success: boolean;
+  ip: string | null;
+  user_agent: string | null;
+  created_at: string;
+};
+
+export type AdminLoginLogResponse = {
+  data: LoginLogEntry[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+export const getAdminLoginLog = (params?: {
+  page?: number;
+  limit?: number;
+  userId?: number;
+  login?: string;
+  success?: boolean;
+  fromDate?: string;
+  toDate?: string;
+}) => api.get<AdminLoginLogResponse>("/admin/login-log", { params: params ?? {} });
+
+export type AdminMetricsResponse = {
+  movementsThisMonth: number;
+  activeUsersThisMonth: number;
+};
+
+export const getAdminMetrics = () =>
+  api.get<AdminMetricsResponse>("/admin/metrics");
+
+export type AdminHealthResponse = {
+  database: string;
+  redis: string;
+  lastBackupAt: string | null;
+};
+
+export const getAdminHealth = () =>
+  api.get<AdminHealthResponse>("/admin/health");
+
+export const getAdminConfig = () =>
+  api.get<Record<string, string>>("/admin/config");
+
+export const updateAdminConfig = (config: Record<string, string>) =>
+  api.put("/admin/config", config);
+
+export type AdminNotificationItem = {
+  id: number;
+  destino: string;
+  data_prevista: string;
+  status: string;
+  criado_por: number;
+  residente_nome?: string;
+  medicamento_nome?: string;
+  usuario: string;
+  visto: boolean;
+  tipo_evento: string;
+};
+
+export type AdminNotificationsResponse = {
+  items: AdminNotificationItem[];
+  total: number;
+  page: number;
+  limit: number;
+  hasNext: boolean;
+};
+
+export const getAdminNotifications = (params?: {
+  page?: number;
+  limit?: number;
+  tipo?: string;
+  status?: string;
+  visto?: boolean;
+}) => api.get<AdminNotificationsResponse>("/admin/notifications", { params: params ?? {} });
+
+export const patchAdminNotification = (id: number, data: { visto?: boolean; status?: string }) =>
+  api.patch(`/admin/notifications/${id}`, data);
+
 export const getAdminInsights = (params?: {
   days?: number;
   limit?: number;
   page?: number;
   operationType?: "create" | "update" | "delete";
+  resource?: string;
+  userId?: number;
 }) =>
   api.get<AdminInsightsResponse>("/admin/insights", { params: params ?? {} });
 

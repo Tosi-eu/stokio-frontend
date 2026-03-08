@@ -8,7 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, UserPlus } from "lucide-react";
 import type { AdminUser } from "../types";
 
 interface AdminTabUsersProps {
@@ -16,6 +16,7 @@ interface AdminTabUsersProps {
   loadingUsers: boolean;
   currentUserId?: number | null;
   openEdit: (u: AdminUser) => void;
+  openCreate: () => void;
   setDeleteTarget: (u: AdminUser | null) => void;
 }
 
@@ -24,16 +25,24 @@ export function AdminTabUsers({
   loadingUsers,
   currentUserId,
   openEdit,
+  openCreate,
   setDeleteTarget,
 }: AdminTabUsersProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Usuários do sistema</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          O administrador pode editar e remover usuários. A criação de novos usuários é feita pelo
-          fluxo de cadastro do sistema.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <CardTitle>Usuários do sistema</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Crie, edite e remova usuários. Defina privilégio e permissões.
+            </p>
+          </div>
+          <Button onClick={openCreate} className="gap-2">
+            <UserPlus className="h-4 w-4" />
+            Novo usuário
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {loadingUsers ? (

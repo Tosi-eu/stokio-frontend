@@ -28,11 +28,13 @@ import {
   CommandGroup,
   CommandItem,
 } from "@/components/ui/command";
-import { Users, Pill, Package, Archive, Grid, Loader2, Search } from "lucide-react";
+import { Users, Pill, Package, Archive, Grid, Loader2, Search, Activity, LogIn } from "lucide-react";
 import type { ExecutiveSummary } from "../types";
 import type { SummaryListKind } from "../hooks/useAdminSummary";
+import type { AdminMetricsResponse } from "@/api/requests";
 
 interface AdminTabResumoProps {
+  metrics?: AdminMetricsResponse | null;
   summary: ExecutiveSummary | null;
   loadingSummary: boolean;
   expandedSummary: SummaryListKind | null;
@@ -94,6 +96,7 @@ interface AdminTabResumoProps {
 }
 
 export function AdminTabResumo({
+  metrics,
   summary,
   loadingSummary,
   expandedSummary,
@@ -146,6 +149,32 @@ export function AdminTabResumo({
             </div>
           ) : summary ? (
             <>
+              {metrics != null && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  <Card className="bg-muted/40">
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2">
+                        <Activity className="h-8 w-8 text-blue-600" />
+                        <div>
+                          <p className="text-2xl font-bold">{metrics.movementsThisMonth}</p>
+                          <p className="text-sm text-muted-foreground">Movimentações este mês</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-muted/40">
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2">
+                        <LogIn className="h-8 w-8 text-green-600" />
+                        <div>
+                          <p className="text-2xl font-bold">{metrics.activeUsersThisMonth}</p>
+                          <p className="text-sm text-muted-foreground">Usuários ativos este mês</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <Card
                   className={`bg-slate-50 cursor-pointer transition-all hover:shadow-md ${expandedSummary === "residents" ? "ring-2 ring-sky-500" : ""}`}
