@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "@/hooks/use-toast.hook";
-import { getReport, getResidents } from "@/api/requests";
+import {
+  getReport,
+  getResidents,
+  buildAdminExportParams,
+  downloadAdminExportCSV,
+} from "@/api/requests";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import {
   createStockPDF,
@@ -192,6 +197,86 @@ export function useAdminReports() {
     return getReport(tipo, casela);
   }
 
+  async function handleExportCSV() {
+    if (!selectedReportType) {
+      toast({ title: "Selecione um tipo de relatório", variant: "error" });
+      return;
+    }
+    const tipo = selectedReportType;
+    let params: Record<string, string>;
+    try {
+      if (tipo === "movimentacoes") {
+        let movementParams: MovementsParams;
+        if (reportMovementPeriod === MovementPeriod.DIARIO) {
+          if (!reportMovementDate) {
+            toast({ title: "Selecione a data", variant: "error" });
+            return;
+          }
+          movementParams = {
+            periodo: MovementPeriod.DIARIO,
+            data: reportMovementDate.toISOString().split("T")[0],
+          };
+        } else if (reportMovementPeriod === MovementPeriod.MENSAL) {
+          if (!reportMovementMonth) {
+            toast({ title: "Selecione o mês", variant: "error" });
+            return;
+          }
+          movementParams = {
+            periodo: MovementPeriod.MENSAL,
+            mes: reportMovementMonth,
+          };
+        } else {
+          if (!reportStartDate || !reportEndDate) {
+            toast({ title: "Selecione o intervalo de datas", variant: "error" });
+            return;
+          }
+          movementParams = {
+            periodo: MovementPeriod.INTERVALO,
+            data_inicial: reportStartDate.toISOString().split("T")[0],
+            data_final: reportEndDate.toISOString().split("T")[0],
+          };
+        }
+        params = buildAdminExportParams("movimentacoes", undefined, movementParams);
+      } else if (tipo === "transferencias") {
+        let transferParams: MovementsParams;
+        if (reportTransferPeriod === MovementPeriod.DIARIO) {
+          if (!reportTransferDate) {
+            toast({ title: "Selecione a data da transferência", variant: "error" });
+            return;
+          }
+          transferParams = {
+            periodo: MovementPeriod.DIARIO,
+            data: reportTransferDate.toISOString().split("T")[0],
+          };
+        } else {
+          if (!reportStartDate || !reportEndDate) {
+            toast({ title: "Selecione o intervalo de datas", variant: "error" });
+            return;
+          }
+          transferParams = {
+            periodo: MovementPeriod.INTERVALO,
+            data_inicial: reportStartDate.toISOString().split("T")[0],
+            data_final: reportEndDate.toISOString().split("T")[0],
+          };
+        }
+        params = buildAdminExportParams("transferencias", undefined, transferParams);
+      } else {
+        const casela =
+          tipo === "residente_consumo" || tipo === "medicamentos_residente"
+            ? selectedReportResident ?? undefined
+            : undefined;
+        params = buildAdminExportParams(tipo, casela);
+      }
+      await downloadAdminExportCSV(params);
+      toast({ title: "Exportação CSV concluída", variant: "success" });
+    } catch (e) {
+      toast({
+        title: e instanceof Error ? e.message : "Erro ao exportar CSV",
+        variant: "error",
+      });
+    }
+  }
+
   return {
     selectedReportType,
     setSelectedReportType,
@@ -225,6 +310,7 @@ export function useAdminReports() {
     filteredReportResidents,
     handleGenerateReport,
     handlePreviewReport,
+    handleExportCSV,
     parseYearMonthToDate,
   };
 }

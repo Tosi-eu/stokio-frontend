@@ -10,6 +10,8 @@ export function useAdminInsights(isAdmin: boolean) {
   const [insightFilter, setInsightFilter] = useState<
     "create" | "update" | "delete" | null
   >(null);
+  const [insightResourceFilter, setInsightResourceFilter] = useState<string>("");
+  const [insightUserIdFilter, setInsightUserIdFilter] = useState<number | "">("");
   const [eventsPage, setEventsPage] = useState(1);
   const [eventsPageSize, setEventsPageSize] = useState(25);
   const [auditCompareEvent, setAuditCompareEvent] = useState<AuditEvent | null>(null);
@@ -26,6 +28,8 @@ export function useAdminInsights(isAdmin: boolean) {
       eventsPage,
       eventsPageSize,
       insightFilter,
+      insightResourceFilter,
+      insightUserIdFilter,
     ],
     queryFn: () =>
       getAdminInsights({
@@ -33,6 +37,8 @@ export function useAdminInsights(isAdmin: boolean) {
         limit: eventsPageSize,
         page: eventsPage,
         operationType: insightFilter ?? undefined,
+        resource: insightResourceFilter || undefined,
+        userId: insightUserIdFilter === "" ? undefined : insightUserIdFilter,
       }),
     enabled: isAdmin,
   });
@@ -84,6 +90,10 @@ export function useAdminInsights(isAdmin: boolean) {
     setInsightDaysInput,
     insightFilter,
     setInsightFilter,
+    insightResourceFilter,
+    setInsightResourceFilter,
+    insightUserIdFilter,
+    setInsightUserIdFilter,
     eventsPage,
     setEventsPage,
     eventsPageSize,

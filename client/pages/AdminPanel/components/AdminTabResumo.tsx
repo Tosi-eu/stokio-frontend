@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -18,6 +19,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -28,11 +35,21 @@ import {
   CommandGroup,
   CommandItem,
 } from "@/components/ui/command";
-import { Users, Pill, Package, Archive, Grid, Loader2, Search } from "lucide-react";
+import { Users, Pill, Package, Archive, Grid, Loader2, Search, Activity, LogIn } from "lucide-react";
 import type { ExecutiveSummary } from "../types";
 import type { SummaryListKind } from "../hooks/useAdminSummary";
+import {
+  getAdminActiveUsersThisMonth,
+  getAdminMovementsThisMonth,
+} from "@/api/requests";
+import type {
+  AdminActiveUserThisMonth,
+  AdminMetricsResponse,
+  StockHistoryEntry,
+} from "@/api/requests";
 
 interface AdminTabResumoProps {
+  metrics?: AdminMetricsResponse | null;
   summary: ExecutiveSummary | null;
   loadingSummary: boolean;
   expandedSummary: SummaryListKind | null;
@@ -94,6 +111,7 @@ interface AdminTabResumoProps {
 }
 
 export function AdminTabResumo({
+  metrics,
   summary,
   loadingSummary,
   expandedSummary,
@@ -132,6 +150,70 @@ export function AdminTabResumo({
   fetchStockHistoryByItem,
   fetchStockHistoryByLote,
 }: AdminTabResumoProps) {
+  const [metricsDialog, setMetricsDialog] = useState<
+    null | "activeUsers" | "movements"
+  >(null);
+  const [metricsPage, setMetricsPage] = useState(1);
+  const [metricsLimit, setMetricsLimit] = useState(25);
+  const [metricsLoading, setMetricsLoading] = useState(false);
+
+  const [activeUsersRows, setActiveUsersRows] = useState<
+    AdminActiveUserThisMonth[]
+  >([]);
+  const [activeUsersTotal, setActiveUsersTotal] = useState(0);
+
+  const [movementsRows, setMovementsRows] = useState<StockHistoryEntry[]>([]);
+  const [movementsTotal, setMovementsTotal] = useState(0);
+
+  const metricsTotalPages = useMemo(() => {
+    const total =
+      metricsDialog === "activeUsers" ? activeUsersTotal : movementsTotal;
+    return Math.max(1, Math.ceil(total / metricsLimit));
+  }, [activeUsersTotal, movementsTotal, metricsLimit, metricsDialog]);
+
+  useEffect(() => {
+    if (!metricsDialog) return;
+    setMetricsPage(1);
+  }, [metricsDialog]);
+
+  useEffect(() => {
+    if (!metricsDialog) return;
+    let cancelled = false;
+    setMetricsLoading(true);
+
+    (metricsDialog === "activeUsers"
+      ? getAdminActiveUsersThisMonth({ page: metricsPage, limit: metricsLimit })
+      : getAdminMovementsThisMonth({ page: metricsPage, limit: metricsLimit })
+    )
+      .then((res) => {
+        if (cancelled) return;
+        if (metricsDialog === "activeUsers") {
+          setActiveUsersRows(Array.isArray(res?.data) ? res.data : []);
+          setActiveUsersTotal(Number(res?.total) || 0);
+        } else {
+          setMovementsRows(Array.isArray(res?.data) ? res.data : []);
+          setMovementsTotal(Number(res?.total) || 0);
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        if (metricsDialog === "activeUsers") {
+          setActiveUsersRows([]);
+          setActiveUsersTotal(0);
+        } else {
+          setMovementsRows([]);
+          setMovementsTotal(0);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setMetricsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [metricsDialog, metricsPage, metricsLimit]);
+
   return (
     <>
       <Card>
@@ -146,6 +228,40 @@ export function AdminTabResumo({
             </div>
           ) : summary ? (
             <>
+              {metrics != null && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  <Card
+                    className="bg-muted/40 cursor-pointer transition-all hover:shadow-md"
+                    onClick={() => setMetricsDialog("movements")}
+                  >
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2">
+                        <Activity className="h-8 w-8 text-blue-600" />
+                        <div>
+                          <p className="text-2xl font-bold">{metrics.movementsThisMonth}</p>
+                          <p className="text-sm text-muted-foreground">Movimentações este mês</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Clique para listar</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card
+                    className="bg-muted/40 cursor-pointer transition-all hover:shadow-md"
+                    onClick={() => setMetricsDialog("activeUsers")}
+                  >
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2">
+                        <LogIn className="h-8 w-8 text-green-600" />
+                        <div>
+                          <p className="text-2xl font-bold">{metrics.activeUsersThisMonth}</p>
+                          <p className="text-sm text-muted-foreground">Usuários ativos este mês</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Clique para listar</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <Card
                   className={`bg-slate-50 cursor-pointer transition-all hover:shadow-md ${expandedSummary === "residents" ? "ring-2 ring-sky-500" : ""}`}
@@ -653,6 +769,149 @@ export function AdminTabResumo({
             )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={metricsDialog != null}
+        onOpenChange={(open) => {
+          if (!open) setMetricsDialog(null);
+        }}
+      >
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>
+              {metricsDialog === "activeUsers"
+                ? "Usuários ativos este mês"
+                : "Movimentações este mês"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex items-center justify-end gap-2">
+            <label className="text-sm text-muted-foreground">Itens por página</label>
+            <Select
+              value={String(metricsLimit)}
+              onValueChange={(v) => {
+                setMetricsLimit(Number(v));
+                setMetricsPage(1);
+              }}
+            >
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="border rounded-md overflow-auto max-h-[420px]">
+            {metricsLoading ? (
+              <div className="flex items-center gap-2 p-4 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Carregando...
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {metricsDialog === "activeUsers" ? (
+                      <>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Login</TableHead>
+                        <TableHead className="whitespace-nowrap">Último acesso</TableHead>
+                        <TableHead className="text-right whitespace-nowrap">Acessos</TableHead>
+                      </>
+                    ) : (
+                      <>
+                        <TableHead className="whitespace-nowrap">Data</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Item</TableHead>
+                        <TableHead className="text-right whitespace-nowrap">Qtd</TableHead>
+                        <TableHead>Setor</TableHead>
+                        <TableHead>Operador</TableHead>
+                        <TableHead>Residente</TableHead>
+                      </>
+                    )}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {metricsDialog === "activeUsers" ? (
+                    activeUsersRows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          Nenhum usuário ativo no mês.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      activeUsersRows.map((u) => {
+                        const fullName = [u.first_name, u.last_name]
+                          .filter(Boolean)
+                          .join(" ")
+                          .trim();
+                        const last = u.last_login_at
+                          ? new Date(u.last_login_at).toLocaleString("pt-BR")
+                          : "-";
+                        return (
+                          <TableRow key={u.id}>
+                            <TableCell>{fullName || u.login}</TableCell>
+                            <TableCell className="font-mono text-xs">{u.login}</TableCell>
+                            <TableCell className="whitespace-nowrap">{last}</TableCell>
+                            <TableCell className="text-right">{u.logins_count ?? 0}</TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )
+                  ) : movementsRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground">
+                        Nenhuma movimentação no mês.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    movementsRows.map((m) => (
+                      <TableRow key={m.id}>
+                        <TableCell className="whitespace-nowrap">{m.data}</TableCell>
+                        <TableCell>{m.tipo}</TableCell>
+                        <TableCell>{m.nome}</TableCell>
+                        <TableCell className="text-right">{m.quantidade}</TableCell>
+                        <TableCell>{m.setor}</TableCell>
+                        <TableCell>{m.operador}</TableCell>
+                        <TableCell>{m.residente ?? "—"}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+
+          <div className="flex items-center justify-center gap-2 pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={metricsPage <= 1}
+              onClick={() => setMetricsPage((p) => Math.max(1, p - 1))}
+            >
+              Anterior
+            </Button>
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
+              Página {metricsPage} de {metricsTotalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={metricsPage >= metricsTotalPages}
+              onClick={() =>
+                setMetricsPage((p) => Math.min(metricsTotalPages, p + 1))
+              }
+            >
+              Próxima
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast.hook";
-import { getAdminUsers, updateAdminUser, deleteAdminUser } from "@/api/requests";
+import {
+  getAdminUsers,
+  createAdminUser,
+  updateAdminUser,
+  deleteAdminUser,
+} from "@/api/requests";
 import type { AdminUser, UserPermissions } from "../types";
+import type { CreateUserForm } from "../components/AdminUserCreateDialog";
 
 const defaultPermissions: UserPermissions = {
   read: true,
@@ -14,6 +20,7 @@ export function useAdminUsers(isAdmin: boolean) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [editModal, setEditModal] = useState<AdminUser | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [formEdit, setFormEdit] = useState({
     firstName: "",
@@ -22,6 +29,14 @@ export function useAdminUsers(isAdmin: boolean) {
     password: "",
     role: "user" as "admin" | "user",
     permissions: defaultPermissions as UserPermissions,
+  });
+  const [formCreate, setFormCreate] = useState<CreateUserForm>({
+    firstName: "",
+    lastName: "",
+    login: "",
+    password: "",
+    role: "user",
+    permissions: { ...defaultPermissions },
   });
   const [saving, setSaving] = useState(false);
 
@@ -89,6 +104,42 @@ export function useAdminUsers(isAdmin: boolean) {
     }
   }
 
+  async function handleCreate() {
+    setSaving(true);
+    try {
+      const permissionsToSend =
+        formCreate.role === "admin"
+          ? { read: true, create: true, update: true, delete: true }
+          : formCreate.permissions;
+      await createAdminUser({
+        login: formCreate.login.trim(),
+        password: formCreate.password,
+        firstName: formCreate.firstName.trim() || undefined,
+        lastName: formCreate.lastName.trim() || undefined,
+        role: formCreate.role,
+        permissions: permissionsToSend,
+      });
+      toast({ title: "Usuário criado", variant: "success" });
+      setCreateModalOpen(false);
+      setFormCreate({
+        firstName: "",
+        lastName: "",
+        login: "",
+        password: "",
+        role: "user",
+        permissions: { ...defaultPermissions },
+      });
+      loadUsers();
+    } catch (err) {
+      toast({
+        title: err instanceof Error ? err.message : "Erro ao criar usuário",
+        variant: "error",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleDelete() {
     if (!deleteTarget) return;
     setSaving(true);
@@ -113,6 +164,10 @@ export function useAdminUsers(isAdmin: boolean) {
     loadUsers,
     editModal,
     setEditModal,
+    createModalOpen,
+    setCreateModalOpen,
+    formCreate,
+    setFormCreate,
     deleteTarget,
     setDeleteTarget,
     formEdit,
@@ -120,6 +175,7 @@ export function useAdminUsers(isAdmin: boolean) {
     saving,
     openEdit,
     handleSaveEdit,
+    handleCreate,
     handleDelete,
   };
 }

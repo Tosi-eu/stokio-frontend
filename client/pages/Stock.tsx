@@ -258,9 +258,24 @@ export default function Stock() {
   }, [page, effectiveFilters, filter]);
 
   const filterOptions = useMemo(
-    () => buildFilterOptions(allRawData),
-    [allRawData],
+    () =>
+      buildFilterOptions(allRawData, {
+        residents,
+        setor: filters.setor,
+      }),
+    [allRawData, residents, filters.setor],
   );
+
+  const displayItems = useMemo(() => {
+    return items.map((item) => {
+      const caselaDisplay =
+        item.sector === "enfermagem" && item.casela != null
+          ? residents.find((r) => r.casela === item.casela)?.name ??
+            String(item.casela)
+          : item.casela ?? "-";
+      return { ...item, caselaDisplay };
+    });
+  }, [items, residents]);
 
   const filteredCabinets = useMemo(() => {
     if (!armarioSearch) return filterOptions.cabinets;
@@ -272,9 +287,11 @@ export default function Stock() {
 
   const filteredCaselas = useMemo(() => {
     if (!caselaSearch) return filterOptions.caselas;
-
-    return filterOptions.caselas.filter((c) =>
-      c.value.startsWith(caselaSearch.trim()),
+    const term = caselaSearch.trim().toLowerCase();
+    return filterOptions.caselas.filter(
+      (c) =>
+        c.value.startsWith(caselaSearch.trim()) ||
+        c.label.toLowerCase().includes(term),
     );
   }, [caselaSearch, filterOptions.caselas]);
 
@@ -287,7 +304,7 @@ export default function Stock() {
     { key: "quantity", label: "Quantidade", editable: true },
     { key: "cabinet", label: "Armário", editable: false },
     { key: "drawer", label: "Gaveta", editable: false },
-    { key: "casela", label: "Casela", editable: false },
+    { key: "caselaDisplay", label: "Casela", editable: false },
     { key: "daysToReplacement", label: "Dias para Repor", editable: false },
     { key: "origin", label: "Origem", editable: false },
     { key: "sector", label: "Setor", editable: false },
@@ -634,7 +651,11 @@ export default function Stock() {
                     <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white truncate">
                       <span className="truncate">
                         {filters.casela
-                          ? `Casela ${filters.casela}`
+                          ? filters.setor === "enfermagem"
+                            ? residents.find(
+                                (r) => r.casela === Number(filters.casela),
+                              )?.name ?? `Casela ${filters.casela}`
+                            : `Casela ${filters.casela}`
                           : "Selecione"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
@@ -690,7 +711,7 @@ export default function Stock() {
             <SkeletonTable rows={8} cols={columns.length} />
           ) : (
             <EditableTable
-              data={items as unknown as Record<string, unknown>[]}
+              data={displayItems as unknown as Record<string, unknown>[]}
               columns={columns}
               showAddons={true}
               currentPage={page}

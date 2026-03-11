@@ -60,6 +60,7 @@ interface AdminTabRelatoriosProps {
   setReportPreviewUrl: (v: string | null) => void;
   handleGenerateReport: () => void;
   handlePreviewReport: () => void;
+  handleExportCSV: () => void;
 }
 
 export function AdminTabRelatorios({
@@ -96,6 +97,7 @@ export function AdminTabRelatorios({
   setReportPreviewUrl,
   handleGenerateReport,
   handlePreviewReport,
+  handleExportCSV,
 }: AdminTabRelatoriosProps) {
   return (
     <Card>
@@ -337,6 +339,16 @@ export function AdminTabRelatorios({
             ) : (
               <>Pré-visualizar</>
             )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleExportCSV}
+            disabled={
+              !selectedReportType ||
+              (showReportResidentSelector && selectedReportResident == null)
+            }
+          >
+            Exportar CSV
           </Button>
         </div>
 
