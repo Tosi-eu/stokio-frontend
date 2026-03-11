@@ -56,8 +56,6 @@ export function AdminTabNotificacoes({
   archive,
 }: AdminTabNotificacoesProps) {
   const totalPages = Math.max(1, Math.ceil(total / limit));
-  const from = total === 0 ? 0 : (page - 1) * limit + 1;
-  const to = Math.min(page * limit, total);
 
   return (
     <Card>
@@ -127,6 +125,26 @@ export function AdminTabNotificacoes({
           <p className="text-muted-foreground">Carregando...</p>
         ) : (
           <>
+            <div className="flex items-center justify-end gap-2">
+              <label className="text-sm text-muted-foreground">Itens por página</label>
+              <Select
+                value={String(limit)}
+                onValueChange={(v) => {
+                  setLimit(Number(v));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -192,30 +210,7 @@ export function AdminTabNotificacoes({
               </Table>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-muted-foreground">Por página</label>
-                <Select
-                  value={String(limit)}
-                  onValueChange={(v) => {
-                    setLimit(Number(v));
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger className="w-20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {from}-{to} de {total}
-              </p>
-              <div className="flex gap-1">
+            <div className="flex items-center justify-center gap-1">
                 <Button
                   variant="outline"
                   size="sm"
@@ -232,7 +227,6 @@ export function AdminTabNotificacoes({
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
-              </div>
             </div>
           </>
         )}

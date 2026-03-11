@@ -705,6 +705,39 @@ export type AdminMetricsResponse = {
 export const getAdminMetrics = () =>
   api.get<AdminMetricsResponse>("/admin/metrics");
 
+export type AdminActiveUserThisMonth = {
+  id: number;
+  login: string;
+  first_name: string | null;
+  last_name: string | null;
+  last_login_at: string;
+  logins_count: number;
+};
+
+export type AdminActiveUsersThisMonthResponse = {
+  data: AdminActiveUserThisMonth[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+export const getAdminActiveUsersThisMonth = (params?: {
+  page?: number;
+  limit?: number;
+}) => api.get<AdminActiveUsersThisMonthResponse>("/admin/metrics/active-users", { params: params ?? {} });
+
+export const getAdminMovementsThisMonth = (params?: {
+  page?: number;
+  limit?: number;
+}) =>
+  api.get<{
+    data: StockHistoryEntry[];
+    total: number;
+    hasNext: boolean;
+    page: number;
+    limit: number;
+  }>("/admin/metrics/movements", { params: params ?? {} });
+
 export type AdminHealthResponse = {
   database: string;
   redis: string;
