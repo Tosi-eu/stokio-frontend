@@ -461,6 +461,11 @@ export const getTomorrowReplacementNotifications = async () => {
   };
 };
 
+export const getStockFilterOptions = () =>
+  api.get<{ cabinets: number[]; caselas: number[]; lots: string[] }>(
+    "/estoque/filter-options",
+  );
+
 export const getStock = (
   page = 1,
   limit = 6,

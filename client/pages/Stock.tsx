@@ -9,6 +9,7 @@ import { lazy, Suspense } from "react";
 const ReportModal = lazy(() => import("@/components/ReportModal"));
 import {
   getStock,
+  getStockFilterOptions,
   removeIndividualMedicineFromStock,
   resumeMedicineFromStock,
   suspendMedicineFromStock,
@@ -23,7 +24,7 @@ import { StockActionType, StockItemType } from "@/interfaces/types";
 import {
   fetchStockPage,
   formatStockItems,
-  buildFilterOptions,
+  buildFilterOptionsFromApi,
 } from "@/helpers/stock-list.helper";
 import ConfirmActionModal from "@/components/ConfirmationActionModal";
 import TransferQuantityModal from "@/components/TransferQuantityModal";
@@ -33,7 +34,6 @@ import {
   actionTitles,
 } from "@/helpers/toaster.helper";
 import { toast } from "@/hooks/use-toast.hook";
-import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import {
   Popover,
   PopoverContent,
@@ -76,7 +76,11 @@ export default function Stock() {
 
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [items, setItems] = useState<StockItem[]>([]);
-  const [allRawData, setAllRawData] = useState<any[]>([]);
+  const [apiFilterOptions, setApiFilterOptions] = useState<{
+    cabinets: number[];
+    caselas: number[];
+    lots: string[];
+  } | null>(null);
   const [page, setPage] = useState(1);
   const limit = 8;
   const [hasNext, setHasNext] = useState(false);
@@ -161,20 +165,17 @@ export default function Stock() {
     }
   }
 
-  async function loadAllStock() {
+  async function loadFilterOptions() {
     try {
-      const allItems = await fetchAllPaginated(
-        (page, limit) => getStock(page, limit),
-        100,
-      );
-      setAllRawData(allItems);
+      const res = await getStockFilterOptions();
+      setApiFilterOptions(res?.data ?? null);
     } catch (err: unknown) {
       const errorMessage =
         err instanceof Error
           ? err.message
-          : "Não foi possível carregar todos os itens do estoque.";
+          : "Não foi possível carregar as opções de filtro.";
       toast({
-        title: "Erro ao carregar dados",
+        title: "Erro ao carregar opções",
         description: errorMessage,
         variant: "error",
         duration: 3000,
@@ -211,9 +212,11 @@ export default function Stock() {
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await loadStock(1);
-      await loadAllStock();
-      await loadResidents();
+      await Promise.all([
+        loadStock(1),
+        loadFilterOptions(),
+        loadResidents(),
+      ]);
     }
 
     init();
@@ -259,11 +262,11 @@ export default function Stock() {
 
   const filterOptions = useMemo(
     () =>
-      buildFilterOptions(allRawData, {
+      buildFilterOptionsFromApi(apiFilterOptions, {
         residents,
         setor: filters.setor,
       }),
-    [allRawData, residents, filters.setor],
+    [apiFilterOptions, residents, filters.setor],
   );
 
   const displayItems = useMemo(() => {
@@ -379,7 +382,6 @@ export default function Stock() {
       }
 
       await loadStock(page);
-      await loadAllStock();
 
       const messages =
         typeof actionMessages[type] === "function"
@@ -429,8 +431,6 @@ export default function Stock() {
     const { row } = pendingAction;
     setActionLoading(true);
 
-    console.log(options);
-
     try {
       await transferStockSector({
         estoque_id: row.id,
@@ -445,7 +445,6 @@ export default function Stock() {
       });
 
       await loadStock(page);
-      await loadAllStock();
 
       const messages = actionMessages.transfer(row);
       toast({ title: messages.success, variant: "success", duration: 3000 });
@@ -479,11 +478,7 @@ export default function Stock() {
       <div className="space-y-6 max-w-7xl mx-auto">
         <div className="flex flex-wrap gap-3 justify-end mt-8">
           <button
-            onClick={() =>
-              navigate("/stock/out", {
-                state: { data: allRawData.length > 0 ? allRawData : undefined },
-              })
-            }
+            onClick={() => navigate("/stock/out")}
             className="
                 h-12 px-6 rounded-lg font-semiboldfetchStockPage
                 bg-red-600 text-white
@@ -531,7 +526,7 @@ export default function Stock() {
           </div>
         )}
 
-        {allRawData.length > 0 && (
+        {apiFilterOptions !== null && (
           <div className="bg-white p-6 rounded-lg border border-gray-300 shadow-sm">
             <div className="flex items-end gap-4">
               <div className="flex-1 min-w-0">
@@ -728,7 +723,6 @@ export default function Stock() {
               onResume={(row) => requestResume(row as unknown as StockItem)}
               onDeleteSuccess={() => {
                 loadStock(page);
-                loadAllStock();
               }}
               entityType="stock"
             />

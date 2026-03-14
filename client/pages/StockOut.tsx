@@ -3,7 +3,7 @@ import Layout from "@/components/Layout";
 import { toast } from "@/hooks/use-toast.hook";
 import { useAuth } from "@/hooks/use-auth.hook";
 import { useNavigate, useLocation } from "react-router-dom";
-import { createStockOut, getResidents } from "@/api/requests";
+import { createStockOut, getResidents, getStock } from "@/api/requests";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import { useFormWithZod } from "@/hooks/use-form-with-zod";
 import { stockOutQuantitySchema } from "@/schemas/stock-out.schema";
@@ -74,6 +74,18 @@ export default function StockOut() {
                 (item: StockItemRaw) => item.tipo_item === operationType,
               )
             : passedData;
+        setItems(filtered as StockItemRaw[]);
+      } else {
+        const allItems = await fetchAllPaginated(
+          (page, limit) => getStock(page, limit),
+          100,
+        );
+        const filtered =
+          operationType !== "Selecione"
+            ? allItems.filter(
+                (item: StockItemRaw) => item.tipo_item === operationType,
+              )
+            : allItems;
         setItems(filtered as StockItemRaw[]);
       }
     } catch (err) {
