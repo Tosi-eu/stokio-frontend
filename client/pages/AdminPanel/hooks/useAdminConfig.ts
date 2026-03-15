@@ -46,11 +46,19 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load is stable
   }, [isAdmin, enabled]);
 
+  async function refetchHealth() {
+    if (!isAdmin) return;
+    try {
+      const h = await getAdminHealth();
+      setHealth(h);
+    } catch {
+      setHealth(null);
+    }
+  }
+
   useEffect(() => {
     if (!isAdmin || !enabled) return;
-    getAdminHealth()
-      .then(setHealth)
-      .catch(() => setHealth(null));
+    refetchHealth();
   }, [isAdmin, enabled]);
 
   async function save() {
@@ -79,5 +87,6 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
     health,
     load,
     save,
+    refetchHealth,
   };
 }

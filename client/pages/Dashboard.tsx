@@ -18,25 +18,12 @@ const DashboardChartCard = lazy(() =>
   })),
 );
 import {
-  getTodayMedicineNotifications,
-  getTomorrowReplacementNotifications,
-  updateNotification,
-} from "@/api/requests";
-import {
   CabinetStockItem,
   StockDistributionItem,
   RecentMovement,
   MedicineRankingItem,
   DrawerStockItem,
 } from "@/interfaces/interfaces";
-const NotificationReminderModal = lazy(
-  () => import("@/components/NotificationModal"),
-);
-const StockReplacementModal = lazy(() =>
-  import("@/components/StockReplacementModal").then((m) => ({
-    default: m.default,
-  })),
-);
 import StockProportionCard from "@/components/StockProportionCard";
 import { prepareStockDistributionData } from "@/helpers/estoque.helper";
 import { SectorType } from "@/utils/enums";
@@ -70,13 +57,6 @@ export default function Dashboard() {
   const [nonMovementProducts, setNonMovementProducts] = useState<unknown[]>([]);
   const [loadingNonMovement, setLoadingNonMovement] = useState(true);
   const [loadingRecentMovements, setLoadingRecentMovements] = useState(true);
-
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [notifList, setNotifList] = useState([]);
-  const [replacementOpen, setReplacementOpen] = useState(false);
-  const [replacementItems, setReplacementItems] = useState<
-    import("@/components/StockReplacementModal").StockReplacementItem[]
-  >([]);
 
   const {
     summary,
@@ -192,49 +172,6 @@ export default function Dashboard() {
       setLoadingRecentMovements(false);
     }
   }, [summary]);
-
-  useEffect(() => {
-    async function fetchReminders() {
-      try {
-        const res = await getTodayMedicineNotifications();
-
-        if (res.items.length > 0) {
-          setNotifList(res.items);
-          setNotifOpen(true);
-        }
-      } catch (err: unknown) {
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Não foi possível carregar as notificações do dia.";
-        toast({
-          title: "Erro ao carregar notificações",
-          description: errorMessage,
-          variant: "error",
-          duration: 3000,
-        });
-      }
-    }
-
-    fetchReminders();
-  }, []);
-
-  useEffect(() => {
-    async function fetchReplacementReminders() {
-      try {
-        const res = await getTomorrowReplacementNotifications();
-
-        if (res.items.length > 0) {
-          setReplacementItems(res.items);
-          setReplacementOpen(true);
-        }
-      } catch {
-        /* NO-OP */
-      }
-    }
-
-    fetchReplacementReminders();
-  }, []);
 
   const stats = useMemo(
     () => [
@@ -509,37 +446,6 @@ export default function Dashboard() {
           />
         </section>
       </div>
-
-      <Suspense fallback={null}>
-        <NotificationReminderModal
-          open={notifOpen}
-          events={notifList}
-          onClose={() => {
-            if (notifList.length > 0) {
-              Promise.all(
-                notifList.map((n: { id: number }) =>
-                  updateNotification(n.id, { visto: true }),
-                ),
-              ).catch(() => {});
-            }
-            setNotifOpen(false);
-          }}
-        />
-        <StockReplacementModal
-          open={replacementOpen}
-          items={replacementItems}
-          onClose={() => {
-            if (replacementItems.length > 0) {
-              Promise.all(
-                replacementItems.map((n: { id: number }) =>
-                  updateNotification(n.id, { visto: true }),
-                ),
-              ).catch(() => {});
-            }
-            setReplacementOpen(false);
-          }}
-        />
-      </Suspense>
     </Layout>
   );
 }

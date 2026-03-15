@@ -5,6 +5,7 @@ import { useState } from "react";
 import LogoutConfirmDialog from "./LogoutConfirmDialog";
 import { NotificationButton } from "@/components/NotificationButton";
 import { NotificationDrawer } from "./NotificationDrawer";
+import { GlobalNotificationModals } from "./GlobalNotificationModals";
 import { VerticalLayout } from "./VerticalLayout";
 import { ChevronRight } from "lucide-react";
 
@@ -75,6 +76,7 @@ export default function Layout({ children, title, breadcrumb }: LayoutProps) {
 
       <NotificationButton />
       <NotificationDrawer />
+      <GlobalNotificationModals />
 
       <LogoutConfirmDialog
         open={showLogoutModal}

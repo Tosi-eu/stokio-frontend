@@ -762,6 +762,17 @@ export const getAdminConfig = () =>
 export const updateAdminConfig = (config: Record<string, string>) =>
   api.put("/admin/config", config);
 
+export type RestoreBackupResponse = {
+  message: string;
+};
+
+/** Envia o arquivo de dump (backup_*.sql.gz ou .sql) para restaurar o banco. */
+export const restoreBackup = (file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post("/admin/restore-backup", form) as Promise<RestoreBackupResponse>;
+};
+
 export type AdminNotificationItem = {
   id: number;
   destino: string;

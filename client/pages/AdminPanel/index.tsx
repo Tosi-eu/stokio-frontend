@@ -270,6 +270,7 @@ export default function AdminPanel() {
             saving={config.saving}
             health={config.health}
             onSave={config.save}
+            refetchHealth={config.refetchHealth}
           />
         </TabsContent>
 

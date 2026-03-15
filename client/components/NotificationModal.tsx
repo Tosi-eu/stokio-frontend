@@ -11,16 +11,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { BellRing } from "lucide-react";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
+import type { NotificationListItem } from "@/api/types";
 
 interface NotificationReminderModalProps {
   open: boolean;
-  events: Array<{
-    id: number;
-    residente_nome;
-    medicamento_nome;
-    destino: string;
-    data_prevista: string;
-  }>;
+  events: NotificationListItem[];
   onClose: () => void;
 }
 
