@@ -116,5 +116,6 @@ export default {
       },
     },
   },
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- Tailwind plugin convention
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;

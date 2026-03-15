@@ -96,6 +96,8 @@ export function NotificationDrawer() {
     setFilterTimeout(timeout);
 
     return () => clearTimeout(timeout);
+    // filterTimeout is a ref set by this effect; omit to avoid re-running on its change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterResidentName, fetchItems]);
 
   const handleRemove = async (

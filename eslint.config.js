@@ -14,7 +14,10 @@ export default [
       react: { version: "detect" },
     },
   },
-  { plugins: { "react-hooks": reactHooksPlugin }, rules: reactHooksPlugin.configs.recommended.rules },
+  {
+    plugins: { "react-hooks": reactHooksPlugin },
+    rules: reactHooksPlugin.configs.recommended.rules,
+  },
   prettierConfig,
   {
     files: ["**/*.{ts,tsx}"],
@@ -28,8 +31,33 @@ export default [
     },
     rules: {
       "react/react-in-jsx-scope": "off",
-      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_" },
+      ],
       "@typescript-eslint/no-explicit-any": "off",
+      // TypeScript covers prop types; avoids noise in .tsx
+      "react/prop-types": "off",
+      // Common pattern: sync setState in effect (e.g. reset on open)
+      "react-hooks/set-state-in-effect": "warn",
+      // Third-party APIs (TanStack Virtual, React Hook Form)
+      "react-hooks/incompatible-library": "warn",
+      "react-hooks/purity": "warn",
+      "react/display-name": "warn",
+      "no-constant-binary-expression": "warn",
+      "@typescript-eslint/no-empty-object-type": "warn",
+      // cmdk uses data-style attributes
+      "react/no-unknown-property": [
+        "error",
+        { ignore: ["cmdk-input-wrapper"] },
+      ],
+      "no-useless-escape": "warn",
+      "no-useless-catch": "warn",
+      "no-useless-assignment": "warn",
+      "prefer-const": "warn",
+      "no-empty": "warn",
+      "@typescript-eslint/no-require-imports": "warn",
+      "react-hooks/exhaustive-deps": "warn",
     },
   },
 ];

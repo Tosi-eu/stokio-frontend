@@ -9,7 +9,7 @@ export async function fetchAllPaginated<T>(
   limit = 100,
 ): Promise<T[]> {
   let page = 1;
-  let all: T[] = [];
+  const all: T[] = [];
   let hasNext = true;
 
   while (hasNext) {

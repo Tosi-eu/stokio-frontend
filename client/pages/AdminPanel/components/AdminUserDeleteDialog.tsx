@@ -30,8 +30,8 @@ export function AdminUserDeleteDialog({
           <DialogTitle>Remover usuário</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Tem certeza que deseja remover o usuário <strong>{user.login}</strong>?
-          Esta ação não pode ser desfeita.
+          Tem certeza que deseja remover o usuário <strong>{user.login}</strong>
+          ? Esta ação não pode ser desfeita.
         </p>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>

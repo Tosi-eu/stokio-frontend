@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import ConfirmationModal from "@/components/ConfirmationModal";
+import { getErrorMessage } from "@/helpers/validation.helper";
 
 export default function RegisterDrawer() {
   const navigate = useNavigate();
@@ -85,7 +86,8 @@ export default function RegisterDrawer() {
     } catch (err) {
       toast({
         title: "Erro ao cadastrar",
-        description: "Não foi possível cadastrar a gaveta.",
+        description:
+          "Não foi possível cadastrar a gaveta: " + getErrorMessage(err),
         variant: "error",
       });
     } finally {

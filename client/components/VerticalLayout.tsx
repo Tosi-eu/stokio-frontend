@@ -100,7 +100,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
           >
             {user.first_name && user.last_name
               ? `${user.first_name} ${user.last_name}`.trim()
-              : user.login ?? "Usuário"}
+              : (user.login ?? "Usuário")}
           </p>
           <button
             onClick={onLogout}

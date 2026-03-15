@@ -33,11 +33,11 @@ export function useAdminAlerts(isAdmin: boolean, enabled = true) {
           })),
       );
       const noStock = stockList
-        .filter((i) => (Number(i.quantidade) ?? 0) === 0)
+        .filter((i) => (Number(i.quantidade) || 0) === 0)
         .map((i) => ({
           nome: i.nome ?? "-",
           detalhe: i.principio_ativo ?? i.descricao ?? null,
-          quantidade: Number(i.quantidade) ?? 0,
+          quantidade: Number(i.quantidade) || 0,
           minimo: i.minimo,
           validade: formatValidityDate(i.validade),
           setor: i.setor ?? "-",
@@ -46,12 +46,12 @@ export function useAdminAlerts(isAdmin: boolean, enabled = true) {
       const belowMin = stockList
         .filter(
           (i) =>
-            i.st_quantidade === "critical" && (Number(i.quantidade) ?? 0) > 0,
+            i.st_quantidade === "critical" && (Number(i.quantidade) || 0) > 0,
         )
         .map((i) => ({
           nome: i.nome ?? "-",
           detalhe: i.principio_ativo ?? i.descricao ?? null,
-          quantidade: Number(i.quantidade) ?? 0,
+          quantidade: Number(i.quantidade) || 0,
           minimo: i.minimo,
           validade: formatValidityDate(i.validade),
           setor: i.setor ?? "-",
@@ -62,7 +62,7 @@ export function useAdminAlerts(isAdmin: boolean, enabled = true) {
         .map((i) => ({
           nome: i.nome ?? "-",
           detalhe: i.principio_ativo ?? i.descricao ?? null,
-          quantidade: Number(i.quantidade) ?? 0,
+          quantidade: Number(i.quantidade) || 0,
           minimo: i.minimo,
           validade: formatValidityDate(i.validade),
           setor: i.setor ?? "-",
@@ -77,7 +77,7 @@ export function useAdminAlerts(isAdmin: boolean, enabled = true) {
         .map((i) => ({
           nome: i.nome ?? "-",
           detalhe: i.principio_ativo ?? i.descricao ?? null,
-          quantidade: Number(i.quantidade) ?? 0,
+          quantidade: Number(i.quantidade) || 0,
           minimo: i.minimo,
           validade: formatValidityDate(i.validade),
           setor: i.setor ?? "-",

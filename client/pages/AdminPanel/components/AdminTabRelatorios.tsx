@@ -140,10 +140,15 @@ export function AdminTabRelatorios({
             ) : (
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full max-w-md justify-between">
+                  <Button
+                    variant="outline"
+                    className="w-full max-w-md justify-between"
+                  >
                     {selectedReportResident != null
                       ? `Casela ${selectedReportResident} - ${
-                          reportResidents.find((r) => r.casela === selectedReportResident)?.name ?? ""
+                          reportResidents.find(
+                            (r) => r.casela === selectedReportResident,
+                          )?.name ?? ""
                         }`
                       : "Selecione o residente"}
                   </Button>
@@ -186,7 +191,9 @@ export function AdminTabRelatorios({
               <SelectContent>
                 <SelectItem value={MovementPeriod.DIARIO}>Diário</SelectItem>
                 <SelectItem value={MovementPeriod.MENSAL}>Mensal</SelectItem>
-                <SelectItem value={MovementPeriod.INTERVALO}>Intervalo</SelectItem>
+                <SelectItem value={MovementPeriod.INTERVALO}>
+                  Intervalo
+                </SelectItem>
               </SelectContent>
             </Select>
             {reportMovementPeriod === MovementPeriod.DIARIO && (
@@ -205,7 +212,11 @@ export function AdminTabRelatorios({
               <div>
                 <Label className="text-xs">Mês</Label>
                 <DatePicker
-                  selected={reportMovementMonth ? parseYearMonthToDate(reportMovementMonth) : null}
+                  selected={
+                    reportMovementMonth
+                      ? parseYearMonthToDate(reportMovementMonth)
+                      : null
+                  }
                   onChange={(d: Date | null) => {
                     if (!d) setReportMovementMonth("");
                     else {
@@ -261,7 +272,9 @@ export function AdminTabRelatorios({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={MovementPeriod.DIARIO}>Diário</SelectItem>
-                <SelectItem value={MovementPeriod.INTERVALO}>Intervalo</SelectItem>
+                <SelectItem value={MovementPeriod.INTERVALO}>
+                  Intervalo
+                </SelectItem>
               </SelectContent>
             </Select>
             {reportTransferPeriod === MovementPeriod.DIARIO && (
@@ -355,7 +368,9 @@ export function AdminTabRelatorios({
         {reportPreviewUrl && (
           <div className="mt-6 space-y-2 border rounded-lg bg-muted/30 p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Pré-visualização do relatório</span>
+              <span className="text-sm font-medium">
+                Pré-visualização do relatório
+              </span>
               <Button
                 variant="ghost"
                 size="sm"

@@ -45,15 +45,17 @@ export default function EditMedicine() {
   useEffect(() => {
     if (location.state?.item) {
       const item = location.state.item;
-      setMedicineId(item.id);
-
-      reset({
-        nome: item.nome || "",
-        principio_ativo: item.principio_ativo || "",
-        dosagem: item.dosagem || "",
-        unidade_medida: item.unidade_medida || "",
-        estoque_minimo: item.estoque_minimo?.toString() || "",
-      });
+      const id = setTimeout(() => {
+        setMedicineId(item.id);
+        reset({
+          nome: item.nome || "",
+          principio_ativo: item.principio_ativo || "",
+          dosagem: item.dosagem || "",
+          unidade_medida: item.unidade_medida || "",
+          estoque_minimo: item.estoque_minimo?.toString() || "",
+        });
+      }, 0);
+      return () => clearTimeout(id);
     }
   }, [location.state, reset]);
 

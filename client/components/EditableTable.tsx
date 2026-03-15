@@ -463,7 +463,9 @@ export default function EditableTable({
                                   !isIndividualMedicine(row) &&
                                   disabledActionClass
                                 }`}
-                                aria-label={isActive(row) ? "Suspender" : "Retomar"}
+                                aria-label={
+                                  isActive(row) ? "Suspender" : "Retomar"
+                                }
                               >
                                 {isActive(row) ? (
                                   <PauseCircle size={16} />

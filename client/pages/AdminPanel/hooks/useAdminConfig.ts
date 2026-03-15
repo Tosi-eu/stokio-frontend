@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast.hook";
-import { getAdminConfig, updateAdminConfig, getAdminHealth } from "@/api/requests";
+import {
+  getAdminConfig,
+  updateAdminConfig,
+  getAdminHealth,
+} from "@/api/requests";
 import type { AdminHealthResponse } from "@/api/requests";
 
 export const CONFIG_KEYS = {
@@ -39,11 +43,14 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
 
   useEffect(() => {
     if (isAdmin && enabled) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load is stable
   }, [isAdmin, enabled]);
 
   useEffect(() => {
     if (!isAdmin || !enabled) return;
-    getAdminHealth().then(setHealth).catch(() => setHealth(null));
+    getAdminHealth()
+      .then(setHealth)
+      .catch(() => setHealth(null));
   }, [isAdmin, enabled]);
 
   async function save() {

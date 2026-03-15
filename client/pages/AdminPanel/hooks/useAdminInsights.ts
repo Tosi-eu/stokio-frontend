@@ -10,11 +10,16 @@ export function useAdminInsights(isAdmin: boolean, enabled = true) {
   const [insightFilter, setInsightFilter] = useState<
     "create" | "update" | "delete" | null
   >(null);
-  const [insightResourceFilter, setInsightResourceFilter] = useState<string>("");
-  const [insightUserIdFilter, setInsightUserIdFilter] = useState<number | "">("");
+  const [insightResourceFilter, setInsightResourceFilter] =
+    useState<string>("");
+  const [insightUserIdFilter, setInsightUserIdFilter] = useState<number | "">(
+    "",
+  );
   const [eventsPage, setEventsPage] = useState(1);
   const [eventsPageSize, setEventsPageSize] = useState(25);
-  const [auditCompareEvent, setAuditCompareEvent] = useState<AuditEvent | null>(null);
+  const [auditCompareEvent, setAuditCompareEvent] = useState<AuditEvent | null>(
+    null,
+  );
 
   const {
     data: insightsData,

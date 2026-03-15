@@ -118,15 +118,18 @@ export function buildFilterOptions(
     .sort((a, b) => a - b)
     .map((id) => ({ value: String(id), label: `Armário ${id}` }));
 
-  const isEnfermagem = options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
+  const isEnfermagem =
+    options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
   const caselaIds: StockFilterOption[] = isEnfermagem
-    ? [...(options!.residents!)]
+    ? [...options!.residents!]
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
         .map((r) => ({ value: String(r.casela), label: r.name }))
     : Array.from(
         new Set(
           raw
-            .map((i: Record<string, unknown>) => i.casela_id as number | undefined)
+            .map(
+              (i: Record<string, unknown>) => i.casela_id as number | undefined,
+            )
             .filter((id): id is number => id != null),
         ),
       )
@@ -173,7 +176,7 @@ export function buildFilterOptionsFromApi(
   const isEnfermagem =
     options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
   const caselas: StockFilterOption[] = isEnfermagem
-    ? [...(options!.residents!)]
+    ? [...options!.residents!]
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
         .map((r) => ({ value: String(r.casela), label: r.name }))
     : (apiOptions?.caselas ?? [])

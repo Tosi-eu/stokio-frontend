@@ -296,25 +296,23 @@ export default function Dashboard() {
       <div className="space-y-10 pt-10">
         <section>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {loadingSummary ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i} className="overflow-hidden">
-                  <CardContent className="flex flex-col items-center py-8">
-                    <Skeleton className="h-4 w-24 mb-2" />
-                    <Skeleton className="h-12 w-16" />
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              stats.map((stat, index) => (
-                <DashboardStatsCard
-                  key={index}
-                  label={stat.label}
-                  value={stat.value}
-                  onClick={stat.onClick}
-                />
-              ))
-            )}
+            {loadingSummary
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <Card key={i} className="overflow-hidden">
+                    <CardContent className="flex flex-col items-center py-8">
+                      <Skeleton className="h-4 w-24 mb-2" />
+                      <Skeleton className="h-12 w-16" />
+                    </CardContent>
+                  </Card>
+                ))
+              : stats.map((stat, index) => (
+                  <DashboardStatsCard
+                    key={index}
+                    label={stat.label}
+                    value={stat.value}
+                    onClick={stat.onClick}
+                  />
+                ))}
           </div>
         </section>
 

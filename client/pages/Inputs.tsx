@@ -19,7 +19,6 @@ export default function Inputs() {
   const [loading, setLoading] = useState(true);
   const [searchFilter, setSearchFilter] = useState("");
   const [hasNext, setHasNext] = useState(false);
-  const [total, setTotal] = useState(0);
   const { toast } = useToast();
 
   async function fetchInputs() {
@@ -32,7 +31,6 @@ export default function Inputs() {
       );
       setInputs(res.data as unknown as Record<string, unknown>[]);
       setHasNext(res.hasNext);
-      setTotal(res.total);
     } catch (err: unknown) {
       const errorMessage =
         err instanceof Error ? err.message : "Erro inesperado";
@@ -47,16 +45,13 @@ export default function Inputs() {
     }
   }
 
-  const totalPages = useMemo(() => {
-    return Math.max(1, Math.ceil(total / DEFAULT_PAGE_SIZE));
-  }, [total]);
-
   const hasNextPage = useMemo(() => {
     return hasNext;
   }, [hasNext]);
 
   useEffect(() => {
     fetchInputs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchInputs is stable, deps are page/searchFilter
   }, [page, searchFilter]);
 
   useEffect(() => {

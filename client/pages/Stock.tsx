@@ -8,7 +8,6 @@ import { lazy, Suspense } from "react";
 
 const ReportModal = lazy(() => import("@/components/ReportModal"));
 import {
-  getStock,
   getStockFilterOptions,
   removeIndividualMedicineFromStock,
   resumeMedicineFromStock,
@@ -42,13 +41,11 @@ import {
 } from "@/components/ui/popover";
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
 } from "@/components/ui/command";
-import { Check, ChevronsUpDown, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ChevronsUpDown, X } from "lucide-react";
 import { TableFilter } from "@/components/TableFilter";
 
 const FILTER_LABELS: Record<string, string> = {
@@ -119,13 +116,7 @@ export default function Stock() {
       ...filters,
       nome: debouncedNome,
     }),
-    [
-      debouncedNome,
-      filters.casela,
-      filters.armario,
-      filters.setor,
-      filters.lote,
-    ],
+    [debouncedNome, filters],
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
@@ -213,14 +204,11 @@ export default function Stock() {
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([
-        loadStock(1),
-        loadFilterOptions(),
-        loadResidents(),
-      ]);
+      await Promise.all([loadStock(1), loadFilterOptions(), loadResidents()]);
     }
 
     init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount only
   }, []);
 
   const isInitialMount = useRef(true);
@@ -249,7 +237,8 @@ export default function Stock() {
   const prevFilterRef = useRef<string | null>(undefined);
 
   useEffect(() => {
-    const hadFilter = prevFilterRef.current != null && prevFilterRef.current !== undefined;
+    const hadFilter =
+      prevFilterRef.current != null && prevFilterRef.current !== undefined;
     const nowCleared = filter == null;
     prevFilterRef.current = filter ?? null;
     if (hadFilter && nowCleared) {
@@ -259,6 +248,7 @@ export default function Stock() {
 
   useEffect(() => {
     loadStock(page, effectiveFilters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadStock is stable, intentional deps
   }, [page, effectiveFilters, filter]);
 
   const handleNomeFilterChange = useCallback((value: string) => {
@@ -281,9 +271,9 @@ export default function Stock() {
     return items.map((item) => {
       const caselaDisplay =
         item.sector === "enfermagem" && item.casela != null
-          ? residents.find((r) => r.casela === item.casela)?.name ??
-            String(item.casela)
-          : item.casela ?? "-";
+          ? (residents.find((r) => r.casela === item.casela)?.name ??
+            String(item.casela))
+          : (item.casela ?? "-");
       return { ...item, caselaDisplay };
     });
   }, [items, residents]);
@@ -653,9 +643,9 @@ export default function Stock() {
                       <span className="truncate">
                         {filters.casela
                           ? filters.setor === "enfermagem"
-                            ? residents.find(
+                            ? (residents.find(
                                 (r) => r.casela === Number(filters.casela),
-                              )?.name ?? `Casela ${filters.casela}`
+                              )?.name ?? `Casela ${filters.casela}`)
                             : `Casela ${filters.casela}`
                           : "Selecione"}
                       </span>

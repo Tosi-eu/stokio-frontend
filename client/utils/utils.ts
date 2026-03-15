@@ -1,9 +1,5 @@
 export async function tap<T>(fn: () => Promise<T> | T): Promise<T> {
-  try {
-    return await fn();
-  } catch (err) {
-    throw err;
-  }
+  return fn();
 }
 
 export function parseDateFromString(

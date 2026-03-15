@@ -21,7 +21,7 @@
     "test": "vitest --run",
     "format.fix": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "eslint .",
+    "lint": "eslint \"**/*.ts\" \"**/*.tsx\"",
     "typecheck": "tsc"
   },
   "dependencies": {

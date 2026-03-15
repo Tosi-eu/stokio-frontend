@@ -73,16 +73,19 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
 
   useEffect(() => {
     if (open) {
-      setQuantity("");
-      setSelectedCasela("");
-      setDestination("");
-      setDetails("");
-      setCaselaSearch("");
-      setIsGeneralUse(false);
-      setFetchedDiasParaRepor(null);
-      setDaysToReplacement(
-        item?.daysToReplacement != null ? String(item.daysToReplacement) : "",
-      );
+      const id = setTimeout(() => {
+        setQuantity("");
+        setSelectedCasela("");
+        setDestination("");
+        setDetails("");
+        setCaselaSearch("");
+        setIsGeneralUse(false);
+        setFetchedDiasParaRepor(null);
+        setDaysToReplacement(
+          item?.daysToReplacement != null ? String(item.daysToReplacement) : "",
+        );
+      }, 0);
+      return () => clearTimeout(id);
     }
   }, [open, item?.daysToReplacement]);
 
@@ -100,8 +103,8 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
       isGeneralUse ||
       item.itemType !== "medicamento"
     ) {
-      setFetchedDiasParaRepor(null);
-      return;
+      const id = setTimeout(() => setFetchedDiasParaRepor(null), 0);
+      return () => clearTimeout(id);
     }
     let cancelled = false;
     getDaysForReplacementForNursing(item.medicamentoId, caselaForDaysFetch)
@@ -186,13 +189,13 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
       (isIndividualStock || isInput) && hasDestination
         ? destination.trim()
         : null;
-    
+
     const hasValidCasela =
       isIndividualStock || (!isGeneralUse && hasCaselaSelected);
     const valueToSend =
       daysToReplacement !== ""
         ? Number(daysToReplacement)
-        : suggestedDiasParaRepor ?? item?.daysToReplacement ?? null;
+        : (suggestedDiasParaRepor ?? item?.daysToReplacement ?? null);
     const shouldSendDaysToReplacement =
       !isGeneralUse && isMedicamento && hasValidCasela && valueToSend != null;
 

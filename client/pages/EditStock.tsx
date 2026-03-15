@@ -5,10 +5,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "@/hooks/use-toast.hook";
 import { getErrorMessage } from "@/helpers/validation.helper";
 import { useFormWithZod } from "@/hooks/use-form-with-zod";
-import {
-  editStockSchema,
-  type EditStockFormData,
-} from "@/schemas/edit-stock.schema";
+import { editStockSchema } from "@/schemas/edit-stock.schema";
 import { updateStockItem } from "@/api/requests";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,7 +19,6 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { StockItem } from "@/interfaces/interfaces";
-import { Cabinet, Drawer, Patient } from "@/interfaces/interfaces";
 import {
   SectorType,
   OriginType,
@@ -182,7 +178,17 @@ export default function EditStock() {
       setValue("setor", SectorType.ENFERMAGEM);
     }
   }, [watchedTipo, setValue]);
-  const onSubmit = async (data: EditStockFormData) => {
+
+  const caselaResidentsList = useMemo(() => {
+    if (stockItem?.sector === "enfermagem") {
+      return [...residents].sort((a, b) =>
+        a.name.localeCompare(b.name, "pt-BR"),
+      );
+    }
+    return residents;
+  }, [residents, stockItem?.sector]);
+
+  const onSubmit = async () => {
     setConfirmOpen(true);
   };
 
@@ -253,15 +259,6 @@ export default function EditStock() {
   }
 
   const selectedResident = residents.find((r) => r.casela === watchedCaselaId);
-
-  const caselaResidentsList = useMemo(() => {
-    if (stockItem?.sector === "enfermagem") {
-      return [...residents].sort((a, b) =>
-        a.name.localeCompare(b.name, "pt-BR"),
-      );
-    }
-    return residents;
-  }, [residents, stockItem?.sector]);
 
   return (
     <Layout title="Editar Item de Estoque">

@@ -12,11 +12,8 @@ import { toast } from "@/hooks/use-toast.hook";
 import { EventStatus, NotificationDestiny } from "@/utils/enums";
 import { parseDateFromString } from "@/utils/utils";
 import { ptBR } from "date-fns/locale";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import DatePicker from "react-datepicker";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Command, CommandInput, CommandGroup, CommandItem } from "./ui/command";
-import { ChevronDown } from "lucide-react";
 import { CommandSelect } from "./CommandSelect";
 import type { RawStockMedicine } from "@/interfaces/interfaces";
 
@@ -42,7 +39,7 @@ export default function CreateNotificationForm({
   const { reload } = useNotifications();
   const { user } = useAuth();
 
-  const [saving, setSaving] = useState(false);
+  const [, setSaving] = useState(false);
   const [loadingOptions, setLoadingOptions] = useState(true);
 
   const [medicamentos, setMedicamentos] = useState<RawStockMedicine[]>([]);
@@ -104,7 +101,7 @@ export default function CreateNotificationForm({
         const res = await getResidents(1, 200);
         setMedicamentos(meds.data ?? []);
         setResidentes(res.data ?? []);
-      } catch (err) {
+      } catch {
         toast({
           title: "Erro ao carregar opções",
           description: "Não foi possível carregar residentes ou medicamentos.",
@@ -151,7 +148,7 @@ export default function CreateNotificationForm({
 
       reload();
       onCreated?.();
-    } catch (err) {
+    } catch {
       toast({
         title: "Erro ao salvar notificação",
         description: "Ocorreu um erro ao tentar salvar a notificação.",

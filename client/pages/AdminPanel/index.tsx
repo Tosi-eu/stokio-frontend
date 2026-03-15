@@ -54,11 +54,17 @@ export default function AdminPanel() {
 
   const summary = useAdminSummary(isAdmin, activeTab === "resumo");
   const alerts = useAdminAlerts(isAdmin, activeTab === "alertas");
-  const users = useAdminUsers(isAdmin, activeTab === "users" || activeTab === "insights");
+  const users = useAdminUsers(
+    isAdmin,
+    activeTab === "users" || activeTab === "insights",
+  );
   const loginLog = useAdminLoginLog(isAdmin, activeTab === "acessos");
   const config = useAdminConfig(isAdmin, activeTab === "config");
   const metrics = useAdminMetrics(isAdmin, activeTab === "resumo");
-  const notifications = useAdminNotifications(isAdmin, activeTab === "notificacoes");
+  const notifications = useAdminNotifications(
+    isAdmin,
+    activeTab === "notificacoes",
+  );
   const insights = useAdminInsights(isAdmin, activeTab === "insights");
   const reports = useAdminReports(activeTab === "relatorios");
   const resumoExtras = useAdminResumoExtras(isAdmin, activeTab === "resumo");
@@ -156,10 +162,18 @@ export default function AdminPanel() {
             setStockHistoryItemSearch={resumoExtras.setStockHistoryItemSearch}
             stockHistoryItemOptions={resumoExtras.stockHistoryItemOptions}
             stockHistorySelectedItem={resumoExtras.stockHistorySelectedItem}
-            setStockHistorySelectedItem={resumoExtras.setStockHistorySelectedItem}
-            loadingStockHistoryItemSearch={resumoExtras.loadingStockHistoryItemSearch}
-            stockHistoryItemPopoverOpen={resumoExtras.stockHistoryItemPopoverOpen}
-            setStockHistoryItemPopoverOpen={resumoExtras.setStockHistoryItemPopoverOpen}
+            setStockHistorySelectedItem={
+              resumoExtras.setStockHistorySelectedItem
+            }
+            loadingStockHistoryItemSearch={
+              resumoExtras.loadingStockHistoryItemSearch
+            }
+            stockHistoryItemPopoverOpen={
+              resumoExtras.stockHistoryItemPopoverOpen
+            }
+            setStockHistoryItemPopoverOpen={
+              resumoExtras.setStockHistoryItemPopoverOpen
+            }
             stockHistoryLote={resumoExtras.stockHistoryLote}
             setStockHistoryLote={resumoExtras.setStockHistoryLote}
             stockHistoryData={resumoExtras.stockHistoryData}
@@ -171,7 +185,10 @@ export default function AdminPanel() {
         </TabsContent>
 
         <TabsContent value="alertas" className="mt-6">
-          <AdminTabAlertas alerts={alerts.alerts} loadingAlerts={alerts.loadingAlerts} />
+          <AdminTabAlertas
+            alerts={alerts.alerts}
+            loadingAlerts={alerts.loadingAlerts}
+          />
         </TabsContent>
 
         <TabsContent value="relatorios" className="mt-6">

@@ -27,6 +27,7 @@ export default function ForgotPassword() {
     },
   });
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- React Hook Form watch()
   const watchedPassword = watch("newPassword");
 
   const onSubmit = async (data: ForgotPasswordFormData) => {
@@ -44,9 +45,8 @@ export default function ForgotPassword() {
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "";
       const rawMessage = errorMessage.toLowerCase();
-      let errorTitle = "Erro";
-      let errorDescription = "Ocorreu um erro ao redefinir a senha.";
-
+      let errorTitle: string;
+      let errorDescription: string;
       if (
         rawMessage.includes("login não encontrado") ||
         rawMessage.includes("não encontrado")
@@ -55,6 +55,7 @@ export default function ForgotPassword() {
         errorDescription =
           "O login informado não existe no sistema. Verifique o login e tente novamente.";
       } else {
+        errorTitle = "Erro";
         errorDescription =
           errorMessage ||
           "Erro ao redefinir senha. Verifique os dados e tente novamente.";

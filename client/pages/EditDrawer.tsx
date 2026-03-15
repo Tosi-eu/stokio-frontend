@@ -34,7 +34,6 @@ export default function EditDrawer() {
   );
 
   const {
-    register,
     handleSubmit,
     control,
     reset,

@@ -51,7 +51,6 @@ export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
     [],
   );
   const [stockHistoryTotal, setStockHistoryTotal] = useState(0);
-  const [stockHistoryPage, setStockHistoryPage] = useState(1);
   const [loadingStockHistory, setLoadingStockHistory] = useState(false);
 
   useEffect(() => {
@@ -94,6 +93,7 @@ export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
 
   useEffect(() => {
     if (isAdmin && enabled) fetchConsumptionByItem();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchConsumptionByItem stable
   }, [isAdmin, enabled]);
 
   useEffect(() => {
@@ -133,7 +133,6 @@ export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
   }, [stockHistoryItemSearch, stockHistoryItemType]);
 
   async function fetchStockHistoryByItem(itemId: number) {
-    setStockHistoryPage(1);
     setLoadingStockHistory(true);
     try {
       const res = await getAdminStockHistory({
@@ -154,7 +153,6 @@ export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
 
   async function fetchStockHistoryByLote() {
     setStockHistorySelectedItem(null);
-    setStockHistoryPage(1);
     setLoadingStockHistory(true);
     try {
       const res = await getAdminStockHistory({

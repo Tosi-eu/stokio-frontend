@@ -1,6 +1,5 @@
 import {
   ItemStockType,
-  MovementType,
   OperationType,
   OriginType,
   SectorType,

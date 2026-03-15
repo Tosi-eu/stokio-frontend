@@ -23,9 +23,8 @@ export type SummaryListKind =
 export function useAdminSummary(isAdmin: boolean, enabled = true) {
   const [summary, setSummary] = useState<ExecutiveSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
-  const [expandedSummary, setExpandedSummary] = useState<SummaryListKind | null>(
-    null,
-  );
+  const [expandedSummary, setExpandedSummary] =
+    useState<SummaryListKind | null>(null);
   const [summaryListData, setSummaryListData] = useState<
     Record<string, unknown>[]
   >([]);

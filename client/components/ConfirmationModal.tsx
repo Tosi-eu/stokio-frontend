@@ -17,11 +17,12 @@ const ConfirmationModal: FC<ConfirmCategoryModalProps> = ({
   const [visible, setVisible] = useState(open);
 
   useEffect(() => {
-    if (open) setVisible(true);
-    else {
-      const timeout = setTimeout(() => setVisible(false), 200);
-      return () => clearTimeout(timeout);
+    if (open) {
+      const id = setTimeout(() => setVisible(true), 0);
+      return () => clearTimeout(id);
     }
+    const timeout = setTimeout(() => setVisible(false), 200);
+    return () => clearTimeout(timeout);
   }, [open]);
 
   if (!visible) return null;

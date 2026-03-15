@@ -11,7 +11,7 @@ export const forgotPasswordSchema = z
       .min(8, "Senha deve ter no mínimo 8 caracteres")
       .max(128, "Senha deve ter no máximo 128 caracteres")
       .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/,
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?])/,
         "Senha deve conter: letra maiúscula, letra minúscula, número e caractere especial",
       ),
     confirmPassword: z.string().min(1, "Confirmação de senha é obrigatória"),

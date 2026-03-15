@@ -321,14 +321,14 @@ export const createMedicine = (
   dosagem: string,
   unidade_medida: string,
   estoque_minimo?: number | null,
-  preco?: number | null,
+  _preco?: number | null,
 ) =>
   api.post("/medicamentos", {
     nome,
     principio_ativo,
     dosagem,
     unidade_medida,
-    estoque_minimo: Number(estoque_minimo) ?? null,
+    estoque_minimo: estoque_minimo != null ? Number(estoque_minimo) : null,
   });
 
 export const createResident = (nome: string, casela: string) =>
@@ -700,7 +700,8 @@ export const getAdminLoginLog = (params?: {
   success?: boolean;
   fromDate?: string;
   toDate?: string;
-}) => api.get<AdminLoginLogResponse>("/admin/login-log", { params: params ?? {} });
+}) =>
+  api.get<AdminLoginLogResponse>("/admin/login-log", { params: params ?? {} });
 
 export type AdminMetricsResponse = {
   movementsThisMonth: number;
@@ -729,7 +730,10 @@ export type AdminActiveUsersThisMonthResponse = {
 export const getAdminActiveUsersThisMonth = (params?: {
   page?: number;
   limit?: number;
-}) => api.get<AdminActiveUsersThisMonthResponse>("/admin/metrics/active-users", { params: params ?? {} });
+}) =>
+  api.get<AdminActiveUsersThisMonthResponse>("/admin/metrics/active-users", {
+    params: params ?? {},
+  });
 
 export const getAdminMovementsThisMonth = (params?: {
   page?: number;
@@ -785,10 +789,15 @@ export const getAdminNotifications = (params?: {
   tipo?: string;
   status?: string;
   visto?: boolean;
-}) => api.get<AdminNotificationsResponse>("/admin/notifications", { params: params ?? {} });
+}) =>
+  api.get<AdminNotificationsResponse>("/admin/notifications", {
+    params: params ?? {},
+  });
 
-export const patchAdminNotification = (id: number, data: { visto?: boolean; status?: string }) =>
-  api.patch(`/admin/notifications/${id}`, data);
+export const patchAdminNotification = (
+  id: number,
+  data: { visto?: boolean; status?: string },
+) => api.patch(`/admin/notifications/${id}`, data);
 
 export const getAdminInsights = (params?: {
   days?: number;

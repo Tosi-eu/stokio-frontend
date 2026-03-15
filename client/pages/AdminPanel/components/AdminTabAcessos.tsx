@@ -92,11 +92,15 @@ export function AdminTabAcessos({
           <div className="grid gap-2 w-36">
             <Label>Resultado</Label>
             <Select
-              value={successFilter === "" ? "all" : successFilter ? "success" : "failure"}
+              value={
+                successFilter === ""
+                  ? "all"
+                  : successFilter
+                    ? "success"
+                    : "failure"
+              }
               onValueChange={(v) =>
-                setSuccessFilter(
-                  v === "all" ? "" : v === "success",
-                )
+                setSuccessFilter(v === "all" ? "" : v === "success")
               }
             >
               <SelectTrigger>
@@ -146,7 +150,10 @@ export function AdminTabAcessos({
                 <TableBody>
                   {data.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                      <TableCell
+                        colSpan={5}
+                        className="text-center text-muted-foreground"
+                      >
                         Nenhum registro encontrado.
                       </TableCell>
                     </TableRow>
@@ -186,7 +193,9 @@ export function AdminTabAcessos({
 
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Label className="text-sm text-muted-foreground">Por página</Label>
+                <Label className="text-sm text-muted-foreground">
+                  Por página
+                </Label>
                 <Select
                   value={String(limit)}
                   onValueChange={(v) => {

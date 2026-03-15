@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { toast } from "@/hooks/use-toast.hook";
-import { useAuth } from "@/hooks/use-auth.hook";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createStockOut, getResidents, getStock } from "@/api/requests";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
@@ -101,8 +100,12 @@ export default function StockOut() {
 
   useEffect(() => {
     fetchStock();
-    setUiPage(1);
-    setSelected(null);
+    const id = setTimeout(() => {
+      setUiPage(1);
+      setSelected(null);
+    }, 0);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchStock intentionally omitted
   }, [operationType]);
 
   useEffect(() => {
@@ -156,11 +159,14 @@ export default function StockOut() {
     return caselaIdsFromItems
       .sort((a, b) => a - b)
       .map((id) => ({ label: `Casela ${id}`, value: String(id) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- caselaIdsFromItems already from items
   }, [items, residents, filters.setor, caselaIdsFromItems]);
 
   const setorOptions = useMemo(
     () =>
-      Array.from(new Set(items.map((i) => i.setor).filter(Boolean)) as Set<string>)
+      Array.from(
+        new Set(items.map((i) => i.setor).filter(Boolean)) as Set<string>,
+      )
         .sort()
         .map((s) => ({ label: s, value: s })),
     [items],
@@ -198,9 +204,14 @@ export default function StockOut() {
   }, [filteredItems, uiPage]);
 
   useEffect(() => {
-    setUiPage(1);
-    setSelected(null);
-    setTotalPages(Math.max(1, Math.ceil(filteredItems.length / UI_PAGE_SIZE)));
+    const id = setTimeout(() => {
+      setUiPage(1);
+      setSelected(null);
+      setTotalPages(
+        Math.max(1, Math.ceil(filteredItems.length / UI_PAGE_SIZE)),
+      );
+    }, 0);
+    return () => clearTimeout(id);
   }, [filteredItems]);
 
   const handleSelectType = (type: OperationType) => {
@@ -318,9 +329,9 @@ export default function StockOut() {
                 <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white">
                   {filters.casela
                     ? filters.setor === "enfermagem"
-                      ? residents.find(
+                      ? (residents.find(
                           (r) => r.casela === Number(filters.casela),
-                        )?.name ?? `Casela ${filters.casela}`
+                        )?.name ?? `Casela ${filters.casela}`)
                       : `Casela ${filters.casela}`
                     : "Selecione"}
                   <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />

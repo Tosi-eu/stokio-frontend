@@ -52,7 +52,11 @@ export function AdminTabConfig({
                   <Label htmlFor={key}>{label}</Label>
                   <Input
                     id={key}
-                    type={key === "expiring_days" || key === "estoque_minimo_padrao" ? "number" : "text"}
+                    type={
+                      key === "expiring_days" || key === "estoque_minimo_padrao"
+                        ? "number"
+                        : "text"
+                    }
                     min={key === "expiring_days" ? 1 : undefined}
                     max={key === "expiring_days" ? 365 : undefined}
                     value={form[key] ?? ""}
@@ -74,7 +78,8 @@ export function AdminTabConfig({
         <CardHeader>
           <CardTitle>Saúde do sistema</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Status do banco, Redis e último backup (atualizado pelo job de backup).
+            Status do banco, Redis e último backup (atualizado pelo job de
+            backup).
           </p>
         </CardHeader>
         <CardContent>
@@ -90,7 +95,9 @@ export function AdminTabConfig({
                         : "text-red-600 font-medium"
                     }
                   >
-                    {health.database === "connected" ? "Conectado" : health.database}
+                    {health.database === "connected"
+                      ? "Conectado"
+                      : health.database}
                   </span>
                 </dd>
               </div>
@@ -114,7 +121,9 @@ export function AdminTabConfig({
               </div>
             </dl>
           ) : (
-            <p className="text-muted-foreground">Não foi possível carregar o status.</p>
+            <p className="text-muted-foreground">
+              Não foi possível carregar o status.
+            </p>
           )}
         </CardContent>
       </Card>

@@ -12,12 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import ConfirmationModal from "@/components/ConfirmationModal";
+import { getErrorMessage } from "@/helpers/validation.helper";
 
 export default function RegisterCabinet() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { categories, isLoading: loadingCategories } = useCabinetCategories();
+  const { categories } = useCabinetCategories();
 
   const [numero, setNumero] = useState<number>(0);
   const [category, setCategory] = useState("");
@@ -86,7 +87,8 @@ export default function RegisterCabinet() {
     } catch (err) {
       toast({
         title: "Erro ao cadastrar",
-        description: "Não foi possível cadastrar o armário.",
+        description:
+          "Não foi possível cadastrar o armário: " + getErrorMessage(err),
         variant: "error",
       });
     } finally {

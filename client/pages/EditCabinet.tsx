@@ -38,7 +38,6 @@ export default function EditCabinet() {
   );
 
   const {
-    register,
     handleSubmit,
     control,
     reset,

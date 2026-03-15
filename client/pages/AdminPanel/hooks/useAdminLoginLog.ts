@@ -40,6 +40,7 @@ export function useAdminLoginLog(isAdmin: boolean, enabled = true) {
 
   useEffect(() => {
     if (enabled) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load is stable
   }, [isAdmin, enabled, page, limit]);
 
   function applyFilters() {

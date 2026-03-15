@@ -164,10 +164,12 @@ export default function InputMovements() {
 
   useEffect(() => {
     fetchEntries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchEntries stable
   }, [entriesInputPage, entriesMedicinePage]);
 
   useEffect(() => {
     fetchExits();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchExits stable
   }, [exitsInputPage, exitsMedicinePage]);
 
   return (

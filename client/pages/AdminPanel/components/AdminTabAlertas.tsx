@@ -33,7 +33,9 @@ function AlertTable({
 }) {
   return (
     <div>
-      <h3 className={`text-sm font-medium mb-2 flex items-center gap-2 ${titleClassName ?? ""}`}>
+      <h3
+        className={`text-sm font-medium mb-2 flex items-center gap-2 ${titleClassName ?? ""}`}
+      >
         <span>{title}</span>
         <span className="text-muted-foreground">({count})</span>
       </h3>
@@ -52,7 +54,10 @@ function AlertTable({
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                <TableCell
+                  colSpan={6}
+                  className="text-center text-muted-foreground"
+                >
                   Nenhum
                 </TableCell>
               </TableRow>
@@ -75,7 +80,10 @@ function AlertTable({
   );
 }
 
-export function AdminTabAlertas({ alerts, loadingAlerts }: AdminTabAlertasProps) {
+export function AdminTabAlertas({
+  alerts,
+  loadingAlerts,
+}: AdminTabAlertasProps) {
   return (
     <Card>
       <CardHeader>
