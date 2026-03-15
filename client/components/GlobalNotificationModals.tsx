@@ -10,7 +10,9 @@ import type { NotificationListItem } from "@/api/types";
 import type { StockReplacementItem } from "@/components/StockReplacementModal";
 
 const NotificationReminderModal = lazy(() =>
-  import("@/components/NotificationModal").then((m) => ({ default: m.default })),
+  import("@/components/NotificationModal").then((m) => ({
+    default: m.default,
+  })),
 );
 const StockReplacementModal = lazy(() =>
   import("@/components/StockReplacementModal").then((m) => ({

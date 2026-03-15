@@ -133,13 +133,19 @@ function sanitizeErrorMessage(message: string): string {
   return cleanedMessage;
 }
 
-async function request(path: string, options: RequestInit & { body?: unknown } = {}) {
+async function request(
+  path: string,
+  options: RequestInit & { body?: unknown } = {},
+) {
   const isFormData = options.body instanceof FormData;
   const res = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "include",
     headers: isFormData
       ? { ...(options.headers as HeadersInit) }
-      : { "Content-Type": "application/json", ...(options.headers as HeadersInit) },
+      : {
+          "Content-Type": "application/json",
+          ...(options.headers as HeadersInit),
+        },
     ...options,
   });
 

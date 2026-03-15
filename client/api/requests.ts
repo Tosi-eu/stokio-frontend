@@ -770,7 +770,10 @@ export type RestoreBackupResponse = {
 export const restoreBackup = (file: File) => {
   const form = new FormData();
   form.append("file", file);
-  return api.post("/admin/restore-backup", form) as Promise<RestoreBackupResponse>;
+  return api.post(
+    "/admin/restore-backup",
+    form,
+  ) as Promise<RestoreBackupResponse>;
 };
 
 export type AdminNotificationItem = {

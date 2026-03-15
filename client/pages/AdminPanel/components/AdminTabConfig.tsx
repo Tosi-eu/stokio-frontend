@@ -41,7 +41,9 @@ export function AdminTabConfig({
   const [restoreLoading, setRestoreLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleRestoreBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleRestoreBackup = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const name = file.name.toLowerCase();
@@ -126,7 +128,9 @@ export function AdminTabConfig({
           <CardTitle>Restaurar backup (dump)</CardTitle>
           <p className="text-sm text-muted-foreground">
             Envie o arquivo de dump gerado pelo job de backup (
-            <code className="text-xs bg-muted px-1 rounded">backup_*.sql.gz</code>
+            <code className="text-xs bg-muted px-1 rounded">
+              backup_*.sql.gz
+            </code>
             ou <code className="text-xs bg-muted px-1 rounded">.sql</code>). O
             banco será restaurado com o conteúdo do dump.
           </p>
