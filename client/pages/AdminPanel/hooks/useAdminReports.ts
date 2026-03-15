@@ -16,7 +16,7 @@ import { parseYearMonthToDate } from "@/helpers/dates.helper";
 import { pdf } from "@react-pdf/renderer";
 import type { ResidentOption } from "../types";
 
-export function useAdminReports() {
+export function useAdminReports(enabled = true) {
   const [selectedReportType, setSelectedReportType] = useState("");
   const [reportResidents, setReportResidents] = useState<ResidentOption[]>([]);
   const [selectedReportResident, setSelectedReportResident] = useState<
@@ -59,18 +59,18 @@ export function useAdminReports() {
   );
 
   useEffect(() => {
-    if (showReportResidentSelector) loadReportResidents();
-  }, [selectedReportType]);
+    if (enabled && showReportResidentSelector) loadReportResidents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional deps
+  }, [enabled, selectedReportType]);
 
   async function loadReportResidents() {
     setLoadingReportResidents(true);
     try {
-      const list = await fetchAllPaginated<ResidentOption>(
-        (p, l) =>
-          getResidents(p, l).then((r) => ({
-            data: (r.data ?? []) as ResidentOption[],
-            hasNext: r.hasNext ?? false,
-          })),
+      const list = await fetchAllPaginated<ResidentOption>((p, l) =>
+        getResidents(p, l).then((r) => ({
+          data: (r.data ?? []) as ResidentOption[],
+          hasNext: r.hasNext ?? false,
+        })),
       );
       setReportResidents(list ?? []);
     } catch {
@@ -170,7 +170,10 @@ export function useAdminReports() {
       let params: MovementsParams;
       if (reportTransferPeriod === MovementPeriod.DIARIO) {
         if (!reportTransferDate) {
-          toast({ title: "Selecione a data da transferência", variant: "error" });
+          toast({
+            title: "Selecione a data da transferência",
+            variant: "error",
+          });
           throw new Error("Data obrigatória");
         }
         params = {
@@ -192,7 +195,7 @@ export function useAdminReports() {
     }
     const casela =
       tipo === "residente_consumo" || tipo === "medicamentos_residente"
-        ? selectedReportResident ?? undefined
+        ? (selectedReportResident ?? undefined)
         : undefined;
     return getReport(tipo, casela);
   }
@@ -227,7 +230,10 @@ export function useAdminReports() {
           };
         } else {
           if (!reportStartDate || !reportEndDate) {
-            toast({ title: "Selecione o intervalo de datas", variant: "error" });
+            toast({
+              title: "Selecione o intervalo de datas",
+              variant: "error",
+            });
             return;
           }
           movementParams = {
@@ -236,12 +242,19 @@ export function useAdminReports() {
             data_final: reportEndDate.toISOString().split("T")[0],
           };
         }
-        params = buildAdminExportParams("movimentacoes", undefined, movementParams);
+        params = buildAdminExportParams(
+          "movimentacoes",
+          undefined,
+          movementParams,
+        );
       } else if (tipo === "transferencias") {
         let transferParams: MovementsParams;
         if (reportTransferPeriod === MovementPeriod.DIARIO) {
           if (!reportTransferDate) {
-            toast({ title: "Selecione a data da transferência", variant: "error" });
+            toast({
+              title: "Selecione a data da transferência",
+              variant: "error",
+            });
             return;
           }
           transferParams = {
@@ -250,7 +263,10 @@ export function useAdminReports() {
           };
         } else {
           if (!reportStartDate || !reportEndDate) {
-            toast({ title: "Selecione o intervalo de datas", variant: "error" });
+            toast({
+              title: "Selecione o intervalo de datas",
+              variant: "error",
+            });
             return;
           }
           transferParams = {
@@ -259,11 +275,15 @@ export function useAdminReports() {
             data_final: reportEndDate.toISOString().split("T")[0],
           };
         }
-        params = buildAdminExportParams("transferencias", undefined, transferParams);
+        params = buildAdminExportParams(
+          "transferencias",
+          undefined,
+          transferParams,
+        );
       } else {
         const casela =
           tipo === "residente_consumo" || tipo === "medicamentos_residente"
-            ? selectedReportResident ?? undefined
+            ? (selectedReportResident ?? undefined)
             : undefined;
         params = buildAdminExportParams(tipo, casela);
       }

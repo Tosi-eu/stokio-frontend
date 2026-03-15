@@ -30,7 +30,7 @@ export default function RegisterInput() {
 
   const onSubmit = async (data: InputFormData) => {
     try {
-      const response = await createInput(
+      await createInput(
         data.name.trim(),
         data.description.trim(),
         Number(data.minimum) || 0,

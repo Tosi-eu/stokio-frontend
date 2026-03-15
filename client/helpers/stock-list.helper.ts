@@ -118,15 +118,18 @@ export function buildFilterOptions(
     .sort((a, b) => a - b)
     .map((id) => ({ value: String(id), label: `Armário ${id}` }));
 
-  const isEnfermagem = options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
+  const isEnfermagem =
+    options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
   const caselaIds: StockFilterOption[] = isEnfermagem
-    ? [...(options!.residents!)]
+    ? [...options!.residents!]
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
         .map((r) => ({ value: String(r.casela), label: r.name }))
     : Array.from(
         new Set(
           raw
-            .map((i: Record<string, unknown>) => i.casela_id as number | undefined)
+            .map(
+              (i: Record<string, unknown>) => i.casela_id as number | undefined,
+            )
             .filter((id): id is number => id != null),
         ),
       )
@@ -148,5 +151,46 @@ export function buildFilterOptions(
     cabinets: cabinetIds,
     caselas: caselaIds,
     lots: lotes,
+  };
+}
+
+export interface ApiFilterOptions {
+  cabinets: number[];
+  caselas: number[];
+  lots: string[];
+}
+
+export function buildFilterOptionsFromApi(
+  apiOptions: ApiFilterOptions | null,
+  options?: BuildFilterOptionsParams,
+): StockFilterOptions {
+  const sectors: StockFilterOption[] = [
+    { value: "enfermagem", label: "Enfermagem" },
+    { value: "farmacia", label: "Farmácia" },
+  ];
+
+  const cabinets: StockFilterOption[] = (apiOptions?.cabinets ?? [])
+    .sort((a, b) => a - b)
+    .map((id) => ({ value: String(id), label: `Armário ${id}` }));
+
+  const isEnfermagem =
+    options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
+  const caselas: StockFilterOption[] = isEnfermagem
+    ? [...options!.residents!]
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+        .map((r) => ({ value: String(r.casela), label: r.name }))
+    : (apiOptions?.caselas ?? [])
+        .sort((a, b) => a - b)
+        .map((id) => ({ value: String(id), label: `Casela ${id}` }));
+
+  const lots: StockFilterOption[] = (apiOptions?.lots ?? [])
+    .sort((a, b) => a.localeCompare(b))
+    .map((lote) => ({ value: lote, label: lote }));
+
+  return {
+    sectors,
+    cabinets,
+    caselas,
+    lots,
   };
 }

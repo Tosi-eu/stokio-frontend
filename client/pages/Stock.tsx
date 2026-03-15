@@ -1,14 +1,14 @@
 import Layout from "@/components/Layout";
 import EditableTable from "@/components/EditableTable";
 import { SkeletonTable } from "@/components/SkeletonTable";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { StockItem } from "@/interfaces/interfaces";
 import { lazy, Suspense } from "react";
 
 const ReportModal = lazy(() => import("@/components/ReportModal"));
 import {
-  getStock,
+  getStockFilterOptions,
   removeIndividualMedicineFromStock,
   resumeMedicineFromStock,
   suspendMedicineFromStock,
@@ -23,7 +23,7 @@ import { StockActionType, StockItemType } from "@/interfaces/types";
 import {
   fetchStockPage,
   formatStockItems,
-  buildFilterOptions,
+  buildFilterOptionsFromApi,
 } from "@/helpers/stock-list.helper";
 import ConfirmActionModal from "@/components/ConfirmationActionModal";
 import TransferQuantityModal from "@/components/TransferQuantityModal";
@@ -41,13 +41,11 @@ import {
 } from "@/components/ui/popover";
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
 } from "@/components/ui/command";
-import { Check, ChevronsUpDown, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ChevronsUpDown, X } from "lucide-react";
 import { TableFilter } from "@/components/TableFilter";
 
 const FILTER_LABELS: Record<string, string> = {
@@ -76,7 +74,11 @@ export default function Stock() {
 
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [items, setItems] = useState<StockItem[]>([]);
-  const [allRawData, setAllRawData] = useState<any[]>([]);
+  const [apiFilterOptions, setApiFilterOptions] = useState<{
+    cabinets: number[];
+    caselas: number[];
+    lots: string[];
+  } | null>(null);
   const [page, setPage] = useState(1);
   const limit = 8;
   const [hasNext, setHasNext] = useState(false);
@@ -114,13 +116,7 @@ export default function Stock() {
       ...filters,
       nome: debouncedNome,
     }),
-    [
-      debouncedNome,
-      filters.casela,
-      filters.armario,
-      filters.setor,
-      filters.lote,
-    ],
+    [debouncedNome, filters],
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
@@ -161,20 +157,17 @@ export default function Stock() {
     }
   }
 
-  async function loadAllStock() {
+  async function loadFilterOptions() {
     try {
-      const allItems = await fetchAllPaginated(
-        (page, limit) => getStock(page, limit),
-        100,
-      );
-      setAllRawData(allItems);
+      const res = await getStockFilterOptions();
+      setApiFilterOptions(res ?? null);
     } catch (err: unknown) {
       const errorMessage =
         err instanceof Error
           ? err.message
-          : "Não foi possível carregar todos os itens do estoque.";
+          : "Não foi possível carregar as opções de filtro.";
       toast({
-        title: "Erro ao carregar dados",
+        title: "Erro ao carregar opções",
         description: errorMessage,
         variant: "error",
         duration: 3000,
@@ -211,12 +204,11 @@ export default function Stock() {
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await loadStock(1);
-      await loadAllStock();
-      await loadResidents();
+      await Promise.all([loadStock(1), loadFilterOptions(), loadResidents()]);
     }
 
     init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount only
   }, []);
 
   const isInitialMount = useRef(true);
@@ -245,7 +237,8 @@ export default function Stock() {
   const prevFilterRef = useRef<string | null>(undefined);
 
   useEffect(() => {
-    const hadFilter = prevFilterRef.current != null && prevFilterRef.current !== undefined;
+    const hadFilter =
+      prevFilterRef.current != null && prevFilterRef.current !== undefined;
     const nowCleared = filter == null;
     prevFilterRef.current = filter ?? null;
     if (hadFilter && nowCleared) {
@@ -255,24 +248,32 @@ export default function Stock() {
 
   useEffect(() => {
     loadStock(page, effectiveFilters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadStock is stable, intentional deps
   }, [page, effectiveFilters, filter]);
+
+  const handleNomeFilterChange = useCallback((value: string) => {
+    setFilters((prev) => ({ ...prev, nome: value }));
+  }, []);
+  const handleLoteFilterChange = useCallback((value: string) => {
+    setFilters((prev) => ({ ...prev, lote: value }));
+  }, []);
 
   const filterOptions = useMemo(
     () =>
-      buildFilterOptions(allRawData, {
+      buildFilterOptionsFromApi(apiFilterOptions, {
         residents,
         setor: filters.setor,
       }),
-    [allRawData, residents, filters.setor],
+    [apiFilterOptions, residents, filters.setor],
   );
 
   const displayItems = useMemo(() => {
     return items.map((item) => {
       const caselaDisplay =
         item.sector === "enfermagem" && item.casela != null
-          ? residents.find((r) => r.casela === item.casela)?.name ??
-            String(item.casela)
-          : item.casela ?? "-";
+          ? (residents.find((r) => r.casela === item.casela)?.name ??
+            String(item.casela))
+          : (item.casela ?? "-");
       return { ...item, caselaDisplay };
     });
   }, [items, residents]);
@@ -379,7 +380,6 @@ export default function Stock() {
       }
 
       await loadStock(page);
-      await loadAllStock();
 
       const messages =
         typeof actionMessages[type] === "function"
@@ -429,8 +429,6 @@ export default function Stock() {
     const { row } = pendingAction;
     setActionLoading(true);
 
-    console.log(options);
-
     try {
       await transferStockSector({
         estoque_id: row.id,
@@ -445,7 +443,6 @@ export default function Stock() {
       });
 
       await loadStock(page);
-      await loadAllStock();
 
       const messages = actionMessages.transfer(row);
       toast({ title: messages.success, variant: "success", duration: 3000 });
@@ -479,11 +476,7 @@ export default function Stock() {
       <div className="space-y-6 max-w-7xl mx-auto">
         <div className="flex flex-wrap gap-3 justify-end mt-8">
           <button
-            onClick={() =>
-              navigate("/stock/out", {
-                state: { data: allRawData.length > 0 ? allRawData : undefined },
-              })
-            }
+            onClick={() => navigate("/stock/out")}
             className="
                 h-12 px-6 rounded-lg font-semiboldfetchStockPage
                 bg-red-600 text-white
@@ -531,16 +524,14 @@ export default function Stock() {
           </div>
         )}
 
-        {allRawData.length > 0 && (
+        {apiFilterOptions !== null && (
           <div className="bg-white p-6 rounded-lg border border-gray-300 shadow-sm">
             <div className="flex items-end gap-4">
               <div className="flex-1 min-w-0">
                 <label className="block text-xs text-gray-700 mb-1">Nome</label>
                 <TableFilter
                   placeholder="Buscar por nome"
-                  onFilterChange={(value) =>
-                    setFilters((prev) => ({ ...prev, nome: value }))
-                  }
+                  onFilterChange={handleNomeFilterChange}
                 />
               </div>
 
@@ -652,9 +643,9 @@ export default function Stock() {
                       <span className="truncate">
                         {filters.casela
                           ? filters.setor === "enfermagem"
-                            ? residents.find(
+                            ? (residents.find(
                                 (r) => r.casela === Number(filters.casela),
-                              )?.name ?? `Casela ${filters.casela}`
+                              )?.name ?? `Casela ${filters.casela}`)
                             : `Casela ${filters.casela}`
                           : "Selecione"}
                       </span>
@@ -697,9 +688,7 @@ export default function Stock() {
                 <label className="block text-xs text-gray-700 mb-1">Lote</label>
                 <TableFilter
                   placeholder="Buscar por lote"
-                  onFilterChange={(value) =>
-                    setFilters((prev) => ({ ...prev, lote: value }))
-                  }
+                  onFilterChange={handleLoteFilterChange}
                 />
               </div>
             </div>
@@ -728,7 +717,6 @@ export default function Stock() {
               onResume={(row) => requestResume(row as unknown as StockItem)}
               onDeleteSuccess={() => {
                 loadStock(page);
-                loadAllStock();
               }}
               entityType="stock"
             />

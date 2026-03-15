@@ -162,9 +162,8 @@ export default function Auth() {
         err instanceof Error ? err.message : String(err)
       ).toLowerCase();
 
-      let errorTitle = "Erro";
-      let errorDescription = "Ocorreu um erro inesperado. Tente novamente.";
-
+      let errorTitle: string;
+      let errorDescription: string;
       if (isLogin) {
         if (rawMessage.includes("credenciais")) {
           errorTitle = "Login ou senha incorretos";

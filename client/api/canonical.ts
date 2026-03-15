@@ -133,13 +133,19 @@ function sanitizeErrorMessage(message: string): string {
   return cleanedMessage;
 }
 
-async function request(path: string, options: RequestInit = {}) {
+async function request(
+  path: string,
+  options: RequestInit & { body?: unknown } = {},
+) {
+  const isFormData = options.body instanceof FormData;
   const res = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
+    headers: isFormData
+      ? { ...(options.headers as HeadersInit) }
+      : {
+          "Content-Type": "application/json",
+          ...(options.headers as HeadersInit),
+        },
     ...options,
   });
 
@@ -195,8 +201,12 @@ export const api = {
       method: "GET",
     }) as Promise<T>,
 
-  post: (path: string, body?: any) =>
-    request(path, { method: "POST", body: JSON.stringify(body) }),
+  post: (path: string, body?: unknown, options?: RequestInit) =>
+    request(path, {
+      method: "POST",
+      body: body instanceof FormData ? body : JSON.stringify(body),
+      ...options,
+    }),
 
   put: (path: string, body?: any) =>
     request(path, { method: "PUT", body: JSON.stringify(body) }),

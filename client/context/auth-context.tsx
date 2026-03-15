@@ -7,11 +7,7 @@ import {
 } from "react";
 import { AuthContextType, LoggedUser } from "@/interfaces/interfaces";
 import { login as apiLogin, logoutRequest } from "@/api/requests";
-import {
-  initSessionTimeout,
-  cleanupSessionTimeout,
-  resetInactivityTimer,
-} from "@/helpers/session-timeout.helper";
+import { cleanupSessionTimeout } from "@/helpers/session-timeout.helper";
 
 export const AuthContext = createContext<AuthContextType | undefined>(
   undefined,

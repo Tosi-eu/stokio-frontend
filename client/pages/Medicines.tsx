@@ -21,7 +21,7 @@ export default function Medicines() {
   const [loading, setLoading] = useState(true);
   const [searchFilter, setSearchFilter] = useState("");
   const [hasNext, setHasNext] = useState(false);
-  const [total, setTotal] = useState(0);
+  const [, setTotal] = useState(0);
 
   async function fetchMedicines() {
     setLoading(true);
@@ -48,16 +48,13 @@ export default function Medicines() {
     }
   }
 
-  const totalPages = useMemo(() => {
-    return Math.max(1, Math.ceil(total / DEFAULT_PAGE_SIZE));
-  }, [total]);
-
   const hasNextPage = useMemo(() => {
     return hasNext;
   }, [hasNext]);
 
   useEffect(() => {
     fetchMedicines();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchMedicines is stable
   }, [page, searchFilter]);
 
   useEffect(() => {

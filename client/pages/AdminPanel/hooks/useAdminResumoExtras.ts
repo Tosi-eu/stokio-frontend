@@ -9,7 +9,7 @@ import {
 import type { ExpiringItem, ConsumptionByItemRow } from "@/api/requests";
 import type { StockHistoryEntry } from "@/api/requests";
 
-export function useAdminResumoExtras(isAdmin: boolean) {
+export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
   const [expiringDays, setExpiringDays] = useState<30 | 60 | 90>(30);
   const [expiringItems, setExpiringItems] = useState<ExpiringItem[]>([]);
   const [expiringItemsTotal, setExpiringItemsTotal] = useState(0);
@@ -51,11 +51,10 @@ export function useAdminResumoExtras(isAdmin: boolean) {
     [],
   );
   const [stockHistoryTotal, setStockHistoryTotal] = useState(0);
-  const [stockHistoryPage, setStockHistoryPage] = useState(1);
   const [loadingStockHistory, setLoadingStockHistory] = useState(false);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isAdmin || !enabled) return;
     let cancelled = false;
     setLoadingExpiringItems(true);
     getExpiringItems(expiringDays, expiringItemsPage, 10)
@@ -77,7 +76,7 @@ export function useAdminResumoExtras(isAdmin: boolean) {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, expiringDays, expiringItemsPage]);
+  }, [isAdmin, enabled, expiringDays, expiringItemsPage]);
 
   function fetchConsumptionByItem() {
     setLoadingConsumptionByItem(true);
@@ -93,8 +92,9 @@ export function useAdminResumoExtras(isAdmin: boolean) {
   }
 
   useEffect(() => {
-    if (isAdmin) fetchConsumptionByItem();
-  }, [isAdmin]);
+    if (isAdmin && enabled) fetchConsumptionByItem();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchConsumptionByItem stable
+  }, [isAdmin, enabled]);
 
   useEffect(() => {
     if (!stockHistoryItemSearch.trim() || stockHistoryItemSearch.length < 2) {
@@ -133,7 +133,6 @@ export function useAdminResumoExtras(isAdmin: boolean) {
   }, [stockHistoryItemSearch, stockHistoryItemType]);
 
   async function fetchStockHistoryByItem(itemId: number) {
-    setStockHistoryPage(1);
     setLoadingStockHistory(true);
     try {
       const res = await getAdminStockHistory({
@@ -154,7 +153,6 @@ export function useAdminResumoExtras(isAdmin: boolean) {
 
   async function fetchStockHistoryByLote() {
     setStockHistorySelectedItem(null);
-    setStockHistoryPage(1);
     setLoadingStockHistory(true);
     try {
       const res = await getAdminStockHistory({

@@ -24,6 +24,7 @@ export function VirtualizedGrid<T>({
 
   const rowCount = Math.ceil(items.length / columns);
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual API
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,

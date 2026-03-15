@@ -7,15 +7,13 @@ export default function LoadingScreen() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-
     const checkBackend = async () => {
       try {
         const res = await getBackendLoadingStatus();
         if (res.ok) {
           setProgress(100);
+          clearInterval(intervalId);
           setTimeout(() => navigate("/user/login"), 500);
-          clearInterval(interval);
         } else {
           throw new Error("Backend ainda não pronto");
         }
@@ -24,9 +22,9 @@ export default function LoadingScreen() {
       }
     };
 
-    interval = setInterval(checkBackend, 500);
+    const intervalId = setInterval(checkBackend, 500);
 
-    return () => clearInterval(interval);
+    return () => clearInterval(intervalId);
   }, [navigate]);
 
   return (

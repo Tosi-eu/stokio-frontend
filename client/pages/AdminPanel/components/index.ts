@@ -8,5 +8,8 @@ export { AdminTabNotificacoes } from "./AdminTabNotificacoes";
 export { AdminTabInsights } from "./AdminTabInsights";
 export { AdminAuditCompareDialog } from "./AdminAuditCompareDialog";
 export { AdminUserEditDialog } from "./AdminUserEditDialog";
-export { AdminUserCreateDialog, defaultCreateUserForm } from "./AdminUserCreateDialog";
+export {
+  AdminUserCreateDialog,
+  defaultCreateUserForm,
+} from "./AdminUserCreateDialog";
 export { AdminUserDeleteDialog } from "./AdminUserDeleteDialog";

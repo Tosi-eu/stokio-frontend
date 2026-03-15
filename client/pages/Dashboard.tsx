@@ -18,25 +18,12 @@ const DashboardChartCard = lazy(() =>
   })),
 );
 import {
-  getTodayMedicineNotifications,
-  getTomorrowReplacementNotifications,
-  updateNotification,
-} from "@/api/requests";
-import {
   CabinetStockItem,
   StockDistributionItem,
   RecentMovement,
   MedicineRankingItem,
   DrawerStockItem,
 } from "@/interfaces/interfaces";
-const NotificationReminderModal = lazy(
-  () => import("@/components/NotificationModal"),
-);
-const StockReplacementModal = lazy(() =>
-  import("@/components/StockReplacementModal").then((m) => ({
-    default: m.default,
-  })),
-);
 import StockProportionCard from "@/components/StockProportionCard";
 import { prepareStockDistributionData } from "@/helpers/estoque.helper";
 import { SectorType } from "@/utils/enums";
@@ -70,13 +57,6 @@ export default function Dashboard() {
   const [nonMovementProducts, setNonMovementProducts] = useState<unknown[]>([]);
   const [loadingNonMovement, setLoadingNonMovement] = useState(true);
   const [loadingRecentMovements, setLoadingRecentMovements] = useState(true);
-
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [notifList, setNotifList] = useState([]);
-  const [replacementOpen, setReplacementOpen] = useState(false);
-  const [replacementItems, setReplacementItems] = useState<
-    import("@/components/StockReplacementModal").StockReplacementItem[]
-  >([]);
 
   const {
     summary,
@@ -193,61 +173,6 @@ export default function Dashboard() {
     }
   }, [summary]);
 
-  useEffect(() => {
-    async function fetchReminders() {
-      try {
-        const res = await getTodayMedicineNotifications();
-
-        if (res.items.length > 0) {
-          setNotifList(res.items);
-          setNotifOpen(true);
-
-          await Promise.all(
-            res.items.map((n: { id: number }) =>
-              updateNotification(n.id, { visto: true }),
-            ),
-          );
-        }
-      } catch (err: unknown) {
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Não foi possível carregar as notificações do dia.";
-        toast({
-          title: "Erro ao carregar notificações",
-          description: errorMessage,
-          variant: "error",
-          duration: 3000,
-        });
-      }
-    }
-
-    fetchReminders();
-  }, []);
-
-  useEffect(() => {
-    async function fetchReplacementReminders() {
-      try {
-        const res = await getTomorrowReplacementNotifications();
-
-        if (res.items.length > 0) {
-          setReplacementItems(res.items);
-          setReplacementOpen(true);
-        }
-
-        await Promise.all(
-          res.items.map((n: { id: number }) =>
-            updateNotification(n.id, { visto: true }),
-          ),
-        );
-      } catch {
-        /* NO-OP */
-      }
-    }
-
-    fetchReplacementReminders();
-  }, []);
-
   const stats = useMemo(
     () => [
       {
@@ -308,25 +233,23 @@ export default function Dashboard() {
       <div className="space-y-10 pt-10">
         <section>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {loadingSummary ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i} className="overflow-hidden">
-                  <CardContent className="flex flex-col items-center py-8">
-                    <Skeleton className="h-4 w-24 mb-2" />
-                    <Skeleton className="h-12 w-16" />
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              stats.map((stat, index) => (
-                <DashboardStatsCard
-                  key={index}
-                  label={stat.label}
-                  value={stat.value}
-                  onClick={stat.onClick}
-                />
-              ))
-            )}
+            {loadingSummary
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <Card key={i} className="overflow-hidden">
+                    <CardContent className="flex flex-col items-center py-8">
+                      <Skeleton className="h-4 w-24 mb-2" />
+                      <Skeleton className="h-12 w-16" />
+                    </CardContent>
+                  </Card>
+                ))
+              : stats.map((stat, index) => (
+                  <DashboardStatsCard
+                    key={index}
+                    label={stat.label}
+                    value={stat.value}
+                    onClick={stat.onClick}
+                  />
+                ))}
           </div>
         </section>
 
@@ -523,19 +446,6 @@ export default function Dashboard() {
           />
         </section>
       </div>
-
-      <Suspense fallback={null}>
-        <NotificationReminderModal
-          open={notifOpen}
-          events={notifList}
-          onClose={() => setNotifOpen(false)}
-        />
-        <StockReplacementModal
-          open={replacementOpen}
-          items={replacementItems}
-          onClose={() => setReplacementOpen(false)}
-        />
-      </Suspense>
     </Layout>
   );
 }

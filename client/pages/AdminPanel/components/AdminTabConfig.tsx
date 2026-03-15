@@ -1,9 +1,13 @@
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CONFIG_KEYS } from "../hooks/useAdminConfig";
 import type { AdminHealthResponse } from "@/api/requests";
+import { restoreBackup } from "@/api/requests";
+import { toast } from "@/hooks/use-toast.hook";
+import { Upload } from "lucide-react";
 
 interface AdminTabConfigProps {
   form: Record<string, string>;
@@ -12,6 +16,7 @@ interface AdminTabConfigProps {
   saving: boolean;
   health: AdminHealthResponse | null;
   onSave: () => void;
+  refetchHealth?: () => Promise<void>;
 }
 
 function formatBackupDate(s: string | null): string {
@@ -31,7 +36,51 @@ export function AdminTabConfig({
   saving,
   health,
   onSave,
+  refetchHealth,
 }: AdminTabConfigProps) {
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleRestoreBackup = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    if (!name.endsWith(".sql") && !name.endsWith(".sql.gz")) {
+      toast({
+        title: "Arquivo inválido",
+        description: "Use o dump gerado pelo backup (arquivo .sql ou .sql.gz).",
+        variant: "error",
+      });
+      e.target.value = "";
+      return;
+    }
+    setRestoreLoading(true);
+    try {
+      await restoreBackup(file);
+      toast({
+        title: "Backup restaurado",
+        description: "O banco foi alimentado com o dump enviado.",
+        variant: "success",
+        duration: 5000,
+      });
+      await refetchHealth?.();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Erro ao restaurar backup.";
+      toast({
+        title: "Erro ao restaurar backup",
+        description: message,
+        variant: "error",
+        duration: 5000,
+      });
+    } finally {
+      setRestoreLoading(false);
+      e.target.value = "";
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -52,7 +101,11 @@ export function AdminTabConfig({
                   <Label htmlFor={key}>{label}</Label>
                   <Input
                     id={key}
-                    type={key === "expiring_days" || key === "estoque_minimo_padrao" ? "number" : "text"}
+                    type={
+                      key === "expiring_days" || key === "estoque_minimo_padrao"
+                        ? "number"
+                        : "text"
+                    }
                     min={key === "expiring_days" ? 1 : undefined}
                     max={key === "expiring_days" ? 365 : undefined}
                     value={form[key] ?? ""}
@@ -72,9 +125,41 @@ export function AdminTabConfig({
 
       <Card>
         <CardHeader>
+          <CardTitle>Restaurar backup (dump)</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Envie o arquivo de dump gerado pelo job de backup (
+            <code className="text-xs bg-muted px-1 rounded">
+              backup_*.sql.gz
+            </code>
+            ou <code className="text-xs bg-muted px-1 rounded">.sql</code>). O
+            banco será restaurado com o conteúdo do dump.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".sql,.sql.gz,application/gzip"
+            className="hidden"
+            onChange={handleRestoreBackup}
+          />
+          <Button
+            variant="outline"
+            disabled={restoreLoading}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            {restoreLoading ? "Restaurando..." : "Selecionar dump e restaurar"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Saúde do sistema</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Status do banco, Redis e último backup (atualizado pelo job de backup).
+            Status do banco, Redis e último backup (atualizado pelo job de
+            backup ou após importação).
           </p>
         </CardHeader>
         <CardContent>
@@ -90,7 +175,9 @@ export function AdminTabConfig({
                         : "text-red-600 font-medium"
                     }
                   >
-                    {health.database === "connected" ? "Conectado" : health.database}
+                    {health.database === "connected"
+                      ? "Conectado"
+                      : health.database}
                   </span>
                 </dd>
               </div>
@@ -114,7 +201,9 @@ export function AdminTabConfig({
               </div>
             </dl>
           ) : (
-            <p className="text-muted-foreground">Não foi possível carregar o status.</p>
+            <p className="text-muted-foreground">
+              Não foi possível carregar o status.
+            </p>
           )}
         </CardContent>
       </Card>

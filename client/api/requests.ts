@@ -321,14 +321,14 @@ export const createMedicine = (
   dosagem: string,
   unidade_medida: string,
   estoque_minimo?: number | null,
-  preco?: number | null,
+  _preco?: number | null,
 ) =>
   api.post("/medicamentos", {
     nome,
     principio_ativo,
     dosagem,
     unidade_medida,
-    estoque_minimo: Number(estoque_minimo) ?? null,
+    estoque_minimo: estoque_minimo != null ? Number(estoque_minimo) : null,
   });
 
 export const createResident = (nome: string, casela: string) =>
@@ -460,6 +460,11 @@ export const getTomorrowReplacementNotifications = async () => {
     items: res.items as StockReplacementItem[],
   };
 };
+
+export const getStockFilterOptions = () =>
+  api.get<{ cabinets: number[]; caselas: number[]; lots: string[] }>(
+    "/estoque/filter-options",
+  );
 
 export const getStock = (
   page = 1,
@@ -695,7 +700,8 @@ export const getAdminLoginLog = (params?: {
   success?: boolean;
   fromDate?: string;
   toDate?: string;
-}) => api.get<AdminLoginLogResponse>("/admin/login-log", { params: params ?? {} });
+}) =>
+  api.get<AdminLoginLogResponse>("/admin/login-log", { params: params ?? {} });
 
 export type AdminMetricsResponse = {
   movementsThisMonth: number;
@@ -724,7 +730,10 @@ export type AdminActiveUsersThisMonthResponse = {
 export const getAdminActiveUsersThisMonth = (params?: {
   page?: number;
   limit?: number;
-}) => api.get<AdminActiveUsersThisMonthResponse>("/admin/metrics/active-users", { params: params ?? {} });
+}) =>
+  api.get<AdminActiveUsersThisMonthResponse>("/admin/metrics/active-users", {
+    params: params ?? {},
+  });
 
 export const getAdminMovementsThisMonth = (params?: {
   page?: number;
@@ -753,6 +762,20 @@ export const getAdminConfig = () =>
 export const updateAdminConfig = (config: Record<string, string>) =>
   api.put("/admin/config", config);
 
+export type RestoreBackupResponse = {
+  message: string;
+};
+
+/** Envia o arquivo de dump (backup_*.sql.gz ou .sql) para restaurar o banco. */
+export const restoreBackup = (file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post(
+    "/admin/restore-backup",
+    form,
+  ) as Promise<RestoreBackupResponse>;
+};
+
 export type AdminNotificationItem = {
   id: number;
   destino: string;
@@ -780,10 +803,15 @@ export const getAdminNotifications = (params?: {
   tipo?: string;
   status?: string;
   visto?: boolean;
-}) => api.get<AdminNotificationsResponse>("/admin/notifications", { params: params ?? {} });
+}) =>
+  api.get<AdminNotificationsResponse>("/admin/notifications", {
+    params: params ?? {},
+  });
 
-export const patchAdminNotification = (id: number, data: { visto?: boolean; status?: string }) =>
-  api.patch(`/admin/notifications/${id}`, data);
+export const patchAdminNotification = (
+  id: number,
+  data: { visto?: boolean; status?: string },
+) => api.patch(`/admin/notifications/${id}`, data);
 
 export const getAdminInsights = (params?: {
   days?: number;

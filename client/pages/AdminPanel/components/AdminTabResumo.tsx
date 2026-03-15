@@ -35,7 +35,17 @@ import {
   CommandGroup,
   CommandItem,
 } from "@/components/ui/command";
-import { Users, Pill, Package, Archive, Grid, Loader2, Search, Activity, LogIn } from "lucide-react";
+import {
+  Users,
+  Pill,
+  Package,
+  Archive,
+  Grid,
+  Loader2,
+  Search,
+  Activity,
+  LogIn,
+} from "lucide-react";
 import type { ExecutiveSummary } from "../types";
 import type { SummaryListKind } from "../hooks/useAdminSummary";
 import {
@@ -76,7 +86,12 @@ interface AdminTabResumoProps {
   consumptionEnd: string;
   setConsumptionEnd: (v: string) => void;
   consumptionByItemData: {
-    items: Array<{ nome: string; tipo_item: string; entrada: number; saida: number }>;
+    items: Array<{
+      nome: string;
+      tipo_item: string;
+      entrada: number;
+      saida: number;
+    }>;
     subtotal: { entrada: number; saida: number };
   };
   loadingConsumptionByItem: boolean;
@@ -173,13 +188,14 @@ export function AdminTabResumo({
 
   useEffect(() => {
     if (!metricsDialog) return;
-    setMetricsPage(1);
+    const id = setTimeout(() => setMetricsPage(1), 0);
+    return () => clearTimeout(id);
   }, [metricsDialog]);
 
   useEffect(() => {
     if (!metricsDialog) return;
     let cancelled = false;
-    setMetricsLoading(true);
+    const timeoutId = setTimeout(() => setMetricsLoading(true), 0);
 
     (metricsDialog === "activeUsers"
       ? getAdminActiveUsersThisMonth({ page: metricsPage, limit: metricsLimit })
@@ -211,6 +227,7 @@ export function AdminTabResumo({
 
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [metricsDialog, metricsPage, metricsLimit]);
 
@@ -238,9 +255,15 @@ export function AdminTabResumo({
                       <div className="flex items-center gap-2">
                         <Activity className="h-8 w-8 text-blue-600" />
                         <div>
-                          <p className="text-2xl font-bold">{metrics.movementsThisMonth}</p>
-                          <p className="text-sm text-muted-foreground">Movimentações este mês</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">Clique para listar</p>
+                          <p className="text-2xl font-bold">
+                            {metrics.movementsThisMonth}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Movimentações este mês
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Clique para listar
+                          </p>
                         </div>
                       </div>
                     </CardContent>
@@ -253,9 +276,15 @@ export function AdminTabResumo({
                       <div className="flex items-center gap-2">
                         <LogIn className="h-8 w-8 text-green-600" />
                         <div>
-                          <p className="text-2xl font-bold">{metrics.activeUsersThisMonth}</p>
-                          <p className="text-sm text-muted-foreground">Usuários ativos este mês</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">Clique para listar</p>
+                          <p className="text-2xl font-bold">
+                            {metrics.activeUsersThisMonth}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Usuários ativos este mês
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Clique para listar
+                          </p>
                         </div>
                       </div>
                     </CardContent>
@@ -271,9 +300,15 @@ export function AdminTabResumo({
                     <div className="flex items-center gap-2">
                       <Users className="h-8 w-8 text-sky-600" />
                       <div>
-                        <p className="text-2xl font-bold">{summary.residents}</p>
-                        <p className="text-sm text-muted-foreground">Residentes</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">Clique para listar</p>
+                        <p className="text-2xl font-bold">
+                          {summary.residents}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Residentes
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Clique para listar
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -286,9 +321,15 @@ export function AdminTabResumo({
                     <div className="flex items-center gap-2">
                       <Pill className="h-8 w-8 text-emerald-600" />
                       <div>
-                        <p className="text-2xl font-bold">{summary.medicines}</p>
-                        <p className="text-sm text-muted-foreground">Medicamentos</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">Clique para listar</p>
+                        <p className="text-2xl font-bold">
+                          {summary.medicines}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Medicamentos
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Clique para listar
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -303,7 +344,9 @@ export function AdminTabResumo({
                       <div>
                         <p className="text-2xl font-bold">{summary.inputs}</p>
                         <p className="text-sm text-muted-foreground">Insumos</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">Clique para listar</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Clique para listar
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -317,8 +360,12 @@ export function AdminTabResumo({
                       <Archive className="h-8 w-8 text-violet-600" />
                       <div>
                         <p className="text-2xl font-bold">{summary.cabinets}</p>
-                        <p className="text-sm text-muted-foreground">Armários</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">Clique para listar</p>
+                        <p className="text-sm text-muted-foreground">
+                          Armários
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Clique para listar
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -333,7 +380,9 @@ export function AdminTabResumo({
                       <div>
                         <p className="text-2xl font-bold">{summary.drawers}</p>
                         <p className="text-sm text-muted-foreground">Gavetas</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">Clique para listar</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Clique para listar
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -402,42 +451,68 @@ export function AdminTabResumo({
                             </TableCell>
                           </TableRow>
                         ) : (
-                          summaryListData.map((row: Record<string, unknown>, idx: number) => (
-                            <TableRow key={idx}>
-                              {expandedSummary === "residents" && (
-                                <>
-                                  <TableCell>{String(row.casela ?? "-")}</TableCell>
-                                  <TableCell>{String(row.name ?? "-")}</TableCell>
-                                </>
-                              )}
-                              {expandedSummary === "medicines" && (
-                                <>
-                                  <TableCell>{String(row.nome ?? "-")}</TableCell>
-                                  <TableCell>{String(row.principio_ativo ?? "-")}</TableCell>
-                                  <TableCell>{String(row.dosagem ?? "-")}</TableCell>
-                                  <TableCell>{String(row.unidade_medida ?? "-")}</TableCell>
-                                </>
-                              )}
-                              {expandedSummary === "inputs" && (
-                                <>
-                                  <TableCell>{String(row.nome ?? "-")}</TableCell>
-                                  <TableCell>{String(row.descricao ?? "-")}</TableCell>
-                                </>
-                              )}
-                              {expandedSummary === "cabinets" && (
-                                <>
-                                  <TableCell>{String(row.numero ?? "-")}</TableCell>
-                                  <TableCell>{String(row.categoria ?? "-")}</TableCell>
-                                </>
-                              )}
-                              {expandedSummary === "drawers" && (
-                                <>
-                                  <TableCell>{String(row.numero ?? "-")}</TableCell>
-                                  <TableCell>{String(row.categoria ?? "-")}</TableCell>
-                                </>
-                              )}
-                            </TableRow>
-                          ))
+                          summaryListData.map(
+                            (row: Record<string, unknown>, idx: number) => (
+                              <TableRow key={idx}>
+                                {expandedSummary === "residents" && (
+                                  <>
+                                    <TableCell>
+                                      {String(row.casela ?? "-")}
+                                    </TableCell>
+                                    <TableCell>
+                                      {String(row.name ?? "-")}
+                                    </TableCell>
+                                  </>
+                                )}
+                                {expandedSummary === "medicines" && (
+                                  <>
+                                    <TableCell>
+                                      {String(row.nome ?? "-")}
+                                    </TableCell>
+                                    <TableCell>
+                                      {String(row.principio_ativo ?? "-")}
+                                    </TableCell>
+                                    <TableCell>
+                                      {String(row.dosagem ?? "-")}
+                                    </TableCell>
+                                    <TableCell>
+                                      {String(row.unidade_medida ?? "-")}
+                                    </TableCell>
+                                  </>
+                                )}
+                                {expandedSummary === "inputs" && (
+                                  <>
+                                    <TableCell>
+                                      {String(row.nome ?? "-")}
+                                    </TableCell>
+                                    <TableCell>
+                                      {String(row.descricao ?? "-")}
+                                    </TableCell>
+                                  </>
+                                )}
+                                {expandedSummary === "cabinets" && (
+                                  <>
+                                    <TableCell>
+                                      {String(row.numero ?? "-")}
+                                    </TableCell>
+                                    <TableCell>
+                                      {String(row.categoria ?? "-")}
+                                    </TableCell>
+                                  </>
+                                )}
+                                {expandedSummary === "drawers" && (
+                                  <>
+                                    <TableCell>
+                                      {String(row.numero ?? "-")}
+                                    </TableCell>
+                                    <TableCell>
+                                      {String(row.categoria ?? "-")}
+                                    </TableCell>
+                                  </>
+                                )}
+                              </TableRow>
+                            ),
+                          )
                         )}
                       </TableBody>
                     </Table>
@@ -446,7 +521,9 @@ export function AdminTabResumo({
               )}
             </>
           ) : (
-            <p className="text-muted-foreground">Não foi possível carregar o resumo.</p>
+            <p className="text-muted-foreground">
+              Não foi possível carregar o resumo.
+            </p>
           )}
         </CardContent>
       </Card>
@@ -495,7 +572,10 @@ export function AdminTabResumo({
                   <TableBody>
                     {expiringItems.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-4">
+                        <TableCell
+                          colSpan={7}
+                          className="text-center text-muted-foreground py-4"
+                        >
                           Nenhum item a vencer no período.
                         </TableCell>
                       </TableRow>
@@ -545,7 +625,8 @@ export function AdminTabResumo({
         <CardHeader>
           <CardTitle>Consumo por período (por item)</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Quantidade de entradas e saídas por medicamento/insumo no intervalo de datas.
+            Quantidade de entradas e saídas por medicamento/insumo no intervalo
+            de datas.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -568,7 +649,11 @@ export function AdminTabResumo({
                 className="w-[140px]"
               />
             </div>
-            <Button type="button" onClick={fetchConsumptionByItem} disabled={loadingConsumptionByItem}>
+            <Button
+              type="button"
+              onClick={fetchConsumptionByItem}
+              disabled={loadingConsumptionByItem}
+            >
               {loadingConsumptionByItem ? "Carregando..." : "Buscar"}
             </Button>
           </div>
@@ -591,8 +676,12 @@ export function AdminTabResumo({
                 <TableBody>
                   {consumptionByItemData.items.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
-                        Nenhum dado no período. Defina as datas e clique em Buscar.
+                      <TableCell
+                        colSpan={4}
+                        className="text-center text-muted-foreground py-4"
+                      >
+                        Nenhum dado no período. Defina as datas e clique em
+                        Buscar.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -601,7 +690,9 @@ export function AdminTabResumo({
                         <TableRow key={idx}>
                           <TableCell>{row.nome}</TableCell>
                           <TableCell>
-                            {row.tipo_item === "medicamento" ? "Medicamento" : "Insumo"}
+                            {row.tipo_item === "medicamento"
+                              ? "Medicamento"
+                              : "Insumo"}
                           </TableCell>
                           <TableCell>{row.entrada}</TableCell>
                           <TableCell>{row.saida}</TableCell>
@@ -609,8 +700,12 @@ export function AdminTabResumo({
                       ))}
                       <TableRow className="bg-slate-100 font-medium">
                         <TableCell colSpan={2}>Subtotal</TableCell>
-                        <TableCell>{consumptionByItemData.subtotal.entrada}</TableCell>
-                        <TableCell>{consumptionByItemData.subtotal.saida}</TableCell>
+                        <TableCell>
+                          {consumptionByItemData.subtotal.entrada}
+                        </TableCell>
+                        <TableCell>
+                          {consumptionByItemData.subtotal.saida}
+                        </TableCell>
                       </TableRow>
                     </>
                   )}
@@ -625,7 +720,8 @@ export function AdminTabResumo({
         <CardHeader>
           <CardTitle>Histórico por item ou lote (rastreabilidade)</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Consulte movimentações por medicamento/insumo (busque pelo nome) ou por lote.
+            Consulte movimentações por medicamento/insumo (busque pelo nome) ou
+            por lote.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -649,15 +745,24 @@ export function AdminTabResumo({
                     <SelectItem value="insumo">Insumo</SelectItem>
                   </SelectContent>
                 </Select>
-                <Popover open={stockHistoryItemPopoverOpen} onOpenChange={setStockHistoryItemPopoverOpen}>
+                <Popover
+                  open={stockHistoryItemPopoverOpen}
+                  onOpenChange={setStockHistoryItemPopoverOpen}
+                >
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="min-w-[220px] justify-between">
+                    <Button
+                      variant="outline"
+                      className="min-w-[220px] justify-between"
+                    >
                       {stockHistorySelectedItem
                         ? stockHistorySelectedItem.nome
                         : "Digite para buscar pelo nome..."}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <PopoverContent
+                    className="w-[var(--radix-popover-trigger-width)] p-0"
+                    align="start"
+                  >
                     <Command shouldFilter={false}>
                       <div className="flex items-center border-b px-3">
                         <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
@@ -668,7 +773,9 @@ export function AdminTabResumo({
                               : "Buscar insumo..."
                           }
                           value={stockHistoryItemSearch}
-                          onChange={(e) => setStockHistoryItemSearch(e.target.value)}
+                          onChange={(e) =>
+                            setStockHistoryItemSearch(e.target.value)
+                          }
                           className="h-11 border-0 rounded-none bg-transparent py-3 focus-visible:ring-0 focus-visible:ring-offset-0"
                         />
                       </div>
@@ -758,14 +865,18 @@ export function AdminTabResumo({
                   </TableBody>
                 </Table>
               </div>
-              <p className="text-sm text-muted-foreground">Total: {stockHistoryTotal} registro(s).</p>
+              <p className="text-sm text-muted-foreground">
+                Total: {stockHistoryTotal} registro(s).
+              </p>
             </>
           )}
           {!loadingStockHistory &&
             stockHistoryData.length === 0 &&
             stockHistoryTotal === 0 &&
             (stockHistorySelectedItem || stockHistoryLote.trim()) && (
-              <p className="text-muted-foreground">Nenhum movimento encontrado.</p>
+              <p className="text-muted-foreground">
+                Nenhum movimento encontrado.
+              </p>
             )}
         </CardContent>
       </Card>
@@ -786,7 +897,9 @@ export function AdminTabResumo({
           </DialogHeader>
 
           <div className="flex items-center justify-end gap-2">
-            <label className="text-sm text-muted-foreground">Itens por página</label>
+            <label className="text-sm text-muted-foreground">
+              Itens por página
+            </label>
             <Select
               value={String(metricsLimit)}
               onValueChange={(v) => {
@@ -820,15 +933,23 @@ export function AdminTabResumo({
                       <>
                         <TableHead>Nome</TableHead>
                         <TableHead>Login</TableHead>
-                        <TableHead className="whitespace-nowrap">Último acesso</TableHead>
-                        <TableHead className="text-right whitespace-nowrap">Acessos</TableHead>
+                        <TableHead className="whitespace-nowrap">
+                          Último acesso
+                        </TableHead>
+                        <TableHead className="text-right whitespace-nowrap">
+                          Acessos
+                        </TableHead>
                       </>
                     ) : (
                       <>
-                        <TableHead className="whitespace-nowrap">Data</TableHead>
+                        <TableHead className="whitespace-nowrap">
+                          Data
+                        </TableHead>
                         <TableHead>Tipo</TableHead>
                         <TableHead>Item</TableHead>
-                        <TableHead className="text-right whitespace-nowrap">Qtd</TableHead>
+                        <TableHead className="text-right whitespace-nowrap">
+                          Qtd
+                        </TableHead>
                         <TableHead>Setor</TableHead>
                         <TableHead>Operador</TableHead>
                         <TableHead>Residente</TableHead>
@@ -840,7 +961,10 @@ export function AdminTabResumo({
                   {metricsDialog === "activeUsers" ? (
                     activeUsersRows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                        <TableCell
+                          colSpan={4}
+                          className="text-center text-muted-foreground"
+                        >
                           Nenhum usuário ativo no mês.
                         </TableCell>
                       </TableRow>
@@ -856,26 +980,39 @@ export function AdminTabResumo({
                         return (
                           <TableRow key={u.id}>
                             <TableCell>{fullName || u.login}</TableCell>
-                            <TableCell className="font-mono text-xs">{u.login}</TableCell>
-                            <TableCell className="whitespace-nowrap">{last}</TableCell>
-                            <TableCell className="text-right">{u.logins_count ?? 0}</TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {u.login}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              {last}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {u.logins_count ?? 0}
+                            </TableCell>
                           </TableRow>
                         );
                       })
                     )
                   ) : movementsRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground">
+                      <TableCell
+                        colSpan={7}
+                        className="text-center text-muted-foreground"
+                      >
                         Nenhuma movimentação no mês.
                       </TableCell>
                     </TableRow>
                   ) : (
                     movementsRows.map((m) => (
                       <TableRow key={m.id}>
-                        <TableCell className="whitespace-nowrap">{m.data}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {m.data}
+                        </TableCell>
                         <TableCell>{m.tipo}</TableCell>
                         <TableCell>{m.nome}</TableCell>
-                        <TableCell className="text-right">{m.quantidade}</TableCell>
+                        <TableCell className="text-right">
+                          {m.quantidade}
+                        </TableCell>
                         <TableCell>{m.setor}</TableCell>
                         <TableCell>{m.operador}</TableCell>
                         <TableCell>{m.residente ?? "—"}</TableCell>

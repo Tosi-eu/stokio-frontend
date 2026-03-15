@@ -17,12 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PlusCircle, Edit, XCircle, Loader2 } from "lucide-react";
+import { PlusCircle, Edit, XCircle } from "lucide-react";
 import { AUDIT_OPERATION_LABEL, AUDIT_RESOURCE_LABEL } from "../constants";
-import {
-  auditStatusLabel,
-  auditValuePreview,
-} from "../helpers/audit.helpers";
+import { auditStatusLabel, auditValuePreview } from "../helpers/audit.helpers";
 import type { InsightsData, AuditEvent } from "../types";
 
 interface AdminUserOption {
@@ -103,7 +100,12 @@ export function AdminTabInsights({
           <Label htmlFor="insight-days" className="text-sm whitespace-nowrap">
             dias
           </Label>
-          <Button type="button" variant="secondary" size="sm" onClick={applyInsightDays}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={applyInsightDays}
+          >
             Aplicar
           </Button>
         </div>
@@ -133,7 +135,9 @@ export function AdminTabInsights({
           <div className="flex items-center gap-2">
             <Label className="text-sm whitespace-nowrap">Usuário</Label>
             <Select
-              value={insightUserIdFilter === "" ? "all" : String(insightUserIdFilter)}
+              value={
+                insightUserIdFilter === "" ? "all" : String(insightUserIdFilter)
+              }
               onValueChange={(v) => {
                 setInsightUserIdFilter(v === "all" ? "" : Number(v));
                 setEventsPage(1);
@@ -170,7 +174,9 @@ export function AdminTabInsights({
                     : ""
                 }`}
                 onClick={() => {
-                  setInsightFilter(insightFilter === "create" ? null : "create");
+                  setInsightFilter(
+                    insightFilter === "create" ? null : "create",
+                  );
                   setEventsPage(1);
                 }}
               >
@@ -194,7 +200,9 @@ export function AdminTabInsights({
                     : ""
                 }`}
                 onClick={() => {
-                  setInsightFilter(insightFilter === "update" ? null : "update");
+                  setInsightFilter(
+                    insightFilter === "update" ? null : "update",
+                  );
                   setEventsPage(1);
                 }}
               >
@@ -218,7 +226,9 @@ export function AdminTabInsights({
                     : ""
                 }`}
                 onClick={() => {
-                  setInsightFilter(insightFilter === "delete" ? null : "delete");
+                  setInsightFilter(
+                    insightFilter === "delete" ? null : "delete",
+                  );
                   setEventsPage(1);
                 }}
               >
@@ -264,7 +274,10 @@ export function AdminTabInsights({
                 )}
               </p>
               <div className="flex items-center gap-2">
-                <Label htmlFor="page-size" className="text-sm whitespace-nowrap">
+                <Label
+                  htmlFor="page-size"
+                  className="text-sm whitespace-nowrap"
+                >
                   Por página
                 </Label>
                 <Select
@@ -320,7 +333,8 @@ export function AdminTabInsights({
                             : "—"}
                         </TableCell>
                         <TableCell>
-                          {AUDIT_OPERATION_LABEL[e.operation_type] ?? e.operation_type}
+                          {AUDIT_OPERATION_LABEL[e.operation_type] ??
+                            e.operation_type}
                         </TableCell>
                         <TableCell>{auditStatusLabel(e.status_code)}</TableCell>
                         <TableCell
@@ -375,7 +389,9 @@ export function AdminTabInsights({
             )}
           </>
         ) : (
-          <p className="text-muted-foreground">Nenhum dado de auditoria no período.</p>
+          <p className="text-muted-foreground">
+            Nenhum dado de auditoria no período.
+          </p>
         )}
       </CardContent>
     </Card>

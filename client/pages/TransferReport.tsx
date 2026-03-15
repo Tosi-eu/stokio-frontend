@@ -65,7 +65,7 @@ export default function TransferReport() {
     fetchTransfers();
   }, []);
 
-  const tableData = transfers.map((transfer, index) => ({
+  const tableData = transfers.map((transfer) => ({
     medicamento: transfer.nome,
     principio_ativo: transfer.principio_ativo || "-",
     quantidade: String(transfer.quantidade),

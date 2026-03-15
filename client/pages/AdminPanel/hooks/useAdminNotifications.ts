@@ -1,12 +1,9 @@
 import { useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast.hook";
-import {
-  getAdminNotifications,
-  patchAdminNotification,
-} from "@/api/requests";
+import { getAdminNotifications, patchAdminNotification } from "@/api/requests";
 import type { AdminNotificationItem } from "@/api/requests";
 
-export function useAdminNotifications(isAdmin: boolean) {
+export function useAdminNotifications(isAdmin: boolean, enabled = true) {
   const [items, setItems] = useState<AdminNotificationItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -40,8 +37,9 @@ export function useAdminNotifications(isAdmin: boolean) {
   }
 
   useEffect(() => {
-    load();
-  }, [isAdmin, page, limit]);
+    if (enabled) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load is stable
+  }, [isAdmin, enabled, page, limit]);
 
   async function markAsRead(id: number) {
     try {

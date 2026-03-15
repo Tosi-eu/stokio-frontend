@@ -19,10 +19,10 @@ export default function StepItems({ items, selected, onSelectItem }: Props) {
   const shouldVirtualize = items.length > 20;
 
   const renderItem = useMemo(
-    () => (item: StockItemRaw, index: number) => {
+    // eslint-disable-next-line react/display-name -- render callback, not a mounted component
+    () => (item: StockItemRaw, _index: number) => {
       const isDisabled = item.quantidade === 0;
       const isSelected = selected?.estoque_id === item.estoque_id;
-
       return (
         <div className="w-full max-w-[380px] sm:max-w-[420px]">
           <StockCard

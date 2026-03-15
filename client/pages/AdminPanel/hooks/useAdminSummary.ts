@@ -20,12 +20,11 @@ export type SummaryListKind =
   | "cabinets"
   | "drawers";
 
-export function useAdminSummary(isAdmin: boolean) {
+export function useAdminSummary(isAdmin: boolean, enabled = true) {
   const [summary, setSummary] = useState<ExecutiveSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
-  const [expandedSummary, setExpandedSummary] = useState<SummaryListKind | null>(
-    null,
-  );
+  const [expandedSummary, setExpandedSummary] =
+    useState<SummaryListKind | null>(null);
   const [summaryListData, setSummaryListData] = useState<
     Record<string, unknown>[]
   >([]);
@@ -115,8 +114,8 @@ export function useAdminSummary(isAdmin: boolean) {
   }
 
   useEffect(() => {
-    if (isAdmin) loadSummary();
-  }, [isAdmin]);
+    if (isAdmin && enabled) loadSummary();
+  }, [isAdmin, enabled]);
 
   return {
     summary,

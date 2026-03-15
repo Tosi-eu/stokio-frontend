@@ -73,6 +73,7 @@ export default function SignUpMedicine() {
   });
 
   const [medicines, setMedicines] = useState<RawStockMedicine[]>([]);
+  // eslint-disable-next-line react-hooks/incompatible-library -- React Hook Form watch()
   const watchedName = watch("name");
 
   useEffect(() => {

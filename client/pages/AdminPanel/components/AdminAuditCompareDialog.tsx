@@ -47,12 +47,15 @@ function parseObj(
   return o && typeof o === "object" && !Array.isArray(o) ? o : {};
 }
 
-export function AdminAuditCompareDialog({ event, onClose }: AdminAuditCompareDialogProps) {
+export function AdminAuditCompareDialog({
+  event,
+  onClose,
+}: AdminAuditCompareDialogProps) {
   if (!event) return null;
 
   const oldRaw = event.old_value;
   const newRaw = event.new_value;
-  let oldObj = normalizeAuditKeys(
+  const oldObj = normalizeAuditKeys(
     parseObj(oldRaw as Record<string, unknown> | string | null),
   );
   let newObj = parseObj(newRaw as Record<string, unknown> | string | null);

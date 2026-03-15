@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast.hook";
-import { getAdminConfig, updateAdminConfig, getAdminHealth } from "@/api/requests";
+import {
+  getAdminConfig,
+  updateAdminConfig,
+  getAdminHealth,
+} from "@/api/requests";
 import type { AdminHealthResponse } from "@/api/requests";
 
 export const CONFIG_KEYS = {
@@ -13,7 +17,7 @@ const DEFAULT_VALUES: Record<string, string> = {
   estoque_minimo_padrao: "0",
 };
 
-export function useAdminConfig(isAdmin: boolean) {
+export function useAdminConfig(isAdmin: boolean, enabled = true) {
   const [config, setConfig] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -38,13 +42,24 @@ export function useAdminConfig(isAdmin: boolean) {
   }
 
   useEffect(() => {
-    load();
-  }, [isAdmin]);
+    if (isAdmin && enabled) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load is stable
+  }, [isAdmin, enabled]);
+
+  async function refetchHealth() {
+    if (!isAdmin) return;
+    try {
+      const h = await getAdminHealth();
+      setHealth(h);
+    } catch {
+      setHealth(null);
+    }
+  }
 
   useEffect(() => {
-    if (!isAdmin) return;
-    getAdminHealth().then(setHealth).catch(() => setHealth(null));
-  }, [isAdmin]);
+    if (!isAdmin || !enabled) return;
+    refetchHealth();
+  }, [isAdmin, enabled]);
 
   async function save() {
     setSaving(true);
@@ -72,5 +87,6 @@ export function useAdminConfig(isAdmin: boolean) {
     health,
     load,
     save,
+    refetchHealth,
   };
 }

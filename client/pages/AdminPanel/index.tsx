@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -46,26 +46,34 @@ export default function AdminPanel() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
+  const [activeTab, setActiveTab] = useState("resumo");
+
   useEffect(() => {
     if (!isAdmin) navigate("/dashboard");
   }, [isAdmin, navigate]);
 
-  const summary = useAdminSummary(isAdmin);
-  const alerts = useAdminAlerts(isAdmin);
-  const users = useAdminUsers(isAdmin);
-  const loginLog = useAdminLoginLog(isAdmin);
-  const config = useAdminConfig(isAdmin);
-  const metrics = useAdminMetrics(isAdmin);
-  const notifications = useAdminNotifications(isAdmin);
-  const insights = useAdminInsights(isAdmin);
-  const reports = useAdminReports();
-  const resumoExtras = useAdminResumoExtras(isAdmin);
+  const summary = useAdminSummary(isAdmin, activeTab === "resumo");
+  const alerts = useAdminAlerts(isAdmin, activeTab === "alertas");
+  const users = useAdminUsers(
+    isAdmin,
+    activeTab === "users" || activeTab === "insights",
+  );
+  const loginLog = useAdminLoginLog(isAdmin, activeTab === "acessos");
+  const config = useAdminConfig(isAdmin, activeTab === "config");
+  const metrics = useAdminMetrics(isAdmin, activeTab === "resumo");
+  const notifications = useAdminNotifications(
+    isAdmin,
+    activeTab === "notificacoes",
+  );
+  const insights = useAdminInsights(isAdmin, activeTab === "insights");
+  const reports = useAdminReports(activeTab === "relatorios");
+  const resumoExtras = useAdminResumoExtras(isAdmin, activeTab === "resumo");
 
   if (!isAdmin) return null;
 
   return (
     <Layout title="Painel administrativo">
-      <Tabs defaultValue="resumo" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid grid-cols-8 gap-1 w-full p-1">
           <TabsTrigger
             value="resumo"
@@ -154,10 +162,18 @@ export default function AdminPanel() {
             setStockHistoryItemSearch={resumoExtras.setStockHistoryItemSearch}
             stockHistoryItemOptions={resumoExtras.stockHistoryItemOptions}
             stockHistorySelectedItem={resumoExtras.stockHistorySelectedItem}
-            setStockHistorySelectedItem={resumoExtras.setStockHistorySelectedItem}
-            loadingStockHistoryItemSearch={resumoExtras.loadingStockHistoryItemSearch}
-            stockHistoryItemPopoverOpen={resumoExtras.stockHistoryItemPopoverOpen}
-            setStockHistoryItemPopoverOpen={resumoExtras.setStockHistoryItemPopoverOpen}
+            setStockHistorySelectedItem={
+              resumoExtras.setStockHistorySelectedItem
+            }
+            loadingStockHistoryItemSearch={
+              resumoExtras.loadingStockHistoryItemSearch
+            }
+            stockHistoryItemPopoverOpen={
+              resumoExtras.stockHistoryItemPopoverOpen
+            }
+            setStockHistoryItemPopoverOpen={
+              resumoExtras.setStockHistoryItemPopoverOpen
+            }
             stockHistoryLote={resumoExtras.stockHistoryLote}
             setStockHistoryLote={resumoExtras.setStockHistoryLote}
             stockHistoryData={resumoExtras.stockHistoryData}
@@ -169,7 +185,10 @@ export default function AdminPanel() {
         </TabsContent>
 
         <TabsContent value="alertas" className="mt-6">
-          <AdminTabAlertas alerts={alerts.alerts} loadingAlerts={alerts.loadingAlerts} />
+          <AdminTabAlertas
+            alerts={alerts.alerts}
+            loadingAlerts={alerts.loadingAlerts}
+          />
         </TabsContent>
 
         <TabsContent value="relatorios" className="mt-6">
@@ -251,6 +270,7 @@ export default function AdminPanel() {
             saving={config.saving}
             health={config.health}
             onSave={config.save}
+            refetchHealth={config.refetchHealth}
           />
         </TabsContent>
 

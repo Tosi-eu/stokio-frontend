@@ -45,12 +45,15 @@ export default function EditInput() {
       return;
     }
 
-    setInputId(item.id);
-    reset({
-      nome: item.nome || "",
-      descricao: item.descricao || "",
-      estoque_minimo: item.estoque_minimo?.toString() || "0",
-    });
+    const id = setTimeout(() => {
+      setInputId(item.id);
+      reset({
+        nome: item.nome || "",
+        descricao: item.descricao || "",
+        estoque_minimo: item.estoque_minimo?.toString() || "0",
+      });
+    }, 0);
+    return () => clearTimeout(id);
   }, [location.state, navigate, reset]);
 
   const onSubmit = async (data: {

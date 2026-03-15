@@ -79,7 +79,9 @@ export function AdminTabNotificacoes({
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="medicamento">Medicamento</SelectItem>
-                <SelectItem value="reposicao_estoque">Reposição estoque</SelectItem>
+                <SelectItem value="reposicao_estoque">
+                  Reposição estoque
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -103,7 +105,9 @@ export function AdminTabNotificacoes({
           <div className="grid gap-2 w-32">
             <label className="text-sm font-medium">Lida</label>
             <Select
-              value={vistoFilter === "" ? "all" : vistoFilter ? "true" : "false"}
+              value={
+                vistoFilter === "" ? "all" : vistoFilter ? "true" : "false"
+              }
               onValueChange={(v) =>
                 setVistoFilter(v === "all" ? "" : v === "true")
               }
@@ -126,7 +130,9 @@ export function AdminTabNotificacoes({
         ) : (
           <>
             <div className="flex items-center justify-end gap-2">
-              <label className="text-sm text-muted-foreground">Itens por página</label>
+              <label className="text-sm text-muted-foreground">
+                Itens por página
+              </label>
               <Select
                 value={String(limit)}
                 onValueChange={(v) => {
@@ -161,7 +167,10 @@ export function AdminTabNotificacoes({
                 <TableBody>
                   {items.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground">
+                      <TableCell
+                        colSpan={7}
+                        className="text-center text-muted-foreground"
+                      >
                         Nenhuma notificação encontrada.
                       </TableCell>
                     </TableRow>
@@ -211,22 +220,22 @@ export function AdminTabNotificacoes({
             </div>
 
             <div className="flex items-center justify-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage(page + 1)}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage(page - 1)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage(page + 1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
           </>
         )}

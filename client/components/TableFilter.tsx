@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ interface TableFilterProps {
   className?: string;
 }
 
-export function TableFilter({
+export const TableFilter = memo(function TableFilter({
   placeholder = "Buscar",
   onFilterChange,
   debounceMs = 300,
@@ -24,10 +24,10 @@ export function TableFilter({
     onFilterChange(debouncedValue);
   }, [debouncedValue, onFilterChange]);
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     setSearchValue("");
     onFilterChange("");
-  };
+  }, [onFilterChange]);
 
   return (
     <div className={`relative ${className}`}>
@@ -52,4 +52,4 @@ export function TableFilter({
       )}
     </div>
   );
-}
+});

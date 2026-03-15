@@ -12,6 +12,18 @@ export default defineConfig({
   },
   build: {
     outDir: "dist/spa",
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes("node_modules/@react-pdf/renderer"))
+            return "vendor-pdf";
+          if (id.includes("node_modules/three")) return "vendor-three";
+          if (id.includes("node_modules/@react-three")) return "vendor-three";
+          if (id.includes("node_modules/recharts")) return "vendor-recharts";
+          if (id.includes("node_modules/framer-motion")) return "vendor-framer";
+        },
+      },
+    },
   },
   server: {
     host: "::",

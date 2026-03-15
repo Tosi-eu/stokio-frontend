@@ -105,7 +105,6 @@ export const InputForm = memo(function InputForm({
   }, [stockType, setValue, isIndividual]);
 
   const handleInputSelect = (id: number) => {
-    const selected = inputs.find((i) => i.id === id);
     setValue("inputId", id);
     setInputOpen(false);
   };
@@ -385,7 +384,9 @@ export const InputForm = memo(function InputForm({
                       <CommandGroup>
                         {caselasForSelect.map((c) => {
                           const label =
-                            sector === SectorType.ENFERMAGEM ? c.name : String(c.casela);
+                            sector === SectorType.ENFERMAGEM
+                              ? c.name
+                              : String(c.casela);
                           const searchValue = `${c.casela} ${c.name}`;
                           return (
                             <CommandItem
@@ -399,7 +400,9 @@ export const InputForm = memo(function InputForm({
                               <Check
                                 className={cn(
                                   "mr-2 h-4 w-4",
-                                  field.value === c.casela ? "opacity-100" : "opacity-0",
+                                  field.value === c.casela
+                                    ? "opacity-100"
+                                    : "opacity-0",
                                 )}
                               />
                               {label}

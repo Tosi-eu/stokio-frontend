@@ -18,6 +18,7 @@ export function VirtualizedTable({
 }: VirtualizedTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual API
   const virtualizer = useVirtualizer({
     count: data.length,
     getScrollElement: () => parentRef.current,

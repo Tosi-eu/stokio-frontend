@@ -4,17 +4,22 @@ import { toast } from "@/hooks/use-toast.hook";
 import { getAdminInsights } from "@/api/requests";
 import type { InsightsData, AuditEvent } from "../types";
 
-export function useAdminInsights(isAdmin: boolean) {
+export function useAdminInsights(isAdmin: boolean, enabled = true) {
   const [insightDays, setInsightDays] = useState(30);
   const [insightDaysInput, setInsightDaysInput] = useState("30");
   const [insightFilter, setInsightFilter] = useState<
     "create" | "update" | "delete" | null
   >(null);
-  const [insightResourceFilter, setInsightResourceFilter] = useState<string>("");
-  const [insightUserIdFilter, setInsightUserIdFilter] = useState<number | "">("");
+  const [insightResourceFilter, setInsightResourceFilter] =
+    useState<string>("");
+  const [insightUserIdFilter, setInsightUserIdFilter] = useState<number | "">(
+    "",
+  );
   const [eventsPage, setEventsPage] = useState(1);
   const [eventsPageSize, setEventsPageSize] = useState(25);
-  const [auditCompareEvent, setAuditCompareEvent] = useState<AuditEvent | null>(null);
+  const [auditCompareEvent, setAuditCompareEvent] = useState<AuditEvent | null>(
+    null,
+  );
 
   const {
     data: insightsData,
@@ -40,7 +45,7 @@ export function useAdminInsights(isAdmin: boolean) {
         resource: insightResourceFilter || undefined,
         userId: insightUserIdFilter === "" ? undefined : insightUserIdFilter,
       }),
-    enabled: isAdmin,
+    enabled: isAdmin && enabled,
   });
 
   const insights = useMemo(() => {
