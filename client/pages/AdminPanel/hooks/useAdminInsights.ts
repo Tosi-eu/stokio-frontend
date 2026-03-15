@@ -4,7 +4,7 @@ import { toast } from "@/hooks/use-toast.hook";
 import { getAdminInsights } from "@/api/requests";
 import type { InsightsData, AuditEvent } from "../types";
 
-export function useAdminInsights(isAdmin: boolean) {
+export function useAdminInsights(isAdmin: boolean, enabled = true) {
   const [insightDays, setInsightDays] = useState(30);
   const [insightDaysInput, setInsightDaysInput] = useState("30");
   const [insightFilter, setInsightFilter] = useState<
@@ -40,7 +40,7 @@ export function useAdminInsights(isAdmin: boolean) {
         resource: insightResourceFilter || undefined,
         userId: insightUserIdFilter === "" ? undefined : insightUserIdFilter,
       }),
-    enabled: isAdmin,
+    enabled: isAdmin && enabled,
   });
 
   const insights = useMemo(() => {

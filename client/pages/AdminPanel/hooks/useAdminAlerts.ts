@@ -6,7 +6,7 @@ import { formatValidityDate } from "@/helpers/dates.helper";
 import type { StockListAlertItem } from "@/interfaces/interfaces";
 import type { AlertStockItem } from "../types";
 
-export function useAdminAlerts(isAdmin: boolean) {
+export function useAdminAlerts(isAdmin: boolean, enabled = true) {
   const [alerts, setAlerts] = useState<{
     noStock: AlertStockItem[];
     belowMin: AlertStockItem[];
@@ -98,8 +98,8 @@ export function useAdminAlerts(isAdmin: boolean) {
   }
 
   useEffect(() => {
-    if (isAdmin) loadAlerts();
-  }, [isAdmin]);
+    if (isAdmin && enabled) loadAlerts();
+  }, [isAdmin, enabled]);
 
   return { alerts, loadingAlerts, loadAlerts };
 }

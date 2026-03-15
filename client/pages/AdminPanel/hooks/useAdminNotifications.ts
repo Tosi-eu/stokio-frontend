@@ -6,7 +6,7 @@ import {
 } from "@/api/requests";
 import type { AdminNotificationItem } from "@/api/requests";
 
-export function useAdminNotifications(isAdmin: boolean) {
+export function useAdminNotifications(isAdmin: boolean, enabled = true) {
   const [items, setItems] = useState<AdminNotificationItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -40,8 +40,8 @@ export function useAdminNotifications(isAdmin: boolean) {
   }
 
   useEffect(() => {
-    load();
-  }, [isAdmin, page, limit]);
+    if (enabled) load();
+  }, [isAdmin, enabled, page, limit]);
 
   async function markAsRead(id: number) {
     try {

@@ -3,7 +3,7 @@ import { toast } from "@/hooks/use-toast.hook";
 import { getAdminLoginLog } from "@/api/requests";
 import type { LoginLogEntry } from "@/api/requests";
 
-export function useAdminLoginLog(isAdmin: boolean) {
+export function useAdminLoginLog(isAdmin: boolean, enabled = true) {
   const [data, setData] = useState<LoginLogEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -39,8 +39,8 @@ export function useAdminLoginLog(isAdmin: boolean) {
   }
 
   useEffect(() => {
-    load();
-  }, [isAdmin, page, limit]);
+    if (enabled) load();
+  }, [isAdmin, enabled, page, limit]);
 
   function applyFilters() {
     setPage(1);

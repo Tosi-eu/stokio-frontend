@@ -13,7 +13,7 @@ const DEFAULT_VALUES: Record<string, string> = {
   estoque_minimo_padrao: "0",
 };
 
-export function useAdminConfig(isAdmin: boolean) {
+export function useAdminConfig(isAdmin: boolean, enabled = true) {
   const [config, setConfig] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -38,13 +38,13 @@ export function useAdminConfig(isAdmin: boolean) {
   }
 
   useEffect(() => {
-    load();
-  }, [isAdmin]);
+    if (isAdmin && enabled) load();
+  }, [isAdmin, enabled]);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isAdmin || !enabled) return;
     getAdminHealth().then(setHealth).catch(() => setHealth(null));
-  }, [isAdmin]);
+  }, [isAdmin, enabled]);
 
   async function save() {
     setSaving(true);

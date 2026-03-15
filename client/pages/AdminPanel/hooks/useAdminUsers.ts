@@ -16,7 +16,7 @@ const defaultPermissions: UserPermissions = {
   delete: false,
 };
 
-export function useAdminUsers(isAdmin: boolean) {
+export function useAdminUsers(isAdmin: boolean, enabled = true) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [editModal, setEditModal] = useState<AdminUser | null>(null);
@@ -54,8 +54,8 @@ export function useAdminUsers(isAdmin: boolean) {
   }
 
   useEffect(() => {
-    if (isAdmin) loadUsers();
-  }, [isAdmin]);
+    if (isAdmin && enabled) loadUsers();
+  }, [isAdmin, enabled]);
 
   function openEdit(u: AdminUser) {
     setEditModal(u);

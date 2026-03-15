@@ -16,7 +16,7 @@ import { parseYearMonthToDate } from "@/helpers/dates.helper";
 import { pdf } from "@react-pdf/renderer";
 import type { ResidentOption } from "../types";
 
-export function useAdminReports() {
+export function useAdminReports(enabled = true) {
   const [selectedReportType, setSelectedReportType] = useState("");
   const [reportResidents, setReportResidents] = useState<ResidentOption[]>([]);
   const [selectedReportResident, setSelectedReportResident] = useState<
@@ -59,8 +59,8 @@ export function useAdminReports() {
   );
 
   useEffect(() => {
-    if (showReportResidentSelector) loadReportResidents();
-  }, [selectedReportType]);
+    if (enabled && showReportResidentSelector) loadReportResidents();
+  }, [enabled, selectedReportType]);
 
   async function loadReportResidents() {
     setLoadingReportResidents(true);

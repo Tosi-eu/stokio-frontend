@@ -201,12 +201,6 @@ export default function Dashboard() {
         if (res.items.length > 0) {
           setNotifList(res.items);
           setNotifOpen(true);
-
-          await Promise.all(
-            res.items.map((n: { id: number }) =>
-              updateNotification(n.id, { visto: true }),
-            ),
-          );
         }
       } catch (err: unknown) {
         const errorMessage =
@@ -234,12 +228,6 @@ export default function Dashboard() {
           setReplacementItems(res.items);
           setReplacementOpen(true);
         }
-
-        await Promise.all(
-          res.items.map((n: { id: number }) =>
-            updateNotification(n.id, { visto: true }),
-          ),
-        );
       } catch {
         /* NO-OP */
       }
@@ -528,12 +516,30 @@ export default function Dashboard() {
         <NotificationReminderModal
           open={notifOpen}
           events={notifList}
-          onClose={() => setNotifOpen(false)}
+          onClose={() => {
+            if (notifList.length > 0) {
+              Promise.all(
+                notifList.map((n: { id: number }) =>
+                  updateNotification(n.id, { visto: true }),
+                ),
+              ).catch(() => {});
+            }
+            setNotifOpen(false);
+          }}
         />
         <StockReplacementModal
           open={replacementOpen}
           items={replacementItems}
-          onClose={() => setReplacementOpen(false)}
+          onClose={() => {
+            if (replacementItems.length > 0) {
+              Promise.all(
+                replacementItems.map((n: { id: number }) =>
+                  updateNotification(n.id, { visto: true }),
+                ),
+              ).catch(() => {});
+            }
+            setReplacementOpen(false);
+          }}
         />
       </Suspense>
     </Layout>

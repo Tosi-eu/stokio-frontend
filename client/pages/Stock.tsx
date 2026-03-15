@@ -1,7 +1,7 @@
 import Layout from "@/components/Layout";
 import EditableTable from "@/components/EditableTable";
 import { SkeletonTable } from "@/components/SkeletonTable";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { StockItem } from "@/interfaces/interfaces";
 import { lazy, Suspense } from "react";
@@ -34,6 +34,7 @@ import {
   actionTitles,
 } from "@/helpers/toaster.helper";
 import { toast } from "@/hooks/use-toast.hook";
+import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import {
   Popover,
   PopoverContent,
@@ -168,7 +169,7 @@ export default function Stock() {
   async function loadFilterOptions() {
     try {
       const res = await getStockFilterOptions();
-      setApiFilterOptions(res?.data ?? null);
+      setApiFilterOptions(res ?? null);
     } catch (err: unknown) {
       const errorMessage =
         err instanceof Error
@@ -259,6 +260,13 @@ export default function Stock() {
   useEffect(() => {
     loadStock(page, effectiveFilters);
   }, [page, effectiveFilters, filter]);
+
+  const handleNomeFilterChange = useCallback((value: string) => {
+    setFilters((prev) => ({ ...prev, nome: value }));
+  }, []);
+  const handleLoteFilterChange = useCallback((value: string) => {
+    setFilters((prev) => ({ ...prev, lote: value }));
+  }, []);
 
   const filterOptions = useMemo(
     () =>
@@ -533,9 +541,7 @@ export default function Stock() {
                 <label className="block text-xs text-gray-700 mb-1">Nome</label>
                 <TableFilter
                   placeholder="Buscar por nome"
-                  onFilterChange={(value) =>
-                    setFilters((prev) => ({ ...prev, nome: value }))
-                  }
+                  onFilterChange={handleNomeFilterChange}
                 />
               </div>
 
@@ -692,9 +698,7 @@ export default function Stock() {
                 <label className="block text-xs text-gray-700 mb-1">Lote</label>
                 <TableFilter
                   placeholder="Buscar por lote"
-                  onFilterChange={(value) =>
-                    setFilters((prev) => ({ ...prev, lote: value }))
-                  }
+                  onFilterChange={handleLoteFilterChange}
                 />
               </div>
             </div>

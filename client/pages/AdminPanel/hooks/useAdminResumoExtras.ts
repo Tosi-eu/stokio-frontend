@@ -9,7 +9,7 @@ import {
 import type { ExpiringItem, ConsumptionByItemRow } from "@/api/requests";
 import type { StockHistoryEntry } from "@/api/requests";
 
-export function useAdminResumoExtras(isAdmin: boolean) {
+export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
   const [expiringDays, setExpiringDays] = useState<30 | 60 | 90>(30);
   const [expiringItems, setExpiringItems] = useState<ExpiringItem[]>([]);
   const [expiringItemsTotal, setExpiringItemsTotal] = useState(0);
@@ -55,7 +55,7 @@ export function useAdminResumoExtras(isAdmin: boolean) {
   const [loadingStockHistory, setLoadingStockHistory] = useState(false);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isAdmin || !enabled) return;
     let cancelled = false;
     setLoadingExpiringItems(true);
     getExpiringItems(expiringDays, expiringItemsPage, 10)
@@ -77,7 +77,7 @@ export function useAdminResumoExtras(isAdmin: boolean) {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, expiringDays, expiringItemsPage]);
+  }, [isAdmin, enabled, expiringDays, expiringItemsPage]);
 
   function fetchConsumptionByItem() {
     setLoadingConsumptionByItem(true);
@@ -93,8 +93,8 @@ export function useAdminResumoExtras(isAdmin: boolean) {
   }
 
   useEffect(() => {
-    if (isAdmin) fetchConsumptionByItem();
-  }, [isAdmin]);
+    if (isAdmin && enabled) fetchConsumptionByItem();
+  }, [isAdmin, enabled]);
 
   useEffect(() => {
     if (!stockHistoryItemSearch.trim() || stockHistoryItemSearch.length < 2) {
