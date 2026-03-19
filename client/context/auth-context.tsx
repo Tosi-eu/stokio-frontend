@@ -52,8 +52,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [handleLogout]);
 
-  const login = async (login: string, password: string) => {
-    const data = await apiLogin(login, password);
+  const login = async (login: string, password: string, tenantSlug: string) => {
+    const data = await apiLogin(login, password, tenantSlug);
 
     const loggedUser = data.user;
 

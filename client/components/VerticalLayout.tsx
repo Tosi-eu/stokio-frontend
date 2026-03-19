@@ -13,14 +13,15 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth.hook";
+import { useTenant } from "@/hooks/use-tenant.hook";
 
 const baseNavigationTabs = [
-  { name: "Painel", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Movimentações", href: "/movements", icon: ArrowLeftRight },
-  { name: "Medicamentos", href: "/medicines", icon: Pill },
-  { name: "Insumos", href: "/inputs", icon: FlaskConical },
-  { name: "Estoque", href: "/stock", icon: Boxes },
-  { name: "Residentes", href: "/residents", icon: Users },
+  { name: "Painel", href: "/dashboard", icon: LayoutDashboard, module: "dashboard" },
+  { name: "Movimentações", href: "/movements", icon: ArrowLeftRight, module: "movements" },
+  { name: "Medicamentos", href: "/medicines", icon: Pill, module: "medicines" },
+  { name: "Insumos", href: "/inputs", icon: FlaskConical, module: "inputs" },
+  { name: "Estoque", href: "/stock", icon: Boxes, module: "stock" },
+  { name: "Residentes", href: "/residents", icon: Users, module: "residents" },
   { name: "Armários", href: "/cabinets", icon: Archive },
   { name: "Gavetas", href: "/drawers", icon: Grid },
   { name: "Perfil", href: "/user/profile", icon: User },
@@ -34,12 +35,17 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { tenant, isEnabled } = useTenant();
 
   const navigationTabs = [
     ...(user?.role === "admin"
       ? [{ name: "Painel administrativo", href: "/admin", icon: ShieldCheck }]
       : []),
-    ...baseNavigationTabs,
+    ...baseNavigationTabs.filter((t) =>
+      typeof (t as { module?: string }).module === "string"
+        ? isEnabled((t as { module: string }).module)
+        : true,
+    ),
   ];
 
   return (
@@ -54,8 +60,8 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
           aria-label="Ir para o painel principal"
         >
           <img
-            src="/logo.png"
-            alt="Logo Abrigo Helena Dornfeld"
+            src={tenant?.logoDataUrl || "/logo.png"}
+            alt={tenant?.brandName || tenant?.name || "Logo"}
             className="h-24 w-auto"
           />
         </button>

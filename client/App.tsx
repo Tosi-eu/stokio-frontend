@@ -5,13 +5,15 @@ import { createRoot } from "react-dom/client";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { lazy, Suspense, useEffect } from "react";
 import React from "react";
 
 import { AuthProvider } from "./context/auth-context";
 import PrivateRoute from "./pages/PrivateRoute";
+import ModuleRoute from "./pages/ModuleRoute";
 import { NotificationProvider } from "./context/notification.context";
+import { TenantProvider } from "./context/tenant-context";
 import {
   InvalidSessionProvider,
   useInvalidSession,
@@ -19,6 +21,8 @@ import {
 import { LoadingFallback } from "./components/LoadingFallback";
 import { InvalidSessionModal } from "./components/InvalidSessionModal";
 import { toast } from "@/hooks/use-toast.hook";
+import { useAuth } from "@/hooks/use-auth.hook";
+import { useTenant } from "@/hooks/use-tenant.hook";
 
 const Auth = lazy(() => import("./pages/Auth"));
 const Profile = lazy(() => import("./pages/Profile"));
@@ -46,11 +50,28 @@ const EditDrawer = lazy(() => import("./pages/EditDrawer"));
 const RegisterDrawer = lazy(() => import("./pages/RegisterDrawer"));
 const TransferReport = lazy(() => import("./pages/TransferReport"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
+const TenantOnboarding = lazy(() => import("./pages/TenantOnboarding"));
 
 const queryClient = new QueryClient();
 
 const AppContent = () => {
   const { showModal, setShowModal } = useInvalidSession();
+  const { user } = useAuth();
+  const { tenant, modules, loading: tenantLoading } = useTenant();
+  const location = useLocation();
+
+  const needsSetup = Boolean(
+    user &&
+      !tenantLoading &&
+      (
+        !(tenant?.brandName || tenant?.name) ||
+        !tenant?.logoDataUrl ||
+        !modules?.enabled ||
+        modules.enabled.length === 0
+      ),
+  );
+
+  const isOnboardingPath = location.pathname === "/tenant/onboarding";
 
   useEffect(() => {
     const handleInvalidSession = () => {
@@ -78,6 +99,10 @@ const AppContent = () => {
     return () => window.removeEventListener("insufficient-privileges", handler);
   }, []);
 
+  if (needsSetup && !isOnboardingPath) {
+    return <Navigate to="/tenant/onboarding" replace />;
+  }
+
   return (
     <>
       <InvalidSessionModal
@@ -98,13 +123,28 @@ const AppContent = () => {
         />
 
         <Route
+          path="/tenant/onboarding"
+          element={
+            <PrivateRoute>
+              <Suspense
+                fallback={<LoadingFallback title="Carregando configuração..." />}
+              >
+                <TenantOnboarding />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
           path="/dashboard"
           element={
             <PrivateRoute>
               <Suspense
                 fallback={<LoadingFallback title="Carregando dashboard..." />}
               >
-                <Dashboard />
+                <ModuleRoute moduleKey="dashboard">
+                  <Dashboard />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -118,7 +158,9 @@ const AppContent = () => {
                   <LoadingFallback title="Carregando movimentações..." />
                 }
               >
-                <Movements />
+                <ModuleRoute moduleKey="movements">
+                  <Movements />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -132,7 +174,9 @@ const AppContent = () => {
                   <LoadingFallback title="Carregando medicamentos..." />
                 }
               >
-                <Medicines />
+                <ModuleRoute moduleKey="medicines">
+                  <Medicines />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -144,7 +188,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando formulário..." />}
               >
-                <SignUpMedicine />
+                <ModuleRoute moduleKey="medicines">
+                  <SignUpMedicine />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -156,7 +202,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando edição..." />}
               >
-                <EditMedicine />
+                <ModuleRoute moduleKey="medicines">
+                  <EditMedicine />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -168,7 +216,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando estoque..." />}
               >
-                <Stock />
+                <ModuleRoute moduleKey="stock">
+                  <Stock />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -180,7 +230,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando entrada..." />}
               >
-                <StockEntry />
+                <ModuleRoute moduleKey="stock">
+                  <StockEntry />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -192,7 +244,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando saída..." />}
               >
-                <StockOut />
+                <ModuleRoute moduleKey="stock">
+                  <StockOut />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -204,7 +258,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando edição..." />}
               >
-                <EditStock />
+                <ModuleRoute moduleKey="stock">
+                  <EditStock />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -216,7 +272,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando residentes..." />}
               >
-                <Resident />
+                <ModuleRoute moduleKey="residents">
+                  <Resident />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -228,7 +286,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando formulário..." />}
               >
-                <RegisterResident />
+                <ModuleRoute moduleKey="residents">
+                  <RegisterResident />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -240,7 +300,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando edição..." />}
               >
-                <EditResident />
+                <ModuleRoute moduleKey="residents">
+                  <EditResident />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -252,7 +314,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando insumos..." />}
               >
-                <Inputs />
+                <ModuleRoute moduleKey="inputs">
+                  <Inputs />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -264,7 +328,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando formulário..." />}
               >
-                <RegisterInput />
+                <ModuleRoute moduleKey="inputs">
+                  <RegisterInput />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -276,7 +342,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando edição..." />}
               >
-                <EditInput />
+                <ModuleRoute moduleKey="inputs">
+                  <EditInput />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -380,7 +448,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando relatório..." />}
               >
-                <TransferReport />
+                <ModuleRoute moduleKey="reports">
+                  <TransferReport />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -394,7 +464,9 @@ const AppContent = () => {
                   <LoadingFallback title="Carregando painel administrativo..." />
                 }
               >
-                <AdminPanel />
+                <ModuleRoute moduleKey="admin">
+                  <AdminPanel />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -410,13 +482,15 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
-        <NotificationProvider>
-          <InvalidSessionProvider>
-            <BrowserRouter>
-              <AppContent />
-            </BrowserRouter>
-          </InvalidSessionProvider>
-        </NotificationProvider>
+        <TenantProvider>
+          <NotificationProvider>
+            <InvalidSessionProvider>
+              <BrowserRouter>
+                <AppContent />
+              </BrowserRouter>
+            </InvalidSessionProvider>
+          </NotificationProvider>
+        </TenantProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

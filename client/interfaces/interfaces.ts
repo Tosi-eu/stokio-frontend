@@ -71,11 +71,13 @@ export interface LoggedUser {
   first_name?: string;
   last_name?: string;
   role?: "admin" | "user";
+  tenantId?: number;
+  isSuperAdmin?: boolean;
 }
 
 export interface AuthContextType {
   user: LoggedUser | null;
-  login: (login: string, password: string) => Promise<void>;
+  login: (login: string, password: string, tenantSlug: string) => Promise<void>;
   logout: () => void;
 }
 

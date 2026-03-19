@@ -249,8 +249,24 @@ export const getDailyMovementsReport = () => {
   return api.get("/relatorios?type=movimentos_dia");
 };
 
-export const login = (login: string, password: string) =>
-  api.post("/login/authenticate", { login, password });
+export type PublicTenantListItem = {
+  id: number;
+  slug: string;
+  name: string;
+  brandName: string | null;
+};
+
+export const listPublicTenants = (params?: { q?: string; limit?: number }) =>
+  api.get<{ data: PublicTenantListItem[] }>("/tenants", {
+    params: params ?? {},
+  });
+
+export const login = (login: string, password: string, tenantSlug: string) =>
+  api.post(
+    "/login/authenticate",
+    { login, password },
+    { headers: { "X-Tenant": tenantSlug } },
+  );
 
 export type CurrentUserResponse = {
   id?: number;
@@ -271,13 +287,18 @@ export const register = (
   password: string,
   firstName: string,
   lastName: string,
+  tenantSlug: string,
 ) =>
-  api.post("/login", {
-    login,
-    password,
-    first_name: firstName,
-    last_name: lastName,
-  });
+  api.post(
+    "/login",
+    {
+      login,
+      password,
+      first_name: firstName,
+      last_name: lastName,
+    },
+    { headers: { "X-Tenant": tenantSlug } },
+  );
 
 export const updateInput = (id: number, data: Record<string, unknown>) =>
   api.put(`/insumos/${id}`, data);
@@ -640,6 +661,36 @@ export const getBackendLoadingStatus = () => api.get("/status");
 
 export const logoutRequest = () => api.post("/login/logout");
 
+export type TenantConfigResponse = {
+  tenantId: number;
+  tenant: {
+    id: number;
+    slug: string;
+    name: string;
+    brandName: string | null;
+    logoDataUrl: string | null;
+  } | null;
+  modules: { enabled: string[] };
+};
+
+export const getTenantConfig = () =>
+  api.get<TenantConfigResponse>("/tenant/config");
+
+export const updateTenantConfig = (modules: { enabled: string[] }) =>
+  api.put<{ tenantId: number; modules: { enabled: string[] } }>(
+    "/tenant/config",
+    { modules },
+  );
+
+export const updateTenantBranding = (payload: {
+  brandName: string | null;
+  logoDataUrl: string | null;
+}) =>
+  api.put<{ tenantId: number; tenant: TenantConfigResponse["tenant"] }>(
+    "/tenant/branding",
+    payload,
+  );
+
 export const getAdminUsers = (params?: { page?: number; limit?: number }) =>
   api.get("/admin/users", { params: params ?? {} });
 
@@ -805,6 +856,32 @@ export const getAdminConfig = () =>
 
 export const updateAdminConfig = (config: Record<string, string>) =>
   api.put("/admin/config", config);
+
+export type AdminTenant = { id: number; slug: string; name: string };
+export type AdminTenantsResponse = {
+  data: AdminTenant[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+export const getAdminTenants = (params?: { page?: number; limit?: number }) =>
+  api.get<AdminTenantsResponse>("/admin/tenants", { params: params ?? {} });
+export const createAdminTenant = (data: { slug: string; name: string }) =>
+  api.post<AdminTenant>("/admin/tenants", data);
+export const updateAdminTenant = (
+  id: number,
+  data: Partial<{ slug: string; name: string }>,
+) => api.put<AdminTenant>(`/admin/tenants/${id}`, data);
+export const deleteAdminTenant = (id: number) =>
+  api.delete<{ ok: boolean }>(`/admin/tenants/${id}`);
+
+export const getAdminTenantConfig = (id: number) =>
+  api.get<TenantConfigResponse>(`/admin/tenants/${id}/config`);
+export const setAdminTenantConfig = (
+  id: number,
+  modules: { enabled: string[] },
+) => api.put<TenantConfigResponse>(`/admin/tenants/${id}/config`, { modules });
 
 export type RestoreBackupResponse = {
   message: string;

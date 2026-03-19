@@ -7,11 +7,11 @@ import {
   AlertTriangle,
   FileText,
   Users,
-  Edit,
   LogIn,
   Settings,
   Bell,
   ShieldCheck,
+  Building2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth.hook";
 import {
@@ -36,6 +36,7 @@ import {
   AdminTabNotificacoes,
   AdminTabInsights,
   AdminTabQualidade,
+  AdminTabTenants,
   AdminAuditCompareDialog,
   AdminUserEditDialog,
   AdminUserCreateDialog,
@@ -47,6 +48,7 @@ export default function AdminPanel() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const isSuperAdmin = Boolean(user?.isSuperAdmin);
 
   const [activeTab, setActiveTab] = useState("resumo");
 
@@ -76,7 +78,7 @@ export default function AdminPanel() {
   return (
     <Layout title="Painel administrativo">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-9 gap-1 w-full p-1">
+        <TabsList className="grid grid-cols-10 gap-1 w-full p-1">
           <TabsTrigger
             value="resumo"
             className="gap-1.5 min-w-0 text-xs sm:text-sm"
@@ -126,6 +128,15 @@ export default function AdminPanel() {
             <ShieldCheck className="h-4 w-4 shrink-0" />
             <span className="truncate">Qualidade</span>
           </TabsTrigger>
+          {isSuperAdmin ? (
+            <TabsTrigger
+              value="tenants"
+              className="gap-1.5 min-w-0 text-xs sm:text-sm"
+            >
+              <Building2 className="h-4 w-4 shrink-0" />
+              <span className="truncate">Tenants</span>
+            </TabsTrigger>
+          ) : null}
           <TabsTrigger
             value="notificacoes"
             className="gap-1.5 min-w-0 text-xs sm:text-sm"
@@ -291,6 +302,11 @@ export default function AdminPanel() {
         <TabsContent value="qualidade" className="mt-6">
           <AdminTabQualidade enabled={isAdmin && activeTab === "qualidade"} />
         </TabsContent>
+        {isSuperAdmin ? (
+          <TabsContent value="tenants" className="mt-6">
+            <AdminTabTenants enabled={isAdmin && activeTab === "tenants"} />
+          </TabsContent>
+        ) : null}
 
         <TabsContent value="notificacoes" className="mt-6">
           <AdminTabNotificacoes

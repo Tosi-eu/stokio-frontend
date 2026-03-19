@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast.hook";
 import logo from "/logo.png";
 import { useAuth } from "@/hooks/use-auth.hook";
-import { register } from "@/api/requests";
+import { listPublicTenants, register, type PublicTenantListItem } from "@/api/requests";
 import {
   validateEmail,
   validatePassword,
@@ -20,6 +20,11 @@ export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
+  const [tenantSlug, setTenantSlug] = useState(
+    localStorage.getItem("tenantSlug") || "",
+  );
+  const [tenantQuery, setTenantQuery] = useState("");
+  const [tenantOptions, setTenantOptions] = useState<PublicTenantListItem[]>([]);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [firstName, setFirstName] = useState("");
@@ -42,6 +47,25 @@ export default function Auth() {
     setRememberMe(false);
     setLoading(false);
   }, [isLogin]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const res = await listPublicTenants({
+          q: tenantQuery || undefined,
+          limit: 20,
+        });
+        if (!cancelled) setTenantOptions(res.data ?? []);
+      } catch {
+        if (!cancelled) setTenantOptions([]);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantQuery]);
 
   useEffect(() => {
     setIsVisible(false);
@@ -72,6 +96,18 @@ export default function Auth() {
     setLoading(true);
 
     try {
+      const slug = (tenantSlug || "").trim();
+      if (!slug) {
+        toast({
+          title: "Abrigo obrigatório",
+          description: "Selecione/informe qual abrigo você quer acessar.",
+          variant: "error",
+          duration: 3000,
+        });
+        setLoading(false);
+        return;
+      }
+
       const emailValidation = validateEmail(login);
       if (!emailValidation.valid) {
         toast({
@@ -104,7 +140,7 @@ export default function Auth() {
       const sanitizedPassword = sanitizeInput(password);
 
       if (isLogin) {
-        await authLogin(sanitizedLogin, sanitizedPassword);
+        await authLogin(sanitizedLogin, sanitizedPassword, slug);
         toast({
           title: "Login realizado!",
           variant: "success",
@@ -147,8 +183,14 @@ export default function Auth() {
           return;
         }
 
-        await register(sanitizedLogin, sanitizedPassword, firstName, lastName);
-        await authLogin(sanitizedLogin, sanitizedPassword);
+        await register(
+          sanitizedLogin,
+          sanitizedPassword,
+          firstName,
+          lastName,
+          slug,
+        );
+        await authLogin(sanitizedLogin, sanitizedPassword, slug);
         toast({
           title: "Cadastro realizado!",
           variant: "success",
@@ -156,6 +198,7 @@ export default function Auth() {
         });
       }
 
+      localStorage.setItem("tenantSlug", slug);
       navigate("/dashboard");
     } catch (err: unknown) {
       const rawMessage = (
@@ -256,6 +299,35 @@ export default function Auth() {
               </h2>
 
               <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Abrigo
+                  </label>
+                  <input
+                    list="tenant-options"
+                    value={tenantSlug}
+                    onChange={(e) => {
+                      const v = sanitizeInput(e.target.value);
+                      setTenantSlug(v);
+                      setTenantQuery(v);
+                    }}
+                    maxLength={60}
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400"
+                    placeholder="Digite o nome/slug do abrigo"
+                    required
+                  />
+                  <datalist id="tenant-options">
+                    {tenantOptions.map((t) => (
+                      <option
+                        key={t.id}
+                        value={t.slug}
+                      >{`${t.brandName || t.name} (${t.slug})`}</option>
+                    ))}
+                  </datalist>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Selecione pelo <b>slug</b> (ex.: <code>abrigo-x</code>).
+                  </p>
+                </div>
                 {!isLogin && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
