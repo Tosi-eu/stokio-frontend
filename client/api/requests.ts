@@ -640,7 +640,8 @@ export const getBackendLoadingStatus = () => api.get("/status");
 
 export const logoutRequest = () => api.post("/login/logout");
 
-export const getAdminUsers = () => api.get("/admin/users");
+export const getAdminUsers = (params?: { page?: number; limit?: number }) =>
+  api.get("/admin/users", { params: params ?? {} });
 
 export type UserPermissions = {
   read: boolean;
@@ -755,6 +756,48 @@ export type AdminHealthResponse = {
 
 export const getAdminHealth = () =>
   api.get<AdminHealthResponse>("/admin/health");
+
+export type AdminBackupStatusResponse = {
+  lastBackupAt: string | null;
+  lastBackupStatus: string | null;
+  lastBackupDurationMs: number | null;
+  lastBackupSizeBytes: number | null;
+  lastBackupError: string | null;
+  retentionCount: number | null;
+};
+
+export const getAdminBackupStatus = () =>
+  api.get<AdminBackupStatusResponse>("/admin/backup/status");
+
+export const runAdminBackupNow = () => api.post("/admin/backup/run", {});
+
+export type AdminDataQualitySummary = {
+  negativeStock: { medicines: number; inputs: number };
+  missingLot: { medicines: number; inputs: number };
+  orphanMovements: number;
+};
+
+export const getAdminDataQualitySummary = () =>
+  api.get<AdminDataQualitySummary>("/admin/data-quality/summary");
+
+export const getAdminInconsistencies = (params: {
+  type: "negative_stock" | "missing_lot" | "orphan_movements";
+  page?: number;
+  limit?: number;
+}) => api.get("/admin/data-quality/inconsistencies", { params });
+
+export const getAdminMedicineDuplicates = (params?: {
+  page?: number;
+  limit?: number;
+}) => api.get("/admin/data-quality/medicine-duplicates", { params: params ?? {} });
+
+export const mergeAdminMedicines = (payload: {
+  keepId: number;
+  mergeIds: number[];
+}) => api.post("/admin/data-quality/merge-medicines", payload);
+
+export const normalizeAdminMedicineUnits = (payload?: { dryRun?: boolean }) =>
+  api.post("/admin/data-quality/normalize-medicine-units", payload ?? {});
 
 export const getAdminConfig = () =>
   api.get<Record<string, string>>("/admin/config");
