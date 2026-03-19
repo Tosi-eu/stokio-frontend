@@ -5,7 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CONFIG_KEYS } from "../hooks/useAdminConfig";
 import type { AdminHealthResponse } from "@/api/requests";
-import { getAdminBackupStatus, restoreBackup, runAdminBackupNow } from "@/api/requests";
+import {
+  getAdminBackupStatus,
+  restoreBackup,
+  runAdminBackupNow,
+} from "@/api/requests";
 import { toast } from "@/hooks/use-toast.hook";
 import { Upload } from "lucide-react";
 

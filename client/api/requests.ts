@@ -789,7 +789,8 @@ export const getAdminInconsistencies = (params: {
 export const getAdminMedicineDuplicates = (params?: {
   page?: number;
   limit?: number;
-}) => api.get("/admin/data-quality/medicine-duplicates", { params: params ?? {} });
+}) =>
+  api.get("/admin/data-quality/medicine-duplicates", { params: params ?? {} });
 
 export const mergeAdminMedicines = (payload: {
   keepId: number;

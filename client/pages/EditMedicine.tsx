@@ -186,13 +186,13 @@ export default function EditMedicine() {
                           <SelectValue placeholder="Unidade" />
                         </SelectTrigger>
                         <SelectContent>
-                          {(Object.values(MeasurementUnit) as MeasurementUnit[]).map(
-                            (unit) => (
-                              <SelectItem key={unit} value={unit}>
-                                {MEASUREMENT_UNIT_LABEL[unit]}
-                              </SelectItem>
-                            ),
-                          )}
+                          {(
+                            Object.values(MeasurementUnit) as MeasurementUnit[]
+                          ).map((unit) => (
+                            <SelectItem key={unit} value={unit}>
+                              {MEASUREMENT_UNIT_LABEL[unit]}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       {errors.unidade_medida && (

@@ -197,7 +197,8 @@ export function AdminTabResumo({
 
   useEffect(() => {
     // Reset pagination when switching the expanded summary list
-    setSummaryListPage(1);
+    const id = setTimeout(() => setSummaryListPage(1), 0);
+    return () => clearTimeout(id);
   }, [expandedSummary]);
 
   useEffect(() => {
@@ -476,7 +477,9 @@ export function AdminTabResumo({
                           {summaryListData.length === 0 ? (
                             <TableRow>
                               <TableCell
-                                colSpan={expandedSummary === "medicines" ? 4 : 2}
+                                colSpan={
+                                  expandedSummary === "medicines" ? 4 : 2
+                                }
                                 className="text-center text-muted-foreground"
                               >
                                 Nenhum registro
@@ -571,7 +574,9 @@ export function AdminTabResumo({
                             Página {summaryListPage} de{" "}
                             {Math.max(
                               1,
-                              Math.ceil(summaryListData.length / summaryListPageSize),
+                              Math.ceil(
+                                summaryListData.length / summaryListPageSize,
+                              ),
                             )}
                           </span>
                           <Button
@@ -579,12 +584,17 @@ export function AdminTabResumo({
                             size="sm"
                             disabled={
                               summaryListPage >=
-                              Math.ceil(summaryListData.length / summaryListPageSize)
+                              Math.ceil(
+                                summaryListData.length / summaryListPageSize,
+                              )
                             }
                             onClick={() =>
                               setSummaryListPage((p) =>
                                 Math.min(
-                                  Math.ceil(summaryListData.length / summaryListPageSize),
+                                  Math.ceil(
+                                    summaryListData.length /
+                                      summaryListPageSize,
+                                  ),
                                   p + 1,
                                 ),
                               )

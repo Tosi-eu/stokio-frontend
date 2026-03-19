@@ -72,7 +72,9 @@ export function AdminTabUsers({
               <span className="text-sm text-muted-foreground">
                 Total: {total}
               </span>
-              <span className="text-sm text-muted-foreground">Itens/página</span>
+              <span className="text-sm text-muted-foreground">
+                Itens/página
+              </span>
               <Select
                 value={String(limit)}
                 onValueChange={(v) => {

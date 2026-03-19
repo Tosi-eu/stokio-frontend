@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast.hook";
 import {
   getAdminUsers,
@@ -43,7 +43,7 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
   });
   const [saving, setSaving] = useState(false);
 
-  async function loadUsers() {
+  const loadUsers = useCallback(async () => {
     setLoadingUsers(true);
     try {
       const res = await getAdminUsers({ page, limit });
@@ -57,11 +57,11 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
     } finally {
       setLoadingUsers(false);
     }
-  }
+  }, [page, limit]);
 
   useEffect(() => {
     if (isAdmin && enabled) loadUsers();
-  }, [isAdmin, enabled, page, limit]);
+  }, [isAdmin, enabled, loadUsers]);
 
   function openEdit(u: AdminUser) {
     setEditModal(u);

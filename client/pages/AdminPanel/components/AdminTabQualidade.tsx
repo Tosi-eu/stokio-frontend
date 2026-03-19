@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,7 +57,7 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
     [dupTotal],
   );
 
-  async function loadSummary() {
+  const loadSummary = useCallback(async () => {
     setLoadingSummary(true);
     try {
       const s = await getAdminDataQualitySummary();
@@ -68,9 +68,9 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
     } finally {
       setLoadingSummary(false);
     }
-  }
+  }, []);
 
-  async function loadRows() {
+  const loadRows = useCallback(async () => {
     setLoadingRows(true);
     try {
       const res = await getAdminInconsistencies({ type, page, limit });
@@ -83,12 +83,15 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
     } finally {
       setLoadingRows(false);
     }
-  }
+  }, [type, page, limit]);
 
-  async function loadDuplicates() {
+  const loadDuplicates = useCallback(async () => {
     setLoadingDup(true);
     try {
-      const res = await getAdminMedicineDuplicates({ page: dupPage, limit: 25 });
+      const res = await getAdminMedicineDuplicates({
+        page: dupPage,
+        limit: 25,
+      });
       setDupRows(Array.isArray(res?.data) ? (res.data as any[]) : []);
       setDupTotal(Number(res?.total) || 0);
     } catch {
@@ -98,22 +101,22 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
     } finally {
       setLoadingDup(false);
     }
-  }
+  }, [dupPage]);
 
   useEffect(() => {
     if (!enabled) return;
     loadSummary();
-  }, [enabled]);
+  }, [enabled, loadSummary]);
 
   useEffect(() => {
     if (!enabled) return;
     loadRows();
-  }, [enabled, type, page, limit]);
+  }, [enabled, loadRows]);
 
   useEffect(() => {
     if (!enabled) return;
     loadDuplicates();
-  }, [enabled, dupPage]);
+  }, [enabled, loadDuplicates]);
 
   return (
     <div className="space-y-6">
@@ -186,7 +189,9 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="negative_stock">Estoque negativo</SelectItem>
+                  <SelectItem value="negative_stock">
+                    Estoque negativo
+                  </SelectItem>
                   <SelectItem value="missing_lot">
                     Sem lote (qtd &gt; 0)
                   </SelectItem>
@@ -333,7 +338,9 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
               variant="outline"
               onClick={async () => {
                 try {
-                  const res = await normalizeAdminMedicineUnits({ dryRun: true });
+                  const res = await normalizeAdminMedicineUnits({
+                    dryRun: true,
+                  });
                   toast({
                     title: "Prévia de normalização",
                     description: `${res.updated} medicamento(s) seriam atualizados (mostrando até 50).`,
@@ -354,7 +361,9 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
             <Button
               onClick={async () => {
                 try {
-                  const res = await normalizeAdminMedicineUnits({ dryRun: false });
+                  const res = await normalizeAdminMedicineUnits({
+                    dryRun: false,
+                  });
                   toast({
                     title: "Unidades padronizadas",
                     description: `${res.updated} medicamento(s) atualizado(s).`,
@@ -378,12 +387,18 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
           <div className="rounded-md border p-3">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <div className="font-medium">Possíveis duplicados (medicamentos)</div>
+                <div className="font-medium">
+                  Possíveis duplicados (medicamentos)
+                </div>
                 <div className="text-sm text-muted-foreground">
                   Agrupados por nome/princípio/dosagem/unidade (normalizados).
                 </div>
               </div>
-              <Button variant="outline" onClick={loadDuplicates} disabled={loadingDup}>
+              <Button
+                variant="outline"
+                onClick={loadDuplicates}
+                disabled={loadingDup}
+              >
                 {loadingDup ? "Atualizando..." : "Atualizar"}
               </Button>
             </div>
@@ -401,19 +416,27 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
                 <TableBody>
                   {loadingDup ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      <TableCell
+                        colSpan={4}
+                        className="text-center text-muted-foreground"
+                      >
                         Carregando...
                       </TableCell>
                     </TableRow>
                   ) : dupRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      <TableCell
+                        colSpan={4}
+                        className="text-center text-muted-foreground"
+                      >
                         Nenhum duplicado encontrado.
                       </TableCell>
                     </TableRow>
                   ) : (
                     dupRows.map((g, idx) => {
-                      const ids = Array.isArray(g.ids) ? (g.ids as number[]) : [];
+                      const ids = Array.isArray(g.ids)
+                        ? (g.ids as number[])
+                        : [];
                       const keepId = ids[0];
                       const mergeIds = ids.slice(1);
                       return (
@@ -433,7 +456,10 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
                               disabled={mergeIds.length === 0}
                               onClick={async () => {
                                 try {
-                                  await mergeAdminMedicines({ keepId, mergeIds });
+                                  await mergeAdminMedicines({
+                                    keepId,
+                                    mergeIds,
+                                  });
                                   toast({
                                     title: "Duplicados mesclados",
                                     description: `Mantido ID ${keepId}. Removidos: ${mergeIds.join(", ")}`,
@@ -480,7 +506,9 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
                   variant="outline"
                   size="sm"
                   disabled={dupPage >= dupTotalPages}
-                  onClick={() => setDupPage((p) => Math.min(dupTotalPages, p + 1))}
+                  onClick={() =>
+                    setDupPage((p) => Math.min(dupTotalPages, p + 1))
+                  }
                 >
                   Próxima
                 </Button>
@@ -492,4 +520,3 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
     </div>
   );
 }
-
