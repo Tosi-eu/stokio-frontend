@@ -3,7 +3,11 @@ import { useNavigate, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast.hook";
 import logo from "/logo.png";
 import { useAuth } from "@/hooks/use-auth.hook";
-import { listPublicTenants, register, type PublicTenantListItem } from "@/api/requests";
+import {
+  listPublicTenants,
+  register,
+  type PublicTenantListItem,
+} from "@/api/requests";
 import {
   validateEmail,
   validatePassword,
@@ -24,7 +28,9 @@ export default function Auth() {
     localStorage.getItem("tenantSlug") || "",
   );
   const [tenantQuery, setTenantQuery] = useState("");
-  const [tenantOptions, setTenantOptions] = useState<PublicTenantListItem[]>([]);
+  const [tenantOptions, setTenantOptions] = useState<PublicTenantListItem[]>(
+    [],
+  );
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [firstName, setFirstName] = useState("");

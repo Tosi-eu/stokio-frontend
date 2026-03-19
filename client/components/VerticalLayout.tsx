@@ -16,8 +16,18 @@ import { useAuth } from "@/hooks/use-auth.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
 
 const baseNavigationTabs = [
-  { name: "Painel", href: "/dashboard", icon: LayoutDashboard, module: "dashboard" },
-  { name: "Movimentações", href: "/movements", icon: ArrowLeftRight, module: "movements" },
+  {
+    name: "Painel",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+    module: "dashboard",
+  },
+  {
+    name: "Movimentações",
+    href: "/movements",
+    icon: ArrowLeftRight,
+    module: "movements",
+  },
   { name: "Medicamentos", href: "/medicines", icon: Pill, module: "medicines" },
   { name: "Insumos", href: "/inputs", icon: FlaskConical, module: "inputs" },
   { name: "Estoque", href: "/stock", icon: Boxes, module: "stock" },

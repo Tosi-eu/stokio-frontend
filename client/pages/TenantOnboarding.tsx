@@ -27,8 +27,12 @@ export default function TenantOnboarding() {
     [modules],
   );
   const [enabled, setEnabled] = useState<Set<string>>(initialEnabled);
-  const [brandName, setBrandName] = useState(tenant?.brandName ?? tenant?.name ?? "");
-  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(tenant?.logoDataUrl ?? null);
+  const [brandName, setBrandName] = useState(
+    tenant?.brandName ?? tenant?.name ?? "",
+  );
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(
+    tenant?.logoDataUrl ?? null,
+  );
   const [saving, setSaving] = useState(false);
   const jsonPreview = useMemo(
     () => JSON.stringify({ enabled: Array.from(enabled) }, null, 2),
@@ -50,7 +54,8 @@ export default function TenantOnboarding() {
         <CardHeader>
           <CardTitle>Dados do abrigo e módulos</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Defina nome e logo do abrigo e selecione os módulos que vão aparecer no sistema.
+            Defina nome e logo do abrigo e selecione os módulos que vão aparecer
+            no sistema.
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -81,7 +86,8 @@ export default function TenantOnboarding() {
                   }
                   const reader = new FileReader();
                   reader.onload = () => {
-                    const v = typeof reader.result === "string" ? reader.result : null;
+                    const v =
+                      typeof reader.result === "string" ? reader.result : null;
                     setLogoDataUrl(v);
                   };
                   reader.readAsDataURL(file);
@@ -147,7 +153,10 @@ export default function TenantOnboarding() {
                   toast({ title: "Configuração salva" });
                   await refetch();
                 } catch {
-                  toast({ title: "Erro ao salvar configuração", variant: "error" });
+                  toast({
+                    title: "Erro ao salvar configuração",
+                    variant: "error",
+                  });
                 } finally {
                   setSaving(false);
                 }
@@ -162,4 +171,3 @@ export default function TenantOnboarding() {
     </Layout>
   );
 }
-

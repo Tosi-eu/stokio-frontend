@@ -14,4 +14,3 @@ export default function ModuleRoute({
   if (!isEnabled(moduleKey)) return <Navigate to="/dashboard" replace />;
   return children;
 }
-

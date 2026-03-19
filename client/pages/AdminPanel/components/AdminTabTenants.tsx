@@ -16,7 +16,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast.hook";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -107,11 +114,19 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
           <div className="flex flex-wrap items-end gap-2">
             <div className="grid gap-1">
               <span className="text-xs text-muted-foreground">Slug</span>
-              <Input value={newSlug} onChange={(e) => setNewSlug(e.target.value)} placeholder="ex.: abrigo-x" />
+              <Input
+                value={newSlug}
+                onChange={(e) => setNewSlug(e.target.value)}
+                placeholder="ex.: abrigo-x"
+              />
             </div>
             <div className="grid gap-1">
               <span className="text-xs text-muted-foreground">Nome</span>
-              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Abrigo X" />
+              <Input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Abrigo X"
+              />
             </div>
             <Button
               onClick={async () => {
@@ -119,7 +134,10 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
                   const slug = newSlug.trim();
                   const name = newName.trim();
                   if (!slug || !name) {
-                    toast({ title: "Slug e nome são obrigatórios", variant: "error" });
+                    toast({
+                      title: "Slug e nome são obrigatórios",
+                      variant: "error",
+                    });
                     return;
                   }
                   await createAdminTenant({ slug, name });
@@ -136,7 +154,9 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
               Criar
             </Button>
             <div className="ml-auto flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Itens/página</span>
+              <span className="text-sm text-muted-foreground">
+                Itens/página
+              </span>
               <Select
                 value={String(limit)}
                 onValueChange={(v) => {
@@ -170,7 +190,10 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={4}
+                    className="text-center text-muted-foreground"
+                  >
                     {loading ? "Carregando..." : "Sem tenants"}
                   </TableCell>
                 </TableRow>
@@ -181,7 +204,11 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
                     <TableCell>{t.slug}</TableCell>
                     <TableCell>{t.name}</TableCell>
                     <TableCell className="text-right space-x-2">
-                      <Button variant="outline" onClick={() => void loadConfig(t.id)} disabled={configLoading}>
+                      <Button
+                        variant="outline"
+                        onClick={() => void loadConfig(t.id)}
+                        disabled={configLoading}
+                      >
                         Configurar módulos
                       </Button>
                       <Button
@@ -193,7 +220,10 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
                             toast({ title: "Tenant removido" });
                             void load();
                           } catch {
-                            toast({ title: "Erro ao remover tenant", variant: "error" });
+                            toast({
+                              title: "Erro ao remover tenant",
+                              variant: "error",
+                            });
                           }
                         }}
                         disabled={t.id === 1}
@@ -208,13 +238,19 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
           </Table>
 
           <div className="flex items-center justify-center gap-2">
-            <Button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+            <Button
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
               Anterior
             </Button>
             <span className="text-sm text-muted-foreground">
               Página {page} de {totalPages}
             </span>
-            <Button disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+            <Button
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
               Próxima
             </Button>
           </div>
@@ -234,7 +270,10 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {MODULES.map((m) => (
-                  <label key={m.key} className="flex items-center gap-3 border rounded-md p-3 cursor-pointer">
+                  <label
+                    key={m.key}
+                    className="flex items-center gap-3 border rounded-md p-3 cursor-pointer"
+                  >
                     <input
                       type="checkbox"
                       checked={modules.has(m.key)}
@@ -258,10 +297,15 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
                     if (selectedId == null) return;
                     setSaveLoading(true);
                     try {
-                      await setAdminTenantConfig(selectedId, { enabled: Array.from(modules) });
+                      await setAdminTenantConfig(selectedId, {
+                        enabled: Array.from(modules),
+                      });
                       toast({ title: "Config salva" });
                     } catch {
-                      toast({ title: "Erro ao salvar config", variant: "error" });
+                      toast({
+                        title: "Erro ao salvar config",
+                        variant: "error",
+                      });
                     } finally {
                       setSaveLoading(false);
                     }
@@ -278,4 +322,3 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
     </div>
   );
 }
-

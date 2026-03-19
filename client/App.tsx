@@ -5,7 +5,13 @@ import { createRoot } from "react-dom/client";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import { lazy, Suspense, useEffect } from "react";
 import React from "react";
 
@@ -63,12 +69,10 @@ const AppContent = () => {
   const needsSetup = Boolean(
     user &&
       !tenantLoading &&
-      (
-        !(tenant?.brandName || tenant?.name) ||
+      (!(tenant?.brandName || tenant?.name) ||
         !tenant?.logoDataUrl ||
         !modules?.enabled ||
-        modules.enabled.length === 0
-      ),
+        modules.enabled.length === 0),
   );
 
   const isOnboardingPath = location.pathname === "/tenant/onboarding";
@@ -127,7 +131,9 @@ const AppContent = () => {
           element={
             <PrivateRoute>
               <Suspense
-                fallback={<LoadingFallback title="Carregando configuração..." />}
+                fallback={
+                  <LoadingFallback title="Carregando configuração..." />
+                }
               >
                 <TenantOnboarding />
               </Suspense>

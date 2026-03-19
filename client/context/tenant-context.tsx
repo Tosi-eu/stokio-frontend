@@ -71,4 +71,3 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     </TenantContext.Provider>
   );
 }
-

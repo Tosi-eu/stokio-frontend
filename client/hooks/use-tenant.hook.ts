@@ -6,4 +6,3 @@ export function useTenant() {
   if (!ctx) throw new Error("useTenant must be used in TenantProvider");
   return ctx;
 }
-

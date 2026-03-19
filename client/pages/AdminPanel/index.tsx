@@ -12,6 +12,7 @@ import {
   Bell,
   ShieldCheck,
   Building2,
+  Edit,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth.hook";
 import {
