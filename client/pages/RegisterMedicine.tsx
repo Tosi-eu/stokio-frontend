@@ -35,6 +35,9 @@ export enum MeasurementUnit {
   MG_PLUS = "mg+",
   UI = "UI",
   GTS = "gts",
+  UI_G = "UI/g",
+  UI_MG = "UI/mg",
+  UI_ML = "UI/ml",
 }
 
 export const MEASUREMENT_UNIT_LABEL: Record<MeasurementUnit, string> = {
@@ -48,6 +51,9 @@ export const MEASUREMENT_UNIT_LABEL: Record<MeasurementUnit, string> = {
   [MeasurementUnit.MG_PLUS]: "mg+",
   [MeasurementUnit.UI]: "UI",
   [MeasurementUnit.GTS]: "gts",
+  [MeasurementUnit.UI_G]: "UI/g",
+  [MeasurementUnit.UI_MG]: "UI/mg",
+  [MeasurementUnit.UI_ML]: "UI/ml",
 };
 
 export default function SignUpMedicine() {

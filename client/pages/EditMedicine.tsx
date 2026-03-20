@@ -7,6 +7,10 @@ import { getErrorMessage } from "@/helpers/validation.helper";
 import { useFormWithZod } from "@/hooks/use-form-with-zod";
 import { editMedicineSchema } from "@/schemas/edit-medicine.schema";
 import { updateMedicine } from "@/api/requests";
+import {
+  MEASUREMENT_UNIT_LABEL,
+  MeasurementUnit,
+} from "@/pages/RegisterMedicine";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -182,13 +186,13 @@ export default function EditMedicine() {
                           <SelectValue placeholder="Unidade" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="mg">mg</SelectItem>
-                          <SelectItem value="ml">ml</SelectItem>
-                          <SelectItem value="g">g</SelectItem>
-                          <SelectItem value="mcg">mcg</SelectItem>
-                          <SelectItem value="mg/ml">mg/ml</SelectItem>
-                          <SelectItem value="UI">UI</SelectItem>
-                          <SelectItem value="gts">gts</SelectItem>
+                          {(
+                            Object.values(MeasurementUnit) as MeasurementUnit[]
+                          ).map((unit) => (
+                            <SelectItem key={unit} value={unit}>
+                              {MEASUREMENT_UNIT_LABEL[unit]}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       {errors.unidade_medida && (
