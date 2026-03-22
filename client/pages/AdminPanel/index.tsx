@@ -54,38 +54,35 @@ export default function AdminPanel() {
 
   const [activeTab, setActiveTab] = useState("resumo");
 
+  const effectiveTab =
+    !isSuperAdmin && activeTab === "tenants" ? "resumo" : activeTab;
+
   useEffect(() => {
     if (!isAdmin) navigate("/dashboard");
   }, [isAdmin, navigate]);
 
-  useEffect(() => {
-    if (!isSuperAdmin && activeTab === "tenants") {
-      setActiveTab("resumo");
-    }
-  }, [isSuperAdmin, activeTab]);
-
-  const summary = useAdminSummary(isAdmin, activeTab === "resumo");
-  const alerts = useAdminAlerts(isAdmin, activeTab === "alertas");
+  const summary = useAdminSummary(isAdmin, effectiveTab === "resumo");
+  const alerts = useAdminAlerts(isAdmin, effectiveTab === "alertas");
   const users = useAdminUsers(
     isAdmin,
-    activeTab === "users" || activeTab === "insights",
+    effectiveTab === "users" || effectiveTab === "insights",
   );
-  const loginLog = useAdminLoginLog(isAdmin, activeTab === "acessos");
-  const config = useAdminConfig(isAdmin, activeTab === "config");
-  const metrics = useAdminMetrics(isAdmin, activeTab === "resumo");
+  const loginLog = useAdminLoginLog(isAdmin, effectiveTab === "acessos");
+  const config = useAdminConfig(isAdmin, effectiveTab === "config");
+  const metrics = useAdminMetrics(isAdmin, effectiveTab === "resumo");
   const notifications = useAdminNotifications(
     isAdmin,
-    activeTab === "notificacoes",
+    effectiveTab === "notificacoes",
   );
-  const insights = useAdminInsights(isAdmin, activeTab === "insights");
-  const reports = useAdminReports(activeTab === "relatorios");
-  const resumoExtras = useAdminResumoExtras(isAdmin, activeTab === "resumo");
+  const insights = useAdminInsights(isAdmin, effectiveTab === "insights");
+  const reports = useAdminReports(effectiveTab === "relatorios");
+  const resumoExtras = useAdminResumoExtras(isAdmin, effectiveTab === "resumo");
 
   if (!isAdmin) return null;
 
   return (
     <Layout title="Painel administrativo">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={effectiveTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid grid-cols-10 gap-1 w-full p-1">
           <TabsTrigger
             value="resumo"
@@ -308,12 +305,12 @@ export default function AdminPanel() {
         </TabsContent>
 
         <TabsContent value="qualidade" className="mt-6">
-          <AdminTabQualidade enabled={isAdmin && activeTab === "qualidade"} />
+          <AdminTabQualidade enabled={isAdmin && effectiveTab === "qualidade"} />
         </TabsContent>
         {isSuperAdmin ? (
           <TabsContent value="tenants" className="mt-6">
             <AdminTabTenants
-              enabled={isSuperAdmin && isAdmin && activeTab === "tenants"}
+              enabled={isSuperAdmin && isAdmin && effectiveTab === "tenants"}
             />
           </TabsContent>
         ) : null}
