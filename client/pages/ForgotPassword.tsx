@@ -71,25 +71,25 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-sky-100 flex flex-col">
-      <header className="shrink-0 border-b border-sky-200 bg-sky-100">
+    <div className="min-h-screen flex flex-col bg-brand-mesh">
+      <header className="shrink-0 border-b border-border/70 bg-brand-hero/90 backdrop-blur-sm">
         <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center gap-4">
           <img
             src={APP_PUBLIC_LOGO_URL}
             alt={APP_PUBLIC_NAME}
-            className="h-20 w-auto max-w-[200px] object-contain"
+            className="h-20 w-auto max-w-[200px] object-contain drop-shadow-sm"
           />
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight hidden sm:block">
+          <h1 className="font-display text-xl font-semibold text-foreground tracking-tight hidden sm:block">
             {APP_PUBLIC_NAME}
           </h1>
         </div>
       </header>
 
-      <main className="flex-1 bg-slate-50">
-        <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 pt-28">
+      <main className="flex-1 bg-transparent">
+        <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">
           <div className="max-w-md mx-auto">
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8">
-              <h2 className="text-2xl font-bold text-slate-800 tracking-tight mb-6">
+            <div className="bg-card/95 backdrop-blur-sm border border-border/60 rounded-2xl shadow-elevated p-8 md:p-9">
+              <h2 className="font-display text-2xl font-semibold text-foreground tracking-tight mb-6">
                 Redefinir Senha
               </h2>
 
@@ -97,7 +97,7 @@ export default function ForgotPassword() {
                 <div>
                   <label
                     htmlFor="login"
-                    className="block text-sm font-medium text-slate-700 mb-2"
+                    className="block text-sm font-medium text-foreground mb-2"
                   >
                     Login
                   </label>
@@ -109,7 +109,7 @@ export default function ForgotPassword() {
                     className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 ${
                       errors.login
                         ? "border-red-300 focus:ring-red-200 focus:border-red-400"
-                        : "border-slate-300 focus:ring-sky-200 focus:border-sky-400"
+                        : "border-input focus:ring-ring/30 focus:border-primary"
                     }`}
                     placeholder="Seu login"
                     disabled={isSubmitting}
@@ -125,7 +125,7 @@ export default function ForgotPassword() {
                 <div>
                   <label
                     htmlFor="newPassword"
-                    className="block text-sm font-medium text-slate-700 mb-2"
+                    className="block text-sm font-medium text-foreground mb-2"
                   >
                     Nova senha
                   </label>
@@ -137,7 +137,7 @@ export default function ForgotPassword() {
                     className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 ${
                       errors.newPassword
                         ? "border-red-300 focus:ring-red-200 focus:border-red-400"
-                        : "border-slate-300 focus:ring-sky-200 focus:border-sky-400"
+                        : "border-input focus:ring-ring/30 focus:border-primary"
                     }`}
                     placeholder="••••••••"
                     disabled={isSubmitting}
@@ -160,7 +160,7 @@ export default function ForgotPassword() {
                 <div>
                   <label
                     htmlFor="confirmPassword"
-                    className="block text-sm font-medium text-slate-700 mb-2"
+                    className="block text-sm font-medium text-foreground mb-2"
                   >
                     Confirmar nova senha
                   </label>
@@ -172,7 +172,7 @@ export default function ForgotPassword() {
                     className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 ${
                       errors.confirmPassword
                         ? "border-red-300 focus:ring-red-200 focus:border-red-400"
-                        : "border-slate-300 focus:ring-sky-200 focus:border-sky-400"
+                        : "border-input focus:ring-ring/30 focus:border-primary"
                     }`}
                     placeholder="••••••••"
                     disabled={isSubmitting}
@@ -188,7 +188,7 @@ export default function ForgotPassword() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full h-11 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-11 rounded-xl text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/90 shadow-brand-glow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? "Processando..." : "Redefinir Senha"}
                 </button>
@@ -196,14 +196,14 @@ export default function ForgotPassword() {
                 <button
                   type="button"
                   onClick={() => navigate("/user/login")}
-                  className="w-full h-11 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-semibold transition"
+                  className="w-full h-11 border border-input bg-background hover:bg-muted/60 text-foreground rounded-xl text-sm font-semibold transition"
                 >
                   Voltar
                 </button>
               </form>
             </div>
 
-            <div className="mt-6 text-center text-xs text-slate-400">
+            <div className="mt-6 text-center text-xs text-muted-foreground">
               © {new Date().getFullYear()} {APP_PUBLIC_NAME}
             </div>
           </div>

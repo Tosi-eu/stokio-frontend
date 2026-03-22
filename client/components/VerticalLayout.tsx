@@ -33,9 +33,19 @@ const baseNavigationTabs = [
   { name: "Insumos", href: "/inputs", icon: FlaskConical, module: "inputs" },
   { name: "Estoque", href: "/stock", icon: Boxes, module: "stock" },
   { name: "Residentes", href: "/residents", icon: Users, module: "residents" },
-  { name: "Armários", href: "/cabinets", icon: Archive },
-  { name: "Gavetas", href: "/drawers", icon: Grid },
-  { name: "Perfil", href: "/user/profile", icon: User },
+  {
+    name: "Armários",
+    href: "/cabinets",
+    icon: Archive,
+    module: "cabinets",
+  },
+  {
+    name: "Gavetas",
+    href: "/drawers",
+    icon: Grid,
+    module: "drawers",
+  },
+  { name: "Perfil", href: "/user/profile", icon: User, module: "profile" },
 ];
 
 interface SidebarProps {
@@ -49,7 +59,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
   const { tenant, isEnabled } = useTenant();
 
   const navigationTabs = [
-    ...(user?.role === "admin"
+    ...(user?.role === "admin" && isEnabled("admin")
       ? [{ name: "Painel administrativo", href: "/admin", icon: ShieldCheck }]
       : []),
     ...baseNavigationTabs.filter((t) =>
@@ -61,19 +71,19 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
 
   return (
     <aside
-      className="h-screen w-64 flex flex-col border-r border-sky-200 bg-sky-50"
+      className="h-screen w-64 flex flex-col border-r border-sidebar-border bg-sidebar bg-gradient-to-b from-sidebar via-background/30 to-sidebar"
       aria-label="Navegação principal"
     >
-      <div className="h-36 shrink-0 flex items-center justify-center px-4 border-b border-sky-200 bg-sky-100">
+      <div className="h-36 shrink-0 flex items-center justify-center px-4 border-b border-sidebar-border bg-brand-hero shadow-[inset_0_-1px_0_0_hsl(160_20%_90%/0.6)]">
         <button
           onClick={() => navigate("/dashboard")}
-          className="cursor-pointer hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 rounded"
+          className="cursor-pointer rounded-xl p-2 transition-all hover:opacity-95 hover:shadow-elevated focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="Ir para o painel principal"
         >
           <img
             src={tenant?.logoDataUrl || APP_PUBLIC_LOGO_URL}
             alt={tenant?.brandName || tenant?.name || APP_PUBLIC_NAME}
-            className="h-36 w-auto max-w-[200px] object-contain"
+            className="h-32 w-auto max-w-[200px] object-contain drop-shadow-sm"
           />
         </button>
       </div>
@@ -94,11 +104,11 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
             <Link
               key={item.name}
               to={item.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
                 ${
                   isActive
-                    ? "bg-sky-200 text-sky-900 shadow-sm"
-                    : "text-slate-700 hover:bg-sky-100 hover:text-sky-900"
+                    ? "bg-primary/12 text-primary shadow-sm border border-primary/15"
+                    : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
                 }`}
               aria-current={isActive ? "page" : undefined}
             >
@@ -110,9 +120,9 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
       </nav>
 
       {user && (
-        <div className="p-3 border-t border-sky-200 space-y-2">
+        <div className="p-3 border-t border-sidebar-border bg-background/40 backdrop-blur-[2px] space-y-2">
           <p
-            className="px-3 py-1 text-xs text-slate-500 truncate"
+            className="px-3 py-1 text-xs text-muted-foreground truncate"
             title={user.login}
           >
             {user.first_name && user.last_name

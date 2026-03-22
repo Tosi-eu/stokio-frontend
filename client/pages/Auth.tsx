@@ -345,30 +345,30 @@ export default function Auth() {
 
   return (
     <div
-      className="min-h-screen bg-sky-100 flex flex-col"
+      className="min-h-screen flex flex-col bg-brand-mesh"
       style={{
         opacity: isVisible ? 1 : 0,
         transition: "opacity 0.6s ease-in",
       }}
     >
-      <header className="shrink-0 border-b border-sky-200 bg-sky-100">
+      <header className="shrink-0 border-b border-border/70 bg-brand-hero/90 backdrop-blur-sm">
         <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center gap-4">
           <img
             src={headerLogoSrc}
             alt={headerTitle}
-            className="h-28 w-auto max-w-[360px] object-contain object-left"
+            className="h-28 w-auto max-w-[360px] object-contain object-left drop-shadow-sm"
           />
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight hidden sm:block">
+          <h1 className="font-display text-xl font-semibold text-foreground tracking-tight hidden sm:block">
             {headerTitle}
           </h1>
         </div>
       </header>
 
-      <main className="flex-1 bg-slate-50">
-        <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 pt-28">
+      <main className="flex-1 bg-transparent">
+        <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">
           <div className="max-w-md mx-auto">
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8">
-              <h2 className="text-2xl font-bold text-slate-800 tracking-tight mb-6">
+            <div className="bg-card/95 backdrop-blur-sm border border-border/60 rounded-2xl shadow-elevated p-8 md:p-9">
+              <h2 className="font-display text-2xl font-semibold text-foreground tracking-tight mb-6">
                 {isLogin ? "Acesso ao Sistema" : "Cadastro de Usuário"}
               </h2>
 
@@ -382,7 +382,7 @@ export default function Auth() {
                     onChange={(e) => setTenantSlug(e.target.value)}
                     required
                     disabled={tenantsLoading}
-                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400 bg-white disabled:opacity-60 disabled:cursor-wait"
+                    className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary bg-background disabled:opacity-60 disabled:cursor-wait transition-shadow"
                   >
                     <option value="">
                       {tenantsLoading
@@ -420,7 +420,7 @@ export default function Auth() {
                           setFirstName(sanitizeInput(e.target.value))
                         }
                         maxLength={100}
-                        className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400"
+                        className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-shadow"
                         placeholder="Fulano"
                         required
                       />
@@ -437,7 +437,7 @@ export default function Auth() {
                           setLastName(sanitizeInput(e.target.value))
                         }
                         maxLength={100}
-                        className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400"
+                        className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-shadow"
                         placeholder="Silva"
                         required
                       />
@@ -457,7 +457,7 @@ export default function Auth() {
                         setContractCode(sanitizeInput(e.target.value))
                       }
                       maxLength={256}
-                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400"
+                      className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-shadow"
                       placeholder="Código informado na assinatura"
                       required={tenantBranding?.contractCodeMandatory === true}
                     />
@@ -476,7 +476,7 @@ export default function Auth() {
                     value={login}
                     onChange={(e) => setLogin(sanitizeInput(e.target.value))}
                     maxLength={255}
-                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400"
+                    className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-shadow"
                     placeholder="fulana@gmail.com"
                     required
                   />
@@ -496,7 +496,7 @@ export default function Auth() {
                       passwordValidation &&
                       !passwordValidation.valid
                         ? "border-red-300 focus:ring-red-200 focus:border-red-400"
-                        : "border-slate-300 focus:ring-sky-200 focus:border-sky-400"
+                        : "border-input focus:ring-ring/30 focus:border-primary"
                     }`}
                     placeholder="••••••••••••"
                     required
@@ -536,7 +536,7 @@ export default function Auth() {
                         type="checkbox"
                         checked={rememberMe}
                         onChange={(e) => setRememberMe(e.target.checked)}
-                        className="w-4 h-4 text-sky-600 border-slate-300 rounded"
+                        className="w-4 h-4 text-primary border-input rounded"
                       />
                       <span className="text-sm text-slate-700">
                         Lembrar de mim
@@ -545,7 +545,7 @@ export default function Auth() {
 
                     <Link
                       to="/user/forgot-password"
-                      className="text-sm text-sky-600 hover:underline"
+                      className="text-sm text-primary hover:underline"
                     >
                       Esqueci minha senha
                     </Link>
@@ -561,7 +561,7 @@ export default function Auth() {
                       passwordValidation !== null &&
                       !passwordValidation.valid)
                   }
-                  className="w-full h-11 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-11 rounded-xl text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/90 shadow-brand-glow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLogin ? "Entrar" : "Cadastrar"}
                 </button>
@@ -578,7 +578,7 @@ export default function Auth() {
                 {isLogin ? "Não tem conta?" : "Já possui conta?"}{" "}
                 <button
                   onClick={() => setIsLogin(!isLogin)}
-                  className="text-sky-600 hover:underline font-medium"
+                  className="text-primary hover:underline font-medium"
                 >
                   {isLogin ? "Cadastre-se" : "Login"}
                 </button>

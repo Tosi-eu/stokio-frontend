@@ -33,9 +33,12 @@ const MODULES: Array<{ key: string; label: string }> = [
   { key: "medicines", label: "Medicamentos" },
   { key: "inputs", label: "Insumos" },
   { key: "stock", label: "Estoque" },
+  { key: "cabinets", label: "Armários" },
+  { key: "drawers", label: "Gavetas" },
   { key: "movements", label: "Movimentações" },
   { key: "reports", label: "Relatórios" },
   { key: "notifications", label: "Notificações" },
+  { key: "profile", label: "Perfil" },
   { key: "admin", label: "Admin" },
 ];
 

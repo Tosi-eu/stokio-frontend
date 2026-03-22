@@ -1,13 +1,15 @@
 import { useNavigate, Link } from "react-router-dom";
 import { LayoutProps } from "@/interfaces/interfaces";
 import { useAuth } from "@/hooks/use-auth.hook";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import LogoutConfirmDialog from "./LogoutConfirmDialog";
 import { NotificationButton } from "@/components/NotificationButton";
 import { NotificationDrawer } from "./NotificationDrawer";
 import { GlobalNotificationModals } from "./GlobalNotificationModals";
 import { VerticalLayout } from "./VerticalLayout";
 import { ChevronRight } from "lucide-react";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { useNotifications } from "@/hooks/use-notification.hook";
 
 export default function Layout({
   children,
@@ -17,8 +19,15 @@ export default function Layout({
 }: LayoutProps) {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { isEnabled } = useTenant();
+  const { setOpen: setNotificationsOpen } = useNotifications();
+  const showNotificationsUi = isEnabled("notifications");
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  useEffect(() => {
+    if (!showNotificationsUi) setNotificationsOpen(false);
+  }, [showNotificationsUi, setNotificationsOpen]);
 
   const handleLogout = () => setShowLogoutModal(true);
 
@@ -31,12 +40,12 @@ export default function Layout({
 
   if (minimal) {
     return (
-      <div className="min-h-screen flex flex-col bg-slate-50 text-foreground">
-        <header className="shrink-0 flex justify-end items-center px-4 sm:px-6 py-3 border-b border-sky-100 bg-white/90">
+      <div className="min-h-screen flex flex-col bg-background text-foreground">
+        <header className="shrink-0 flex justify-end items-center px-4 sm:px-6 py-3 border-b border-border/80 bg-card/80 backdrop-blur-md">
           <button
             type="button"
             onClick={handleLogout}
-            className="text-sm text-slate-600 hover:text-sky-700 font-medium"
+            className="text-sm text-muted-foreground hover:text-primary font-medium transition-colors"
           >
             Sair
           </button>
@@ -56,12 +65,12 @@ export default function Layout({
   }
 
   return (
-    <div className="h-screen flex bg-slate-50 text-foreground overflow-hidden">
+    <div className="h-screen flex bg-background text-foreground overflow-hidden">
       <VerticalLayout onLogout={handleLogout} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {(breadcrumb?.length || title) && (
-          <div className="shrink-0 border-b border-sky-100 bg-white/80 backdrop-blur">
+          <div className="shrink-0 border-b border-border/70 bg-card/85 backdrop-blur-md shadow-sm">
             <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
               {breadcrumb && breadcrumb.length > 0 && (
                 <nav
@@ -76,7 +85,7 @@ export default function Layout({
                       {item.path ? (
                         <Link
                           to={item.path}
-                          className="hover:text-sky-600 transition-colors"
+                          className="hover:text-primary transition-colors"
                         >
                           {item.label}
                         </Link>
@@ -90,7 +99,7 @@ export default function Layout({
                 </nav>
               )}
               {title && (
-                <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
+                <h1 className="font-display text-2xl font-semibold text-foreground tracking-tight">
                   {title}
                 </h1>
               )}
@@ -105,9 +114,13 @@ export default function Layout({
         </main>
       </div>
 
-      <NotificationButton />
-      <NotificationDrawer />
-      <GlobalNotificationModals />
+      {showNotificationsUi ? (
+        <>
+          <NotificationButton />
+          <NotificationDrawer />
+          <GlobalNotificationModals />
+        </>
+      ) : null}
 
       <LogoutConfirmDialog
         open={showLogoutModal}

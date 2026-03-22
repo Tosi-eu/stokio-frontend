@@ -36,9 +36,11 @@ import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
+  Archive,
   BarChart3,
   Bell,
   Check,
+  Grid,
   ImagePlus,
   LayoutDashboard,
   Loader2,
@@ -48,6 +50,7 @@ import {
   Shield,
   Sparkles,
   Upload,
+  User,
   Users,
   Warehouse,
 } from "lucide-react";
@@ -89,6 +92,18 @@ const MODULES: Array<{
     icon: Warehouse,
   },
   {
+    key: "cabinets",
+    label: "Armários",
+    hint: "Armários e categorias",
+    icon: Archive,
+  },
+  {
+    key: "drawers",
+    label: "Gavetas",
+    hint: "Gavetas e categorias",
+    icon: Grid,
+  },
+  {
     key: "movements",
     label: "Movimentações",
     hint: "Entradas, saídas e transferências",
@@ -107,6 +122,12 @@ const MODULES: Array<{
     icon: Bell,
   },
   {
+    key: "profile",
+    label: "Perfil",
+    hint: "Conta, e-mail e senha do usuário",
+    icon: User,
+  },
+  {
     key: "admin",
     label: "Administração",
     hint: "Painel administrativo e configurações",
@@ -116,9 +137,11 @@ const MODULES: Array<{
 
 export default function TenantOnboarding() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const { modules, tenant, loading } = useTenant();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canManageModules =
+    user?.role === "admin" || Boolean(user?.isSuperAdmin);
 
   const [enabled, setEnabled] = useState<Set<string>>(new Set());
   const [brandName, setBrandName] = useState("");
@@ -185,7 +208,7 @@ export default function TenantOnboarding() {
   };
 
   const save = async () => {
-    if (enabled.size === 0) {
+    if (canManageModules && enabled.size === 0) {
       toast({
         title: "Selecione ao menos um módulo",
         variant: "error",
@@ -205,7 +228,9 @@ export default function TenantOnboarding() {
         brandName: brandName.trim() || null,
         logoDataUrl,
       });
-      await updateTenantConfig({ enabled: Array.from(enabled) });
+      if (canManageModules) {
+        await updateTenantConfig({ enabled: Array.from(enabled) });
+      }
       toast({
         title: "Configuração salva",
         description:
@@ -234,9 +259,9 @@ export default function TenantOnboarding() {
             Bem-vindo — configure seu abrigo
           </AlertTitle>
           <AlertDescription className="text-slate-600 leading-relaxed">
-            Defina como o sistema aparece para sua equipe (nome e logo) e quais
-            áreas ficam disponíveis no menu. Você pode alterar isso depois no
-            painel administrativo.
+            {canManageModules
+              ? "Defina como o sistema aparece para sua equipe (nome e logo) e quais áreas ficam disponíveis no menu. Você pode alterar isso depois no painel administrativo."
+              : "Defina o nome e o logo do abrigo. Quais módulos aparecem no menu são definidos pelo administrador do painel — não é possível alterar aqui."}
           </AlertDescription>
         </Alert>
 
@@ -251,7 +276,9 @@ export default function TenantOnboarding() {
                   Configuração inicial
                 </CardTitle>
                 <CardDescription className="text-base text-slate-600">
-                  Duas etapas rápidas: identidade visual e módulos ativos.
+                  {canManageModules
+                    ? "Duas etapas rápidas: identidade visual e módulos ativos."
+                    : "Identidade visual do abrigo (nome e logo)."}
                 </CardDescription>
               </div>
             </div>
@@ -259,27 +286,34 @@ export default function TenantOnboarding() {
 
           <CardContent className="pt-6">
             <Tabs defaultValue="brand" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 gap-1 rounded-xl bg-slate-100/90 p-1.5 h-auto">
+              <TabsList
+                className={cn(
+                  "grid w-full gap-1 rounded-xl bg-slate-100/90 p-1.5 h-auto",
+                  canManageModules ? "grid-cols-2" : "grid-cols-1",
+                )}
+              >
                 <TabsTrigger
                   value="brand"
                   className="rounded-lg py-2.5 data-[state=active]:shadow-sm"
                 >
                   Marca & logo
                 </TabsTrigger>
-                <TabsTrigger
-                  value="modules"
-                  className="rounded-lg py-2.5 data-[state=active]:shadow-sm"
-                >
-                  Módulos
-                  {selectedCount > 0 ? (
-                    <Badge
-                      variant="secondary"
-                      className="ml-2 h-5 min-w-[1.25rem] px-1.5 tabular-nums"
-                    >
-                      {selectedCount}
-                    </Badge>
-                  ) : null}
-                </TabsTrigger>
+                {canManageModules ? (
+                  <TabsTrigger
+                    value="modules"
+                    className="rounded-lg py-2.5 data-[state=active]:shadow-sm"
+                  >
+                    Módulos
+                    {selectedCount > 0 ? (
+                      <Badge
+                        variant="secondary"
+                        className="ml-2 h-5 min-w-[1.25rem] px-1.5 tabular-nums"
+                      >
+                        {selectedCount}
+                      </Badge>
+                    ) : null}
+                  </TabsTrigger>
+                ) : null}
               </TabsList>
 
               <TabsContent
@@ -360,7 +394,7 @@ export default function TenantOnboarding() {
                   Marque apenas o que for usar agora — os demais podem ser
                   ativados depois em{" "}
                   <span className="font-medium text-foreground">
-                    Administração
+                    Painel administrativo → Config
                   </span>
                   .
                 </p>
@@ -447,7 +481,18 @@ export default function TenantOnboarding() {
                 </AccordionTrigger>
                 <AccordionContent>
                   <pre className="max-h-48 overflow-auto rounded-lg border bg-background p-3 text-xs leading-relaxed">
-                    {jsonPreview}
+                    {canManageModules
+                      ? jsonPreview
+                      : JSON.stringify(
+                          {
+                            branding: {
+                              brandName: brandName.trim() || null,
+                              hasLogo: Boolean(logoDataUrl),
+                            },
+                          },
+                          null,
+                          2,
+                        )}
                   </pre>
                   <p className="mt-2 text-xs text-muted-foreground">
                     Informativo para suporte; a validação final é no backend.
@@ -458,10 +503,16 @@ export default function TenantOnboarding() {
 
             <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <Badge variant="outline" className="font-normal">
-                  {selectedCount} módulo{selectedCount === 1 ? "" : "s"} ativo
-                  {selectedCount === 1 ? "" : "s"}
-                </Badge>
+                {canManageModules ? (
+                  <Badge variant="outline" className="font-normal">
+                    {selectedCount} módulo{selectedCount === 1 ? "" : "s"} ativo
+                    {selectedCount === 1 ? "" : "s"}
+                  </Badge>
+                ) : (
+                  <span className="text-xs sm:text-sm">
+                    Módulos do menu: definidos pelo administrador
+                  </span>
+                )}
                 {brandName.trim() ? (
                   <span className="hidden sm:inline">
                     Nome:{" "}

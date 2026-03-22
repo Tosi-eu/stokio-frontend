@@ -772,9 +772,7 @@ export type TenantConfigResponse = {
     logoDataUrl: string | null;
   } | null;
   modules: { enabled: string[] };
-  /** true após o primeiro PUT /tenant/config (módulos persistidos) */
   modulesConfigured?: boolean;
-  /** Fonte de verdade: backend (módulos + marca/logo) */
   onboardingComplete?: boolean;
 };
 

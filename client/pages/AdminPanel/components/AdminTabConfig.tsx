@@ -1,17 +1,36 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CONFIG_KEYS } from "../hooks/useAdminConfig";
 import type { AdminHealthResponse } from "@/api/requests";
 import {
   getAdminBackupStatus,
   restoreBackup,
   runAdminBackupNow,
+  updateTenantConfig,
 } from "@/api/requests";
 import { toast } from "@/hooks/use-toast.hook";
-import { Upload } from "lucide-react";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { LayoutGrid, Upload } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const MODULE_OPTIONS: Array<{ key: string; label: string }> = [
+  { key: "dashboard", label: "Dashboard" },
+  { key: "residents", label: "Residentes" },
+  { key: "medicines", label: "Medicamentos" },
+  { key: "inputs", label: "Insumos" },
+  { key: "stock", label: "Estoque" },
+  { key: "cabinets", label: "Armários" },
+  { key: "drawers", label: "Gavetas" },
+  { key: "movements", label: "Movimentações" },
+  { key: "reports", label: "Relatórios" },
+  { key: "notifications", label: "Notificações" },
+  { key: "profile", label: "Perfil (conta e senha)" },
+  { key: "admin", label: "Painel administrativo" },
+];
 
 interface AdminTabConfigProps {
   form: Record<string, string>;
@@ -42,6 +61,27 @@ export function AdminTabConfig({
   onSave,
   refetchHealth,
 }: AdminTabConfigProps) {
+  const { modules, refetch: refetchTenant, setModulesPreview } = useTenant();
+  const [moduleEnabled, setModuleEnabled] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [savingModules, setSavingModules] = useState(false);
+  const modulesPreviewDirtyRef = useRef(false);
+
+  useEffect(() => {
+    setModuleEnabled(new Set(modules?.enabled ?? []));
+  }, [modules]);
+
+  useEffect(() => {
+    return () => {
+      if (modulesPreviewDirtyRef.current) {
+        modulesPreviewDirtyRef.current = false;
+        setModulesPreview(null);
+        void refetchTenant();
+      }
+    };
+  }, [refetchTenant, setModulesPreview]);
+
   const [restoreLoading, setRestoreLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [backupStatusLoading, setBackupStatusLoading] = useState(false);
@@ -107,8 +147,105 @@ export function AdminTabConfig({
     }
   };
 
+  const toggleModule = useCallback(
+    (key: string) => {
+      setModuleEnabled((prev) => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        const arr = Array.from(next);
+        modulesPreviewDirtyRef.current = true;
+        setModulesPreview(arr);
+        return next;
+      });
+    },
+    [setModulesPreview],
+  );
+
+  const saveModules = async () => {
+    if (moduleEnabled.size === 0) {
+      toast({
+        title: "Selecione ao menos um módulo",
+        variant: "error",
+      });
+      return;
+    }
+    setSavingModules(true);
+    try {
+      await updateTenantConfig({ enabled: Array.from(moduleEnabled) });
+      modulesPreviewDirtyRef.current = false;
+      await refetchTenant();
+      toast({
+        title: "Módulos atualizados",
+        description: "O menu e os atalhos já refletem as áreas ativadas.",
+        variant: "success",
+      });
+    } catch (err) {
+      modulesPreviewDirtyRef.current = false;
+      setModulesPreview(null);
+      await refetchTenant();
+      toast({
+        title: "Não foi possível salvar os módulos",
+        description:
+          err instanceof Error ? err.message : "Tente novamente em instantes.",
+        variant: "error",
+      });
+    } finally {
+      setSavingModules(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-start gap-2">
+            <LayoutGrid className="h-5 w-5 mt-0.5 text-muted-foreground shrink-0" />
+            <div>
+              <CardTitle>Módulos do sistema</CardTitle>
+              <p className="text-sm text-muted-foreground font-normal mt-1">
+                Define quais áreas aparecem no menu para os usuários deste
+                abrigo. Quem faz cadastro como usuário comum não altera esta
+                lista — apenas administradores do painel.
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {MODULE_OPTIONS.map((m) => {
+              const on = moduleEnabled.has(m.key);
+              return (
+                <label
+                  key={m.key}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors",
+                    on ? "border-primary/40 bg-primary/5" : "hover:bg-muted/40",
+                  )}
+                >
+                  <Checkbox
+                    checked={on}
+                    onCheckedChange={() => toggleModule(m.key)}
+                    aria-label={m.label}
+                  />
+                  <span className="text-sm font-medium leading-tight">
+                    {m.label}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <Button
+            type="button"
+            onClick={saveModules}
+            disabled={savingModules}
+            variant="secondary"
+          >
+            {savingModules ? "Salvando módulos..." : "Salvar módulos"}
+          </Button>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Configurações do sistema</CardTitle>

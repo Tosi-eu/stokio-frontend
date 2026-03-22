@@ -29,19 +29,19 @@ export default function LoadingScreen() {
   }, [navigate]);
 
   return (
-    <div className="h-screen w-screen flex flex-col justify-center items-center bg-sky-100">
+    <div className="h-screen w-screen flex flex-col justify-center items-center bg-brand-mesh px-6">
       <img
         src={APP_PUBLIC_LOGO_URL}
         alt={APP_PUBLIC_NAME}
-        className="w-48 h-auto max-h-32 object-contain mb-4"
+        className="w-48 h-auto max-h-32 object-contain mb-4 drop-shadow-md"
       />
-      <h1 className="text-sky-900 font-bold text-3xl mb-6">
+      <h1 className="font-display text-foreground font-semibold text-3xl mb-6 tracking-tight text-center">
         {APP_PUBLIC_NAME}
       </h1>
 
-      <div className="w-64 h-4 bg-sky-200 rounded-full overflow-hidden">
+      <div className="w-64 h-2.5 bg-muted rounded-full overflow-hidden shadow-inner ring-1 ring-border/50">
         <div
-          className="h-4 bg-sky-900 rounded-full transition-all duration-300"
+          className="h-full rounded-full bg-gradient-to-r from-primary to-[hsl(88_48%_52%)] transition-all duration-300 ease-out"
           style={{ width: `${progress}%` }}
         />
       </div>

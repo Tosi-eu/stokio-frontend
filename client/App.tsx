@@ -361,7 +361,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando armários..." />}
               >
-                <Cabinets />
+                <ModuleRoute moduleKey="cabinets">
+                  <Cabinets />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -373,7 +375,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando formulário..." />}
               >
-                <RegisterCabinet />
+                <ModuleRoute moduleKey="cabinets">
+                  <RegisterCabinet />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -385,7 +389,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando edição..." />}
               >
-                <EditCabinet />
+                <ModuleRoute moduleKey="cabinets">
+                  <EditCabinet />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -397,7 +403,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando gavetas..." />}
               >
-                <Drawers />
+                <ModuleRoute moduleKey="drawers">
+                  <Drawers />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -409,7 +417,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando formulário..." />}
               >
-                <RegisterDrawer />
+                <ModuleRoute moduleKey="drawers">
+                  <RegisterDrawer />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -421,7 +431,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando edição..." />}
               >
-                <EditDrawer />
+                <ModuleRoute moduleKey="drawers">
+                  <EditDrawer />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }
@@ -433,7 +445,9 @@ const AppContent = () => {
               <Suspense
                 fallback={<LoadingFallback title="Carregando perfil..." />}
               >
-                <Profile />
+                <ModuleRoute moduleKey="profile">
+                  <Profile />
+                </ModuleRoute>
               </Suspense>
             </PrivateRoute>
           }

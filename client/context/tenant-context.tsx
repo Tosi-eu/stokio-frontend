@@ -3,6 +3,7 @@ import {
   ReactNode,
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { getTenantConfig, type TenantConfigResponse } from "@/api/requests";
@@ -21,6 +22,10 @@ export type TenantContextType = {
   loading: boolean;
   refetch: () => Promise<void>;
   isEnabled: (key: string) => boolean;
+  /** Lista efetiva (servidor ou preview ao editar módulos no admin). */
+  effectiveEnabled: string[];
+  /** Atualização imediata da UI ao alternar módulos; `null` volta ao servidor. */
+  setModulesPreview: (enabled: string[] | null) => void;
 };
 
 export const TenantContext = createContext<TenantContextType | undefined>(
@@ -32,6 +37,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const [tenantId, setTenantId] = useState<number | null>(null);
   const [tenant, setTenant] = useState<TenantConfigResponse["tenant"]>(null);
   const [modules, setModules] = useState<TenantModules | null>(null);
+  const [modulesPreview, setModulesPreview] = useState<string[] | null>(null);
   const [modulesConfigured, setModulesConfigured] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [loading, setLoading] = useState(() => Boolean(user));
@@ -41,6 +47,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       setTenantId(null);
       setTenant(null);
       setModules(null);
+      setModulesPreview(null);
       setModulesConfigured(false);
       setOnboardingComplete(false);
       setLoading(false);
@@ -48,6 +55,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     }
     setLoading(true);
     try {
+      setModulesPreview(null);
       const res = await getTenantConfig();
       setTenantId(Number(res.tenantId) || null);
       setTenant(res.tenant ?? null);
@@ -58,6 +66,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       setTenantId(null);
       setTenant(null);
       setModules(null);
+      setModulesPreview(null);
       setModulesConfigured(false);
       setOnboardingComplete(false);
     } finally {
@@ -69,9 +78,14 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     refetch();
   }, [refetch]);
 
+  const effectiveEnabled = useMemo(
+    () => modulesPreview ?? modules?.enabled ?? [],
+    [modulesPreview, modules],
+  );
+
   const isEnabled = useCallback(
-    (key: string) => Boolean(modules?.enabled?.includes(key)),
-    [modules],
+    (key: string) => effectiveEnabled.includes(key),
+    [effectiveEnabled],
   );
 
   return (
@@ -85,6 +99,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         loading,
         refetch,
         isEnabled,
+        effectiveEnabled,
+        setModulesPreview,
       }}
     >
       {children}

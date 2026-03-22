@@ -1,5 +1,6 @@
 import { useNotifications } from "@/hooks/use-notification.hook";
 import { useAuth } from "@/hooks/use-auth.hook";
+import { useTenant } from "@/hooks/use-tenant.hook";
 import { useToast } from "@/hooks/use-toast.hook";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell } from "lucide-react";
@@ -13,9 +14,11 @@ import {
 export function NotificationButton() {
   const { count, setOpen } = useNotifications();
   const { user } = useAuth();
+  const { isEnabled } = useTenant();
   const { toast } = useToast();
   const hasNotifications = count > 0;
-  const canAccessNotifications = user?.role === "admin";
+  const moduleOn = isEnabled("notifications");
+  const canAccessNotifications = moduleOn && user?.role === "admin";
 
   const handleClick = () => {
     if (!canAccessNotifications) {
