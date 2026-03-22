@@ -5,7 +5,22 @@ import {
   OperationType,
   SectorType,
 } from "@/utils/enums";
+import type {
+  PublicTenantListItem,
+  PublicTenantBranding,
+  TenantBrandingApiResponse,
+  TenantConfigResponse,
+  UpdateTenantBrandingPayload,
+} from "@abrigo/sdk";
 import { api, API_BASE_URL } from "./canonical";
+
+export type {
+  PublicTenantListItem,
+  PublicTenantBranding,
+  TenantBrandingApiResponse,
+  TenantConfigResponse,
+  UpdateTenantBrandingPayload,
+} from "@abrigo/sdk";
 
 export async function uploadTenantLogo(
   file: File,
@@ -274,38 +289,10 @@ export const getDailyMovementsReport = () => {
   return api.get("/relatorios?type=movimentos_dia");
 };
 
-export type PublicTenantListItem = {
-  id: number;
-  slug: string;
-  name: string;
-  brandName: string | null;
-};
-
 export const listPublicTenants = (params?: { q?: string; limit?: number }) =>
   api.get<{ data: PublicTenantListItem[] }>("/tenants", {
     params: params ?? {},
   });
-
-export type PublicTenantBranding = {
-  slug: string;
-  name: string;
-  brandName: string | null;
-  logoUrl: string | null;
-  requiresContractCode: true;
-  contractCodeMandatory?: boolean;
-};
-
-type TenantBrandingApiResponse =
-  | { found: false }
-  | {
-      found: true;
-      slug: string;
-      name: string;
-      brandName: string | null;
-      logoUrl?: string | null;
-      requiresContractCode?: boolean;
-      contractCodeMandatory?: boolean;
-    };
 
 export async function fetchPublicTenantBrandingIfExists(
   slug: string,
@@ -776,20 +763,6 @@ export const getBackendHealthCheck = () =>
 
 export const logoutRequest = () => api.post("/login/logout");
 
-export type TenantConfigResponse = {
-  tenantId: number;
-  tenant: {
-    id: number;
-    slug: string;
-    name: string;
-    brandName: string | null;
-    logoUrl: string | null;
-  } | null;
-  modules: { enabled: string[] };
-  modulesConfigured?: boolean;
-  onboardingComplete?: boolean;
-};
-
 export const getTenantConfig = () =>
   api.get<TenantConfigResponse>("/tenant/config");
 
@@ -799,10 +772,7 @@ export const updateTenantConfig = (modules: { enabled: string[] }) =>
     { modules },
   );
 
-export const updateTenantBranding = (payload: {
-  brandName: string | null;
-  logoUrl?: string | null;
-}) =>
+export const updateTenantBranding = (payload: UpdateTenantBrandingPayload) =>
   api.put<{ tenantId: number; tenant: TenantConfigResponse["tenant"] }>(
     "/tenant/branding",
     payload,

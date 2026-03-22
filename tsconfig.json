@@ -8,7 +8,8 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["client/*"]
+      "@/*": ["client/*"],
+      "@abrigo/sdk": ["./node_modules/@abrigo/sdk/dist/index.d.ts"]
     },
     "skipLibCheck": true,
     "strict": false,
