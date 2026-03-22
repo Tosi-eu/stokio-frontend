@@ -82,7 +82,11 @@ export default function AdminPanel() {
 
   return (
     <Layout title="Painel administrativo">
-      <Tabs value={effectiveTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs
+        value={effectiveTab}
+        onValueChange={setActiveTab}
+        className="w-full"
+      >
         <TabsList className="grid grid-cols-10 gap-1 w-full p-1">
           <TabsTrigger
             value="resumo"
@@ -305,7 +309,9 @@ export default function AdminPanel() {
         </TabsContent>
 
         <TabsContent value="qualidade" className="mt-6">
-          <AdminTabQualidade enabled={isAdmin && effectiveTab === "qualidade"} />
+          <AdminTabQualidade
+            enabled={isAdmin && effectiveTab === "qualidade"}
+          />
         </TabsContent>
         {isSuperAdmin ? (
           <TabsContent value="tenants" className="mt-6">
