@@ -203,7 +203,6 @@ export const getReport = (
   return api.get(`/relatorios?${search.toString()}`);
 };
 
-/** Build query params for admin CSV export (same shape as getReport). */
 export function buildAdminExportParams(
   type: string,
   casela?: number,
@@ -219,7 +218,6 @@ export function buildAdminExportParams(
   return out;
 }
 
-/** Download admin export as CSV (uses credentials). */
 export async function downloadAdminExportCSV(
   queryParams: Record<string, string>,
 ): Promise<void> {
@@ -266,9 +264,7 @@ export type PublicTenantBranding = {
   name: string;
   brandName: string | null;
   logoDataUrl: string | null;
-  /** Sempre true no fluxo de cadastro: campo de código é mostrado para configurar o acesso */
   requiresContractCode: true;
-  /** Obrigatório preencher só quando o abrigo tem hash de contrato no servidor */
   contractCodeMandatory?: boolean;
 };
 
@@ -284,11 +280,6 @@ type TenantBrandingApiResponse =
       contractCodeMandatory?: boolean;
     };
 
-/**
- * Consulta o abrigo no banco (GET /tenants/:slug/branding).
- * Resposta 200 com `{ found: false }` se não existir — sem 404 no Network.
- * Falha de rede ou erro HTTP → null.
- */
 export async function fetchPublicTenantBrandingIfExists(
   slug: string,
 ): Promise<PublicTenantBranding | null> {
@@ -359,7 +350,6 @@ export const register = (
     { headers: { "X-Tenant": tenantSlug } },
   );
 
-/** Público: confere se o código bate com o hash cadastrado para o slug (rate limit no servidor). */
 export type VerifyContractCodeResponse = {
   valid: boolean;
   contractCodeRequired?: boolean;
@@ -375,14 +365,12 @@ export const verifyTenantContractCode = (
     { contract_code: contractCode },
   );
 
-/** Operador do sistema: mesmo valor que X_API_KEY no backend (rotas /admin/tenants não exigem login). */
 function superAdminApiKeyHeaders(): HeadersInit | undefined {
   const k = import.meta.env.VITE_X_API_KEY;
   if (k == null || String(k).trim() === "") return undefined;
   return { "X-API-Key": String(k).trim() };
 }
 
-/** Super-admin: define o código de contrato (armazenado como hash) ou remove com clear_contract_code. */
 export const adminSetTenantContractCodeBySlug = (
   slug: string,
   payload: { contract_code: string } | { clear_contract_code: true },
@@ -750,7 +738,6 @@ export const updateStockItem = (
   });
 };
 
-/** Pronto quando o backend e o banco respondem (não usa /status, evita rate limit). */
 export type HealthCheckResponse = {
   status: string;
   database?: string;

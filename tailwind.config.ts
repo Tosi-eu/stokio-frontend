@@ -30,7 +30,6 @@ export default {
           "radial-gradient(ellipse 120% 80% at 100% -20%, hsl(88 45% 88% / 0.5), transparent 50%), radial-gradient(ellipse 100% 60% at 0% 100%, hsl(180 40% 85% / 0.35), transparent 45%), hsl(165 35% 98%)",
       },
       colors: {
-        /** Paleta teal–hortelã (substitui o azul “sky” legado em todo o app) */
         sky: {
           50: "hsl(165 42% 97%)",
           100: "hsl(165 35% 93%)",

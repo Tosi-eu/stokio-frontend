@@ -59,7 +59,6 @@ const TenantOnboarding = lazy(() => import("./pages/TenantOnboarding"));
 
 const queryClient = new QueryClient();
 
-/** Remonta o tenant context ao trocar de usuário e permite loading inicial correto. */
 function TenantProviderWithUserKey({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   return <TenantProvider key={user?.id ?? "none"}>{children}</TenantProvider>;

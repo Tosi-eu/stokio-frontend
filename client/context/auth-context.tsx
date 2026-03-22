@@ -61,7 +61,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (login: string, password: string, tenantSlug: string) => {
     const data = await apiLogin(login, password, tenantSlug);
 
-    /** API retorna { user: { id, login, tenantId, ... } } — precisamos do objeto interno. */
     const response = data as { user?: LoggedUser };
     const loggedUser = response.user ?? (data as LoggedUser);
 

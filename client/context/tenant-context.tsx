@@ -22,9 +22,7 @@ export type TenantContextType = {
   loading: boolean;
   refetch: () => Promise<void>;
   isEnabled: (key: string) => boolean;
-  /** Lista efetiva (servidor ou preview ao editar módulos no admin). */
   effectiveEnabled: string[];
-  /** Atualização imediata da UI ao alternar módulos; `null` volta ao servidor. */
   setModulesPreview: (enabled: string[] | null) => void;
 };
 
