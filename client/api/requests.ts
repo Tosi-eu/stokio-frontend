@@ -290,10 +290,7 @@ export type PublicTenantBranding = {
   slug: string;
   name: string;
   brandName: string | null;
-  /** Logo no R2 (URL pública HTTPS) */
   logoUrl: string | null;
-  /** Legado: data URL em base64 */
-  logoDataUrl: string | null;
   requiresContractCode: true;
   contractCodeMandatory?: boolean;
 };
@@ -306,7 +303,6 @@ type TenantBrandingApiResponse =
       name: string;
       brandName: string | null;
       logoUrl?: string | null;
-      logoDataUrl: string | null;
       requiresContractCode?: boolean;
       contractCodeMandatory?: boolean;
     };
@@ -331,7 +327,6 @@ export async function fetchPublicTenantBrandingIfExists(
       name: data.name,
       brandName: data.brandName ?? null,
       logoUrl: data.logoUrl ?? null,
-      logoDataUrl: data.logoDataUrl ?? null,
       requiresContractCode: true,
       contractCodeMandatory: Boolean(data.contractCodeMandatory),
     };
@@ -789,7 +784,6 @@ export type TenantConfigResponse = {
     name: string;
     brandName: string | null;
     logoUrl: string | null;
-    logoDataUrl: string | null;
   } | null;
   modules: { enabled: string[] };
   modulesConfigured?: boolean;
@@ -808,7 +802,6 @@ export const updateTenantConfig = (modules: { enabled: string[] }) =>
 export const updateTenantBranding = (payload: {
   brandName: string | null;
   logoUrl?: string | null;
-  logoDataUrl?: string | null;
 }) =>
   api.put<{ tenantId: number; tenant: TenantConfigResponse["tenant"] }>(
     "/tenant/branding",

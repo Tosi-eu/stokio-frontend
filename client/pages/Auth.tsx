@@ -380,7 +380,7 @@ export default function Auth() {
     if (!slugTrim) return defaultLogoSrc;
     if (tenantBrandingLoading || !tenantBranding) return defaultLogoSrc;
     return (
-      tenantBranding.logoUrl || tenantBranding.logoDataUrl || defaultLogoSrc
+      tenantBranding.logoUrl || defaultLogoSrc
     );
   })();
 

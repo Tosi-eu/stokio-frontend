@@ -152,8 +152,6 @@ export default function TenantOnboarding() {
   const [brandName, setBrandName] = useState("");
   /** URL pública no R2 após upload */
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  /** Legado: data URL (só se o servidor não tiver R2) */
-  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -162,7 +160,6 @@ export default function TenantOnboarding() {
     setEnabled(new Set(modules?.enabled ?? []));
     setBrandName(tenant?.brandName ?? tenant?.name ?? "");
     setLogoUrl(tenant?.logoUrl ?? null);
-    setLogoDataUrl(tenant?.logoDataUrl ?? null);
   }, [loading, modules, tenant]);
 
   const jsonPreview = useMemo(
@@ -207,7 +204,6 @@ export default function TenantOnboarding() {
     try {
       const { logoUrl: url } = await uploadTenantLogo(file, brandName);
       setLogoUrl(url);
-      setLogoDataUrl(null);
     } catch (err) {
       toast({
         title: "Não foi possível enviar o logo",
@@ -227,7 +223,6 @@ export default function TenantOnboarding() {
     setEnabled(new Set(modules?.enabled ?? []));
     setBrandName(tenant?.brandName ?? tenant?.name ?? "");
     setLogoUrl(tenant?.logoUrl ?? null);
-    setLogoDataUrl(tenant?.logoDataUrl ?? null);
   };
 
   const save = async () => {
@@ -238,7 +233,7 @@ export default function TenantOnboarding() {
       });
       return;
     }
-    if (!brandName.trim() && !logoUrl && !logoDataUrl) {
+    if (!brandName.trim() && !logoUrl) {
       toast({
         title: "Informe o nome da marca ou envie um logo",
         variant: "error",
@@ -250,8 +245,6 @@ export default function TenantOnboarding() {
       const brandPayload = { brandName: brandName.trim() || null };
       if (logoUrl) {
         await updateTenantBranding({ ...brandPayload, logoUrl });
-      } else if (logoDataUrl) {
-        await updateTenantBranding({ ...brandPayload, logoDataUrl });
       } else {
         await updateTenantBranding({ ...brandPayload, logoUrl: null });
       }
@@ -350,9 +343,9 @@ export default function TenantOnboarding() {
                 <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
                   <div className="flex flex-col items-center gap-3">
                     <Avatar className="h-28 w-28 rounded-2xl border-2 border-dashed border-border bg-card shadow-inner">
-                      {logoUrl || logoDataUrl ? (
+                      {logoUrl ? (
                         <AvatarImage
-                          src={logoUrl || logoDataUrl || ""}
+                          src={logoUrl || ""}
                           alt="Logo do abrigo"
                           className="object-contain p-2"
                         />
@@ -520,7 +513,7 @@ export default function TenantOnboarding() {
                           {
                             branding: {
                               brandName: brandName.trim() || null,
-                              hasLogo: Boolean(logoUrl || logoDataUrl),
+                              hasLogo: Boolean(logoUrl),
                             },
                           },
                           null,
