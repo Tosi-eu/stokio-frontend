@@ -33,6 +33,7 @@ import { toast } from "@/hooks/use-toast.hook";
 import { useAuth } from "@/hooks/use-auth.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { cn } from "@/lib/utils";
+import { isSuperAdminUser } from "@/helpers/auth-roles.helper";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
@@ -141,7 +142,7 @@ export default function TenantOnboarding() {
   const { modules, tenant, loading } = useTenant();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canManageModules =
-    user?.role === "admin" || Boolean(user?.isSuperAdmin);
+    user?.role === "admin" || isSuperAdminUser(user ?? null);
 
   const [enabled, setEnabled] = useState<Set<string>>(new Set());
   const [brandName, setBrandName] = useState("");

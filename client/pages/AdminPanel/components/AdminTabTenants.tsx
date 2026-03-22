@@ -69,8 +69,12 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
       const res = await getAdminTenants({ page, limit });
       setRows(res.data ?? []);
       setTotal(Number(res.total) || 0);
-    } catch {
-      toast({ title: "Erro ao carregar tenants", variant: "error" });
+    } catch (e) {
+      const msg =
+        e instanceof Error && e.message?.trim()
+          ? e.message
+          : "Erro ao carregar tenants";
+      toast({ title: msg, variant: "error" });
     } finally {
       setLoading(false);
     }

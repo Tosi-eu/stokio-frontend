@@ -44,18 +44,25 @@ import {
   AdminUserDeleteDialog,
 } from "./components";
 import { parseYearMonthToDate } from "@/helpers/dates.helper";
+import { isSuperAdminUser } from "@/helpers/auth-roles.helper";
 
 export default function AdminPanel() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const isSuperAdmin = Boolean(user?.isSuperAdmin);
+  const isSuperAdmin = isSuperAdminUser(user);
 
   const [activeTab, setActiveTab] = useState("resumo");
 
   useEffect(() => {
     if (!isAdmin) navigate("/dashboard");
   }, [isAdmin, navigate]);
+
+  useEffect(() => {
+    if (!isSuperAdmin && activeTab === "tenants") {
+      setActiveTab("resumo");
+    }
+  }, [isSuperAdmin, activeTab]);
 
   const summary = useAdminSummary(isAdmin, activeTab === "resumo");
   const alerts = useAdminAlerts(isAdmin, activeTab === "alertas");
@@ -305,7 +312,9 @@ export default function AdminPanel() {
         </TabsContent>
         {isSuperAdmin ? (
           <TabsContent value="tenants" className="mt-6">
-            <AdminTabTenants enabled={isAdmin && activeTab === "tenants"} />
+            <AdminTabTenants
+              enabled={isSuperAdmin && isAdmin && activeTab === "tenants"}
+            />
           </TabsContent>
         ) : null}
 

@@ -8,10 +8,19 @@ import {
 import { AuthContextType, LoggedUser } from "@/interfaces/interfaces";
 import { login as apiLogin, logoutRequest } from "@/api/requests";
 import { cleanupSessionTimeout } from "@/helpers/session-timeout.helper";
+import { isSuperAdminUser } from "@/helpers/auth-roles.helper";
 
 export const AuthContext = createContext<AuthContextType | undefined>(
   undefined,
 );
+
+function normalizeSessionUser(raw: LoggedUser | null): LoggedUser | null {
+  if (!raw || typeof raw.id !== "number") return null;
+  return {
+    ...raw,
+    isSuperAdmin: isSuperAdminUser(raw),
+  };
+}
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<LoggedUser | null>(null);
@@ -37,11 +46,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const parsed = JSON.parse(storedUser) as
           | LoggedUser
           | { user?: LoggedUser };
-        const userToSet =
+        const raw =
           parsed && typeof parsed === "object" && "user" in parsed
             ? (parsed.user ?? null)
             : (parsed as LoggedUser);
-        setUser(userToSet && userToSet.id ? userToSet : null);
+        setUser(normalizeSessionUser(raw && raw.id ? (raw as LoggedUser) : null));
       } catch (error) {
         console.error("Erro ao restaurar sessão:", error);
         sessionStorage.removeItem("user");
@@ -63,10 +72,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const response = data as { user?: LoggedUser };
     const loggedUser = response.user ?? (data as LoggedUser);
+    const normalized = normalizeSessionUser(loggedUser);
 
-    setUser(loggedUser);
+    setUser(normalized);
 
-    sessionStorage.setItem("user", JSON.stringify(loggedUser));
+    sessionStorage.setItem("user", JSON.stringify(normalized));
   };
 
   const logout = async () => {
