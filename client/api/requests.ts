@@ -11,7 +11,7 @@ import type {
   TenantBrandingApiResponse,
   TenantConfigResponse,
   UpdateTenantBrandingPayload,
-} from "@abrigo/sdk";
+} from "@porto-sdk/sdk";
 import { api, API_BASE_URL } from "./canonical";
 
 export type {
@@ -20,7 +20,7 @@ export type {
   TenantBrandingApiResponse,
   TenantConfigResponse,
   UpdateTenantBrandingPayload,
-} from "@abrigo/sdk";
+} from "@porto-sdk/sdk";
 
 export async function uploadTenantLogo(
   file: File,

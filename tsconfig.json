@@ -9,7 +9,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["client/*"],
-      "@abrigo/sdk": ["./node_modules/@abrigo/sdk/dist/index.d.ts"]
+      "@porto-sdk/sdk": ["./node_modules/@porto-sdk/sdk/dist/index.d.ts"]
     },
     "skipLibCheck": true,
     "strict": false,
