@@ -243,7 +243,7 @@ export default function Profile() {
               <CardFooter className="flex gap-2 px-0">
                 <Button
                   type="submit"
-                  className="w-full bg-sky-600 hover:bg-sky-700"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? "Salvando..." : "Salvar"}

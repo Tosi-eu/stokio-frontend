@@ -46,7 +46,7 @@ const ConfirmActionModal: FC<ConfirmActionModalProps> = ({
           <Button
             onClick={onConfirm}
             disabled={loading}
-            className="bg-sky-600 hover:bg-sky-700 text-white"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {confirmLabel}
           </Button>

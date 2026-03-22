@@ -14,6 +14,11 @@
     "strict": false,
     "ignoreDeprecations": "5.0"
   },
-  "include": ["client/**/*", "shared/**/*", "vite.config.ts"],
+  "include": [
+    "client/**/*",
+    "shared/**/*",
+    "vite.config.ts",
+    "tailwind.config.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

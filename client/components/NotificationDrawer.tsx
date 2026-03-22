@@ -137,7 +137,7 @@ export function NotificationDrawer() {
               <button
                 className={`flex-1 py-2 text-sm font-medium ${
                   activeTab === "receita"
-                    ? "border-b-2 border-sky-600 text-sky-600"
+                    ? "border-b-2 border-primary text-primary"
                     : "text-slate-500"
                 }`}
                 onClick={() => {
@@ -150,7 +150,7 @@ export function NotificationDrawer() {
               <button
                 className={`flex-1 py-2 text-sm font-medium ${
                   activeTab === "reposicao"
-                    ? "border-b-2 border-sky-600 text-sky-600"
+                    ? "border-b-2 border-primary text-primary"
                     : "text-slate-500"
                 }`}
                 onClick={() => {
@@ -265,7 +265,7 @@ export function NotificationDrawer() {
               {items.length > 0 && hasNext && (
                 <div className="text-center py-2">
                   <button
-                    className="text-sky-600 hover:text-sky-700 font-medium"
+                    className="text-primary hover:text-primary/90 font-medium"
                     onClick={() => {
                       const nextPage = page + 1;
                       setPage(nextPage);
@@ -281,7 +281,7 @@ export function NotificationDrawer() {
             <DrawerFooter>
               {activeTab === "receita" && (
                 <button
-                  className="bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700"
+                  className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90"
                   onClick={() => {
                     setMode("create");
                     setEditingNotification(null);
@@ -311,7 +311,7 @@ export function NotificationDrawer() {
               <button
                 form="create-notification-form"
                 type="submit"
-                className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg w-full"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg w-full"
               >
                 {editingNotification
                   ? "Salvar Alterações"

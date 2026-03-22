@@ -79,7 +79,7 @@ export function StockCard({
         relative w-full h-[200px] rounded-xl p-5 border shadow-sm transition-all flex flex-col
         ${
           selected
-            ? "bg-sky-50 border-sky-600 shadow-md"
+            ? "bg-accent/50 border-primary shadow-md"
             : "bg-white border-slate-300 hover:bg-slate-50"
         }
         ${isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}

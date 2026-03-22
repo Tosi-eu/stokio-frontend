@@ -11,13 +11,13 @@ export function SkeletonTable({ rows = 5, cols = 4 }: SkeletonTableProps) {
       <div className="overflow-hidden">
         <table className="w-full min-w-max">
           <thead>
-            <tr className="bg-sky-100 border-b">
+            <tr className="bg-muted border-b">
               {Array.from({ length: cols }).map((_, i) => (
                 <th key={i} className="px-4 py-3 text-xs font-semibold">
                   <Skeleton className="h-4 w-24" />
                 </th>
               ))}
-              <th className="px-4 py-3 text-xs font-semibold sticky right-0 bg-sky-100 z-10 min-w-[120px]">
+              <th className="px-4 py-3 text-xs font-semibold sticky right-0 bg-muted z-10 min-w-[120px]">
                 <Skeleton className="h-4 w-16" />
               </th>
             </tr>

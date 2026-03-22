@@ -374,7 +374,7 @@ export default function Auth() {
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Abrigo
                   </label>
                   <select
@@ -401,7 +401,7 @@ export default function Auth() {
                       contate o suporte.
                     </p>
                   ) : (
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       O acesso é sempre no contexto do abrigo escolhido (e-mail
                       e senha valem para aquele abrigo).
                     </p>
@@ -410,7 +410,7 @@ export default function Auth() {
                 {!isLogin && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                      <label className="block text-sm font-medium text-foreground mb-2">
                         Nome
                       </label>
                       <input
@@ -427,7 +427,7 @@ export default function Auth() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                      <label className="block text-sm font-medium text-foreground mb-2">
                         Sobrenome
                       </label>
                       <input
@@ -446,7 +446,7 @@ export default function Auth() {
                 )}
                 {!isLogin && (
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                    <label className="block text-sm font-medium text-foreground mb-2">
                       Código do contrato
                     </label>
                     <input
@@ -461,14 +461,14 @@ export default function Auth() {
                       placeholder="Código informado na assinatura"
                       required={tenantBranding?.contractCodeMandatory === true}
                     />
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       Mesmo código fornecido pela equipe ao formalizar o uso do
                       sistema.
                     </p>
                   </div>
                 )}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     E-mail
                   </label>
                   <input
@@ -483,7 +483,7 @@ export default function Auth() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Senha
                   </label>
                   <input
@@ -538,7 +538,7 @@ export default function Auth() {
                         onChange={(e) => setRememberMe(e.target.checked)}
                         className="w-4 h-4 text-primary border-input rounded"
                       />
-                      <span className="text-sm text-slate-700">
+                      <span className="text-sm text-foreground">
                         Lembrar de mim
                       </span>
                     </label>
@@ -574,7 +574,7 @@ export default function Auth() {
                   )}
               </form>
 
-              <div className="mt-4 text-center text-sm text-slate-600">
+              <div className="mt-4 text-center text-sm text-muted-foreground">
                 {isLogin ? "Não tem conta?" : "Já possui conta?"}{" "}
                 <button
                   onClick={() => setIsLogin(!isLogin)}
@@ -585,7 +585,7 @@ export default function Auth() {
               </div>
             </div>
 
-            <div className="mt-6 text-center text-xs text-slate-400">
+            <div className="mt-6 text-center text-xs text-muted-foreground/70">
               © {new Date().getFullYear()} {APP_PUBLIC_NAME}
             </div>
           </div>

@@ -201,14 +201,14 @@ export default function Dashboard() {
 
   const COLORS = useMemo(
     () => [
-      "#0EA5E9",
-      "#FACC15",
-      "#10B981",
-      "#EF4444",
-      "#8B5CF6",
-      "#F97316",
-      "#14B8A6",
-      "#6366F1",
+      "hsl(var(--chart-1))",
+      "hsl(var(--chart-2))",
+      "hsl(var(--chart-3))",
+      "hsl(var(--chart-5))",
+      "hsl(var(--chart-6))",
+      "hsl(var(--chart-4))",
+      "hsl(var(--chart-8))",
+      "hsl(var(--chart-7))",
     ],
     [],
   );
@@ -277,7 +277,7 @@ export default function Dashboard() {
                 loading={loadingNonMovement}
               />
               <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
-                <span className="text-sm text-slate-500">
+                <span className="text-sm text-muted-foreground">
                   Página {nonMovementPage} de{" "}
                   {Math.max(
                     1,
@@ -286,14 +286,14 @@ export default function Dashboard() {
                 </span>
                 <div className="flex gap-2">
                   <button
-                    className="px-3 py-1 text-sm border rounded disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    className="px-3 py-1 text-sm border border-border rounded-md bg-background disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     disabled={nonMovementPage === 1}
                     onClick={() => setNonMovementPage((p) => p - 1)}
                   >
                     Anterior
                   </button>
                   <button
-                    className="px-3 py-1 text-sm border rounded disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    className="px-3 py-1 text-sm border border-border rounded-md bg-background disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     disabled={
                       nonMovementPage * DEFAULT_PAGE_SIZE >=
                       nonMovementProducts.length
@@ -335,7 +335,7 @@ export default function Dashboard() {
                 loading={loadingRecentMovements}
               />
               <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
-                <span className="text-sm text-slate-500">
+                <span className="text-sm text-muted-foreground">
                   Página {recentMovementsPage} de{" "}
                   {Math.max(
                     1,
@@ -344,14 +344,14 @@ export default function Dashboard() {
                 </span>
                 <div className="flex gap-2">
                   <button
-                    className="px-3 py-1 text-sm border rounded disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    className="px-3 py-1 text-sm border border-border rounded-md bg-background disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     disabled={recentMovementsPage === 1}
                     onClick={() => setRecentMovementsPage((p) => p - 1)}
                   >
                     Anterior
                   </button>
                   <button
-                    className="px-3 py-1 text-sm border rounded disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    className="px-3 py-1 text-sm border border-border rounded-md bg-background disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     disabled={
                       recentMovementsPage * DEFAULT_PAGE_SIZE >=
                       recentMovements.length
@@ -417,7 +417,10 @@ export default function Dashboard() {
               data={cabinetStockData}
               dataKey="cabinet"
               gradientId="barFillCabinet"
-              gradientColors={{ start: "#0284c7", end: "#0369a1" }}
+              gradientColors={{
+                start: "hsl(174 58% 36%)",
+                end: "hsl(178 45% 26%)",
+              }}
             />
           </Suspense>
 
@@ -427,7 +430,10 @@ export default function Dashboard() {
               data={drawerStockData}
               dataKey="drawer"
               gradientId="barFillDrawer"
-              gradientColors={{ start: "#34d399", end: "#059669" }}
+              gradientColors={{
+                start: "hsl(88 48% 52%)",
+                end: "hsl(142 50% 36%)",
+              }}
             />
           </Suspense>
         </section>

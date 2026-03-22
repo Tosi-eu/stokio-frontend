@@ -253,29 +253,29 @@ export default function TenantOnboarding() {
   return (
     <Layout minimal>
       <div className="max-w-3xl mx-auto space-y-6">
-        <Alert className="border-sky-200/80 bg-gradient-to-r from-sky-50/90 to-background shadow-sm">
-          <Sparkles className="h-4 w-4 text-sky-600" />
-          <AlertTitle className="text-sky-950">
+        <Alert className="border-primary/25 bg-gradient-to-r from-primary/5 to-background shadow-sm">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <AlertTitle className="text-foreground">
             Bem-vindo — configure seu abrigo
           </AlertTitle>
-          <AlertDescription className="text-slate-600 leading-relaxed">
+          <AlertDescription className="text-muted-foreground leading-relaxed">
             {canManageModules
               ? "Defina como o sistema aparece para sua equipe (nome e logo) e quais áreas ficam disponíveis no menu. Você pode alterar isso depois no painel administrativo."
               : "Defina o nome e o logo do abrigo. Quais módulos aparecem no menu são definidos pelo administrador do painel — não é possível alterar aqui."}
           </AlertDescription>
         </Alert>
 
-        <Card className="overflow-hidden border-slate-200/80 shadow-lg shadow-slate-200/40">
-          <CardHeader className="space-y-2 border-b bg-gradient-to-br from-slate-50 via-white to-sky-50/30 pb-6">
+        <Card className="overflow-hidden border-border shadow-lg shadow-elevated">
+          <CardHeader className="space-y-2 border-b bg-gradient-to-br from-muted/50 via-background to-primary/5 pb-6">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white shadow-md shadow-sky-600/25">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25">
                 <Sparkles className="h-5 w-5" aria-hidden />
               </div>
               <div className="min-w-0 flex-1 space-y-1">
                 <CardTitle className="text-2xl tracking-tight">
                   Configuração inicial
                 </CardTitle>
-                <CardDescription className="text-base text-slate-600">
+                <CardDescription className="text-base text-muted-foreground">
                   {canManageModules
                     ? "Duas etapas rápidas: identidade visual e módulos ativos."
                     : "Identidade visual do abrigo (nome e logo)."}
@@ -288,7 +288,7 @@ export default function TenantOnboarding() {
             <Tabs defaultValue="brand" className="w-full">
               <TabsList
                 className={cn(
-                  "grid w-full gap-1 rounded-xl bg-slate-100/90 p-1.5 h-auto",
+                  "grid w-full gap-1 rounded-xl bg-muted p-1.5 h-auto",
                   canManageModules ? "grid-cols-2" : "grid-cols-1",
                 )}
               >
@@ -322,7 +322,7 @@ export default function TenantOnboarding() {
               >
                 <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
                   <div className="flex flex-col items-center gap-3">
-                    <Avatar className="h-28 w-28 rounded-2xl border-2 border-dashed border-slate-200 bg-white shadow-inner">
+                    <Avatar className="h-28 w-28 rounded-2xl border-2 border-dashed border-border bg-card shadow-inner">
                       {logoDataUrl ? (
                         <AvatarImage
                           src={logoDataUrl}
@@ -330,7 +330,7 @@ export default function TenantOnboarding() {
                           className="object-contain p-2"
                         />
                       ) : null}
-                      <AvatarFallback className="rounded-2xl bg-slate-100 text-lg font-semibold text-slate-500">
+                      <AvatarFallback className="rounded-2xl bg-muted text-lg font-semibold text-muted-foreground">
                         {initials}
                       </AvatarFallback>
                     </Avatar>
@@ -372,12 +372,12 @@ export default function TenantOnboarding() {
                       </p>
                     </div>
 
-                    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                        <ImagePlus className="h-4 w-4 text-sky-600" />
+                    <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4">
+                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                        <ImagePlus className="h-4 w-4 text-primary" />
                         Dica
                       </div>
-                      <p className="mt-1 text-sm text-slate-600 leading-relaxed">
+                      <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
                         Use logo horizontal ou quadrado com bom contraste; evite
                         textos muito pequenos na imagem.
                       </p>
@@ -417,19 +417,19 @@ export default function TenantOnboarding() {
                             }}
                             className={cn(
                               "group relative flex cursor-pointer items-start gap-3 rounded-xl border p-4 text-left transition-all outline-none",
-                              "hover:border-sky-300/80 hover:bg-sky-50/40",
-                              "focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2",
+                              "hover:border-primary/35 hover:bg-accent/50",
+                              "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                               isOn
-                                ? "border-sky-400/70 bg-sky-50/50 shadow-sm ring-1 ring-sky-200/60"
-                                : "border-slate-200 bg-card",
+                                ? "border-primary/45 bg-accent/60 shadow-sm ring-1 ring-primary/20"
+                                : "border-border bg-card",
                             )}
                           >
                             <div
                               className={cn(
                                 "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors",
                                 isOn
-                                  ? "bg-sky-600 text-white"
-                                  : "bg-slate-100 text-slate-600 group-hover:bg-slate-200",
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground group-hover:bg-muted/80",
                               )}
                             >
                               <Icon className="h-5 w-5" aria-hidden />
@@ -447,7 +447,7 @@ export default function TenantOnboarding() {
                                   <Checkbox
                                     checked={isOn}
                                     onCheckedChange={() => toggle(m.key)}
-                                    className="shrink-0 data-[state=checked]:border-sky-600 data-[state=checked]:bg-sky-600"
+                                    className="shrink-0 data-[state=checked]:border-primary data-[state=checked]:bg-primary"
                                     aria-label={`Ativar ${m.label}`}
                                   />
                                 </span>
@@ -537,7 +537,7 @@ export default function TenantOnboarding() {
                   type="button"
                   onClick={save}
                   disabled={saving}
-                  className="min-w-[160px] gap-2 bg-sky-600 hover:bg-sky-700"
+                  className="min-w-[160px] gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   {saving ? (
                     <>

@@ -75,12 +75,12 @@ export default function Layout({
               {breadcrumb && breadcrumb.length > 0 && (
                 <nav
                   aria-label="Navegação"
-                  className="flex items-center gap-1 text-sm text-slate-500 mb-1"
+                  className="flex items-center gap-1 text-sm text-muted-foreground mb-1"
                 >
                   {breadcrumb.map((item, i) => (
                     <span key={i} className="flex items-center gap-1">
                       {i > 0 && (
-                        <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/70" />
                       )}
                       {item.path ? (
                         <Link
@@ -90,7 +90,7 @@ export default function Layout({
                           {item.label}
                         </Link>
                       ) : (
-                        <span className="text-slate-700 font-medium">
+                        <span className="text-foreground font-medium">
                           {item.label}
                         </span>
                       )}

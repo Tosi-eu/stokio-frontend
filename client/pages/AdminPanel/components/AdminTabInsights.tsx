@@ -196,7 +196,7 @@ export function AdminTabInsights({
               <Card
                 className={`cursor-pointer transition-all hover:shadow-md ${
                   insightFilter === "update"
-                    ? "ring-2 ring-sky-500 bg-sky-50/50 dark:bg-sky-950/20"
+                    ? "ring-2 ring-primary bg-accent/50 dark:bg-primary/10"
                     : ""
                 }`}
                 onClick={() => {
@@ -208,7 +208,7 @@ export function AdminTabInsights({
               >
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Edit className="h-4 w-4 text-sky-600" />
+                    <Edit className="h-4 w-4 text-primary" />
                     Editados
                   </CardTitle>
                 </CardHeader>
@@ -338,14 +338,14 @@ export function AdminTabInsights({
                         </TableCell>
                         <TableCell>{auditStatusLabel(e.status_code)}</TableCell>
                         <TableCell
-                          className="text-xs min-w-[200px] max-w-[360px] font-mono truncate align-top cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-950/30"
+                          className="text-xs min-w-[200px] max-w-[360px] font-mono truncate align-top cursor-pointer hover:bg-accent/50 dark:hover:bg-primary/10"
                           title="Clique para ver comparação (Antes e Depois)"
                           onClick={() => setAuditCompareEvent(e)}
                         >
                           {auditValuePreview(e.old_value)}
                         </TableCell>
                         <TableCell
-                          className="text-xs min-w-[200px] max-w-[360px] font-mono truncate align-top cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-950/30"
+                          className="text-xs min-w-[200px] max-w-[360px] font-mono truncate align-top cursor-pointer hover:bg-accent/50 dark:hover:bg-primary/10"
                           title="Clique para ver comparação (Antes e Depois)"
                           onClick={() => setAuditCompareEvent(e)}
                         >

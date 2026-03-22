@@ -367,7 +367,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                 disabled={loading}
                 className={
                   suggestedDiasParaRepor != null
-                    ? "border-sky-200 bg-sky-50 text-sky-800 font-medium"
+                    ? "border-primary/25 bg-accent/60 text-foreground font-medium"
                     : undefined
                 }
               />

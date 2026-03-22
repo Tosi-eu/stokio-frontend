@@ -478,7 +478,7 @@ export default function Stock() {
           <button
             onClick={() => navigate("/stock/out")}
             className="
-                h-12 px-6 rounded-lg font-semiboldfetchStockPage
+                h-12 px-6 rounded-lg font-semibold
                 bg-red-600 text-white
                 shadow-md hover:bg-red-700 hover:shadow-lg active:bg-red-800 active:shadow-xl
                 disabled:opacity-50 disabled:cursor-not-allowed
@@ -492,8 +492,8 @@ export default function Stock() {
             onClick={() => setReportModalOpen(true)}
             className="
                 h-12 px-6 rounded-lg font-semibold
-                bg-sky-600 text-white
-                shadow-md hover:bg-sky-700 hover:shadow-lg active:bg-sky-800 active:shadow-xl
+                bg-primary text-primary-foreground
+                shadow-md hover:bg-primary/90 hover:shadow-lg active:bg-primary/80 active:shadow-xl
                 disabled:opacity-50 disabled:cursor-not-allowed
                 transition-all ease-in-out duration-200
               "
@@ -504,9 +504,9 @@ export default function Stock() {
 
         {filter && FILTER_LABELS[filter] && (
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm text-slate-600">
+            <span className="text-sm text-muted-foreground">
               Exibindo:{" "}
-              <span className="font-medium text-slate-800">
+              <span className="font-medium text-foreground">
                 {FILTER_LABELS[filter]}
               </span>
             </span>
@@ -516,7 +516,7 @@ export default function Stock() {
                 setPage(1);
                 navigate("/stock");
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary hover:text-primary/90 hover:bg-accent rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <X className="h-4 w-4" />
               Limpar filtro

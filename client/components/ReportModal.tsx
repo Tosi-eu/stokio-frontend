@@ -315,14 +315,14 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                         className={`border rounded-lg px-4 py-2 flex items-center gap-3 cursor-pointer transition-all
                     ${
                       isSelected
-                        ? "border-sky-600 bg-sky-50"
+                        ? "border-primary bg-accent/50"
                         : "border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50"
                     }
                   `}
                       >
                         <Icon
                           className={`w-6 h-6 ${
-                            isSelected ? "text-sky-600" : "text-gray-500"
+                            isSelected ? "text-primary" : "text-muted-foreground"
                           }`}
                         />
                         <span className="text-sm font-medium">{label}</span>
@@ -507,7 +507,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
 
                           {loadingResidents ? (
                             <div className="flex justify-center py-2">
-                              <Loader2 className="animate-spin text-sky-600" />
+                              <Loader2 className="animate-spin text-primary" />
                             </div>
                           ) : (
                             <Popover>
@@ -569,7 +569,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                 })}
 
                 <Button
-                  className="mt-4 w-full max-w-md bg-sky-600 hover:bg-sky-700 text-white"
+                  className="mt-4 w-full max-w-md bg-primary hover:bg-primary/90 text-primary-foreground"
                   disabled={
                     !selectedReports.length ||
                     (showResidentSelector && !selectedResident)
@@ -583,7 +583,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
           )}
           {status === "loading" && (
             <div className="p-12 flex flex-col items-center gap-4">
-              <Loader2 className="w-12 h-12 animate-spin text-sky-600" />
+              <Loader2 className="w-12 h-12 animate-spin text-primary" />
               <p>Gerando relatório…</p>
             </div>
           )}

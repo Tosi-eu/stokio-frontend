@@ -143,7 +143,7 @@ export const InputForm = memo(function InputForm({
       onSubmit={handleSubmit(onFormSubmit)}
       className="bg-white border border-slate-200 rounded-xl shadow-sm p-8 space-y-8"
     >
-      <div className="bg-sky-50 px-4 py-3 rounded-lg border border-sky-100">
+      <div className="bg-accent/50 px-4 py-3 rounded-lg border border-primary/15">
         <h2 className="text-lg font-semibold text-slate-800">
           Informações do Insumo
         </h2>
@@ -529,8 +529,8 @@ export const InputForm = memo(function InputForm({
           type="submit"
           disabled={isLoading}
           className={cn(
-            "px-5 py-2 bg-sky-600 text-white rounded-lg text-sm transition-colors",
-            isLoading ? "opacity-50 cursor-not-allowed" : "hover:bg-sky-700",
+            "px-5 py-2 bg-primary text-primary-foreground rounded-lg text-sm transition-colors",
+            isLoading ? "opacity-50 cursor-not-allowed" : "hover:bg-primary/90",
           )}
         >
           {isLoading ? "Processando..." : "Confirmar"}
