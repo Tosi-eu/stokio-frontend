@@ -2,8 +2,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast.hook";
-import logo from "/logo.png";
 import { resetPassword } from "@/api/requests";
+import { APP_PUBLIC_LOGO_URL, APP_PUBLIC_NAME } from "@/constants/app-branding";
 import {
   forgotPasswordSchema,
   type ForgotPasswordFormData,
@@ -74,9 +74,13 @@ export default function ForgotPassword() {
     <div className="min-h-screen bg-sky-100 flex flex-col">
       <header className="shrink-0 border-b border-sky-200 bg-sky-100">
         <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center gap-4">
-          <img src={logo} alt="Logo" className="h-12 w-auto" />
+          <img
+            src={APP_PUBLIC_LOGO_URL}
+            alt={APP_PUBLIC_NAME}
+            className="h-20 w-auto max-w-[200px] object-contain"
+          />
           <h1 className="text-xl font-bold text-slate-900 tracking-tight hidden sm:block">
-            Abrigo Helena Dornfeld
+            {APP_PUBLIC_NAME}
           </h1>
         </div>
       </header>
@@ -200,7 +204,7 @@ export default function ForgotPassword() {
             </div>
 
             <div className="mt-6 text-center text-xs text-slate-400">
-              © {new Date().getFullYear()} Abrigo Helena Dornfeld
+              © {new Date().getFullYear()} {APP_PUBLIC_NAME}
             </div>
           </div>
         </div>

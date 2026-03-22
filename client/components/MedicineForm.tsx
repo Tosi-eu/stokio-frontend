@@ -114,7 +114,6 @@ export const MedicineForm = memo(function MedicineForm({
     if (casela) {
       const selected = caselas.find((c) => c.casela === casela);
       if (selected) {
-        // Optional: sync form with selected casela if needed
       }
     }
   }, [casela, caselas]);

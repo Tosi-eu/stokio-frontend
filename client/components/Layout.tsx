@@ -9,7 +9,12 @@ import { GlobalNotificationModals } from "./GlobalNotificationModals";
 import { VerticalLayout } from "./VerticalLayout";
 import { ChevronRight } from "lucide-react";
 
-export default function Layout({ children, title, breadcrumb }: LayoutProps) {
+export default function Layout({
+  children,
+  title,
+  breadcrumb,
+  minimal = false,
+}: LayoutProps) {
   const navigate = useNavigate();
   const { logout } = useAuth();
 
@@ -23,6 +28,32 @@ export default function Layout({ children, title, breadcrumb }: LayoutProps) {
   };
 
   const cancelLogout = () => setShowLogoutModal(false);
+
+  if (minimal) {
+    return (
+      <div className="min-h-screen flex flex-col bg-slate-50 text-foreground">
+        <header className="shrink-0 flex justify-end items-center px-4 sm:px-6 py-3 border-b border-sky-100 bg-white/90">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="text-sm text-slate-600 hover:text-sky-700 font-medium"
+          >
+            Sair
+          </button>
+        </header>
+        <main className="flex-1 overflow-y-auto" role="main">
+          <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {children}
+          </div>
+        </main>
+        <LogoutConfirmDialog
+          open={showLogoutModal}
+          onCancel={cancelLogout}
+          onConfirm={confirmLogout}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex bg-slate-50 text-foreground overflow-hidden">

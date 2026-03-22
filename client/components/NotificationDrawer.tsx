@@ -32,7 +32,6 @@ export function NotificationDrawer() {
 
   const [filterResidentName, setFilterResidentName] = useState("");
 
-  // Timeout para filtro leve
   const [filterTimeout, setFilterTimeout] = useState<NodeJS.Timeout | null>(
     null,
   );
@@ -43,7 +42,7 @@ export function NotificationDrawer() {
       try {
         const params: Parameters<typeof getNotifications>[0] = {
           page: p,
-          limit: 5, // limite ajustado
+          limit: 5,
           type: activeTab === "receita" ? "medicamento" : "reposicao_estoque",
           status: EventStatus.PENDENTE,
           residente_nome: filterResidentName || undefined,
@@ -74,7 +73,6 @@ export function NotificationDrawer() {
     [activeTab, filterResidentName, setCount],
   );
 
-  // Carrega itens quando o drawer abre ou muda de aba
   useEffect(() => {
     if (open) {
       setMode("list");
@@ -84,7 +82,6 @@ export function NotificationDrawer() {
     }
   }, [open, triggerReload, activeTab, fetchItems]);
 
-  // Atualiza itens quando o filtro muda, com delay de 300ms
   useEffect(() => {
     if (filterTimeout) clearTimeout(filterTimeout);
 
@@ -95,8 +92,7 @@ export function NotificationDrawer() {
 
     setFilterTimeout(timeout);
 
-    return () => clearTimeout(timeout);
-    // filterTimeout is a ref set by this effect; omit to avoid re-running on its change
+    return () => clearTimeout(timeout); 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterResidentName, fetchItems]);
 

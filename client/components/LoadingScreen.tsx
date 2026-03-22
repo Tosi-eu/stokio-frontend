@@ -1,4 +1,5 @@
-import { getBackendLoadingStatus } from "@/api/requests";
+import { getBackendHealthCheck } from "@/api/requests";
+import { APP_PUBLIC_LOGO_URL, APP_PUBLIC_NAME } from "@/constants/app-branding";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -9,8 +10,8 @@ export default function LoadingScreen() {
   useEffect(() => {
     const checkBackend = async () => {
       try {
-        const res = await getBackendLoadingStatus();
-        if (res.ok) {
+        const res = await getBackendHealthCheck();
+        if (res?.status === "ok") {
           setProgress(100);
           clearInterval(intervalId);
           setTimeout(() => navigate("/user/login"), 500);
@@ -22,17 +23,19 @@ export default function LoadingScreen() {
       }
     };
 
-    const intervalId = setInterval(checkBackend, 500);
+    const intervalId = setInterval(checkBackend, 800);
 
     return () => clearInterval(intervalId);
   }, [navigate]);
 
   return (
     <div className="h-screen w-screen flex flex-col justify-center items-center bg-sky-100">
-      <img src="/logo.png" alt="Logo" className="w-32 mb-4" />
-      <h1 className="text-sky-900 font-bold text-3xl mb-6">
-        Abrigo Helena Dornfeld
-      </h1>
+      <img
+        src={APP_PUBLIC_LOGO_URL}
+        alt={APP_PUBLIC_NAME}
+        className="w-48 h-auto max-h-32 object-contain mb-4"
+      />
+      <h1 className="text-sky-900 font-bold text-3xl mb-6">{APP_PUBLIC_NAME}</h1>
 
       <div className="w-64 h-4 bg-sky-200 rounded-full overflow-hidden">
         <div

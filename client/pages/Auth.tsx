@@ -1,13 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast.hook";
-import logo from "/logo.png";
 import { useAuth } from "@/hooks/use-auth.hook";
 import {
+  fetchPublicTenantBrandingIfExists,
   listPublicTenants,
   register,
+  type PublicTenantBranding,
   type PublicTenantListItem,
 } from "@/api/requests";
+import { APP_PUBLIC_LOGO_URL, APP_PUBLIC_NAME } from "@/constants/app-branding";
 import {
   validateEmail,
   validatePassword,
@@ -24,17 +26,18 @@ export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
-  const [tenantSlug, setTenantSlug] = useState(
-    localStorage.getItem("tenantSlug") || "",
-  );
-  const [tenantQuery, setTenantQuery] = useState("");
+  const [tenantSlug, setTenantSlug] = useState("");
   const [tenantOptions, setTenantOptions] = useState<PublicTenantListItem[]>(
     [],
   );
+  const [tenantsLoading, setTenantsLoading] = useState(true);
+  const [tenantBranding, setTenantBranding] =
+    useState<PublicTenantBranding | null>(null);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [contractCode, setContractCode] = useState("");
   const [passwordStrength, setPasswordStrength] = useState<
     "weak" | "medium" | "strong" | null
   >(null);
@@ -44,34 +47,50 @@ export default function Auth() {
   } | null>(null);
 
   useEffect(() => {
-    setFirstName("");
-    setLastName("");
-    setLogin("");
-    setPassword("");
     setPasswordStrength(null);
     setPasswordValidation(null);
     setRememberMe(false);
     setLoading(false);
+    if (isLogin) {
+      setFirstName("");
+      setLastName("");
+      setContractCode("");
+    }
   }, [isLogin]);
 
   useEffect(() => {
     let cancelled = false;
-    const run = async () => {
+    (async () => {
       try {
-        const res = await listPublicTenants({
-          q: tenantQuery || undefined,
-          limit: 20,
-        });
+        const res = await listPublicTenants({ limit: 200 });
         if (!cancelled) setTenantOptions(res.data ?? []);
       } catch {
         if (!cancelled) setTenantOptions([]);
+      } finally {
+        if (!cancelled) setTenantsLoading(false);
       }
-    };
-    void run();
+    })();
     return () => {
       cancelled = true;
     };
-  }, [tenantQuery]);
+  }, []);
+
+  useEffect(() => {
+    const slug = tenantSlug.trim();
+    if (!slug) {
+      setTenantBranding(null);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      const b = await fetchPublicTenantBrandingIfExists(slug);
+      if (!cancelled) setTenantBranding(b);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantSlug]);
 
   useEffect(() => {
     setIsVisible(false);
@@ -189,12 +208,31 @@ export default function Auth() {
           return;
         }
 
+        let needContractCode =
+          tenantBranding?.contractCodeMandatory === true;
+        if (!needContractCode && tenantBranding === null && slug) {
+          const b = await fetchPublicTenantBrandingIfExists(slug);
+          needContractCode = b?.contractCodeMandatory === true;
+        }
+        if (needContractCode && !contractCode.trim()) {
+          toast({
+            title: "Código de contrato obrigatório",
+            description:
+              "Informe o código fornecido na assinatura do contrato para este abrigo.",
+            variant: "error",
+            duration: 4000,
+          });
+          setLoading(false);
+          return;
+        }
+
         await register(
           sanitizedLogin,
           sanitizedPassword,
           firstName,
           lastName,
           slug,
+          contractCode.trim() || undefined,
         );
         await authLogin(sanitizedLogin, sanitizedPassword, slug);
         toast({
@@ -204,7 +242,6 @@ export default function Auth() {
         });
       }
 
-      localStorage.setItem("tenantSlug", slug);
       navigate("/dashboard");
     } catch (err: unknown) {
       const rawMessage = (
@@ -214,12 +251,17 @@ export default function Auth() {
       let errorTitle: string;
       let errorDescription: string;
       if (isLogin) {
-        if (rawMessage.includes("credenciais")) {
+        if (rawMessage.includes("abrigo não encontrado")) {
+          errorTitle = "Abrigo não encontrado";
+          errorDescription =
+            "Escolha um abrigo válido na lista ou contate o suporte.";
+        } else if (rawMessage.includes("credenciais")) {
           errorTitle = "Login ou senha incorretos";
           errorDescription =
             "Verifique seu e-mail e senha. Se esqueceu sua senha, use a opção 'Esqueci minha senha'.";
         } else if (
           rawMessage.includes("login e senha obrigatórios") ||
+          rawMessage.includes("e-mail e senha obrigatórios") ||
           rawMessage.includes("obrigatóri")
         ) {
           errorTitle = "Campos obrigatórios";
@@ -232,6 +274,14 @@ export default function Auth() {
           errorTitle = "Sessão expirada";
           errorDescription =
             "Sua sessão expirou. Por favor, faça login novamente.";
+        } else if (
+          rawMessage.includes("too many") ||
+          rawMessage.includes("muitas tentativas") ||
+          rawMessage.includes("rate limit")
+        ) {
+          errorTitle = "Muitas tentativas";
+          errorDescription =
+            "Aguarde alguns minutos e tente novamente. Se o problema continuar, atualize a página.";
         } else {
           errorTitle = "Erro ao fazer login";
           errorDescription =
@@ -239,7 +289,11 @@ export default function Auth() {
             "Não foi possível fazer login. Verifique suas credenciais e tente novamente.";
         }
       } else {
-        if (
+        if (rawMessage.includes("abrigo não encontrado")) {
+          errorTitle = "Abrigo não encontrado";
+          errorDescription =
+            "Escolha um abrigo válido na lista ou contate o suporte.";
+        } else if (
           rawMessage.includes("login já cadastrado") ||
           rawMessage.includes("duplicate") ||
           rawMessage.includes("já existe")
@@ -249,6 +303,7 @@ export default function Auth() {
             "Este e-mail já está em uso. Tente fazer login ou use outro e-mail.";
         } else if (
           rawMessage.includes("login e senha obrigatórios") ||
+          rawMessage.includes("e-mail e senha obrigatórios") ||
           rawMessage.includes("obrigatóri")
         ) {
           errorTitle = "Campos obrigatórios";
@@ -279,6 +334,16 @@ export default function Auth() {
     }
   };
 
+  const slugTrim = tenantSlug.trim();
+  const headerTitle =
+    tenantBranding && slugTrim
+      ? tenantBranding.brandName || tenantBranding.name
+      : APP_PUBLIC_NAME;
+  const headerLogoSrc =
+    tenantBranding && slugTrim && tenantBranding.logoDataUrl
+      ? tenantBranding.logoDataUrl
+      : APP_PUBLIC_LOGO_URL;
+
   return (
     <div
       className="min-h-screen bg-sky-100 flex flex-col"
@@ -289,9 +354,13 @@ export default function Auth() {
     >
       <header className="shrink-0 border-b border-sky-200 bg-sky-100">
         <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center gap-4">
-          <img src={logo} alt="Logo" className="h-20 w-auto" />
+          <img
+            src={headerLogoSrc}
+            alt={headerTitle}
+            className="h-28 w-auto max-w-[360px] object-contain object-left"
+          />
           <h1 className="text-xl font-bold text-slate-900 tracking-tight hidden sm:block">
-            Abrigo Helena Dornfeld
+            {headerTitle}
           </h1>
         </div>
       </header>
@@ -309,30 +378,35 @@ export default function Auth() {
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Abrigo
                   </label>
-                  <input
-                    list="tenant-options"
+                  <select
                     value={tenantSlug}
-                    onChange={(e) => {
-                      const v = sanitizeInput(e.target.value);
-                      setTenantSlug(v);
-                      setTenantQuery(v);
-                    }}
-                    maxLength={60}
-                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400"
-                    placeholder="Digite o nome/slug do abrigo"
+                    onChange={(e) => setTenantSlug(e.target.value)}
                     required
-                  />
-                  <datalist id="tenant-options">
+                    disabled={tenantsLoading}
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400 bg-white disabled:opacity-60 disabled:cursor-wait"
+                  >
+                    <option value="">
+                      {tenantsLoading
+                        ? "Carregando abrigos…"
+                        : "Selecione o abrigo"}
+                    </option>
                     {tenantOptions.map((t) => (
-                      <option
-                        key={t.id}
-                        value={t.slug}
-                      >{`${t.brandName || t.name} (${t.slug})`}</option>
+                      <option key={t.id} value={t.slug}>
+                        {t.brandName || t.name} ({t.slug})
+                      </option>
                     ))}
-                  </datalist>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Selecione pelo <b>slug</b> (ex.: <code>abrigo-x</code>).
-                  </p>
+                  </select>
+                  {!tenantsLoading && tenantOptions.length === 0 ? (
+                    <p className="mt-1 text-xs text-amber-700">
+                      Nenhum abrigo disponível no momento. Tente mais tarde ou
+                      contate o suporte.
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs text-slate-500">
+                      O acesso é sempre no contexto do abrigo escolhido (e-mail e
+                      senha valem para aquele abrigo).
+                    </p>
+                  )}
                 </div>
                 {!isLogin && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -369,6 +443,29 @@ export default function Auth() {
                         required
                       />
                     </div>
+                  </div>
+                )}
+                {!isLogin && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Código do contrato
+                    </label>
+                    <input
+                      type="text"
+                      autoComplete="off"
+                      value={contractCode}
+                      onChange={(e) =>
+                        setContractCode(sanitizeInput(e.target.value))
+                      }
+                      maxLength={256}
+                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400"
+                      placeholder="Código informado na assinatura"
+                      required={tenantBranding?.contractCodeMandatory === true}
+                    />
+                    <p className="mt-1 text-xs text-slate-500">
+                      Mesmo código fornecido pela equipe ao formalizar o uso do
+                      sistema.
+                    </p>
                   </div>
                 )}
                 <div>
@@ -460,6 +557,7 @@ export default function Auth() {
                   type="submit"
                   disabled={
                     loading ||
+                    tenantsLoading ||
                     (!isLogin &&
                       passwordValidation !== null &&
                       !passwordValidation.valid)
@@ -489,7 +587,7 @@ export default function Auth() {
             </div>
 
             <div className="mt-6 text-center text-xs text-slate-400">
-              © {new Date().getFullYear()} Abrigo Helena Dornfeld
+              © {new Date().getFullYear()} {APP_PUBLIC_NAME}
             </div>
           </div>
         </div>

@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
+import { APP_PUBLIC_NAME } from "@/constants/app-branding";
 import { VALIDATION_LIMITS } from "@/constants/app.constants";
 import { authStorage } from "@/helpers/auth.helper";
 
@@ -263,7 +264,7 @@ export default function Profile() {
       </div>
 
       <div className="text-center text-xs text-slate-400">
-        © {new Date().getFullYear()} Abrigo Helena Dornfeld
+        © {new Date().getFullYear()} {APP_PUBLIC_NAME}
       </div>
     </Layout>
   );

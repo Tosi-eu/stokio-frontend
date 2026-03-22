@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { APP_PUBLIC_LOGO_URL, APP_PUBLIC_NAME } from "@/constants/app-branding";
 
 const baseNavigationTabs = [
   {
@@ -63,16 +64,16 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
       className="h-screen w-64 flex flex-col border-r border-sky-200 bg-sky-50"
       aria-label="Navegação principal"
     >
-      <div className="h-24 shrink-0 flex items-center justify-center px-4 border-b border-sky-200 bg-sky-100">
+      <div className="h-36 shrink-0 flex items-center justify-center px-4 border-b border-sky-200 bg-sky-100">
         <button
           onClick={() => navigate("/dashboard")}
           className="cursor-pointer hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 rounded"
           aria-label="Ir para o painel principal"
         >
           <img
-            src={tenant?.logoDataUrl || "/logo.png"}
-            alt={tenant?.brandName || tenant?.name || "Logo"}
-            className="h-24 w-auto"
+            src={tenant?.logoDataUrl || APP_PUBLIC_LOGO_URL}
+            alt={tenant?.brandName || tenant?.name || APP_PUBLIC_NAME}
+            className="h-36 w-auto max-w-[200px] object-contain"
           />
         </button>
       </div>

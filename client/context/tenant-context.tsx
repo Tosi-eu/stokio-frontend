@@ -16,6 +16,8 @@ export type TenantContextType = {
   tenantId: number | null;
   tenant: TenantConfigResponse["tenant"];
   modules: TenantModules | null;
+  modulesConfigured: boolean;
+  onboardingComplete: boolean;
   loading: boolean;
   refetch: () => Promise<void>;
   isEnabled: (key: string) => boolean;
@@ -30,13 +32,18 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const [tenantId, setTenantId] = useState<number | null>(null);
   const [tenant, setTenant] = useState<TenantConfigResponse["tenant"]>(null);
   const [modules, setModules] = useState<TenantModules | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [modulesConfigured, setModulesConfigured] = useState(false);
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
+  const [loading, setLoading] = useState(() => Boolean(user));
 
   const refetch = useCallback(async () => {
     if (!user) {
       setTenantId(null);
       setTenant(null);
       setModules(null);
+      setModulesConfigured(false);
+      setOnboardingComplete(false);
+      setLoading(false);
       return;
     }
     setLoading(true);
@@ -45,10 +52,14 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       setTenantId(Number(res.tenantId) || null);
       setTenant(res.tenant ?? null);
       setModules(res.modules ?? null);
+      setModulesConfigured(Boolean(res.modulesConfigured));
+      setOnboardingComplete(Boolean(res.onboardingComplete));
     } catch {
       setTenantId(null);
       setTenant(null);
       setModules(null);
+      setModulesConfigured(false);
+      setOnboardingComplete(false);
     } finally {
       setLoading(false);
     }
@@ -65,7 +76,16 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
   return (
     <TenantContext.Provider
-      value={{ tenantId, tenant, modules, loading, refetch, isEnabled }}
+      value={{
+        tenantId,
+        tenant,
+        modules,
+        modulesConfigured,
+        onboardingComplete,
+        loading,
+        refetch,
+        isEnabled,
+      }}
     >
       {children}
     </TenantContext.Provider>

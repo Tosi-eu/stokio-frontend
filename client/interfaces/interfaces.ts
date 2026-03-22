@@ -51,6 +51,8 @@ export interface LayoutProps {
   children: ReactNode;
   title?: string;
   breadcrumb?: BreadcrumbItem[];
+  /** Sem menu lateral nem notificações (ex.: onboarding do abrigo) */
+  minimal?: boolean;
 }
 
 export interface DeletePopUpProps {

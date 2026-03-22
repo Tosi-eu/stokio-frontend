@@ -261,6 +261,62 @@ export const listPublicTenants = (params?: { q?: string; limit?: number }) =>
     params: params ?? {},
   });
 
+export type PublicTenantBranding = {
+  slug: string;
+  name: string;
+  brandName: string | null;
+  logoDataUrl: string | null;
+  /** Sempre true no fluxo de cadastro: campo de código é mostrado para configurar o acesso */
+  requiresContractCode: true;
+  /** Obrigatório preencher só quando o abrigo tem hash de contrato no servidor */
+  contractCodeMandatory?: boolean;
+};
+
+type TenantBrandingApiResponse =
+  | { found: false }
+  | {
+      found: true;
+      slug: string;
+      name: string;
+      brandName: string | null;
+      logoDataUrl: string | null;
+      requiresContractCode?: boolean;
+      contractCodeMandatory?: boolean;
+    };
+
+/**
+ * Consulta o abrigo no banco (GET /tenants/:slug/branding).
+ * Resposta 200 com `{ found: false }` se não existir — sem 404 no Network.
+ * Falha de rede ou erro HTTP → null.
+ */
+export async function fetchPublicTenantBrandingIfExists(
+  slug: string,
+): Promise<PublicTenantBranding | null> {
+  const s = slug.trim();
+  if (!s) return null;
+  const path = `/tenants/${encodeURIComponent(s)}/branding`;
+  try {
+    const res = await fetch(`${API_BASE_URL}${path}`, {
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as TenantBrandingApiResponse;
+    if (!data || typeof data !== "object" || !("found" in data)) return null;
+    if (!data.found) return null;
+    return {
+      slug: data.slug,
+      name: data.name,
+      brandName: data.brandName ?? null,
+      logoDataUrl: data.logoDataUrl ?? null,
+      requiresContractCode: true,
+      contractCodeMandatory: Boolean(data.contractCodeMandatory),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export const login = (login: string, password: string, tenantSlug: string) =>
   api.post(
     "/login/authenticate",
@@ -274,7 +330,6 @@ export type CurrentUserResponse = {
   role?: "admin" | "user";
   firstName?: string;
   lastName?: string;
-  // Some endpoints may still return snake_case
   first_name?: string;
   last_name?: string;
 };
@@ -288,6 +343,7 @@ export const register = (
   firstName: string,
   lastName: string,
   tenantSlug: string,
+  contractCode?: string,
 ) =>
   api.post(
     "/login",
@@ -296,8 +352,47 @@ export const register = (
       password,
       first_name: firstName,
       last_name: lastName,
+      ...(contractCode != null && contractCode.trim() !== ""
+        ? { contract_code: contractCode.trim() }
+        : {}),
     },
     { headers: { "X-Tenant": tenantSlug } },
+  );
+
+/** Público: confere se o código bate com o hash cadastrado para o slug (rate limit no servidor). */
+export type VerifyContractCodeResponse = {
+  valid: boolean;
+  contractCodeRequired?: boolean;
+  reason?: "missing" | "mismatch";
+};
+
+export const verifyTenantContractCode = (
+  tenantSlug: string,
+  contractCode: string,
+) =>
+  api.post<VerifyContractCodeResponse>(
+    `/tenants/${encodeURIComponent(tenantSlug)}/verify-contract-code`,
+    { contract_code: contractCode },
+  );
+
+/** Operador do sistema: mesmo valor que X_API_KEY no backend (rotas /admin/tenants não exigem login). */
+function superAdminApiKeyHeaders(): HeadersInit | undefined {
+  const k = import.meta.env.VITE_X_API_KEY;
+  if (k == null || String(k).trim() === "") return undefined;
+  return { "X-API-Key": String(k).trim() };
+}
+
+/** Super-admin: define o código de contrato (armazenado como hash) ou remove com clear_contract_code. */
+export const adminSetTenantContractCodeBySlug = (
+  slug: string,
+  payload:
+    | { contract_code: string }
+    | { clear_contract_code: true },
+) =>
+  api.put<{ ok: boolean; slug: string; contractCodeConfigured: boolean }>(
+    `/admin/tenants/by-slug/${encodeURIComponent(slug)}/contract-code`,
+    payload,
+    { headers: superAdminApiKeyHeaders() },
   );
 
 export const updateInput = (id: number, data: Record<string, unknown>) =>
@@ -657,7 +752,15 @@ export const updateStockItem = (
   });
 };
 
-export const getBackendLoadingStatus = () => api.get("/status");
+/** Pronto quando o backend e o banco respondem (não usa /status, evita rate limit). */
+export type HealthCheckResponse = {
+  status: string;
+  database?: string;
+  redis?: string;
+};
+
+export const getBackendHealthCheck = () =>
+  api.get<HealthCheckResponse>("/health");
 
 export const logoutRequest = () => api.post("/login/logout");
 
@@ -671,6 +774,10 @@ export type TenantConfigResponse = {
     logoDataUrl: string | null;
   } | null;
   modules: { enabled: string[] };
+  /** true após o primeiro PUT /tenant/config (módulos persistidos) */
+  modulesConfigured?: boolean;
+  /** Fonte de verdade: backend (módulos + marca/logo) */
+  onboardingComplete?: boolean;
 };
 
 export const getTenantConfig = () =>
@@ -866,28 +973,48 @@ export type AdminTenantsResponse = {
 };
 
 export const getAdminTenants = (params?: { page?: number; limit?: number }) =>
-  api.get<AdminTenantsResponse>("/admin/tenants", { params: params ?? {} });
-export const createAdminTenant = (data: { slug: string; name: string }) =>
-  api.post<AdminTenant>("/admin/tenants", data);
+  api.get<AdminTenantsResponse>("/admin/tenants", {
+    params: params ?? {},
+    headers: superAdminApiKeyHeaders(),
+  });
+export const createAdminTenant = (data: {
+  slug: string;
+  name: string;
+  contract_code?: string;
+}) =>
+  api.post<AdminTenant>("/admin/tenants", data, {
+    headers: superAdminApiKeyHeaders(),
+  });
 export const updateAdminTenant = (
   id: number,
-  data: Partial<{ slug: string; name: string }>,
-) => api.put<AdminTenant>(`/admin/tenants/${id}`, data);
+  data: Partial<{ slug: string; name: string; contract_code?: string }>,
+) =>
+  api.put<AdminTenant>(`/admin/tenants/${id}`, data, {
+    headers: superAdminApiKeyHeaders(),
+  });
 export const deleteAdminTenant = (id: number) =>
-  api.delete<{ ok: boolean }>(`/admin/tenants/${id}`);
+  api.delete<{ ok: boolean }>(`/admin/tenants/${id}`, undefined, {
+    headers: superAdminApiKeyHeaders(),
+  });
 
 export const getAdminTenantConfig = (id: number) =>
-  api.get<TenantConfigResponse>(`/admin/tenants/${id}/config`);
+  api.get<TenantConfigResponse>(`/admin/tenants/${id}/config`, {
+    headers: superAdminApiKeyHeaders(),
+  });
 export const setAdminTenantConfig = (
   id: number,
   modules: { enabled: string[] },
-) => api.put<TenantConfigResponse>(`/admin/tenants/${id}/config`, { modules });
+) =>
+  api.put<TenantConfigResponse>(
+    `/admin/tenants/${id}/config`,
+    { modules },
+    { headers: superAdminApiKeyHeaders() },
+  );
 
 export type RestoreBackupResponse = {
   message: string;
 };
 
-/** Envia o arquivo de dump (backup_*.sql.gz ou .sql) para restaurar o banco. */
 export const restoreBackup = (file: File) => {
   const form = new FormData();
   form.append("file", file);

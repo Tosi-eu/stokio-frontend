@@ -12,8 +12,7 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import { lazy, Suspense, useEffect } from "react";
-import React from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
 
 import { AuthProvider } from "./context/auth-context";
 import PrivateRoute from "./pages/PrivateRoute";
@@ -60,19 +59,23 @@ const TenantOnboarding = lazy(() => import("./pages/TenantOnboarding"));
 
 const queryClient = new QueryClient();
 
+/** Remonta o tenant context ao trocar de usuário e permite loading inicial correto. */
+function TenantProviderWithUserKey({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  return (
+    <TenantProvider key={user?.id ?? "none"}>{children}</TenantProvider>
+  );
+}
+
 const AppContent = () => {
   const { showModal, setShowModal } = useInvalidSession();
   const { user } = useAuth();
-  const { tenant, modules, loading: tenantLoading } = useTenant();
+  const { onboardingComplete, loading: tenantLoading } = useTenant();
+
   const location = useLocation();
 
   const needsSetup = Boolean(
-    user &&
-      !tenantLoading &&
-      (!(tenant?.brandName || tenant?.name) ||
-        !tenant?.logoDataUrl ||
-        !modules?.enabled ||
-        modules.enabled.length === 0),
+    user && !tenantLoading && !onboardingComplete,
   );
 
   const isOnboardingPath = location.pathname === "/tenant/onboarding";
@@ -488,7 +491,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
-        <TenantProvider>
+        <TenantProviderWithUserKey>
           <NotificationProvider>
             <InvalidSessionProvider>
               <BrowserRouter>
@@ -496,7 +499,7 @@ const App = () => (
               </BrowserRouter>
             </InvalidSessionProvider>
           </NotificationProvider>
-        </TenantProvider>
+        </TenantProviderWithUserKey>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

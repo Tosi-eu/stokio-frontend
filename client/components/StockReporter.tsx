@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
 
-  logo: { width: 90 },
+  logo: { width: 130, height: 60, objectFit: "contain" },
 
   title: {
     fontSize: 20,
@@ -422,7 +422,7 @@ export function createStockPDF(
             src={
               import.meta.env.VITE_LOGO_URL ||
               import.meta.env.LOGO_URL ||
-              "/logo.png"
+              "/default_logo.png"
             }
             style={styles.logo}
           />

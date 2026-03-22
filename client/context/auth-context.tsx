@@ -34,8 +34,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (storedUser) {
       try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
+        const parsed = JSON.parse(storedUser) as
+          | LoggedUser
+          | { user?: LoggedUser };
+        const userToSet =
+          parsed && typeof parsed === "object" && "user" in parsed
+            ? parsed.user ?? null
+            : (parsed as LoggedUser);
+        setUser(userToSet && userToSet.id ? userToSet : null);
       } catch (error) {
         console.error("Erro ao restaurar sessão:", error);
         sessionStorage.removeItem("user");
@@ -55,33 +61,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (login: string, password: string, tenantSlug: string) => {
     const data = await apiLogin(login, password, tenantSlug);
 
-    const loggedUser = data.user;
+    /** API retorna { user: { id, login, tenantId, ... } } — precisamos do objeto interno. */
+    const response = data as { user?: LoggedUser };
+    const loggedUser = response.user ?? (data as LoggedUser);
 
     setUser(loggedUser);
 
     sessionStorage.setItem("user", JSON.stringify(loggedUser));
-
-    // Session timeout disabled - no automatic logout
-    // initSessionTimeout(
-    //   () => {
-    //     handleLogout();
-    //   },
-    //   () => {
-    //     console.warn("Sua sessão expirará em breve por inatividade");
-    //   },
-    // );
   };
 
   const logout = async () => {
     await handleLogout();
   };
-
-  // Session timeout disabled - no automatic logout
-  // useEffect(() => {
-  //   if (user) {
-  //     resetInactivityTimer();
-  //   }
-  // }, [user]);
 
   if (loading) return null;
 
