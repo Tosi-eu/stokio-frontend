@@ -14,12 +14,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: [
-          '"Plus Jakarta Sans"',
-          "Inter",
-          "system-ui",
-          "sans-serif",
-        ],
+        display: ['"Plus Jakarta Sans"', "Inter", "system-ui", "sans-serif"],
       },
       boxShadow: {
         elevated: "var(--shadow-soft)",
