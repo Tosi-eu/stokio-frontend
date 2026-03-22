@@ -2,12 +2,6 @@ FROM node:20-alpine as build
 
 WORKDIR /repo
 
-COPY sdk/package.json sdk/package-lock.json* ./sdk/
-COPY sdk/tsconfig.json ./sdk/
-COPY sdk/src ./sdk/src
-
-RUN cd sdk && npm install && npm run build
-
 COPY frontend/package.json frontend/package-lock.json* ./frontend/
 WORKDIR /repo/frontend
 RUN npm install
