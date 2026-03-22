@@ -172,7 +172,9 @@ export default function EditMedicine() {
                         disabled={isSubmitting}
                         id="unidade_medida"
                         placeholder="Unidade"
-                        aria-invalid={errors.unidade_medida ? "true" : undefined}
+                        aria-invalid={
+                          errors.unidade_medida ? "true" : undefined
+                        }
                       />
                       {errors.unidade_medida && (
                         <p className="text-sm text-red-600 mt-1">

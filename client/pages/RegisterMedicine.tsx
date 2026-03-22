@@ -19,7 +19,10 @@ import { Button } from "@/components/ui/button";
 import { MeasurementUnitCombobox } from "@/components/MeasurementUnitCombobox";
 import { MeasurementUnit } from "@/constants/measurement-units";
 
-export { MEASUREMENT_UNIT_LABEL, MeasurementUnit } from "@/constants/measurement-units";
+export {
+  MEASUREMENT_UNIT_LABEL,
+  MeasurementUnit,
+} from "@/constants/measurement-units";
 
 export default function SignUpMedicine() {
   const navigate = useNavigate();
@@ -204,7 +207,9 @@ export default function SignUpMedicine() {
                         disabled={isSubmitting}
                         id="measurementUnit"
                         placeholder="Selecione"
-                        aria-invalid={errors.measurementUnit ? "true" : undefined}
+                        aria-invalid={
+                          errors.measurementUnit ? "true" : undefined
+                        }
                       />
                       {errors.measurementUnit && (
                         <p className="text-sm text-red-600 mt-1">

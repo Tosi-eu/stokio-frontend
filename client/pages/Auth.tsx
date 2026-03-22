@@ -379,9 +379,7 @@ export default function Auth() {
   const headerLogoSrc = (() => {
     if (!slugTrim) return defaultLogoSrc;
     if (tenantBrandingLoading || !tenantBranding) return defaultLogoSrc;
-    return (
-      tenantBranding.logoUrl || defaultLogoSrc
-    );
+    return tenantBranding.logoUrl || defaultLogoSrc;
   })();
 
   return (
