@@ -61,26 +61,15 @@ export function AdminTabConfig({
   onSave,
   refetchHealth,
 }: AdminTabConfigProps) {
-  const { modules, refetch: refetchTenant, setModulesPreview } = useTenant();
+  const { modules, refetch: refetchTenant } = useTenant();
   const [moduleEnabled, setModuleEnabled] = useState<Set<string>>(
     () => new Set(),
   );
   const [savingModules, setSavingModules] = useState(false);
-  const modulesPreviewDirtyRef = useRef(false);
 
   useEffect(() => {
     setModuleEnabled(new Set(modules?.enabled ?? []));
   }, [modules]);
-
-  useEffect(() => {
-    return () => {
-      if (modulesPreviewDirtyRef.current) {
-        modulesPreviewDirtyRef.current = false;
-        setModulesPreview(null);
-        void refetchTenant();
-      }
-    };
-  }, [refetchTenant, setModulesPreview]);
 
   const [restoreLoading, setRestoreLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -147,20 +136,14 @@ export function AdminTabConfig({
     }
   };
 
-  const toggleModule = useCallback(
-    (key: string) => {
-      setModuleEnabled((prev) => {
-        const next = new Set(prev);
-        if (next.has(key)) next.delete(key);
-        else next.add(key);
-        const arr = Array.from(next);
-        modulesPreviewDirtyRef.current = true;
-        setModulesPreview(arr);
-        return next;
-      });
-    },
-    [setModulesPreview],
-  );
+  const toggleModule = useCallback((key: string) => {
+    setModuleEnabled((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
 
   const saveModules = async () => {
     if (moduleEnabled.size === 0) {
@@ -173,7 +156,6 @@ export function AdminTabConfig({
     setSavingModules(true);
     try {
       await updateTenantConfig({ enabled: Array.from(moduleEnabled) });
-      modulesPreviewDirtyRef.current = false;
       await refetchTenant();
       toast({
         title: "Módulos atualizados",
@@ -181,8 +163,6 @@ export function AdminTabConfig({
         variant: "success",
       });
     } catch (err) {
-      modulesPreviewDirtyRef.current = false;
-      setModulesPreview(null);
       await refetchTenant();
       toast({
         title: "Não foi possível salvar os módulos",
@@ -206,7 +186,11 @@ export function AdminTabConfig({
               <p className="text-sm text-muted-foreground font-normal mt-1">
                 Define quais áreas aparecem no menu para os usuários deste
                 abrigo. Quem faz cadastro como usuário comum não altera esta
-                lista — apenas administradores do painel.
+                lista — apenas administradores do painel. O menu{" "}
+                <span className="font-medium text-foreground">
+                  só atualiza após Salvar módulos
+                </span>
+                .
               </p>
             </div>
           </div>
