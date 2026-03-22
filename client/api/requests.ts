@@ -6,6 +6,33 @@ import {
   SectorType,
 } from "@/utils/enums";
 import { api, API_BASE_URL } from "./canonical";
+
+export async function uploadTenantLogo(
+  file: File,
+  brandName: string,
+): Promise<{ logoUrl: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("brandName", brandName.trim());
+  const res = await fetch(`${API_BASE_URL}/tenant/branding/logo`, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  const data = (await res.json().catch(() => null)) as {
+    error?: string;
+    logoUrl?: string;
+  } | null;
+  if (!res.ok) {
+    throw new Error(
+      typeof data?.error === "string" ? data.error : "Falha no upload do logo",
+    );
+  }
+  if (!data?.logoUrl) {
+    throw new Error("Resposta inválida do servidor");
+  }
+  return { logoUrl: data.logoUrl };
+}
 import type {
   PaginatedResponse,
   DashboardSummaryResponse,
@@ -263,6 +290,9 @@ export type PublicTenantBranding = {
   slug: string;
   name: string;
   brandName: string | null;
+  /** Logo no R2 (URL pública HTTPS) */
+  logoUrl: string | null;
+  /** Legado: data URL em base64 */
   logoDataUrl: string | null;
   requiresContractCode: true;
   contractCodeMandatory?: boolean;
@@ -275,6 +305,7 @@ type TenantBrandingApiResponse =
       slug: string;
       name: string;
       brandName: string | null;
+      logoUrl?: string | null;
       logoDataUrl: string | null;
       requiresContractCode?: boolean;
       contractCodeMandatory?: boolean;
@@ -299,6 +330,7 @@ export async function fetchPublicTenantBrandingIfExists(
       slug: data.slug,
       name: data.name,
       brandName: data.brandName ?? null,
+      logoUrl: data.logoUrl ?? null,
       logoDataUrl: data.logoDataUrl ?? null,
       requiresContractCode: true,
       contractCodeMandatory: Boolean(data.contractCodeMandatory),
@@ -756,6 +788,7 @@ export type TenantConfigResponse = {
     slug: string;
     name: string;
     brandName: string | null;
+    logoUrl: string | null;
     logoDataUrl: string | null;
   } | null;
   modules: { enabled: string[] };
@@ -774,7 +807,8 @@ export const updateTenantConfig = (modules: { enabled: string[] }) =>
 
 export const updateTenantBranding = (payload: {
   brandName: string | null;
-  logoDataUrl: string | null;
+  logoUrl?: string | null;
+  logoDataUrl?: string | null;
 }) =>
   api.put<{ tenantId: number; tenant: TenantConfigResponse["tenant"] }>(
     "/tenant/branding",

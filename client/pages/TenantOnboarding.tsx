@@ -26,7 +26,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { updateTenantBranding, updateTenantConfig } from "@/api/requests";
+import {
+  updateTenantBranding,
+  updateTenantConfig,
+  uploadTenantLogo,
+} from "@/api/requests";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast.hook";
@@ -146,13 +150,18 @@ export default function TenantOnboarding() {
 
   const [enabled, setEnabled] = useState<Set<string>>(new Set());
   const [brandName, setBrandName] = useState("");
+  /** URL pública no R2 após upload */
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  /** Legado: data URL (só se o servidor não tiver R2) */
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (loading) return;
     setEnabled(new Set(modules?.enabled ?? []));
     setBrandName(tenant?.brandName ?? tenant?.name ?? "");
+    setLogoUrl(tenant?.logoUrl ?? null);
     setLogoDataUrl(tenant?.logoDataUrl ?? null);
   }, [loading, modules, tenant]);
 
@@ -182,29 +191,42 @@ export default function TenantOnboarding() {
     });
   };
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 400_000) {
+    if (file.size > 2 * 1024 * 1024) {
       toast({
         title: "Imagem muito grande",
-        description: "Use uma imagem menor (até ~400 KB).",
+        description: "Use uma imagem de até 2 MB.",
         variant: "error",
       });
+      e.target.value = "";
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const v = typeof reader.result === "string" ? reader.result : null;
-      setLogoDataUrl(v);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
+    setUploadingLogo(true);
+    try {
+      const { logoUrl: url } = await uploadTenantLogo(file, brandName);
+      setLogoUrl(url);
+      setLogoDataUrl(null);
+    } catch (err) {
+      toast({
+        title: "Não foi possível enviar o logo",
+        description:
+          err instanceof Error
+            ? err.message
+            : "Verifique se o armazenamento (R2) está configurado no servidor.",
+        variant: "error",
+      });
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = "";
+    }
   };
 
   const resetForm = () => {
     setEnabled(new Set(modules?.enabled ?? []));
     setBrandName(tenant?.brandName ?? tenant?.name ?? "");
+    setLogoUrl(tenant?.logoUrl ?? null);
     setLogoDataUrl(tenant?.logoDataUrl ?? null);
   };
 
@@ -216,7 +238,7 @@ export default function TenantOnboarding() {
       });
       return;
     }
-    if (!brandName.trim() && !logoDataUrl) {
+    if (!brandName.trim() && !logoUrl && !logoDataUrl) {
       toast({
         title: "Informe o nome da marca ou envie um logo",
         variant: "error",
@@ -225,10 +247,14 @@ export default function TenantOnboarding() {
     }
     setSaving(true);
     try {
-      await updateTenantBranding({
-        brandName: brandName.trim() || null,
-        logoDataUrl,
-      });
+      const brandPayload = { brandName: brandName.trim() || null };
+      if (logoUrl) {
+        await updateTenantBranding({ ...brandPayload, logoUrl });
+      } else if (logoDataUrl) {
+        await updateTenantBranding({ ...brandPayload, logoDataUrl });
+      } else {
+        await updateTenantBranding({ ...brandPayload, logoUrl: null });
+      }
       if (canManageModules) {
         await updateTenantConfig({ enabled: Array.from(enabled) });
       }
@@ -324,9 +350,9 @@ export default function TenantOnboarding() {
                 <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
                   <div className="flex flex-col items-center gap-3">
                     <Avatar className="h-28 w-28 rounded-2xl border-2 border-dashed border-border bg-card shadow-inner">
-                      {logoDataUrl ? (
+                      {logoUrl || logoDataUrl ? (
                         <AvatarImage
-                          src={logoDataUrl}
+                          src={logoUrl || logoDataUrl || ""}
                           alt="Logo do abrigo"
                           className="object-contain p-2"
                         />
@@ -347,13 +373,19 @@ export default function TenantOnboarding() {
                       variant="outline"
                       size="sm"
                       className="gap-2"
+                      disabled={uploadingLogo}
                       onClick={() => fileInputRef.current?.click()}
                     >
-                      <Upload className="h-4 w-4" />
-                      Enviar imagem
+                      {uploadingLogo ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                      {uploadingLogo ? "Enviando…" : "Enviar imagem"}
                     </Button>
                     <p className="max-w-[12rem] text-center text-xs text-muted-foreground">
-                      PNG ou JPG, até ~400 KB. Aparece no menu e no login.
+                      PNG, JPG, WebP ou GIF, até 2 MB. Armazenado no R2 e
+                      exibido no menu e no login.
                     </p>
                   </div>
 
@@ -488,7 +520,7 @@ export default function TenantOnboarding() {
                           {
                             branding: {
                               brandName: brandName.trim() || null,
-                              hasLogo: Boolean(logoDataUrl),
+                              hasLogo: Boolean(logoUrl || logoDataUrl),
                             },
                           },
                           null,

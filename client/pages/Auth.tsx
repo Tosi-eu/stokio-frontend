@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast.hook";
 import { useAuth } from "@/hooks/use-auth.hook";
@@ -9,7 +9,11 @@ import {
   type PublicTenantBranding,
   type PublicTenantListItem,
 } from "@/api/requests";
-import { APP_PUBLIC_LOGO_URL, APP_PUBLIC_NAME } from "@/constants/app-branding";
+import {
+  APP_PUBLIC_LOGO_URL,
+  APP_PUBLIC_NAME,
+  getR2PublicOriginForPreconnect,
+} from "@/constants/app-branding";
 import {
   validateEmail,
   validatePassword,
@@ -33,6 +37,8 @@ export default function Auth() {
   const [tenantsLoading, setTenantsLoading] = useState(true);
   const [tenantBranding, setTenantBranding] =
     useState<PublicTenantBranding | null>(null);
+  const [tenantBrandingLoading, setTenantBrandingLoading] = useState(false);
+  const brandingFetchSlugRef = useRef<string>("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [firstName, setFirstName] = useState("");
@@ -78,19 +84,48 @@ export default function Auth() {
   useEffect(() => {
     const slug = tenantSlug.trim();
     if (!slug) {
+      brandingFetchSlugRef.current = "";
       setTenantBranding(null);
+      setTenantBrandingLoading(false);
       return;
     }
 
+    brandingFetchSlugRef.current = slug;
+    setTenantBranding(null);
+    setTenantBrandingLoading(true);
+
     let cancelled = false;
     (async () => {
-      const b = await fetchPublicTenantBrandingIfExists(slug);
-      if (!cancelled) setTenantBranding(b);
+      try {
+        const b = await fetchPublicTenantBrandingIfExists(slug);
+        if (cancelled) return;
+        if (brandingFetchSlugRef.current !== slug) return;
+        setTenantBranding(b);
+      } finally {
+        if (!cancelled && brandingFetchSlugRef.current === slug) {
+          setTenantBrandingLoading(false);
+        }
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, [tenantSlug]);
+
+  useEffect(() => {
+    const origin = getR2PublicOriginForPreconnect();
+    if (!origin) return;
+    const id = "preconnect-r2-assets";
+    if (document.getElementById(id)) return;
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "preconnect";
+    link.href = origin;
+    document.head.appendChild(link);
+    return () => {
+      link.remove();
+    };
+  }, []);
 
   useEffect(() => {
     setIsVisible(false);
@@ -334,14 +369,22 @@ export default function Auth() {
   };
 
   const slugTrim = tenantSlug.trim();
+  const defaultLogoSrc = APP_PUBLIC_LOGO_URL;
+
   const headerTitle =
-    tenantBranding && slugTrim
+    tenantBranding && slugTrim && !tenantBrandingLoading
       ? tenantBranding.brandName || tenantBranding.name
       : APP_PUBLIC_NAME;
-  const headerLogoSrc =
-    tenantBranding && slugTrim && tenantBranding.logoDataUrl
-      ? tenantBranding.logoDataUrl
-      : APP_PUBLIC_LOGO_URL;
+
+  const headerLogoSrc = (() => {
+    if (!slugTrim) return defaultLogoSrc;
+    if (tenantBrandingLoading || !tenantBranding) return defaultLogoSrc;
+    return (
+      tenantBranding.logoUrl ||
+      tenantBranding.logoDataUrl ||
+      defaultLogoSrc
+    );
+  })();
 
   return (
     <div
@@ -354,6 +397,7 @@ export default function Auth() {
       <header className="shrink-0 border-b border-border/70 bg-brand-hero/90 backdrop-blur-sm">
         <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center gap-4">
           <img
+            key={`${slugTrim}:${headerLogoSrc}`}
             src={headerLogoSrc}
             alt={headerTitle}
             className="h-28 w-auto max-w-[360px] object-contain object-left drop-shadow-sm"
