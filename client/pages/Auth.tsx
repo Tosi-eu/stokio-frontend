@@ -208,8 +208,7 @@ export default function Auth() {
           return;
         }
 
-        let needContractCode =
-          tenantBranding?.contractCodeMandatory === true;
+        let needContractCode = tenantBranding?.contractCodeMandatory === true;
         if (!needContractCode && tenantBranding === null && slug) {
           const b = await fetchPublicTenantBrandingIfExists(slug);
           needContractCode = b?.contractCodeMandatory === true;
@@ -403,8 +402,8 @@ export default function Auth() {
                     </p>
                   ) : (
                     <p className="mt-1 text-xs text-slate-500">
-                      O acesso é sempre no contexto do abrigo escolhido (e-mail e
-                      senha valem para aquele abrigo).
+                      O acesso é sempre no contexto do abrigo escolhido (e-mail
+                      e senha valem para aquele abrigo).
                     </p>
                   )}
                 </div>

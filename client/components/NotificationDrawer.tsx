@@ -92,7 +92,7 @@ export function NotificationDrawer() {
 
     setFilterTimeout(timeout);
 
-    return () => clearTimeout(timeout); 
+    return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterResidentName, fetchItems]);
 

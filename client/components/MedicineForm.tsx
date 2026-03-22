@@ -110,14 +110,6 @@ export const MedicineForm = memo(function MedicineForm({
     }
   }, [stockType, setValue, isIndividual]);
 
-  useEffect(() => {
-    if (casela) {
-      const selected = caselas.find((c) => c.casela === casela);
-      if (selected) {
-      }
-    }
-  }, [casela, caselas]);
-
   const handleMedicineSelect = (id: number) => {
     setValue("id", id);
     setMedicineOpen(false);

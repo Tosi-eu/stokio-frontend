@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           | { user?: LoggedUser };
         const userToSet =
           parsed && typeof parsed === "object" && "user" in parsed
-            ? parsed.user ?? null
+            ? (parsed.user ?? null)
             : (parsed as LoggedUser);
         setUser(userToSet && userToSet.id ? userToSet : null);
       } catch (error) {

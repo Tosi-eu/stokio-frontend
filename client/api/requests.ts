@@ -385,9 +385,7 @@ function superAdminApiKeyHeaders(): HeadersInit | undefined {
 /** Super-admin: define o código de contrato (armazenado como hash) ou remove com clear_contract_code. */
 export const adminSetTenantContractCodeBySlug = (
   slug: string,
-  payload:
-    | { contract_code: string }
-    | { clear_contract_code: true },
+  payload: { contract_code: string } | { clear_contract_code: true },
 ) =>
   api.put<{ ok: boolean; slug: string; contractCodeConfigured: boolean }>(
     `/admin/tenants/by-slug/${encodeURIComponent(slug)}/contract-code`,

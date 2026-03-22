@@ -35,7 +35,9 @@ export default function LoadingScreen() {
         alt={APP_PUBLIC_NAME}
         className="w-48 h-auto max-h-32 object-contain mb-4"
       />
-      <h1 className="text-sky-900 font-bold text-3xl mb-6">{APP_PUBLIC_NAME}</h1>
+      <h1 className="text-sky-900 font-bold text-3xl mb-6">
+        {APP_PUBLIC_NAME}
+      </h1>
 
       <div className="w-64 h-4 bg-sky-200 rounded-full overflow-hidden">
         <div

@@ -282,7 +282,10 @@ export default function TenantOnboarding() {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="brand" className="mt-6 space-y-6 outline-none">
+              <TabsContent
+                value="brand"
+                className="mt-6 space-y-6 outline-none"
+              >
                 <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
                   <div className="flex flex-col items-center gap-3">
                     <Avatar className="h-28 w-28 rounded-2xl border-2 border-dashed border-slate-200 bg-white shadow-inner">
@@ -433,7 +436,11 @@ export default function TenantOnboarding() {
 
             <Separator className="my-8" />
 
-            <Accordion type="single" collapsible className="w-full rounded-lg border bg-muted/30">
+            <Accordion
+              type="single"
+              collapsible
+              className="w-full rounded-lg border bg-muted/30"
+            >
               <AccordionItem value="json" className="border-0 px-4">
                 <AccordionTrigger className="text-sm font-medium text-muted-foreground hover:no-underline py-4">
                   Prévia técnica (JSON enviado ao servidor)

@@ -26,9 +26,7 @@ async function resizeLogos() {
   try {
     sharp = (await import("sharp")).default;
   } catch {
-    console.error(
-      "Erro: sharp não encontrado. Instale com: pnpm add -D sharp",
-    );
+    console.error("Erro: sharp não encontrado. Instale com: pnpm add -D sharp");
     process.exit(1);
   }
 

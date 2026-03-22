@@ -62,9 +62,7 @@ const queryClient = new QueryClient();
 /** Remonta o tenant context ao trocar de usuário e permite loading inicial correto. */
 function TenantProviderWithUserKey({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  return (
-    <TenantProvider key={user?.id ?? "none"}>{children}</TenantProvider>
-  );
+  return <TenantProvider key={user?.id ?? "none"}>{children}</TenantProvider>;
 }
 
 const AppContent = () => {
@@ -74,9 +72,7 @@ const AppContent = () => {
 
   const location = useLocation();
 
-  const needsSetup = Boolean(
-    user && !tenantLoading && !onboardingComplete,
-  );
+  const needsSetup = Boolean(user && !tenantLoading && !onboardingComplete);
 
   const isOnboardingPath = location.pathname === "/tenant/onboarding";
 
