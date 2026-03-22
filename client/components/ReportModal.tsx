@@ -322,7 +322,9 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                       >
                         <Icon
                           className={`w-6 h-6 ${
-                            isSelected ? "text-primary" : "text-muted-foreground"
+                            isSelected
+                              ? "text-primary"
+                              : "text-muted-foreground"
                           }`}
                         />
                         <span className="text-sm font-medium">{label}</span>

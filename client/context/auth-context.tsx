@@ -50,7 +50,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           parsed && typeof parsed === "object" && "user" in parsed
             ? (parsed.user ?? null)
             : (parsed as LoggedUser);
-        setUser(normalizeSessionUser(raw && raw.id ? (raw as LoggedUser) : null));
+        setUser(
+          normalizeSessionUser(raw && raw.id ? (raw as LoggedUser) : null),
+        );
       } catch (error) {
         console.error("Erro ao restaurar sessão:", error);
         sessionStorage.removeItem("user");

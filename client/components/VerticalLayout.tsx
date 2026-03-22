@@ -81,9 +81,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
           aria-label="Ir para o painel principal"
         >
           <img
-            src={
-              tenant?.logoUrl || tenant?.logoDataUrl || APP_PUBLIC_LOGO_URL
-            }
+            src={tenant?.logoUrl || tenant?.logoDataUrl || APP_PUBLIC_LOGO_URL}
             alt={tenant?.brandName || tenant?.name || APP_PUBLIC_NAME}
             className="h-32 w-auto max-w-[200px] object-contain drop-shadow-sm"
           />

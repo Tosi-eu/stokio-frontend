@@ -13,7 +13,9 @@ function normalizeViteR2PublicBaseUrl(raw: string | undefined): string | null {
 }
 
 function r2DefaultLogoUrl(): string | null {
-  const r2 = normalizeViteR2PublicBaseUrl(import.meta.env.VITE_R2_PUBLIC_BASE_URL);
+  const r2 = normalizeViteR2PublicBaseUrl(
+    import.meta.env.VITE_R2_PUBLIC_BASE_URL,
+  );
   if (!r2) return null;
   return `${r2}/default_logo.png`;
 }
@@ -59,7 +61,9 @@ export const APP_PUBLIC_LOGO_URL = resolvePublicLogoUrl();
 export const PDF_REPORT_LOGO_URL = resolvePdfLogoUrl();
 
 export function getR2PublicOriginForPreconnect(): string | null {
-  const r2 = normalizeViteR2PublicBaseUrl(import.meta.env.VITE_R2_PUBLIC_BASE_URL);
+  const r2 = normalizeViteR2PublicBaseUrl(
+    import.meta.env.VITE_R2_PUBLIC_BASE_URL,
+  );
   if (!r2) return null;
   try {
     return new URL(r2).origin;
