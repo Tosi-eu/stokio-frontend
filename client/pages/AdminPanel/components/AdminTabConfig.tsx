@@ -10,11 +10,14 @@ import {
   getAdminBackupStatus,
   restoreBackup,
   runAdminBackupNow,
+  updateTenantBranding,
   updateTenantConfig,
+  uploadTenantLogoWithProgress,
 } from "@/api/requests";
 import { toast } from "@/hooks/use-toast.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
-import { LayoutGrid, Upload } from "lucide-react";
+import { LayoutGrid, Loader2, Upload } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 const MODULE_OPTIONS: Array<{ key: string; label: string }> = [
@@ -61,7 +64,7 @@ export function AdminTabConfig({
   onSave,
   refetchHealth,
 }: AdminTabConfigProps) {
-  const { modules, refetch: refetchTenant } = useTenant();
+  const { modules, tenant, refetch: refetchTenant } = useTenant();
   const [moduleEnabled, setModuleEnabled] = useState<Set<string>>(
     () => new Set(),
   );
@@ -73,6 +76,18 @@ export function AdminTabConfig({
 
   const [restoreLoading, setRestoreLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+  const [brandVisualName, setBrandVisualName] = useState("");
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [savingBranding, setSavingBranding] = useState(false);
+
+  useEffect(() => {
+    setBrandVisualName(
+      String(tenant?.brandName ?? tenant?.name ?? "").trim(),
+    );
+    setLogoPreviewUrl(tenant?.logoUrl ?? null);
+  }, [tenant?.brandName, tenant?.name, tenant?.logoUrl]);
   const [backupStatusLoading, setBackupStatusLoading] = useState(false);
   const [backupRunLoading, setBackupRunLoading] = useState(false);
   const [backupStatus, setBackupStatus] = useState<{
@@ -175,6 +190,92 @@ export function AdminTabConfig({
     }
   };
 
+  const brandingInitials = (() => {
+    const n =
+      brandVisualName.trim() || String(tenant?.name ?? "").trim() || "A";
+    return n
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  })();
+
+  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "Imagem muito grande",
+        description: "Use uma imagem de até 2 MB.",
+        variant: "error",
+      });
+      e.target.value = "";
+      return;
+    }
+    setUploadingLogo(true);
+    try {
+      const bnForUpload =
+        brandVisualName.trim() ||
+        String(tenant?.brandName ?? "").trim() ||
+        String(tenant?.name ?? "").trim() ||
+        "logo";
+      const { logoUrl } = await uploadTenantLogoWithProgress(
+        file,
+        bnForUpload,
+      );
+      await updateTenantBranding({
+        brandName: brandVisualName.trim() || null,
+        logoUrl,
+      });
+      setLogoPreviewUrl(logoUrl);
+      await refetchTenant();
+      toast({
+        title: "Logo atualizado",
+        description:
+          "Arquivo substituído no armazenamento (R2) e vinculado a este abrigo.",
+        variant: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Não foi possível atualizar o logo",
+        description:
+          err instanceof Error
+            ? err.message
+            : "Confira se o R2 está configurado no servidor.",
+        variant: "error",
+      });
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = "";
+    }
+  };
+
+  const saveBrandingNameOnly = async () => {
+    setSavingBranding(true);
+    try {
+      await updateTenantBranding({
+        brandName: brandVisualName.trim() || null,
+      });
+      await refetchTenant();
+      toast({
+        title: "Nome da marca atualizado",
+        description: "O nome exibido para a equipe foi salvo.",
+        variant: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Não foi possível salvar",
+        description:
+          err instanceof Error ? err.message : "Tente novamente em instantes.",
+        variant: "error",
+      });
+    } finally {
+      setSavingBranding(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -227,6 +328,98 @@ export function AdminTabConfig({
           >
             {savingModules ? "Salvando módulos..." : "Salvar módulos"}
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Logo e nome da marca</CardTitle>
+          <p className="text-sm text-muted-foreground font-normal mt-1">
+            Altere o que aparece no menu, no login e nas telas de carregamento.
+            Ao enviar um arquivo novo, o servidor{" "}
+            <span className="font-medium text-foreground">
+              remove as versões anteriores no R2
+            </span>{" "}
+            (mesmo nome de arquivo ou outra extensão) e grava o novo objeto —
+            não é necessário apagar manualmente.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="flex flex-col items-center gap-3 sm:items-start">
+              <Avatar className="h-24 w-24 rounded-xl border border-border bg-muted/40">
+                {logoPreviewUrl ? (
+                  <AvatarImage
+                    src={logoPreviewUrl}
+                    alt="Logo do abrigo"
+                    className="object-contain p-2"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : null}
+                <AvatarFallback className="rounded-xl text-sm font-semibold">
+                  {brandingInitials}
+                </AvatarFallback>
+              </Avatar>
+              <input
+                ref={logoFileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden"
+                onChange={handleLogoFile}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uploadingLogo}
+                onClick={() => logoFileInputRef.current?.click()}
+              >
+                {uploadingLogo ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                {uploadingLogo ? "Enviando…" : "Enviar novo logo"}
+              </Button>
+            </div>
+            <div className="min-w-0 flex-1 space-y-3">
+              <div className="grid gap-2 max-w-md">
+                <Label htmlFor="admin-brand-visual-name">
+                  Nome exibido (marca)
+                </Label>
+                <Input
+                  id="admin-brand-visual-name"
+                  value={brandVisualName}
+                  onChange={(e) => setBrandVisualName(e.target.value)}
+                  placeholder="Ex.: Abrigo São José"
+                  maxLength={160}
+                  autoComplete="organization"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={
+                    savingBranding ||
+                    String(tenant?.brandName ?? "").trim() ===
+                      brandVisualName.trim()
+                  }
+                  onClick={saveBrandingNameOnly}
+                >
+                  {savingBranding ? "Salvando…" : "Salvar só o nome"}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground max-w-lg">
+                PNG, JPEG, WebP ou GIF até 2 MB. Depois do envio, use{" "}
+                <span className="font-medium text-foreground">
+                  Salvar só o nome
+                </span>{" "}
+                se alterou apenas o texto.
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

@@ -3,6 +3,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   ReactNode,
 } from "react";
 import { AuthContextType, LoggedUser } from "@/interfaces/interfaces";
@@ -69,26 +70,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [handleLogout]);
 
-  const login = async (login: string, password: string, tenantSlug: string) => {
-    const data = await apiLogin(login, password, tenantSlug);
+  const login = useCallback(
+    async (loginStr: string, password: string, tenantSlug: string) => {
+      const data = await apiLogin(loginStr, password, tenantSlug);
 
-    const response = data as { user?: LoggedUser };
-    const loggedUser = response.user ?? (data as LoggedUser);
-    const normalized = normalizeSessionUser(loggedUser);
+      const response = data as { user?: LoggedUser };
+      const loggedUser = response.user ?? (data as LoggedUser);
+      const normalized = normalizeSessionUser(loggedUser);
 
-    setUser(normalized);
+      setUser(normalized);
 
-    sessionStorage.setItem("user", JSON.stringify(normalized));
-  };
+      sessionStorage.setItem("user", JSON.stringify(normalized));
+    },
+    [],
+  );
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await handleLogout();
-  };
+  }, [handleLogout]);
+
+  const authValue = useMemo(
+    () => ({ user, login, logout }),
+    [user, login, logout],
+  );
 
   if (loading) return null;
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={authValue}>
       {children}
     </AuthContext.Provider>
   );

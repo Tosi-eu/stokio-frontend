@@ -29,7 +29,7 @@ import {
 import {
   updateTenantBranding,
   updateTenantConfig,
-  uploadTenantLogo,
+  uploadTenantLogoWithProgress,
 } from "@/api/requests";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -153,6 +153,13 @@ export default function TenantOnboarding() {
   /** URL pública no R2 após upload */
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  /** null = sem barra de % (servidor não reportou tamanho); número = bytes enviados ao backend */
+  const [logoUploadPercent, setLogoUploadPercent] = useState<number | null>(
+    null,
+  );
+  const [logoUploadPhase, setLogoUploadPhase] = useState<
+    "idle" | "sending" | "storing"
+  >("idle");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -200,10 +207,24 @@ export default function TenantOnboarding() {
       e.target.value = "";
       return;
     }
+    setLogoUploadPercent(null);
+    setLogoUploadPhase("sending");
     setUploadingLogo(true);
     try {
-      const { logoUrl: url } = await uploadTenantLogo(file, brandName);
+      const { logoUrl: url } = await uploadTenantLogoWithProgress(
+        file,
+        brandName,
+        {
+          onUploadProgress: (pct) => setLogoUploadPercent(pct),
+          onPhase: (phase) => setLogoUploadPhase(phase),
+        },
+      );
       setLogoUrl(url);
+      toast({
+        title: "Logo enviado",
+        description: "Arquivo gravado no armazenamento e URL atualizada.",
+        variant: "success",
+      });
     } catch (err) {
       toast({
         title: "Não foi possível enviar o logo",
@@ -215,6 +236,8 @@ export default function TenantOnboarding() {
       });
     } finally {
       setUploadingLogo(false);
+      setLogoUploadPercent(null);
+      setLogoUploadPhase("idle");
       e.target.value = "";
     }
   };
@@ -348,6 +371,7 @@ export default function TenantOnboarding() {
                           src={logoUrl || ""}
                           alt="Logo do abrigo"
                           className="object-contain p-2"
+                          referrerPolicy="no-referrer"
                         />
                       ) : null}
                       <AvatarFallback className="rounded-2xl bg-muted text-lg font-semibold text-muted-foreground">
@@ -374,8 +398,44 @@ export default function TenantOnboarding() {
                       ) : (
                         <Upload className="h-4 w-4" />
                       )}
-                      {uploadingLogo ? "Enviando…" : "Enviar imagem"}
+                      {uploadingLogo
+                        ? logoUploadPhase === "storing"
+                          ? "Gravando no R2…"
+                          : "Enviando…"
+                        : "Enviar imagem"}
                     </Button>
+                    {uploadingLogo ? (
+                      <div
+                        className="w-full max-w-[14rem] space-y-2 rounded-xl border border-border/80 bg-muted/50 px-3 py-2.5 text-left shadow-inner"
+                        role="status"
+                        aria-live="polite"
+                      >
+                        <p className="text-xs font-medium text-foreground leading-snug">
+                          {logoUploadPhase === "storing"
+                            ? "Gravando no armazenamento (Cloudflare R2)…"
+                            : logoUploadPercent != null
+                              ? `Enviando para o servidor… ${logoUploadPercent}%`
+                              : "Enviando para o servidor…"}
+                        </p>
+                        {logoUploadPhase === "sending" &&
+                        logoUploadPercent != null ? (
+                          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full rounded-full bg-primary transition-[width] duration-150 ease-out"
+                              style={{ width: `${logoUploadPercent}%` }}
+                            />
+                          </div>
+                        ) : logoUploadPhase === "storing" ? (
+                          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                            <div className="h-full w-full animate-pulse rounded-full bg-primary/55" />
+                          </div>
+                        ) : (
+                          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                            <div className="h-full w-1/3 animate-pulse rounded-full bg-primary/50" />
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
                     <p className="max-w-[12rem] text-center text-xs text-muted-foreground">
                       PNG, JPG, WebP ou GIF, até 2 MB. Armazenado no R2 e
                       exibido no menu e no login.

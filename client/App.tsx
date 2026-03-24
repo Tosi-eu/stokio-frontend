@@ -56,12 +56,19 @@ const RegisterDrawer = lazy(() => import("./pages/RegisterDrawer"));
 const TransferReport = lazy(() => import("./pages/TransferReport"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const TenantOnboarding = lazy(() => import("./pages/TenantOnboarding"));
+const PostLoginRedirect = lazy(() => import("./pages/PostLoginRedirect"));
 
 const queryClient = new QueryClient();
 
 function TenantProviderWithUserKey({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   return <TenantProvider key={user?.id ?? "none"}>{children}</TenantProvider>;
+}
+
+function RootRedirect() {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/user/login" replace />;
+  return <Navigate to="/loading" replace />;
 }
 
 const AppContent = () => {
@@ -112,7 +119,23 @@ const AppContent = () => {
         onClose={() => setShowModal(false)}
       />
       <Routes>
-        <Route path="/" element={<Navigate to="/user/login" replace />} />
+        <Route path="/" element={<RootRedirect />} />
+        <Route
+          path="/inicio"
+          element={<Navigate to="/loading" replace />}
+        />
+        <Route
+          path="/loading"
+          element={
+            <PrivateRoute>
+              <Suspense
+                fallback={<LoadingFallback title="A carregar…" />}
+              >
+                <PostLoginRedirect />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
         <Route
           path="/user/login"
           element={
@@ -500,15 +523,15 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
-        <TenantProviderWithUserKey>
-          <NotificationProvider>
-            <InvalidSessionProvider>
-              <BrowserRouter>
+        <BrowserRouter>
+          <TenantProviderWithUserKey>
+            <NotificationProvider>
+              <InvalidSessionProvider>
                 <AppContent />
-              </BrowserRouter>
-            </InvalidSessionProvider>
-          </NotificationProvider>
-        </TenantProviderWithUserKey>
+              </InvalidSessionProvider>
+            </NotificationProvider>
+          </TenantProviderWithUserKey>
+        </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

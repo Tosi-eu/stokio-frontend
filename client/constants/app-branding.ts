@@ -1,5 +1,7 @@
 /** Base pública do bucket (sem path do ficheiro). Corrige .env com `.../default_logo.png` por engano. */
-function normalizeViteR2PublicBaseUrl(raw: string | undefined): string | null {
+export function normalizeViteR2PublicBaseUrl(
+  raw: string | undefined,
+): string | null {
   let s = raw?.trim();
   if (!s) return null;
   if (!s.startsWith("http://") && !s.startsWith("https://")) {
@@ -52,11 +54,27 @@ function resolvePdfLogoUrl(): string {
   return resolvePublicLogoUrl();
 }
 
-export const APP_PUBLIC_NAME =
-  import.meta.env.VITE_PUBLIC_APP_NAME ??
-  "Porto - Gestão Inteligente de Abrigos";
+function resolvePublicAppName(): string {
+  const raw = import.meta.env.VITE_PUBLIC_APP_NAME;
+  const s = typeof raw === "string" ? raw.trim() : "";
+  if (s) return s;
+  return "Porto - Gestão Inteligente de Abrigos";
+}
+
+export const APP_PUBLIC_NAME = resolvePublicAppName();
 
 export const APP_PUBLIC_LOGO_URL = resolvePublicLogoUrl();
+
+export function mergePublicLogoWithServerDefault(
+  serverDefaultLogoUrl: string | null | undefined,
+): string {
+  if (isAbsoluteHttpUrl(APP_PUBLIC_LOGO_URL.trim())) {
+    return APP_PUBLIC_LOGO_URL;
+  }
+  const s = serverDefaultLogoUrl?.trim();
+  if (s) return s;
+  return APP_PUBLIC_LOGO_URL;
+}
 
 export const PDF_REPORT_LOGO_URL = resolvePdfLogoUrl();
 

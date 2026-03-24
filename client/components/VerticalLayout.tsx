@@ -14,7 +14,9 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
-import { APP_PUBLIC_LOGO_URL, APP_PUBLIC_NAME } from "@/constants/app-branding";
+import { APP_PUBLIC_NAME } from "@/constants/app-branding";
+import { getDefaultHomePath } from "@/helpers/default-home-route.helper";
+import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
 
 const baseNavigationTabs = [
   {
@@ -56,7 +58,11 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { tenant, isEnabled } = useTenant();
+  const { tenant, isEnabled, loading: tenantLoading } = useTenant();
+  const { displaySrc: sidebarLogoSrc, isLogoResolved } = useTenantBrandLogoSrc(
+    tenant,
+    { tenantConfigLoading: tenantLoading },
+  );
 
   const navigationTabs = [
     ...(user?.role === "admin" && isEnabled("admin")
@@ -69,6 +75,8 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
     ),
   ];
 
+  const homeHref = getDefaultHomePath(isEnabled, user) ?? "/loading";
+
   return (
     <aside
       className="h-screen w-64 flex flex-col border-r border-sidebar-border bg-sidebar bg-gradient-to-b from-sidebar via-background/30 to-sidebar"
@@ -76,15 +84,21 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
     >
       <div className="h-36 shrink-0 flex items-center justify-center px-4 border-b border-sidebar-border bg-brand-hero shadow-[inset_0_-1px_0_0_hsl(160_20%_90%/0.6)]">
         <button
-          onClick={() => navigate("/dashboard")}
+          type="button"
+          onClick={() => navigate(homeHref)}
           className="cursor-pointer rounded-xl p-2 transition-all hover:opacity-95 hover:shadow-elevated focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          aria-label="Ir para o painel principal"
+          aria-label="Ir para o início"
         >
-          <img
-            src={tenant?.logoUrl || APP_PUBLIC_LOGO_URL}
-            alt={tenant?.brandName || tenant?.name || APP_PUBLIC_NAME}
-            className="h-32 w-auto max-w-[200px] object-contain drop-shadow-sm"
-          />
+          {isLogoResolved && sidebarLogoSrc ? (
+            <img
+              src={sidebarLogoSrc}
+              alt={tenant?.brandName || tenant?.name || APP_PUBLIC_NAME}
+              className="h-32 w-auto max-w-[200px] object-contain drop-shadow-sm"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="h-32 w-[200px] shrink-0" aria-busy={true} />
+          )}
         </button>
       </div>
 
@@ -95,7 +109,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
         {navigationTabs.map((item) => {
           const isActive =
             location.pathname === item.href ||
-            (item.href !== "/dashboard" &&
+            (item.href !== homeHref &&
               location.pathname.startsWith(item.href));
 
           const Icon = item.icon;

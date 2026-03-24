@@ -22,31 +22,89 @@ export type {
   UpdateTenantBrandingPayload,
 } from "@porto-sdk/sdk";
 
-export async function uploadTenantLogo(
+export type TenantLogoUploadPhase = "sending" | "storing";
+
+export type TenantLogoUploadCallbacks = {
+  onUploadProgress?: (percentLoaded: number) => void;
+  /** Disparado quando o arquivo terminou de sair do navegador; o servidor ainda grava no R2. */
+  onPhase?: (phase: TenantLogoUploadPhase) => void;
+};
+
+function parseLogoUploadResponse(xhr: XMLHttpRequest): { logoUrl: string } {
+  let data: { error?: string; logoUrl?: string } | null = null;
+  try {
+    if (typeof xhr.response === "string") {
+      data = JSON.parse(xhr.response) as { error?: string; logoUrl?: string };
+    } else if (xhr.response && typeof xhr.response === "object") {
+      data = xhr.response as { error?: string; logoUrl?: string };
+    }
+  } catch {
+    data = null;
+  }
+  const status = xhr.status;
+  if (status >= 200 && status < 300 && data?.logoUrl) {
+    return { logoUrl: data.logoUrl };
+  }
+  const msg =
+    typeof data?.error === "string" ? data.error : "Falha no upload do logo";
+  throw new Error(msg);
+}
+
+/**
+ * Upload com XMLHttpRequest para expor progresso do envio e fase “gravando no R2” após o stream.
+ */
+export function uploadTenantLogoWithProgress(
+  file: File,
+  brandName: string,
+  callbacks?: TenantLogoUploadCallbacks,
+): Promise<{ logoUrl: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_BASE_URL}/tenant/branding/logo`);
+    xhr.withCredentials = true;
+    xhr.responseType = "json";
+    xhr.timeout = 120_000;
+
+    xhr.upload.onprogress = (ev) => {
+      if (ev.lengthComputable && callbacks?.onUploadProgress) {
+        const pct = Math.round((ev.loaded / Math.max(ev.total, 1)) * 100);
+        callbacks.onUploadProgress(Math.min(100, pct));
+      }
+    };
+
+    xhr.upload.onload = () => {
+      callbacks?.onPhase?.("storing");
+    };
+
+    xhr.onload = () => {
+      try {
+        resolve(parseLogoUploadResponse(xhr));
+      } catch (e) {
+        reject(e instanceof Error ? e : new Error(String(e)));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error("Falha de rede ao enviar o logo"));
+    };
+
+    xhr.ontimeout = () => {
+      reject(new Error("Tempo esgotado ao enviar o logo. Tente de novo."));
+    };
+
+    callbacks?.onPhase?.("sending");
+    const form = new FormData();
+    form.append("file", file);
+    form.append("brandName", brandName.trim());
+    xhr.send(form);
+  });
+}
+
+export function uploadTenantLogo(
   file: File,
   brandName: string,
 ): Promise<{ logoUrl: string }> {
-  const form = new FormData();
-  form.append("file", file);
-  form.append("brandName", brandName.trim());
-  const res = await fetch(`${API_BASE_URL}/tenant/branding/logo`, {
-    method: "POST",
-    credentials: "include",
-    body: form,
-  });
-  const data = (await res.json().catch(() => null)) as {
-    error?: string;
-    logoUrl?: string;
-  } | null;
-  if (!res.ok) {
-    throw new Error(
-      typeof data?.error === "string" ? data.error : "Falha no upload do logo",
-    );
-  }
-  if (!data?.logoUrl) {
-    throw new Error("Resposta inválida do servidor");
-  }
-  return { logoUrl: data.logoUrl };
+  return uploadTenantLogoWithProgress(file, brandName);
 }
 import type {
   PaginatedResponse,
@@ -294,6 +352,14 @@ export const listPublicTenants = (params?: { q?: string; limit?: number }) =>
     params: params ?? {},
   });
 
+export type PublicAppConfigResponse = {
+  defaultLogoUrl: string | null;
+};
+
+/** Logo padrão no R2 (a partir de R2_PUBLIC_BASE_URL no servidor). */
+export const fetchPublicAppConfig = () =>
+  api.get<PublicAppConfigResponse>("/public/app-config");
+
 export async function fetchPublicTenantBrandingIfExists(
   slug: string,
 ): Promise<PublicTenantBranding | null> {
@@ -328,6 +394,37 @@ export const login = (login: string, password: string, tenantSlug: string) =>
     { login, password },
     { headers: { "X-Tenant": tenantSlug } },
   );
+
+export type ResolveTenantAmbiguousTenant = { slug: string; label: string };
+
+/**
+ * Descobre o slug do abrigo pelo e-mail (correspondência única). Não autentica.
+ */
+export async function resolveTenantByLogin(login: string): Promise<
+  | { ok: true; slug: string }
+  | { ok: false; reason: "not_found" }
+  | { ok: false; reason: "ambiguous"; tenants: ResolveTenantAmbiguousTenant[] }
+> {
+  const trimmed = login.trim();
+  if (!trimmed) return { ok: false, reason: "not_found" };
+
+  const res = await fetch(
+    `${API_BASE_URL}/login/resolve-tenant?${new URLSearchParams({ login: trimmed })}`,
+    { credentials: "include", headers: { Accept: "application/json" } },
+  );
+  const data = (await res.json().catch(() => null)) as {
+    slug?: string;
+    tenants?: ResolveTenantAmbiguousTenant[];
+  } | null;
+
+  if (res.ok && data && typeof data.slug === "string" && data.slug.trim())
+    return { ok: true, slug: data.slug.trim() };
+
+  if (res.status === 409 && data?.tenants && Array.isArray(data.tenants))
+    return { ok: false, reason: "ambiguous", tenants: data.tenants };
+
+  return { ok: false, reason: "not_found" };
+}
 
 export type CurrentUserResponse = {
   id?: number;

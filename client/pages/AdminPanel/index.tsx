@@ -45,10 +45,13 @@ import {
 } from "./components";
 import { parseYearMonthToDate } from "@/helpers/dates.helper";
 import { isSuperAdminUser } from "@/helpers/auth-roles.helper";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { getDefaultHomePath } from "@/helpers/default-home-route.helper";
 
 export default function AdminPanel() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isEnabled } = useTenant();
   const isAdmin = user?.role === "admin";
   const isSuperAdmin = isSuperAdminUser(user);
 
@@ -58,8 +61,11 @@ export default function AdminPanel() {
     !isSuperAdmin && activeTab === "tenants" ? "resumo" : activeTab;
 
   useEffect(() => {
-    if (!isAdmin) navigate("/dashboard");
-  }, [isAdmin, navigate]);
+    if (!isAdmin) {
+      const path = getDefaultHomePath(isEnabled, user) ?? "/loading";
+      navigate(path, { replace: true });
+    }
+  }, [isAdmin, navigate, isEnabled, user]);
 
   const summary = useAdminSummary(isAdmin, effectiveTab === "resumo");
   const alerts = useAdminAlerts(isAdmin, effectiveTab === "alertas");

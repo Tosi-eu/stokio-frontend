@@ -3,7 +3,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast.hook";
 import { resetPassword } from "@/api/requests";
-import { APP_PUBLIC_LOGO_URL, APP_PUBLIC_NAME } from "@/constants/app-branding";
+import { APP_PUBLIC_NAME } from "@/constants/app-branding";
+import { usePublicDefaultLogoUrl } from "@/hooks/use-public-default-logo.hook";
 import {
   forgotPasswordSchema,
   type ForgotPasswordFormData,
@@ -12,6 +13,7 @@ import {
 export default function ForgotPassword() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const publicLogoUrl = usePublicDefaultLogoUrl();
 
   const {
     register,
@@ -75,7 +77,7 @@ export default function ForgotPassword() {
       <header className="shrink-0 border-b border-border/70 bg-brand-hero/90 backdrop-blur-sm">
         <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center gap-4">
           <img
-            src={APP_PUBLIC_LOGO_URL}
+            src={publicLogoUrl}
             alt={APP_PUBLIC_NAME}
             className="h-20 w-auto max-w-[200px] object-contain drop-shadow-sm"
           />
