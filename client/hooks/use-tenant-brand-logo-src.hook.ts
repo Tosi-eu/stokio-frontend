@@ -40,8 +40,7 @@ export function useTenantBrandLogoSrc(
     let cancelled = false;
     let preloadTimeoutId: number | undefined;
 
-    const isCancelled = () =>
-      cancelled || requestId !== requestIdRef.current;
+    const isCancelled = () => cancelled || requestId !== requestIdRef.current;
 
     void (async () => {
       const resolved = await resolveTenantR2LogoUrl({
@@ -61,10 +60,7 @@ export function useTenantBrandLogoSrc(
         preloadTimeoutId = window.setTimeout(resolve, logoPreloadTimeoutMs);
       });
 
-      await Promise.race([
-        preloadBrandLogoImageUrl(finalSrc),
-        timeoutPromise,
-      ]);
+      await Promise.race([preloadBrandLogoImageUrl(finalSrc), timeoutPromise]);
 
       if (preloadTimeoutId !== undefined) {
         clearTimeout(preloadTimeoutId);
@@ -89,8 +85,7 @@ export function useTenantBrandLogoSrc(
     tenant?.name,
   ]);
 
-  const isLogoResolved =
-    !tenantConfigLoading && readyDisplaySrc !== undefined;
+  const isLogoResolved = !tenantConfigLoading && readyDisplaySrc !== undefined;
 
   const displaySrc = isLogoResolved ? readyDisplaySrc! : null;
 

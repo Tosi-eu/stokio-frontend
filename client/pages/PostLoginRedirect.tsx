@@ -30,10 +30,9 @@ export default function PostLoginRedirect() {
     if (loading || doneRef.current || screenStartRef.current === null) return;
 
     const path =
-    getDefaultHomePath(
-      (key) => effectiveEnabled.includes(key),
-      { role: userRole }
-    ) ?? "/user/profile";
+      getDefaultHomePath((key) => effectiveEnabled.includes(key), {
+        role: userRole,
+      }) ?? "/user/profile";
 
     const elapsed = Date.now() - screenStartRef.current;
     const remaining = Math.max(0, POST_LOGIN_MIN_VISIBLE_MS - elapsed);
