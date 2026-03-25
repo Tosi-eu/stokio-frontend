@@ -109,8 +109,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
         {navigationTabs.map((item) => {
           const isActive =
             location.pathname === item.href ||
-            (item.href !== homeHref &&
-              location.pathname.startsWith(item.href));
+            (item.href !== homeHref && location.pathname.startsWith(item.href));
 
           const Icon = item.icon;
 

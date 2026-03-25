@@ -111,8 +111,7 @@ export async function resolveTenantR2LogoUrl(params: {
   }
 
   const base = normalizeViteR2PublicBaseUrl(params.viteR2PublicBaseUrl);
-  const brandLabel =
-    params.brandName?.trim() || params.name?.trim() || "logo";
+  const brandLabel = params.brandName?.trim() || params.name?.trim() || "logo";
   if (!base || !slug) return null;
 
   const candidates = buildTenantLogoCandidateUrls(base, {

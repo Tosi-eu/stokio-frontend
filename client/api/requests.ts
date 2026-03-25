@@ -22,6 +22,12 @@ export type {
   UpdateTenantBrandingPayload,
 } from "@porto-sdk/sdk";
 
+/** Contrato de `GET /login/tenants-for-email` (alinhado com `LoginTenantSummary` no SDK). */
+export type LoginTenantSummary = {
+  slug: string;
+  label: string;
+};
+
 export type TenantLogoUploadPhase = "sending" | "storing";
 
 export type TenantLogoUploadCallbacks = {
@@ -398,9 +404,30 @@ export const login = (login: string, password: string, tenantSlug: string) =>
 export type ResolveTenantAmbiguousTenant = { slug: string; label: string };
 
 /**
+ * Lista todos os abrigos onde o e-mail tem conta (0, 1 ou N). Não autentica.
+ */
+export async function fetchLoginTenantsForEmail(
+  login: string,
+): Promise<LoginTenantSummary[]> {
+  const trimmed = login.trim();
+  if (!trimmed) return [];
+  const res = await fetch(
+    `${API_BASE_URL}/login/tenants-for-email?${new URLSearchParams({ login: trimmed })}`,
+    { credentials: "include", headers: { Accept: "application/json" } },
+  );
+  const data = (await res.json().catch(() => null)) as {
+    tenants?: LoginTenantSummary[];
+  } | null;
+  if (!res.ok) return [];
+  return Array.isArray(data?.tenants) ? data.tenants : [];
+}
+
+/**
  * Descobre o slug do abrigo pelo e-mail (correspondência única). Não autentica.
  */
-export async function resolveTenantByLogin(login: string): Promise<
+export async function resolveTenantByLogin(
+  login: string,
+): Promise<
   | { ok: true; slug: string }
   | { ok: false; reason: "not_found" }
   | { ok: false; reason: "ambiguous"; tenants: ResolveTenantAmbiguousTenant[] }
@@ -1041,7 +1068,15 @@ export const getAdminConfig = () =>
 export const updateAdminConfig = (config: Record<string, string>) =>
   api.put("/admin/config", config);
 
-export type AdminTenant = { id: number; slug: string; name: string };
+export type AdminTenant = {
+  id: number;
+  slug: string;
+  name: string;
+  brandName?: string | null;
+  logoUrl?: string | null;
+  /** Mesmo contrato comercial pode cobrir vários abrigos. */
+  contractPortfolioId?: number | null;
+};
 export type AdminTenantsResponse = {
   data: AdminTenant[];
   total: number;

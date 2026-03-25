@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePublicDefaultLogoUrl } from "@/hooks/use-public-default-logo.hook";
 import { resolveTenantR2LogoUrl } from "@/helpers/tenant-r2-logo-url.helper";
 import { preloadBrandLogoImageUrl } from "@/helpers/tenant-brand-logo-prefetch.helper";
@@ -13,20 +13,10 @@ export type TenantBrandLogoInput = {
 } | null;
 
 export type UseTenantBrandLogoSrcOptions = {
-  /**
-   * Enquanto true (ex.: `useTenant().loading`), não resolve nem mostra o logo padrão da app —
-   * evita flash do default antes do tenant estar disponível.
-   */
   tenantConfigLoading?: boolean;
-  /** Máx. tempo a aguardar o bitmap antes de mostrar `<img>` mesmo assim (fallback rápido). */
   logoPreloadTimeoutMs?: number;
 };
 
-/**
- * Só marca `isLogoResolved` depois de resolver a URL e (tentar) pré-carregar a imagem,
- * com timeout — evita logo default a piscar e evita um segundo spinner só no slot do logo.
- * Enquanto pendente, o UI deve deixar o espaço vazio (já existe loading global onde fizer sentido).
- */
 export function useTenantBrandLogoSrc(
   tenant: TenantBrandLogoInput,
   options?: UseTenantBrandLogoSrcOptions,
@@ -40,20 +30,18 @@ export function useTenantBrandLogoSrc(
     undefined,
   );
 
+  const requestIdRef = useRef(0);
+
   useEffect(() => {
+    if (tenantConfigLoading) return;
+
+    const requestId = ++requestIdRef.current;
+
     let cancelled = false;
-    /** DOM timers return `number` (Node typings use `NodeJS.Timeout`). */
     let preloadTimeoutId: number | undefined;
 
-    if (tenantConfigLoading) {
-      setReadyDisplaySrc(undefined);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const isCancelled = () => cancelled;
-    setReadyDisplaySrc(undefined);
+    const isCancelled = () =>
+      cancelled || requestId !== requestIdRef.current;
 
     void (async () => {
       const resolved = await resolveTenantR2LogoUrl({
@@ -64,7 +52,8 @@ export function useTenantBrandLogoSrc(
         name: tenant?.name,
         isCancelled,
       });
-      if (cancelled) return;
+
+      if (isCancelled()) return;
 
       const finalSrc = resolved ?? publicDefaultLogo;
 
@@ -72,13 +61,17 @@ export function useTenantBrandLogoSrc(
         preloadTimeoutId = window.setTimeout(resolve, logoPreloadTimeoutMs);
       });
 
-      await Promise.race([preloadBrandLogoImageUrl(finalSrc), timeoutPromise]);
+      await Promise.race([
+        preloadBrandLogoImageUrl(finalSrc),
+        timeoutPromise,
+      ]);
 
       if (preloadTimeoutId !== undefined) {
         clearTimeout(preloadTimeoutId);
-        preloadTimeoutId = undefined;
       }
-      if (cancelled) return;
+
+      if (isCancelled()) return;
+
       setReadyDisplaySrc(finalSrc);
     })();
 
@@ -96,7 +89,9 @@ export function useTenantBrandLogoSrc(
     tenant?.name,
   ]);
 
-  const isLogoResolved = readyDisplaySrc !== undefined;
+  const isLogoResolved =
+    !tenantConfigLoading && readyDisplaySrc !== undefined;
+
   const displaySrc = isLogoResolved ? readyDisplaySrc! : null;
 
   return { displaySrc, isLogoResolved };

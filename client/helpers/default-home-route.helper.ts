@@ -1,9 +1,3 @@
-import type { LoggedUser } from "@/interfaces/interfaces";
-
-/**
- * Ordem de destino após login ou quando um módulo está desligado.
- * Admin só entra na fila se o utilizador for admin e o módulo admin estiver ativo.
- */
 const HOME_ROUTE_CANDIDATES: { module: string; path: string }[] = [
   { module: "dashboard", path: "/dashboard" },
   { module: "admin", path: "/admin" },
@@ -18,9 +12,13 @@ const HOME_ROUTE_CANDIDATES: { module: string; path: string }[] = [
   { module: "profile", path: "/user/profile" },
 ];
 
+type UserContext = {
+  role?: "user" | "admin";
+};
+
 export function getDefaultHomePath(
   isEnabled: (key: string) => boolean,
-  user: LoggedUser | null,
+  user: UserContext | null,
 ): string | null {
   for (const { module, path } of HOME_ROUTE_CANDIDATES) {
     if (module === "admin") {

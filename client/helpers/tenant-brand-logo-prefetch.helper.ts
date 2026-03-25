@@ -29,7 +29,9 @@ export async function prefetchTenantBrandLogoBeforeInicioNavigation(): Promise<v
   try {
     const [cfgRes, appCfg] = await Promise.all([
       getTenantConfig(),
-      fetchPublicAppConfig().catch(() => null as { defaultLogoUrl?: string | null }),
+      fetchPublicAppConfig().catch(
+        () => null as { defaultLogoUrl?: string | null },
+      ),
     ]);
     const tenant = cfgRes.tenant ?? null;
     const serverDefault = appCfg?.defaultLogoUrl?.trim() || null;

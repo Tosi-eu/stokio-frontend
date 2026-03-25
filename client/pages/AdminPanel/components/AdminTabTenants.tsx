@@ -191,6 +191,9 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
                 <TableHead>ID</TableHead>
                 <TableHead>Slug</TableHead>
                 <TableHead>Nome</TableHead>
+                <TableHead className="text-muted-foreground">
+                  Contrato (portfolio)
+                </TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -198,7 +201,7 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
               {rows.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={5}
                     className="text-center text-muted-foreground"
                   >
                     {loading ? "Carregando..." : "Sem tenants"}
@@ -210,6 +213,9 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
                     <TableCell>{t.id}</TableCell>
                     <TableCell>{t.slug}</TableCell>
                     <TableCell>{t.name}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs font-mono">
+                      {t.contractPortfolioId ?? "—"}
+                    </TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button
                         variant="outline"

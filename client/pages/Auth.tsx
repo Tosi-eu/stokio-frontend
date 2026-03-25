@@ -4,13 +4,13 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast.hook";
 import { useAuth } from "@/hooks/use-auth.hook";
 import {
+  fetchLoginTenantsForEmail,
   fetchPublicTenantBrandingIfExists,
   listPublicTenants,
   register,
-  resolveTenantByLogin,
+  type LoginTenantSummary,
   type PublicTenantBranding,
   type PublicTenantListItem,
-  type ResolveTenantAmbiguousTenant,
 } from "@/api/requests";
 import {
   APP_PUBLIC_NAME,
@@ -48,10 +48,12 @@ export default function Auth() {
   /** Após autenticação OK: prefetch do logo/config até o cache estar pronto; só então `navigate("/loading")`. */
   const [preparingInicioNavigation, setPreparingInicioNavigation] =
     useState(false);
-  const [forceTenantSelect, setForceTenantSelect] = useState(false);
-  const [ambiguousTenants, setAmbiguousTenants] = useState<
-    ResolveTenantAmbiguousTenant[]
-  >([]);
+  /** Abrigos onde o e-mail tem conta (modo login); null = ainda não pesquisado ou e-mail inválido. */
+  const [loginLinkedTenants, setLoginLinkedTenants] = useState<
+    LoginTenantSummary[] | null
+  >(null);
+  const [loginLinkedTenantsLoading, setLoginLinkedTenantsLoading] =
+    useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [contractCode, setContractCode] = useState("");
@@ -70,8 +72,8 @@ export default function Auth() {
     setRememberMe(false);
     setLoading(false);
     setPreparingInicioNavigation(false);
-    setForceTenantSelect(false);
-    setAmbiguousTenants([]);
+    setLoginLinkedTenants(null);
+    setLoginLinkedTenantsLoading(false);
     if (isLogin) {
       setFirstName("");
       setLastName("");
@@ -131,6 +133,55 @@ export default function Auth() {
       cancelled = true;
     };
   }, [tenantSlug]);
+
+  useEffect(() => {
+    if (!isLogin) {
+      setLoginLinkedTenants(null);
+      setLoginLinkedTenantsLoading(false);
+      return;
+    }
+
+    const sanitized = sanitizeInput(login).trim();
+    const emailValidation = validateEmail(sanitized);
+    if (!emailValidation.valid) {
+      setLoginLinkedTenants(null);
+      setLoginLinkedTenantsLoading(false);
+      setTenantSlug("");
+      return;
+    }
+
+    let cancelled = false;
+    setLoginLinkedTenants(null);
+    setLoginLinkedTenantsLoading(true);
+    const debounceId = window.setTimeout(async () => {
+      try {
+        const tenants = await fetchLoginTenantsForEmail(sanitized);
+        if (cancelled) return;
+        setLoginLinkedTenants(tenants);
+        if (tenants.length === 1) {
+          setTenantSlug(tenants[0]!.slug);
+        } else if (tenants.length > 1) {
+          setTenantSlug((prev) =>
+            tenants.some((x) => x.slug === prev) ? prev : "",
+          );
+        } else {
+          setTenantSlug("");
+        }
+      } catch {
+        if (!cancelled) {
+          setLoginLinkedTenants([]);
+          setTenantSlug("");
+        }
+      } finally {
+        if (!cancelled) setLoginLinkedTenantsLoading(false);
+      }
+    }, 420);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(debounceId);
+    };
+  }, [isLogin, login]);
 
   useEffect(() => {
     const origin = getR2PublicOriginForPreconnect();
@@ -294,10 +345,42 @@ export default function Auth() {
         return;
       }
 
-      let slug = "";
-      if (forceTenantSelect) {
+      if (loginLinkedTenantsLoading) {
+        toast({
+          title: "Aguarde um momento",
+          description:
+            "Estamos a carregar os abrigos associados a este e-mail.",
+          variant: "error",
+          duration: 3500,
+        });
+        setLoading(false);
+        return;
+      }
+
+      let tenants = loginLinkedTenants;
+      if (tenants === null) {
+        tenants = await fetchLoginTenantsForEmail(sanitizedLogin);
+        setLoginLinkedTenants(tenants);
+      }
+
+      if (!tenants.length) {
+        toast({
+          title: "E-mail não encontrado",
+          description:
+            "Não encontramos este e-mail em nenhum abrigo. Verifique o endereço ou cadastre-se.",
+          variant: "error",
+          duration: 4000,
+        });
+        setLoading(false);
+        return;
+      }
+
+      let slug: string;
+      if (tenants.length === 1) {
+        slug = tenants[0]!.slug;
+      } else {
         slug = tenantSlug.trim();
-        if (!slug) {
+        if (!slug || !tenants.some((t) => t.slug === slug)) {
           toast({
             title: "Selecione o abrigo",
             description:
@@ -308,32 +391,6 @@ export default function Auth() {
           setLoading(false);
           return;
         }
-      } else {
-        const resolved = await resolveTenantByLogin(sanitizedLogin);
-        if (resolved.ok === false) {
-          if (resolved.reason === "ambiguous") {
-            setForceTenantSelect(true);
-            setAmbiguousTenants(resolved.tenants);
-            toast({
-              title: "Vários abrigos para este e-mail",
-              description:
-                "Escolha o abrigo na lista e clique em Entrar novamente.",
-              duration: 5000,
-            });
-            setLoading(false);
-            return;
-          }
-          toast({
-            title: "E-mail não encontrado",
-            description:
-              "Não encontramos este e-mail em nenhum abrigo. Verifique o endereço ou cadastre-se.",
-            variant: "error",
-            duration: 4000,
-          });
-          setLoading(false);
-          return;
-        }
-        slug = resolved.slug;
       }
 
       await authLogin(sanitizedLogin, sanitizedPassword, slug);
@@ -441,6 +498,8 @@ export default function Auth() {
   };
 
   const slugTrim = tenantSlug.trim();
+  const loginEmailTrim = sanitizeInput(login).trim();
+  const loginEmailValid = validateEmail(loginEmailTrim).valid;
 
   const headerTitle = (() => {
     if (tenantBranding && slugTrim && !tenantBrandingLoading) {
@@ -523,33 +582,11 @@ export default function Auth() {
                     )}
                   </div>
                 )}
-                {isLogin && forceTenantSelect && (
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Abrigo
-                    </label>
-                    <select
-                      value={tenantSlug}
-                      onChange={(e) => setTenantSlug(e.target.value)}
-                      required
-                      className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary bg-background transition-shadow"
-                    >
-                      <option value="">Selecione o abrigo</option>
-                      {ambiguousTenants.map((t) => (
-                        <option key={t.slug} value={t.slug}>
-                          {t.label} ({t.slug})
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Este e-mail está cadastrado em mais de um abrigo.
-                    </p>
-                  </div>
-                )}
-                {isLogin && !forceTenantSelect && (
+                {isLogin && (
                   <p className="text-sm text-muted-foreground -mt-1">
-                    Informe o e-mail e a senha. O abrigo é identificado
-                    automaticamente pelo seu e-mail.
+                    Depois de um e-mail válido, mostramos em que abrigos ele
+                    está registado. Se houver mais do que um, escolha onde quer
+                    entrar.
                   </p>
                 )}
                 {!isLogin && (
@@ -626,6 +663,55 @@ export default function Auth() {
                     required
                   />
                 </div>
+
+                {isLogin && loginEmailValid ? (
+                  <div className="space-y-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-3">
+                    {loginLinkedTenantsLoading ? (
+                      <p className="text-xs text-muted-foreground flex items-center gap-2">
+                        <span
+                          className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border-2 border-primary/40 border-t-primary animate-spin"
+                          aria-hidden
+                        />
+                        A procurar abrigos para este e-mail…
+                      </p>
+                    ) : loginLinkedTenants ===
+                      null ? null : loginLinkedTenants.length === 0 ? (
+                      <p className="text-xs text-amber-800 dark:text-amber-200/90">
+                        Nenhum abrigo encontrado para este e-mail. Verifique o
+                        endereço ou registe-se num abrigo.
+                      </p>
+                    ) : loginLinkedTenants.length === 1 ? (
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          Abrigo:
+                        </span>{" "}
+                        {loginLinkedTenants[0]!.label}{" "}
+                        <span className="text-muted-foreground/80">
+                          ({loginLinkedTenants[0]!.slug})
+                        </span>
+                      </p>
+                    ) : (
+                      <div>
+                        <label className="block text-xs font-medium text-foreground mb-1.5">
+                          Onde quer entrar?
+                        </label>
+                        <select
+                          value={tenantSlug}
+                          onChange={(e) => setTenantSlug(e.target.value)}
+                          required
+                          className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary bg-background transition-shadow"
+                        >
+                          <option value="">Selecione o abrigo</option>
+                          {loginLinkedTenants.map((t) => (
+                            <option key={t.slug} value={t.slug}>
+                              {t.label} ({t.slug})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
@@ -708,7 +794,9 @@ export default function Auth() {
                   }
                   className={cn(
                     "flex h-11 w-full items-center justify-center rounded-xl text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/90 shadow-brand-glow transition-all duration-200 disabled:cursor-wait",
-                    loading ? "opacity-100" : "disabled:opacity-50 disabled:cursor-not-allowed",
+                    loading
+                      ? "opacity-100"
+                      : "disabled:opacity-50 disabled:cursor-not-allowed",
                   )}
                   aria-busy={loading}
                 >

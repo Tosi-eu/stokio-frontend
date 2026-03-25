@@ -120,17 +120,12 @@ const AppContent = () => {
       />
       <Routes>
         <Route path="/" element={<RootRedirect />} />
-        <Route
-          path="/inicio"
-          element={<Navigate to="/loading" replace />}
-        />
+        <Route path="/inicio" element={<Navigate to="/loading" replace />} />
         <Route
           path="/loading"
           element={
             <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="A carregar…" />}
-              >
+              <Suspense fallback={<LoadingFallback title="A carregar…" />}>
                 <PostLoginRedirect />
               </Suspense>
             </PrivateRoute>

@@ -83,9 +83,7 @@ export function AdminTabConfig({
   const [savingBranding, setSavingBranding] = useState(false);
 
   useEffect(() => {
-    setBrandVisualName(
-      String(tenant?.brandName ?? tenant?.name ?? "").trim(),
-    );
+    setBrandVisualName(String(tenant?.brandName ?? tenant?.name ?? "").trim());
     setLogoPreviewUrl(tenant?.logoUrl ?? null);
   }, [tenant?.brandName, tenant?.name, tenant?.logoUrl]);
   const [backupStatusLoading, setBackupStatusLoading] = useState(false);
@@ -221,10 +219,7 @@ export function AdminTabConfig({
         String(tenant?.brandName ?? "").trim() ||
         String(tenant?.name ?? "").trim() ||
         "logo";
-      const { logoUrl } = await uploadTenantLogoWithProgress(
-        file,
-        bnForUpload,
-      );
+      const { logoUrl } = await uploadTenantLogoWithProgress(file, bnForUpload);
       await updateTenantBranding({
         brandName: brandVisualName.trim() || null,
         logoUrl,

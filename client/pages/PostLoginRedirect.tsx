@@ -7,27 +7,35 @@ import { getDefaultHomePath } from "@/helpers/default-home-route.helper";
 import { APP_PUBLIC_NAME } from "@/constants/app-branding";
 import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
 
-/** Tempo mínimo neste ecrã para a sensação de “inicialização” (independente da API). */
 const POST_LOGIN_MIN_VISIBLE_MS = 3000;
 
-/**
- * Aguarda a configuração do tenant e envia o utilizador ao primeiro módulo permitido.
- */
 export default function PostLoginRedirect() {
   const { loading, tenant, effectiveEnabled } = useTenant();
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  const userId = user?.id;
+  const userRole = user?.role;
+
   const doneRef = useRef(false);
-  const screenStartRef = useRef(Date.now());
+  const screenStartRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (loading || doneRef.current) return;
+    if (screenStartRef.current === null) {
+      screenStartRef.current = Date.now();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (loading || doneRef.current || screenStartRef.current === null) return;
 
     const path =
-      getDefaultHomePath((key) => effectiveEnabled.includes(key), user) ??
-      "/user/profile";
-    const started = screenStartRef.current;
-    const elapsed = Date.now() - started;
+    getDefaultHomePath(
+      (key) => effectiveEnabled.includes(key),
+      { role: userRole }
+    ) ?? "/user/profile";
+
+    const elapsed = Date.now() - screenStartRef.current;
     const remaining = Math.max(0, POST_LOGIN_MIN_VISIBLE_MS - elapsed);
 
     const timer = window.setTimeout(() => {
@@ -37,17 +45,16 @@ export default function PostLoginRedirect() {
     }, remaining);
 
     return () => window.clearTimeout(timer);
-  }, [loading, user?.id, user?.role, navigate, effectiveEnabled]);
+  }, [loading, userId, userRole, navigate, effectiveEnabled]);
 
   const title = tenant?.brandName || tenant?.name || APP_PUBLIC_NAME;
+
   const { displaySrc: logoSrc, isLogoResolved } = useTenantBrandLogoSrc(
     tenant,
     { tenantConfigLoading: loading },
   );
+
   const [imageFailed, setImageFailed] = useState(false);
-  useEffect(() => {
-    setImageFailed(false);
-  }, [logoSrc]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-brand-mesh px-6 py-10 [perspective:1800px]">
@@ -60,15 +67,13 @@ export default function PostLoginRedirect() {
       >
         <div className="mb-6 flex w-full flex-col items-center">
           <span className="sr-only">Logo do abrigo</span>
+
           <div
             className="flex min-h-[8.5rem] w-full max-w-[300px] items-center justify-center rounded-2xl border border-border/70 bg-muted/35 p-5 shadow-inner ring-1 ring-black/[0.03] dark:ring-white/[0.06]"
             aria-busy={!isLogoResolved}
           >
             {!isLogoResolved ? (
-              <div
-                className="min-h-[7rem] w-full max-w-[280px]"
-                aria-hidden
-              />
+              <div className="min-h-[7rem] w-full max-w-[280px]" aria-hidden />
             ) : logoSrc && !imageFailed ? (
               <img
                 key={logoSrc}
@@ -89,13 +94,16 @@ export default function PostLoginRedirect() {
             )}
           </div>
         </div>
+
         <h1 className="font-display mb-6 text-center text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
           {title}
         </h1>
+
         <div
           className="h-9 w-9 shrink-0 rounded-full border-2 border-primary border-t-transparent animate-spin"
           aria-hidden
         />
+
         <p className="mt-4 text-center text-sm text-muted-foreground">
           A preparar o seu espaço…
         </p>
