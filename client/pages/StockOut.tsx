@@ -30,10 +30,12 @@ import {
 } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTenant } from "@/hooks/use-tenant.hook";
 
 const UI_PAGE_SIZE = 6;
 
 export default function StockOut() {
+  const { uiDisplay } = useTenant();
   const navigate = useNavigate();
   const location = useLocation();
   const { data: passedData } = location.state || {};
@@ -150,7 +152,8 @@ export default function StockOut() {
   );
 
   const caselaOptions = useMemo(() => {
-    if (filters.setor === "enfermagem" && residents.length > 0) {
+    const useNames = uiDisplay.casela === "nome" && residents.length > 0;
+    if (useNames) {
       return residents
         .filter((r) => caselaIdsFromItems.includes(r.casela))
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
@@ -159,8 +162,7 @@ export default function StockOut() {
     return caselaIdsFromItems
       .sort((a, b) => a - b)
       .map((id) => ({ label: `Casela ${id}`, value: String(id) }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- caselaIdsFromItems already from items
-  }, [items, residents, filters.setor, caselaIdsFromItems]);
+  }, [items, residents, caselaIdsFromItems, uiDisplay.casela]);
 
   const setorOptions = useMemo(
     () =>
@@ -328,11 +330,8 @@ export default function StockOut() {
               <PopoverTrigger asChild>
                 <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white">
                   {filters.casela
-                    ? filters.setor === "enfermagem"
-                      ? (residents.find(
-                          (r) => r.casela === Number(filters.casela),
-                        )?.name ?? `Casela ${filters.casela}`)
-                      : `Casela ${filters.casela}`
+                    ? (caselaOptions.find((o) => o.value === filters.casela)
+                        ?.label ?? `Casela ${filters.casela}`)
                     : "Selecione"}
                   <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
                 </button>

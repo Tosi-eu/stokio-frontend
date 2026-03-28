@@ -4,6 +4,8 @@ import { SkeletonTable } from "@/components/SkeletonTable";
 import { toast } from "@/hooks/use-toast.hook";
 import { getTransferReport } from "@/api/requests";
 import { Card } from "@/components/ui/card";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
 
 const columns = [
   { key: "medicamento", label: "Medicamento", editable: false },
@@ -32,6 +34,7 @@ interface TransferData {
 }
 
 export default function TransferReport() {
+  const { uiDisplay } = useTenant();
   const [transfers, setTransfers] = useState<TransferData[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -72,7 +75,10 @@ export default function TransferReport() {
     operador: transfer.usuario,
     data: transfer.data,
     armario: transfer.armario ? String(transfer.armario) : "-",
-    casela: transfer.casela ? String(transfer.casela) : "-",
+    casela: formatCaselaLabel(uiDisplay.casela, {
+      caselaId: transfer.casela,
+      residentName: transfer.residente,
+    }),
     residente: transfer.residente || "-",
   }));
 

@@ -95,6 +95,8 @@ export function formatStockItems(raw: unknown[]): StockItem[] {
 export interface BuildFilterOptionsParams {
   residents?: Array<{ casela: number; name: string }>;
   setor?: string;
+  /** Preferir nome do residente nos rótulos quando houver lista carregada. */
+  displayCasela?: "numero" | "nome";
 }
 
 export function buildFilterOptions(
@@ -118,9 +120,9 @@ export function buildFilterOptions(
     .sort((a, b) => a - b)
     .map((id) => ({ value: String(id), label: `Armário ${id}` }));
 
-  const isEnfermagem =
-    options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
-  const caselaIds: StockFilterOption[] = isEnfermagem
+  const useResidentCaselaLabels =
+    options?.displayCasela === "nome" && (options?.residents?.length ?? 0) > 0;
+  const caselaIds: StockFilterOption[] = useResidentCaselaLabels
     ? [...options!.residents!]
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
         .map((r) => ({ value: String(r.casela), label: r.name }))
@@ -173,9 +175,9 @@ export function buildFilterOptionsFromApi(
     .sort((a, b) => a - b)
     .map((id) => ({ value: String(id), label: `Armário ${id}` }));
 
-  const isEnfermagem =
-    options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
-  const caselas: StockFilterOption[] = isEnfermagem
+  const useResidentCaselaLabels =
+    options?.displayCasela === "nome" && (options?.residents?.length ?? 0) > 0;
+  const caselas: StockFilterOption[] = useResidentCaselaLabels
     ? [...options!.residents!]
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
         .map((r) => ({ value: String(r.casela), label: r.name }))

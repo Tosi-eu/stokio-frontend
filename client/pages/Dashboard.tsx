@@ -28,8 +28,11 @@ import StockProportionCard from "@/components/StockProportionCard";
 import { prepareStockDistributionData } from "@/helpers/estoque.helper";
 import { SectorType } from "@/utils/enums";
 import { useMaxSectionRows } from "@/hooks/use-max-selection-rows";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
 
 export default function Dashboard() {
+  const { uiDisplay } = useTenant();
   const navigate = useNavigate();
 
   const [belowMin, setBelowMin] = useState<number>(0);
@@ -96,7 +99,10 @@ export default function Dashboard() {
           name: m.MedicineModel?.nome || m.InputModel?.nome || "-",
           type: m.tipo,
           operator: m.LoginModel?.login || "-",
-          casela: m.ResidentModel?.num_casela ?? "-",
+          casela: formatCaselaLabel(uiDisplay.casela, {
+            caselaId: m.ResidentModel?.num_casela,
+            residentName: m.ResidentModel?.nome,
+          }),
           quantity: m.quantidade,
           patient: m.ResidentModel ? m.ResidentModel.nome : "-",
           cabinet: m.CabinetModel?.num_armario ?? "-",
@@ -171,7 +177,7 @@ export default function Dashboard() {
       setLoadingNonMovement(false);
       setLoadingRecentMovements(false);
     }
-  }, [summary]);
+  }, [summary, uiDisplay.casela]);
 
   const stats = useMemo(
     () => [

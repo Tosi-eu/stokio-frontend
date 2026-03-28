@@ -7,11 +7,17 @@ import { toast } from "@/hooks/use-toast.hook";
 import { getInputMovements, getMedicineMovements } from "@/api/requests";
 import { Card } from "@/components/ui/card";
 import type { RawMovement } from "@/interfaces/interfaces";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import {
+  formatCaselaLabel,
+  formatGavetaLabel,
+} from "@/helpers/storage-location-display.helper";
 
 const TABLE_LIMIT = 10;
 const REQUEST_LIMIT = 5;
 
 export default function InputMovements() {
+  const { uiDisplay } = useTenant();
   const [entriesInputPage, setEntriesInputPage] = useState(1);
   const [entriesMedicinePage, setEntriesMedicinePage] = useState(1);
   const [entriesHasNext, setEntriesHasNext] = useState(false);
@@ -33,7 +39,7 @@ export default function InputMovements() {
     { key: "operator", label: "Usuário", editable: false },
     { key: "movementDate", label: "Data", editable: false },
     { key: "cabinet", label: "Armário", editable: false },
-    { key: "drawer", label: "Gaveta", editable: false },
+    { key: "drawerDisplay", label: "Gaveta", editable: false },
     { key: "resident", label: "Casela", editable: false },
     { key: "sector", label: "Setor", editable: false },
     { key: "lot", label: "Lote", editable: false },
@@ -41,6 +47,7 @@ export default function InputMovements() {
 
   function normalizeMovement(item: RawMovement) {
     const isMedicine = item.medicamento_id != null;
+    const gavetaCat = item.DrawerModel?.DrawerCategoryModel?.nome;
 
     return {
       id: item.id,
@@ -52,8 +59,14 @@ export default function InputMovements() {
       operator: item.LoginModel?.first_name,
       movementDate: item.data,
       cabinet: item.armario_id ?? "-",
-      drawer: item.gaveta_id ?? "-",
-      resident: item.ResidentModel?.num_casela ?? "-",
+      drawerDisplay: formatGavetaLabel(uiDisplay.gaveta, {
+        gavetaId: item.gaveta_id,
+        categoriaNome: gavetaCat,
+      }),
+      resident: formatCaselaLabel(uiDisplay.casela, {
+        caselaId: item.ResidentModel?.num_casela,
+        residentName: item.ResidentModel?.nome,
+      }),
       type: item.tipo,
       sector: item.setor ?? "-",
       lot: item.lote ?? "-",

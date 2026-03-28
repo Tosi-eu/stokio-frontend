@@ -32,8 +32,10 @@ import { ptBR } from "date-fns/locale";
 import "react-datepicker/dist/react-datepicker.css";
 import { parseDateFromString } from "@/utils/utils";
 import { SkeletonForm } from "@/components/SkeletonForm";
+import { useTenant } from "@/hooks/use-tenant.hook";
 
 export default function EditStock() {
+  const { uiDisplay } = useTenant();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -364,7 +366,10 @@ export default function EditStock() {
                               key={drawer.numero}
                               value={drawer.numero.toString()}
                             >
-                              Gaveta {drawer.numero}
+                              {uiDisplay.gaveta === "categoria" &&
+                              drawer.categoria
+                                ? drawer.categoria
+                                : `Gaveta ${drawer.numero}`}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -410,7 +415,7 @@ export default function EditStock() {
                               key={resident.casela}
                               value={resident.casela.toString()}
                             >
-                              {stockItem?.sector === "enfermagem"
+                              {uiDisplay.casela === "nome"
                                 ? resident.name
                                 : resident.casela}
                             </SelectItem>

@@ -17,6 +17,7 @@ import {
   suspendInputFromStock,
   transferStockSector,
   getResidents,
+  getDrawers,
 } from "@/api/requests";
 import { ItemStockType, SectorType } from "@/utils/enums";
 import { StockActionType, StockItemType } from "@/interfaces/types";
@@ -47,6 +48,11 @@ import {
 } from "@/components/ui/command";
 import { ChevronsUpDown, X } from "lucide-react";
 import { TableFilter } from "@/components/TableFilter";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import {
+  formatCaselaLabel,
+  formatGavetaLabel,
+} from "@/helpers/storage-location-display.helper";
 
 const FILTER_LABELS: Record<string, string> = {
   belowMin: "Abaixo do estoque mínimo",
@@ -56,6 +62,7 @@ const FILTER_LABELS: Record<string, string> = {
 };
 
 export default function Stock() {
+  const { uiDisplay } = useTenant();
   const navigate = useNavigate();
   const location = useLocation();
   const params = new URLSearchParams(location.search);
@@ -129,6 +136,9 @@ export default function Stock() {
   const [residents, setResidents] = useState<
     Array<{ casela: number; name: string }>
   >([]);
+  const [drawerCategoryByNum, setDrawerCategoryByNum] = useState<
+    Map<number, string>
+  >(() => new Map());
 
   async function loadStock(pageToLoad: number, currentFilters = filters) {
     setLoading(true);
@@ -201,10 +211,34 @@ export default function Stock() {
     }
   }
 
+  async function loadDrawerLabels() {
+    try {
+      const allDrawers = await fetchAllPaginated(
+        (page, limit) => getDrawers(page, limit),
+        100,
+      );
+      const m = new Map<number, string>();
+      for (const d of allDrawers as Array<{
+        numero: number;
+        categoria?: string;
+      }>) {
+        if (d.categoria) m.set(d.numero, d.categoria);
+      }
+      setDrawerCategoryByNum(m);
+    } catch {
+      setDrawerCategoryByNum(new Map());
+    }
+  }
+
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([loadStock(1), loadFilterOptions(), loadResidents()]);
+      await Promise.all([
+        loadStock(1),
+        loadFilterOptions(),
+        loadResidents(),
+        loadDrawerLabels(),
+      ]);
     }
 
     init();
@@ -263,20 +297,40 @@ export default function Stock() {
       buildFilterOptionsFromApi(apiFilterOptions, {
         residents,
         setor: filters.setor,
+        displayCasela: uiDisplay.casela,
       }),
-    [apiFilterOptions, residents, filters.setor],
+    [apiFilterOptions, residents, filters.setor, uiDisplay.casela],
   );
 
   const displayItems = useMemo(() => {
     return items.map((item) => {
-      const caselaDisplay =
-        item.sector === "enfermagem" && item.casela != null
-          ? (residents.find((r) => r.casela === item.casela)?.name ??
-            String(item.casela))
-          : (item.casela ?? "-");
-      return { ...item, caselaDisplay };
+      const caselaId = item.casela;
+      const residentName =
+        item.patient && item.patient !== "-"
+          ? item.patient
+          : caselaId != null
+            ? residents.find((r) => r.casela === caselaId)?.name
+            : undefined;
+      const caselaDisplay = formatCaselaLabel(uiDisplay.casela, {
+        caselaId,
+        residentName,
+      });
+      const numDrawer =
+        typeof item.drawer === "number"
+          ? item.drawer
+          : item.drawer === "-" || item.drawer == null
+            ? null
+            : Number(item.drawer);
+      const drawerDisplay = formatGavetaLabel(uiDisplay.gaveta, {
+        gavetaId: numDrawer,
+        categoriaNome:
+          numDrawer != null && !Number.isNaN(numDrawer)
+            ? drawerCategoryByNum.get(numDrawer)
+            : undefined,
+      });
+      return { ...item, caselaDisplay, drawerDisplay };
     });
-  }, [items, residents]);
+  }, [items, residents, uiDisplay, drawerCategoryByNum]);
 
   const filteredCabinets = useMemo(() => {
     if (!armarioSearch) return filterOptions.cabinets;
@@ -304,7 +358,7 @@ export default function Stock() {
     { key: "expiry", label: "Validade", editable: true },
     { key: "quantity", label: "Quantidade", editable: true },
     { key: "cabinet", label: "Armário", editable: false },
-    { key: "drawer", label: "Gaveta", editable: false },
+    { key: "drawerDisplay", label: "Gaveta", editable: false },
     { key: "caselaDisplay", label: "Casela", editable: false },
     { key: "daysToReplacement", label: "Dias para Repor", editable: false },
     { key: "origin", label: "Origem", editable: false },
@@ -642,11 +696,15 @@ export default function Stock() {
                     <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white truncate">
                       <span className="truncate">
                         {filters.casela
-                          ? filters.setor === "enfermagem"
-                            ? (residents.find(
+                          ? (filterOptions.caselas.find(
+                              (c) => c.value === filters.casela,
+                            )?.label ??
+                            formatCaselaLabel(uiDisplay.casela, {
+                              caselaId: Number(filters.casela),
+                              residentName: residents.find(
                                 (r) => r.casela === Number(filters.casela),
-                              )?.name ?? `Casela ${filters.casela}`)
-                            : `Casela ${filters.casela}`
+                              )?.name,
+                            }))
                           : "Selecione"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />

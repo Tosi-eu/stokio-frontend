@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTenant } from "@/hooks/use-tenant.hook";
 
 export const InputForm = memo(function InputForm({
   inputs,
@@ -39,6 +40,7 @@ export const InputForm = memo(function InputForm({
   onSubmit,
   isLoading = false,
 }: InputFormProps) {
+  const { uiDisplay } = useTenant();
   const navigate = useNavigate();
   const [inputOpen, setInputOpen] = useState(false);
   const [caselaOpen, setCaselaOpen] = useState(false);
@@ -349,10 +351,10 @@ export const InputForm = memo(function InputForm({
                       )}
                     >
                       {field.value != null && selectedCasela
-                        ? sector === SectorType.ENFERMAGEM
+                        ? uiDisplay.casela === "nome"
                           ? selectedCasela.name
                           : String(selectedCasela.casela)
-                        : sector === SectorType.ENFERMAGEM
+                        : uiDisplay.casela === "nome"
                           ? "Buscar por nome do residente..."
                           : "Selecione a casela"}
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
@@ -375,16 +377,16 @@ export const InputForm = memo(function InputForm({
                     >
                       <CommandInput
                         placeholder={
-                          sector === SectorType.ENFERMAGEM
-                            ? "Buscar por nome do residente..."
-                            : "Buscar por número..."
+                          uiDisplay.casela === "nome"
+                            ? "Buscar por nome ou número..."
+                            : "Buscar por número ou nome..."
                         }
                       />
                       <CommandEmpty>Nenhuma casela encontrada.</CommandEmpty>
                       <CommandGroup>
                         {caselasForSelect.map((c) => {
-                          const label =
-                            sector === SectorType.ENFERMAGEM
+                          const primary =
+                            uiDisplay.casela === "nome"
                               ? c.name
                               : String(c.casela);
                           const searchValue = `${c.casela} ${c.name}`;
@@ -405,12 +407,12 @@ export const InputForm = memo(function InputForm({
                                     : "opacity-0",
                                 )}
                               />
-                              {label}
-                              {sector === SectorType.ENFERMAGEM && (
-                                <span className="ml-2 text-slate-500 text-xs">
-                                  (Casela {c.casela})
-                                </span>
-                              )}
+                              {primary}
+                              <span className="ml-2 text-slate-500 text-xs">
+                                {uiDisplay.casela === "nome"
+                                  ? `(Casela ${c.casela})`
+                                  : c.name}
+                              </span>
                             </CommandItem>
                           );
                         })}

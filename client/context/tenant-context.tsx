@@ -8,6 +8,11 @@ import {
 } from "react";
 import { getTenantConfig, type TenantConfigResponse } from "@/api/requests";
 import { useAuth } from "@/hooks/use-auth.hook";
+import {
+  DEFAULT_UI_DISPLAY,
+  normalizeUiDisplay,
+  type TenantUiDisplay,
+} from "@/helpers/storage-location-display.helper";
 
 export type TenantModules = {
   enabled: string[];
@@ -19,6 +24,7 @@ export type TenantContextType = {
   modules: TenantModules | null;
   modulesConfigured: boolean;
   onboardingComplete: boolean;
+  uiDisplay: TenantUiDisplay;
   loading: boolean;
   refetch: () => Promise<void>;
   isEnabled: (key: string) => boolean;
@@ -38,6 +44,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const [modulesPreview, setModulesPreview] = useState<string[] | null>(null);
   const [modulesConfigured, setModulesConfigured] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
+  const [uiDisplay, setUiDisplay] = useState<TenantUiDisplay>(DEFAULT_UI_DISPLAY);
   const [loading, setLoading] = useState(() => Boolean(user));
 
   const refetch = useCallback(async () => {
@@ -48,6 +55,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       setModulesPreview(null);
       setModulesConfigured(false);
       setOnboardingComplete(false);
+      setUiDisplay(DEFAULT_UI_DISPLAY);
       setLoading(false);
       return;
     }
@@ -60,6 +68,11 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       setModules(res.modules ?? null);
       setModulesConfigured(Boolean(res.modulesConfigured));
       setOnboardingComplete(Boolean(res.onboardingComplete));
+      setUiDisplay(
+        normalizeUiDisplay(
+          (res as { uiDisplay?: Partial<TenantUiDisplay> }).uiDisplay,
+        ),
+      );
     } catch {
       setTenantId(null);
       setTenant(null);
@@ -67,6 +80,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       setModulesPreview(null);
       setModulesConfigured(false);
       setOnboardingComplete(false);
+      setUiDisplay(DEFAULT_UI_DISPLAY);
     } finally {
       setLoading(false);
     }
@@ -94,6 +108,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         modules,
         modulesConfigured,
         onboardingComplete,
+        uiDisplay,
         loading,
         refetch,
         isEnabled,

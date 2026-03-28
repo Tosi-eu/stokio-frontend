@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CONFIG_KEYS } from "../hooks/useAdminConfig";
+import { CONFIG_KEYS, CONFIG_SELECT_KEYS } from "../hooks/useAdminConfig";
 import type { AdminHealthResponse } from "@/api/requests";
 import {
   getAdminBackupStatus,
@@ -19,6 +19,13 @@ import { useTenant } from "@/hooks/use-tenant.hook";
 import { LayoutGrid, Loader2, Upload } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const MODULE_OPTIONS: Array<{ key: string; label: string }> = [
   { key: "dashboard", label: "Dashboard" },
@@ -431,25 +438,54 @@ export function AdminTabConfig({
             <p className="text-muted-foreground">Carregando...</p>
           ) : (
             <>
-              {Object.entries(CONFIG_KEYS).map(([key, label]) => (
-                <div key={key} className="grid gap-2 max-w-sm">
-                  <Label htmlFor={key}>{label}</Label>
-                  <Input
-                    id={key}
-                    type={
-                      key === "expiring_days" || key === "estoque_minimo_padrao"
-                        ? "number"
-                        : "text"
-                    }
-                    min={key === "expiring_days" ? 1 : undefined}
-                    max={key === "expiring_days" ? 365 : undefined}
-                    value={form[key] ?? ""}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, [key]: e.target.value }))
-                    }
-                  />
-                </div>
-              ))}
+              {Object.entries(CONFIG_KEYS).map(([key, label]) => {
+                const selectOptions =
+                  CONFIG_SELECT_KEYS[key as keyof typeof CONFIG_SELECT_KEYS];
+                if (selectOptions) {
+                  return (
+                    <div key={key} className="grid gap-2 max-w-md">
+                      <Label htmlFor={key}>{label}</Label>
+                      <Select
+                        value={form[key] ?? selectOptions[0]?.value ?? ""}
+                        onValueChange={(v) =>
+                          setForm((p) => ({ ...p, [key]: v }))
+                        }
+                      >
+                        <SelectTrigger id={key} className="bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {selectOptions.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={key} className="grid gap-2 max-w-sm">
+                    <Label htmlFor={key}>{label}</Label>
+                    <Input
+                      id={key}
+                      type={
+                        key === "expiring_days" ||
+                        key === "estoque_minimo_padrao"
+                          ? "number"
+                          : "text"
+                      }
+                      min={key === "expiring_days" ? 1 : undefined}
+                      max={key === "expiring_days" ? 365 : undefined}
+                      value={form[key] ?? ""}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, [key]: e.target.value }))
+                      }
+                    />
+                  </div>
+                );
+              })}
               <Button onClick={onSave} disabled={saving}>
                 {saving ? "Salvando..." : "Salvar configurações"}
               </Button>

@@ -38,6 +38,8 @@ import { getReportTitle } from "@/helpers/relatorio.helper";
 import { parseYearMonthToDate } from "@/helpers/dates.helper";
 import { createStockPDF, MovementsParams } from "./StockReporter";
 import { toast } from "@/hooks/use-toast.hook";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
 
 type StatusType = "idle" | "loading" | "success" | "error";
 
@@ -58,6 +60,7 @@ enum MovementPeriod {
 }
 
 export default function ReportModal({ open, onClose }: ReportModalProps) {
+  const { uiDisplay } = useTenant();
   const [status, setStatus] = useState<StatusType>("idle");
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
   const [selectedResident, setSelectedResident] = useState<number | null>(null);
@@ -519,10 +522,13 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                                   role="combobox"
                                   className="w-full justify-between text-sm"
                                 >
-                                  {selectedResident
-                                    ? residents.find(
-                                        (r) => r.casela === selectedResident,
-                                      )?.name
+                                  {selectedResident != null
+                                    ? formatCaselaLabel(uiDisplay.casela, {
+                                        caselaId: selectedResident,
+                                        residentName: residents.find(
+                                          (r) => r.casela === selectedResident,
+                                        )?.name,
+                                      })
                                     : "Selecionar residente"}
                                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
@@ -556,7 +562,9 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                                           setResidentSearch("");
                                         }}
                                       >
-                                        Casela {r.casela?.toString()}
+                                        {uiDisplay.casela === "nome"
+                                          ? r.name
+                                          : `Casela ${r.casela}`}
                                       </CommandItem>
                                     ))}
                                   </CommandGroup>

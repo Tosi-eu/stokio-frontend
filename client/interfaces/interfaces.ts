@@ -371,6 +371,11 @@ export interface RawMovement {
   CabinetModel?: {
     num_armario?: number;
   };
+
+  DrawerModel?: {
+    num_gaveta?: number;
+    DrawerCategoryModel?: { nome?: string };
+  };
 }
 
 export interface Drawer {
