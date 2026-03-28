@@ -6,8 +6,9 @@ import { useAuth } from "@/hooks/use-auth.hook";
 import { getDefaultHomePath } from "@/helpers/default-home-route.helper";
 import { APP_PUBLIC_NAME } from "@/constants/app-branding";
 import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
+import { prefetchTenantBrandLogoBeforeInicioNavigation } from "@/helpers/tenant-brand-logo-prefetch.helper";
 
-const POST_LOGIN_MIN_VISIBLE_MS = 3000;
+const POST_LOGIN_MIN_VISIBLE_MS = 6000;
 
 export default function PostLoginRedirect() {
   const { loading, tenant, effectiveEnabled } = useTenant();
@@ -24,6 +25,10 @@ export default function PostLoginRedirect() {
     if (screenStartRef.current === null) {
       screenStartRef.current = Date.now();
     }
+  }, []);
+
+  useEffect(() => {
+    void prefetchTenantBrandLogoBeforeInicioNavigation();
   }, []);
 
   useEffect(() => {

@@ -10,6 +10,7 @@ export type TenantBrandLogoInput = {
   slug?: string | null;
   brandName?: string | null;
   name?: string | null;
+  brandingUpdatedAt?: string | null;
 } | null;
 
 export type UseTenantBrandLogoSrcOptions = {
@@ -49,6 +50,7 @@ export function useTenantBrandLogoSrc(
         slug: tenant?.slug,
         brandName: tenant?.brandName,
         name: tenant?.name,
+        brandingUpdatedAt: tenant?.brandingUpdatedAt,
         isCancelled,
       });
 
@@ -83,6 +85,7 @@ export function useTenantBrandLogoSrc(
     tenant?.slug,
     tenant?.brandName,
     tenant?.name,
+    tenant?.brandingUpdatedAt,
   ]);
 
   const isLogoResolved = !tenantConfigLoading && readyDisplaySrc !== undefined;

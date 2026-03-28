@@ -12,11 +12,7 @@ import {
   type PublicTenantBranding,
   type PublicTenantListItem,
 } from "@/api/requests";
-import {
-  APP_PUBLIC_NAME,
-  getR2PublicOriginForPreconnect,
-} from "@/constants/app-branding";
-import { usePublicDefaultLogoUrl } from "@/hooks/use-public-default-logo.hook";
+import { APP_PUBLIC_NAME } from "@/constants/app-branding";
 import {
   validateEmail,
   validatePassword,
@@ -41,14 +37,9 @@ export default function Auth() {
   const [tenantsLoading, setTenantsLoading] = useState(true);
   const [tenantBranding, setTenantBranding] =
     useState<PublicTenantBranding | null>(null);
-  const [tenantBrandingLoading, setTenantBrandingLoading] = useState(false);
   const brandingFetchSlugRef = useRef<string>("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
-  /** Após autenticação OK: prefetch do logo/config até o cache estar pronto; só então `navigate("/loading")`. */
-  const [preparingInicioNavigation, setPreparingInicioNavigation] =
-    useState(false);
-  /** Abrigos onde o e-mail tem conta (modo login); null = ainda não pesquisado ou e-mail inválido. */
   const [loginLinkedTenants, setLoginLinkedTenants] = useState<
     LoginTenantSummary[] | null
   >(null);
@@ -64,14 +55,14 @@ export default function Auth() {
     valid: boolean;
     error?: string;
   } | null>(null);
-  const defaultLogoSrc = usePublicDefaultLogoUrl();
+
+  const authHeaderLogoSrc = "/default_logo.png";
 
   useEffect(() => {
     setPasswordStrength(null);
     setPasswordValidation(null);
     setRememberMe(false);
     setLoading(false);
-    setPreparingInicioNavigation(false);
     setLoginLinkedTenants(null);
     setLoginLinkedTenantsLoading(false);
     if (isLogin) {
@@ -104,18 +95,20 @@ export default function Auth() {
   }, [isLogin]);
 
   useEffect(() => {
+    if (isLogin) {
+      brandingFetchSlugRef.current = "";
+      setTenantBranding(null);
+      return;
+    }
+
     const slug = tenantSlug.trim();
     if (!slug) {
       brandingFetchSlugRef.current = "";
       setTenantBranding(null);
-      setTenantBrandingLoading(false);
       return;
     }
-
     brandingFetchSlugRef.current = slug;
     setTenantBranding(null);
-    setTenantBrandingLoading(true);
-
     let cancelled = false;
     (async () => {
       try {
@@ -125,14 +118,14 @@ export default function Auth() {
         setTenantBranding(b);
       } finally {
         if (!cancelled && brandingFetchSlugRef.current === slug) {
-          setTenantBrandingLoading(false);
+          // NO-OP //
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [tenantSlug]);
+  }, [isLogin, tenantSlug]);
 
   useEffect(() => {
     if (!isLogin) {
@@ -184,21 +177,6 @@ export default function Auth() {
   }, [isLogin, login]);
 
   useEffect(() => {
-    const origin = getR2PublicOriginForPreconnect();
-    if (!origin) return;
-    const id = "preconnect-r2-assets";
-    if (document.getElementById(id)) return;
-    const link = document.createElement("link");
-    link.id = id;
-    link.rel = "preconnect";
-    link.href = origin;
-    document.head.appendChild(link);
-    return () => {
-      link.remove();
-    };
-  }, []);
-
-  useEffect(() => {
     setIsVisible(false);
     const timer = setTimeout(() => {
       setIsVisible(true);
@@ -225,7 +203,6 @@ export default function Auth() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setPreparingInicioNavigation(false);
     let skipLoadingResetAfterSuccess = false;
 
     try {
@@ -333,8 +310,7 @@ export default function Auth() {
           contractCode.trim() || undefined,
         );
         await authLogin(sanitizedLogin, sanitizedPassword, slugReg);
-        setPreparingInicioNavigation(true);
-        await prefetchTenantBrandLogoBeforeInicioNavigation();
+        void prefetchTenantBrandLogoBeforeInicioNavigation();
         toast({
           title: "Cadastro realizado!",
           variant: "success",
@@ -394,8 +370,7 @@ export default function Auth() {
       }
 
       await authLogin(sanitizedLogin, sanitizedPassword, slug);
-      setPreparingInicioNavigation(true);
-      await prefetchTenantBrandLogoBeforeInicioNavigation();
+      void prefetchTenantBrandLogoBeforeInicioNavigation();
       toast({
         title: "Login realizado!",
         variant: "success",
@@ -492,28 +467,17 @@ export default function Auth() {
     } finally {
       if (!skipLoadingResetAfterSuccess) {
         setLoading(false);
-        setPreparingInicioNavigation(false);
       }
     }
   };
 
-  const slugTrim = tenantSlug.trim();
   const loginEmailTrim = sanitizeInput(login).trim();
   const loginEmailValid = validateEmail(loginEmailTrim).valid;
 
-  const headerTitle = (() => {
-    if (tenantBranding && slugTrim && !tenantBrandingLoading) {
-      const t = (tenantBranding.brandName || tenantBranding.name || "").trim();
-      if (t) return t;
-    }
-    return APP_PUBLIC_NAME;
-  })();
-
-  const headerLogoSrc = (() => {
-    if (!slugTrim) return defaultLogoSrc;
-    if (tenantBrandingLoading || !tenantBranding) return defaultLogoSrc;
-    return tenantBranding.logoUrl || defaultLogoSrc;
-  })();
+  const [authHeaderImgSrc, setAuthHeaderImgSrc] = useState(authHeaderLogoSrc);
+  useEffect(() => {
+    setAuthHeaderImgSrc(authHeaderLogoSrc);
+  }, [authHeaderLogoSrc]);
 
   return (
     <div
@@ -526,14 +490,19 @@ export default function Auth() {
       <header className="shrink-0 border-b border-border/70 bg-brand-hero/90 backdrop-blur-sm">
         <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center gap-4">
           <img
-            key={`${slugTrim}:${headerLogoSrc}`}
-            src={headerLogoSrc}
-            alt={headerTitle}
+            key={authHeaderImgSrc}
+            src={authHeaderImgSrc}
+            alt={APP_PUBLIC_NAME}
             className="h-28 w-auto max-w-[360px] object-contain object-left drop-shadow-sm"
             referrerPolicy="no-referrer"
+            onError={() => {
+              setAuthHeaderImgSrc((current) =>
+                current === "/default_logo.png" ? current : "/default_logo.png",
+              );
+            }}
           />
           <h1 className="font-display text-xl font-semibold text-foreground tracking-tight hidden sm:block">
-            {headerTitle}
+            {APP_PUBLIC_NAME}
           </h1>
         </div>
       </header>
@@ -807,11 +776,7 @@ export default function Auth() {
                         aria-hidden
                       />
                       <span className="sr-only">
-                        {preparingInicioNavigation
-                          ? "A preparar o seu espaço, a carregar identidade visual"
-                          : isLogin
-                            ? "A entrar"
-                            : "A cadastrar"}
+                        {isLogin ? "A entrar" : "A cadastrar"}
                       </span>
                     </>
                   ) : isLogin ? (

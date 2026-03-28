@@ -162,7 +162,7 @@ export default function StockOut() {
     return caselaIdsFromItems
       .sort((a, b) => a - b)
       .map((id) => ({ label: `Casela ${id}`, value: String(id) }));
-  }, [items, residents, caselaIdsFromItems, uiDisplay.casela]);
+  }, [residents, caselaIdsFromItems, uiDisplay.casela]);
 
   const setorOptions = useMemo(
     () =>

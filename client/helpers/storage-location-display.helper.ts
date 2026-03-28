@@ -42,8 +42,7 @@ export function formatGavetaLabel(
 ): string {
   const rawId = opts.gavetaId;
   if (rawId === null || rawId === undefined || rawId === "") return "—";
-  const id =
-    typeof rawId === "number" ? rawId : Number(rawId);
+  const id = typeof rawId === "number" ? rawId : Number(rawId);
   if (mode === "numero") return String(rawId);
   const cat = String(opts.categoriaNome ?? "").trim();
   if (cat) return cat;

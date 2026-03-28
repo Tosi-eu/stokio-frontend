@@ -10,6 +10,24 @@ export function buildTenantLogoProxyUrl(slug: string): string {
   return `${base}/public/tenants/${encodeURIComponent(s)}/logo`;
 }
 
+export function appendLogoCacheBust(url: string): string {
+  const u = String(url ?? "").trim();
+  if (!u) return u;
+  const sep = u.includes("?") ? "&" : "?";
+  return `${u}${sep}v=${Date.now()}`;
+}
+
+export function appendLogoRevision(
+  url: string,
+  revision: string | number | null | undefined,
+): string {
+  const u = String(url ?? "").trim();
+  if (!u) return u;
+  if (revision == null || revision === "") return u;
+  const sep = u.includes("?") ? "&" : "?";
+  return `${u}${sep}rev=${encodeURIComponent(String(revision))}`;
+}
+
 export function normalizeBrandNameForR2Key(raw: string): string {
   const s = String(raw ?? "")
     .normalize("NFD")
@@ -91,23 +109,28 @@ export async function resolveTenantR2LogoUrl(params: {
   slug: string | null | undefined;
   brandName: string | null | undefined;
   name: string | null | undefined;
+  brandingUpdatedAt?: string | null;
   isCancelled: () => boolean;
 }): Promise<string | null> {
   const slug = params.slug?.trim();
-  if (slug) {
-    const proxyUrl = buildTenantLogoProxyUrl(slug);
-    if (proxyUrl) {
+  const trimmedApi = params.logoUrlFromApi?.trim() || null;
+  const rev = params.brandingUpdatedAt ?? null;
+
+  if (slug && trimmedApi) {
+    const proxyBase = buildTenantLogoProxyUrl(slug);
+    if (proxyBase) {
+      const proxyUrl = appendLogoRevision(proxyBase, rev);
       const okProxy = await tryLoadImage(proxyUrl);
       if (params.isCancelled()) return null;
       if (okProxy) return proxyUrl;
     }
   }
 
-  const trimmedApi = params.logoUrlFromApi?.trim() || null;
   if (trimmedApi) {
-    const ok = await tryLoadImage(trimmedApi);
+    const apiUrl = appendLogoRevision(trimmedApi, rev);
+    const ok = await tryLoadImage(apiUrl);
     if (params.isCancelled()) return null;
-    if (ok) return trimmedApi;
+    if (ok) return apiUrl;
   }
 
   const base = normalizeViteR2PublicBaseUrl(params.viteR2PublicBaseUrl);
@@ -117,6 +140,6 @@ export async function resolveTenantR2LogoUrl(params: {
   const candidates = buildTenantLogoCandidateUrls(base, {
     slug,
     brandLabel,
-  });
+  }).map((u) => appendLogoRevision(u, rev));
   return probeFirstResolvableTenantLogoUrl(candidates, params.isCancelled);
 }

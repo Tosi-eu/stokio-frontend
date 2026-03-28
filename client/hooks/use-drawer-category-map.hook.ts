@@ -27,10 +27,7 @@ export function useDrawerCategoryMap() {
   );
 
   useEffect(() => {
-    if (cachedMap) {
-      setMap(cachedMap);
-      return;
-    }
+    if (cachedMap) return;
     if (!inflight) {
       inflight = loadDrawerCategoryMap().then((m) => {
         cachedMap = m;
@@ -38,7 +35,7 @@ export function useDrawerCategoryMap() {
         return m;
       });
     }
-    inflight.then((m) => setMap(m));
+    void inflight.then((m) => setMap(m));
   }, []);
 
   return map;

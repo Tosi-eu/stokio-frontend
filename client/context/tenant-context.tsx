@@ -44,7 +44,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const [modulesPreview, setModulesPreview] = useState<string[] | null>(null);
   const [modulesConfigured, setModulesConfigured] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
-  const [uiDisplay, setUiDisplay] = useState<TenantUiDisplay>(DEFAULT_UI_DISPLAY);
+  const [uiDisplay, setUiDisplay] =
+    useState<TenantUiDisplay>(DEFAULT_UI_DISPLAY);
   const [loading, setLoading] = useState(() => Boolean(user));
 
   const refetch = useCallback(async () => {

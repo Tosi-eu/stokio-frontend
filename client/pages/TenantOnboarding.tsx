@@ -20,7 +20,8 @@ import {
 } from "@/components/ui/accordion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { FadeInAvatarImage } from "@/components/FadeInAvatarImage";
 import {
   Tooltip,
   TooltipContent,
@@ -38,6 +39,11 @@ import { useAuth } from "@/hooks/use-auth.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { cn } from "@/lib/utils";
 import { isSuperAdminUser } from "@/helpers/auth-roles.helper";
+import {
+  appendLogoCacheBust,
+  appendLogoRevision,
+  buildTenantLogoProxyUrl,
+} from "@/helpers/tenant-r2-logo-url.helper";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
@@ -166,7 +172,23 @@ export default function TenantOnboarding() {
     if (loading) return;
     setEnabled(new Set(modules?.enabled ?? []));
     setBrandName(tenant?.brandName ?? tenant?.name ?? "");
-    setLogoUrl(tenant?.logoUrl ?? null);
+    const serverLogo = tenant?.logoUrl?.trim() || null;
+    const slug = tenant?.slug?.trim();
+    const rev = tenant?.brandingUpdatedAt;
+    if (serverLogo) {
+      const proxy = slug ? buildTenantLogoProxyUrl(slug) : "";
+      if (proxy) {
+        setLogoUrl(
+          rev ? appendLogoRevision(proxy, rev) : appendLogoCacheBust(proxy),
+        );
+      } else {
+        setLogoUrl(
+          rev
+            ? appendLogoRevision(serverLogo, rev)
+            : appendLogoCacheBust(serverLogo),
+        );
+      }
+    }
   }, [loading, modules, tenant]);
 
   const jsonPreview = useMemo(
@@ -219,7 +241,7 @@ export default function TenantOnboarding() {
           onPhase: (phase) => setLogoUploadPhase(phase),
         },
       );
-      setLogoUrl(url);
+      setLogoUrl(appendLogoCacheBust(url));
       toast({
         title: "Logo enviado",
         description: "Arquivo gravado no armazenamento e URL atualizada.",
@@ -245,7 +267,25 @@ export default function TenantOnboarding() {
   const resetForm = () => {
     setEnabled(new Set(modules?.enabled ?? []));
     setBrandName(tenant?.brandName ?? tenant?.name ?? "");
-    setLogoUrl(tenant?.logoUrl ?? null);
+    const serverLogo = tenant?.logoUrl?.trim() || null;
+    const slug = tenant?.slug?.trim();
+    const rev = tenant?.brandingUpdatedAt;
+    if (!serverLogo) {
+      setLogoUrl(null);
+      return;
+    }
+    const proxy = slug ? buildTenantLogoProxyUrl(slug) : "";
+    if (proxy) {
+      setLogoUrl(
+        rev ? appendLogoRevision(proxy, rev) : appendLogoCacheBust(proxy),
+      );
+    } else {
+      setLogoUrl(
+        rev
+          ? appendLogoRevision(serverLogo, rev)
+          : appendLogoCacheBust(serverLogo),
+      );
+    }
   };
 
   const save = async () => {
@@ -367,7 +407,7 @@ export default function TenantOnboarding() {
                   <div className="flex flex-col items-center gap-3">
                     <Avatar className="h-28 w-28 rounded-2xl border-2 border-dashed border-border bg-card shadow-inner">
                       {logoUrl ? (
-                        <AvatarImage
+                        <FadeInAvatarImage
                           src={logoUrl || ""}
                           alt="Logo do abrigo"
                           className="object-contain p-2"

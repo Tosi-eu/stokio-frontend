@@ -78,8 +78,7 @@ export function StockCard({
       label: "Gaveta",
       value: formatGavetaLabel(uiDisplay.gaveta, {
         gavetaId: gid ?? undefined,
-        categoriaNome:
-          gid != null ? drawerCategoryByNum.get(gid) : undefined,
+        categoriaNome: gid != null ? drawerCategoryByNum.get(gid) : undefined,
       }),
     });
   }

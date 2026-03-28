@@ -19,14 +19,14 @@
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v && docker compose up -d",
     "test": "vitest --run",
-    "format.fix": "prettier --write .",
+    "format:fix": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint \"**/*.ts\" \"**/*.tsx\"",
     "typecheck": "tsc",
     "resize-logos": "node scripts/resize-logos.mjs"
   },
   "dependencies": {
-    "@porto-sdk/sdk": "^0.1.1",
+    "@porto-sdk/sdk": "^0.1.3",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.4",

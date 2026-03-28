@@ -43,6 +43,7 @@ export async function prefetchTenantBrandLogoBeforeInicioNavigation(): Promise<v
       slug: tenant?.slug,
       brandName: tenant?.brandName,
       name: tenant?.name,
+      brandingUpdatedAt: tenant?.brandingUpdatedAt,
       isCancelled: () => false,
     });
     const finalSrc = resolved ?? publicDefault;

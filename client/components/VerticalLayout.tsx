@@ -91,6 +91,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
         >
           {isLogoResolved && sidebarLogoSrc ? (
             <img
+              key={sidebarLogoSrc}
               src={sidebarLogoSrc}
               alt={tenant?.brandName || tenant?.name || APP_PUBLIC_NAME}
               className="h-32 w-auto max-w-[200px] object-contain drop-shadow-sm"

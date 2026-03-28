@@ -17,8 +17,14 @@ import {
 import { toast } from "@/hooks/use-toast.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { LayoutGrid, Loader2, Upload } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { FadeInAvatarImage } from "@/components/FadeInAvatarImage";
 import { cn } from "@/lib/utils";
+import {
+  appendLogoCacheBust,
+  appendLogoRevision,
+  buildTenantLogoProxyUrl,
+} from "@/helpers/tenant-r2-logo-url.helper";
 import {
   Select,
   SelectContent,
@@ -91,8 +97,30 @@ export function AdminTabConfig({
 
   useEffect(() => {
     setBrandVisualName(String(tenant?.brandName ?? tenant?.name ?? "").trim());
-    setLogoPreviewUrl(tenant?.logoUrl ?? null);
-  }, [tenant?.brandName, tenant?.name, tenant?.logoUrl]);
+  }, [tenant?.brandName, tenant?.name]);
+
+  /** Preview via proxy da API (igual fluxo seguro pós-login), evitando GET direto ao R2 no browser (ERR_CONNECTION_CLOSED). */
+  useEffect(() => {
+    const serverLogo = tenant?.logoUrl?.trim() || null;
+    const slug = tenant?.slug?.trim();
+    const rev = tenant?.brandingUpdatedAt;
+    if (!serverLogo) {
+      setLogoPreviewUrl(null);
+      return;
+    }
+    const proxy = slug ? buildTenantLogoProxyUrl(slug) : "";
+    if (proxy) {
+      setLogoPreviewUrl(
+        rev ? appendLogoRevision(proxy, rev) : appendLogoCacheBust(proxy),
+      );
+    } else {
+      setLogoPreviewUrl(
+        rev
+          ? appendLogoRevision(serverLogo, rev)
+          : appendLogoCacheBust(serverLogo),
+      );
+    }
+  }, [tenant?.logoUrl, tenant?.slug, tenant?.brandingUpdatedAt]);
   const [backupStatusLoading, setBackupStatusLoading] = useState(false);
   const [backupRunLoading, setBackupRunLoading] = useState(false);
   const [backupStatus, setBackupStatus] = useState<{
@@ -227,11 +255,22 @@ export function AdminTabConfig({
         String(tenant?.name ?? "").trim() ||
         "logo";
       const { logoUrl } = await uploadTenantLogoWithProgress(file, bnForUpload);
-      await updateTenantBranding({
+      const brandingRes = await updateTenantBranding({
         brandName: brandVisualName.trim() || null,
         logoUrl,
       });
-      setLogoPreviewUrl(logoUrl);
+      const rev = brandingRes.tenant?.brandingUpdatedAt;
+      const slug = tenant?.slug?.trim();
+      const proxy = slug ? buildTenantLogoProxyUrl(slug) : "";
+      if (proxy) {
+        setLogoPreviewUrl(
+          rev ? appendLogoRevision(proxy, rev) : appendLogoCacheBust(proxy),
+        );
+      } else {
+        setLogoPreviewUrl(
+          rev ? appendLogoRevision(logoUrl, rev) : appendLogoCacheBust(logoUrl),
+        );
+      }
       await refetchTenant();
       toast({
         title: "Logo atualizado",
@@ -351,7 +390,7 @@ export function AdminTabConfig({
             <div className="flex flex-col items-center gap-3 sm:items-start">
               <Avatar className="h-24 w-24 rounded-xl border border-border bg-muted/40">
                 {logoPreviewUrl ? (
-                  <AvatarImage
+                  <FadeInAvatarImage
                     src={logoPreviewUrl}
                     alt="Logo do abrigo"
                     className="object-contain p-2"
