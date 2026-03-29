@@ -12,9 +12,41 @@ export const CONFIG_KEYS = {
   estoque_minimo_padrao: "Estoque mínimo padrão (novos itens)",
 } as const;
 
+export const DISPLAY_CONFIG_KEYS = {
+  display_casela: "Identificação de casela (listas e tabelas)",
+  display_casela_setor:
+    "Setores em que a identificação de casela (acima) se aplica",
+  display_armario: "Identificação de armário (listas e tabelas)",
+  display_gaveta: "Identificação de gaveta (listas e tabelas)",
+} as const;
+
+export const DISPLAY_SELECT_OPTIONS = {
+  display_casela: [
+    { value: "numero", label: "Número da casela" },
+    { value: "nome", label: "Nome do residente" },
+  ],
+  display_casela_setor: [
+    { value: "farmacia", label: "Somente farmácia" },
+    { value: "enfermagem", label: "Somente enfermagem" },
+    { value: "todos", label: "Farmácia e enfermagem" },
+  ],
+  display_armario: [
+    { value: "numero", label: "Número do armário" },
+    { value: "categoria", label: "Categoria do armário" },
+  ],
+  display_gaveta: [
+    { value: "numero", label: "Número da gaveta" },
+    { value: "categoria", label: "Categoria da gaveta" },
+  ],
+} as const;
+
 const DEFAULT_VALUES: Record<string, string> = {
   expiring_days: "45",
   estoque_minimo_padrao: "0",
+  display_casela: "numero",
+  display_casela_setor: "todos",
+  display_armario: "numero",
+  display_gaveta: "numero",
 };
 
 export function useAdminConfig(isAdmin: boolean, enabled = true) {
@@ -57,7 +89,7 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
 
   useEffect(() => {
     if (!isAdmin || !enabled) return;
-    refetchHealth();
+    void refetchHealth();
   }, [isAdmin, enabled, refetchHealth]);
 
   async function save() {
@@ -66,6 +98,7 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
       const updated = await updateAdminConfig(form);
       setConfig(updated);
       setForm(updated);
+      window.dispatchEvent(new Event("ui-display-updated"));
       toast({ title: "Configurações salvas", variant: "success" });
     } catch (e) {
       toast({

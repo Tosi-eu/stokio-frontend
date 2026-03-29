@@ -3,6 +3,11 @@ import Layout from "@/components/Layout";
 import { toast } from "@/hooks/use-toast.hook";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createStockOut, getResidents, getStock } from "@/api/requests";
+import { useUiDisplay } from "@/context/ui-display-context";
+import {
+  caselaFilterLabel,
+  caselaModeForContext,
+} from "@/helpers/ui-display.helper";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import { useFormWithZod } from "@/hooks/use-form-with-zod";
 import { stockOutQuantitySchema } from "@/schemas/stock-out.schema";
@@ -34,6 +39,7 @@ import { cn } from "@/lib/utils";
 const UI_PAGE_SIZE = 6;
 
 export default function StockOut() {
+  const { uiDisplay } = useUiDisplay();
   const navigate = useNavigate();
   const location = useLocation();
   const { data: passedData } = location.state || {};
@@ -150,17 +156,53 @@ export default function StockOut() {
   );
 
   const caselaOptions = useMemo(() => {
+    const sector = filters.setor || "";
+    const eff = caselaModeForContext(
+      uiDisplay.casela,
+      uiDisplay.caselaSetor,
+      sector,
+    );
     if (filters.setor === "enfermagem" && residents.length > 0) {
       return residents
         .filter((r) => caselaIdsFromItems.includes(r.casela))
-        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
-        .map((r) => ({ label: r.name, value: String(r.casela) }));
+        .sort((a, b) =>
+          eff === "nome"
+            ? a.name.localeCompare(b.name, "pt-BR")
+            : a.casela - b.casela,
+        )
+        .map((r) => ({
+          label:
+            eff === "nome"
+              ? r.name
+              : caselaFilterLabel(r.casela, r.name, uiDisplay, sector),
+          value: String(r.casela),
+        }));
     }
     return caselaIdsFromItems
-      .sort((a, b) => a - b)
-      .map((id) => ({ label: `Casela ${id}`, value: String(id) }));
+      .sort((a, b) => {
+        if (eff === "nome" && residents.length > 0) {
+          const na = residents.find((r) => r.casela === a)?.name ?? "";
+          const nb = residents.find((r) => r.casela === b)?.name ?? "";
+          return na.localeCompare(nb, "pt-BR");
+        }
+        return a - b;
+      })
+      .map((id) => {
+        const r = residents.find((x) => x.casela === id);
+        return {
+          label: caselaFilterLabel(id, r?.name ?? null, uiDisplay, sector),
+          value: String(id),
+        };
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- caselaIdsFromItems already from items
-  }, [items, residents, filters.setor, caselaIdsFromItems]);
+  }, [
+    items,
+    residents,
+    filters.setor,
+    caselaIdsFromItems,
+    uiDisplay.casela,
+    uiDisplay.caselaSetor,
+  ]);
 
   const setorOptions = useMemo(
     () =>
@@ -328,11 +370,8 @@ export default function StockOut() {
               <PopoverTrigger asChild>
                 <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white">
                   {filters.casela
-                    ? filters.setor === "enfermagem"
-                      ? (residents.find(
-                          (r) => r.casela === Number(filters.casela),
-                        )?.name ?? `Casela ${filters.casela}`)
-                      : `Casela ${filters.casela}`
+                    ? (caselaOptions.find((o) => o.value === filters.casela)
+                        ?.label ?? `Casela ${filters.casela}`)
                     : "Selecione"}
                   <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
                 </button>

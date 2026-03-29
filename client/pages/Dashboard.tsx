@@ -18,28 +18,54 @@ const DashboardChartCard = lazy(() =>
   })),
 );
 import {
-  CabinetStockItem,
   StockDistributionItem,
   RecentMovement,
   MedicineRankingItem,
-  DrawerStockItem,
 } from "@/interfaces/interfaces";
 import StockProportionCard from "@/components/StockProportionCard";
 import { prepareStockDistributionData } from "@/helpers/estoque.helper";
 import { SectorType } from "@/utils/enums";
 import { useMaxSectionRows } from "@/hooks/use-max-selection-rows";
+import { getCabinets, getDrawers } from "@/api/requests";
+import { fetchAllPaginated } from "@/helpers/paginacao.helper";
+import { useUiDisplay } from "@/context/ui-display-context";
+import {
+  formatArmarioDisplay,
+  formatCaselaDisplay,
+  formatGavetaDisplay,
+  cabinetCategoryByNumero,
+  drawerCategoryByNumero,
+} from "@/helpers/ui-display.helper";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { uiDisplay } = useUiDisplay();
+
+  const [cabinetList, setCabinetList] = useState<
+    Array<{ numero: number; categoria: string }>
+  >([]);
+  const [drawerList, setDrawerList] = useState<
+    Array<{ numero: number; categoria: string }>
+  >([]);
+  const cabMap = useMemo(
+    () => cabinetCategoryByNumero(cabinetList),
+    [cabinetList],
+  );
+  const drwMap = useMemo(
+    () => drawerCategoryByNumero(drawerList),
+    [drawerList],
+  );
 
   const [belowMin, setBelowMin] = useState<number>(0);
   const [nearMin, setNearMin] = useState<number>(0);
   const [expired, setExpired] = useState<number>(0);
   const [expiringSoonCount, setExpiringSoonCount] = useState<number>(0);
-  const [cabinetStockData, setCabinetStockData] = useState<CabinetStockItem[]>(
-    [],
-  );
-  const [drawerStockData, setDrawerStockData] = useState<DrawerStockItem[]>([]);
+  const [cabinetStockData, setCabinetStockData] = useState<
+    Array<{ label: string; total: number }>
+  >([]);
+  const [drawerStockData, setDrawerStockData] = useState<
+    Array<{ label: string; total: number }>
+  >([]);
   const [nonMovementPage, setNonMovementPage] = useState(1);
   const [recentMovementsPage, setRecentMovementsPage] = useState(1);
 
@@ -63,6 +89,39 @@ export default function Dashboard() {
     isLoading: loadingSummary,
     error: summaryError,
   } = useDashboardSummary();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [cabs, drs] = await Promise.all([
+          fetchAllPaginated((p, l) => getCabinets(p, l), 100),
+          fetchAllPaginated((p, l) => getDrawers(p, l), 100),
+        ]);
+        if (cancelled) return;
+        setCabinetList(
+          cabs.map((c: { numero: number; categoria: string }) => ({
+            numero: c.numero,
+            categoria: c.categoria,
+          })),
+        );
+        setDrawerList(
+          drs.map((d: { numero: number; categoria: string }) => ({
+            numero: d.numero,
+            categoria: d.categoria,
+          })),
+        );
+      } catch {
+        if (!cancelled) {
+          setCabinetList([]);
+          setDrawerList([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (summaryError) {
@@ -92,16 +151,28 @@ export default function Dashboard() {
 
       const recent = summary.recentMovements || [];
       setRecentMovements(
-        recent.slice(0, DEFAULT_PAGE_SIZE).map((m) => ({
-          name: m.MedicineModel?.nome || m.InputModel?.nome || "-",
-          type: m.tipo,
-          operator: m.LoginModel?.login || "-",
-          casela: m.ResidentModel?.num_casela ?? "-",
-          quantity: m.quantidade,
-          patient: m.ResidentModel ? m.ResidentModel.nome : "-",
-          cabinet: m.CabinetModel?.num_armario ?? "-",
-          date: m.data,
-        })),
+        recent.slice(0, DEFAULT_PAGE_SIZE).map((m) => {
+          const armNum = m.CabinetModel?.num_armario;
+          return {
+            name: m.MedicineModel?.nome || m.InputModel?.nome || "-",
+            type: m.tipo,
+            operator: m.LoginModel?.login || "-",
+            casela: formatCaselaDisplay(
+              m.ResidentModel?.num_casela,
+              m.ResidentModel?.nome,
+              uiDisplay,
+              m.setor,
+            ),
+            quantity: m.quantidade,
+            patient: m.ResidentModel ? m.ResidentModel.nome : "-",
+            cabinet: formatArmarioDisplay(
+              armNum,
+              armNum != null ? (cabMap.get(armNum) ?? null) : null,
+              uiDisplay.armario,
+            ),
+            date: m.data,
+          };
+        }),
       );
 
       setNonMovementProducts(
@@ -154,7 +225,11 @@ export default function Dashboard() {
       if (cabinetRes?.data) {
         setCabinetStockData(
           cabinetRes.data.map((arm) => ({
-            cabinet: arm.armario_id,
+            label: formatArmarioDisplay(
+              arm.armario_id,
+              cabMap.get(arm.armario_id) ?? null,
+              uiDisplay.armario,
+            ),
             total: Number(arm.total_geral) || 0,
           })),
         );
@@ -162,7 +237,11 @@ export default function Dashboard() {
       if (drawerRes?.data) {
         setDrawerStockData(
           drawerRes.data.map((drawer) => ({
-            drawer: drawer.gaveta_id,
+            label: formatGavetaDisplay(
+              drawer.gaveta_id,
+              drwMap.get(drawer.gaveta_id) ?? null,
+              uiDisplay.gaveta,
+            ),
             total: Number(drawer.total_geral) || 0,
           })),
         );
@@ -171,7 +250,7 @@ export default function Dashboard() {
       setLoadingNonMovement(false);
       setLoadingRecentMovements(false);
     }
-  }, [summary]);
+  }, [summary, uiDisplay, cabMap, drwMap]);
 
   const stats = useMemo(
     () => [
@@ -415,7 +494,6 @@ export default function Dashboard() {
             <DashboardChartCard
               title="Quantidade de Itens por Armário"
               data={cabinetStockData}
-              dataKey="cabinet"
               gradientId="barFillCabinet"
               gradientColors={{ start: "#0284c7", end: "#0369a1" }}
             />
@@ -425,7 +503,6 @@ export default function Dashboard() {
             <DashboardChartCard
               title="Quantidade de Itens por Gaveta"
               data={drawerStockData}
-              dataKey="drawer"
               gradientId="barFillDrawer"
               gradientColors={{ start: "#34d399", end: "#059669" }}
             />

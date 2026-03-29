@@ -1,9 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Layout from "@/components/Layout";
 import { SkeletonTable } from "@/components/SkeletonTable";
 import { toast } from "@/hooks/use-toast.hook";
-import { getTransferReport } from "@/api/requests";
+import { getCabinets, getTransferReport } from "@/api/requests";
 import { Card } from "@/components/ui/card";
+import { fetchAllPaginated } from "@/helpers/paginacao.helper";
+import { useUiDisplay } from "@/context/ui-display-context";
+import {
+  formatArmarioDisplay,
+  formatCaselaDisplay,
+  cabinetCategoryByNumero,
+} from "@/helpers/ui-display.helper";
 
 const columns = [
   { key: "medicamento", label: "Medicamento", editable: false },
@@ -32,6 +39,36 @@ interface TransferData {
 }
 
 export default function TransferReport() {
+  const { uiDisplay } = useUiDisplay();
+  const [cabinetList, setCabinetList] = useState<
+    Array<{ numero: number; categoria: string }>
+  >([]);
+  const cabMap = useMemo(
+    () => cabinetCategoryByNumero(cabinetList),
+    [cabinetList],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cabs = await fetchAllPaginated((p, l) => getCabinets(p, l), 100);
+        if (cancelled) return;
+        setCabinetList(
+          cabs.map((c: { numero: number; categoria: string }) => ({
+            numero: c.numero,
+            categoria: c.categoria,
+          })),
+        );
+      } catch {
+        if (!cancelled) setCabinetList([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [transfers, setTransfers] = useState<TransferData[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -71,8 +108,17 @@ export default function TransferReport() {
     quantidade: String(transfer.quantidade),
     operador: transfer.usuario,
     data: transfer.data,
-    armario: transfer.armario ? String(transfer.armario) : "-",
-    casela: transfer.casela ? String(transfer.casela) : "-",
+    armario: formatArmarioDisplay(
+      transfer.armario,
+      transfer.armario != null ? (cabMap.get(transfer.armario) ?? null) : null,
+      uiDisplay.armario,
+    ),
+    casela: formatCaselaDisplay(
+      transfer.casela,
+      transfer.residente,
+      uiDisplay,
+      transfer.setor,
+    ),
     residente: transfer.residente || "-",
   }));
 
