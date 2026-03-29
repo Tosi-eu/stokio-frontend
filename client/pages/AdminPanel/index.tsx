@@ -11,6 +11,7 @@ import {
   LogIn,
   Settings,
   Bell,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth.hook";
 import {
@@ -34,6 +35,7 @@ import {
   AdminTabConfig,
   AdminTabNotificacoes,
   AdminTabInsights,
+  AdminTabQualidade,
   AdminAuditCompareDialog,
   AdminUserEditDialog,
   AdminUserCreateDialog,
@@ -74,7 +76,7 @@ export default function AdminPanel() {
   return (
     <Layout title="Painel administrativo">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-8 gap-1 w-full p-1">
+        <TabsList className="grid grid-cols-9 gap-1 w-full p-1">
           <TabsTrigger
             value="resumo"
             className="gap-1.5 min-w-0 text-xs sm:text-sm"
@@ -116,6 +118,13 @@ export default function AdminPanel() {
           >
             <Settings className="h-4 w-4 shrink-0" />
             <span className="truncate">Config</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="qualidade"
+            className="gap-1.5 min-w-0 text-xs sm:text-sm"
+          >
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            <span className="truncate">Qualidade</span>
           </TabsTrigger>
           <TabsTrigger
             value="notificacoes"
@@ -238,6 +247,11 @@ export default function AdminPanel() {
             openEdit={users.openEdit}
             openCreate={() => users.setCreateModalOpen(true)}
             setDeleteTarget={users.setDeleteTarget}
+            page={users.page}
+            setPage={users.setPage}
+            limit={users.limit}
+            setLimit={users.setLimit}
+            total={users.total}
           />
         </TabsContent>
 
@@ -272,6 +286,10 @@ export default function AdminPanel() {
             onSave={config.save}
             refetchHealth={config.refetchHealth}
           />
+        </TabsContent>
+
+        <TabsContent value="qualidade" className="mt-6">
+          <AdminTabQualidade enabled={isAdmin && activeTab === "qualidade"} />
         </TabsContent>
 
         <TabsContent value="notificacoes" className="mt-6">

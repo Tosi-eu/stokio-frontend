@@ -1,3 +1,4 @@
+import { MeasurementUnit } from "@/pages/RegisterMedicine";
 import { z } from "zod";
 
 export const editMedicineSchema = z.object({
@@ -20,7 +21,13 @@ export const editMedicineSchema = z.object({
     .string()
     .min(1, "Unidade de medida é obrigatória")
     .max(50, "Unidade de medida deve ter no máximo 50 caracteres")
-    .trim(),
+    .trim()
+    .refine(
+      (val) => Object.values(MeasurementUnit).includes(val as MeasurementUnit),
+      {
+        message: "Unidade de medida inválida",
+      },
+    ),
   estoque_minimo: z
     .string()
     .optional()

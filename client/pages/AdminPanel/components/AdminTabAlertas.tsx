@@ -7,6 +7,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import type { AlertStockItem } from "../types";
 
@@ -31,6 +33,15 @@ function AlertTable({
   rows: AlertStockItem[];
   titleClassName?: string;
 }) {
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil((rows.length || 0) / pageSize));
+
+  const currentRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return rows.slice(start, start + pageSize);
+  }, [rows, page]);
+
   return (
     <div>
       <h3
@@ -62,7 +73,7 @@ function AlertTable({
                 </TableCell>
               </TableRow>
             ) : (
-              rows.map((row, idx) => (
+              currentRows.map((row, idx) => (
                 <TableRow key={idx}>
                   <TableCell>{row.nome}</TableCell>
                   <TableCell>{row.detalhe ?? "-"}</TableCell>
@@ -76,6 +87,30 @@ function AlertTable({
           </TableBody>
         </Table>
       </div>
+
+      {rows.length > pageSize && (
+        <div className="flex items-center justify-center gap-2 mt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Anterior
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Página {page} de {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
+            Próxima
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

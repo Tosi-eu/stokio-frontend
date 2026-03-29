@@ -56,7 +56,7 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
   const [form, setForm] = useState<Record<string, string>>({});
   const [health, setHealth] = useState<AdminHealthResponse | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!isAdmin) return;
     setLoading(true);
     try {
@@ -71,12 +71,11 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [isAdmin]);
 
   useEffect(() => {
     if (isAdmin && enabled) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load is stable
-  }, [isAdmin, enabled]);
+  }, [isAdmin, enabled, load]);
 
   const refetchHealth = useCallback(async () => {
     if (!isAdmin) return;

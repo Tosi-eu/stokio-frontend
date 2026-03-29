@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast.hook";
 import {
   getAdminUsers,
@@ -19,6 +19,9 @@ const defaultPermissions: UserPermissions = {
 export function useAdminUsers(isAdmin: boolean, enabled = true) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [total, setTotal] = useState(0);
   const [editModal, setEditModal] = useState<AdminUser | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
@@ -40,22 +43,25 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
   });
   const [saving, setSaving] = useState(false);
 
-  async function loadUsers() {
+  const loadUsers = useCallback(async () => {
     setLoadingUsers(true);
     try {
-      const data = await getAdminUsers();
-      setUsers(Array.isArray(data) ? data : []);
+      const res = await getAdminUsers({ page, limit });
+      const data = (res as { data?: unknown; total?: unknown })?.data;
+      setUsers(Array.isArray(data) ? (data as AdminUser[]) : []);
+      setTotal(Number((res as { total?: unknown })?.total) || 0);
     } catch {
       toast({ title: "Erro ao carregar usuários", variant: "error" });
       setUsers([]);
+      setTotal(0);
     } finally {
       setLoadingUsers(false);
     }
-  }
+  }, [page, limit]);
 
   useEffect(() => {
     if (isAdmin && enabled) loadUsers();
-  }, [isAdmin, enabled]);
+  }, [isAdmin, enabled, loadUsers]);
 
   function openEdit(u: AdminUser) {
     setEditModal(u);
@@ -162,6 +168,11 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
     users,
     loadingUsers,
     loadUsers,
+    page,
+    setPage,
+    limit,
+    setLimit,
+    total,
     editModal,
     setEditModal,
     createModalOpen,

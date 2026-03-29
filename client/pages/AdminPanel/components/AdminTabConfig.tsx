@@ -16,7 +16,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { AdminHealthResponse } from "@/api/requests";
-import { restoreBackup } from "@/api/requests";
+import {
+  getAdminBackupStatus,
+  restoreBackup,
+  runAdminBackupNow,
+} from "@/api/requests";
 import { toast } from "@/hooks/use-toast.hook";
 import { Upload } from "lucide-react";
 
@@ -51,6 +55,28 @@ export function AdminTabConfig({
 }: AdminTabConfigProps) {
   const [restoreLoading, setRestoreLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [backupStatusLoading, setBackupStatusLoading] = useState(false);
+  const [backupRunLoading, setBackupRunLoading] = useState(false);
+  const [backupStatus, setBackupStatus] = useState<{
+    lastBackupAt: string | null;
+    lastBackupStatus: string | null;
+    lastBackupDurationMs: number | null;
+    lastBackupSizeBytes: number | null;
+    lastBackupError: string | null;
+    retentionCount: number | null;
+  } | null>(null);
+
+  const refetchBackupStatus = async () => {
+    setBackupStatusLoading(true);
+    try {
+      const res = await getAdminBackupStatus();
+      setBackupStatus(res);
+    } catch {
+      setBackupStatus(null);
+    } finally {
+      setBackupStatusLoading(false);
+    }
+  };
 
   const handleRestoreBackup = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -242,6 +268,106 @@ export function AdminTabConfig({
           ) : (
             <p className="text-muted-foreground">
               Não foi possível carregar o status.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Backup (status e execução)</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Veja o status do último backup e rode um backup manual (gera um dump
+            e atualiza os metadados).
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={refetchBackupStatus}
+              disabled={backupStatusLoading}
+            >
+              {backupStatusLoading ? "Atualizando..." : "Atualizar status"}
+            </Button>
+            <Button
+              onClick={async () => {
+                setBackupRunLoading(true);
+                try {
+                  await runAdminBackupNow();
+                  toast({
+                    title: "Backup iniciado",
+                    description: "Backup gerado com sucesso.",
+                    variant: "success",
+                  });
+                  await refetchBackupStatus();
+                  await refetchHealth?.();
+                } catch (err) {
+                  toast({
+                    title: "Erro ao gerar backup",
+                    description:
+                      err instanceof Error ? err.message : "Falha inesperada.",
+                    variant: "error",
+                  });
+                } finally {
+                  setBackupRunLoading(false);
+                }
+              }}
+              disabled={backupRunLoading}
+            >
+              {backupRunLoading ? "Gerando..." : "Rodar backup agora"}
+            </Button>
+          </div>
+
+          {backupStatus ? (
+            <dl className="grid gap-2 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Último backup (at)</dt>
+                <dd>{formatBackupDate(backupStatus.lastBackupAt)}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Status</dt>
+                <dd
+                  className={
+                    backupStatus.lastBackupStatus === "ok"
+                      ? "text-green-600 font-medium"
+                      : backupStatus.lastBackupStatus === "error"
+                        ? "text-red-600 font-medium"
+                        : "text-muted-foreground"
+                  }
+                >
+                  {backupStatus.lastBackupStatus ?? "—"}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Duração</dt>
+                <dd>
+                  {backupStatus.lastBackupDurationMs != null
+                    ? `${backupStatus.lastBackupDurationMs}ms`
+                    : "—"}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Tamanho</dt>
+                <dd>
+                  {backupStatus.lastBackupSizeBytes != null
+                    ? `${backupStatus.lastBackupSizeBytes} bytes`
+                    : "—"}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Retenção (R2)</dt>
+                <dd>{backupStatus.retentionCount ?? "—"}</dd>
+              </div>
+              {backupStatus.lastBackupError && (
+                <div className="text-sm text-red-600">
+                  {backupStatus.lastBackupError}
+                </div>
+              )}
+            </dl>
+          ) : (
+            <p className="text-muted-foreground">
+              Clique em “Atualizar status” para carregar.
             </p>
           )}
         </CardContent>

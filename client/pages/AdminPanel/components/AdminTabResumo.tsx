@@ -172,6 +172,9 @@ export function AdminTabResumo({
   const [metricsLimit, setMetricsLimit] = useState(25);
   const [metricsLoading, setMetricsLoading] = useState(false);
 
+  const [summaryListPage, setSummaryListPage] = useState(1);
+  const [summaryListPageSize, setSummaryListPageSize] = useState(25);
+
   const [activeUsersRows, setActiveUsersRows] = useState<
     AdminActiveUserThisMonth[]
   >([]);
@@ -191,6 +194,12 @@ export function AdminTabResumo({
     const id = setTimeout(() => setMetricsPage(1), 0);
     return () => clearTimeout(id);
   }, [metricsDialog]);
+
+  useEffect(() => {
+    // Reset pagination when switching the expanded summary list
+    const id = setTimeout(() => setSummaryListPage(1), 0);
+    return () => clearTimeout(id);
+  }, [expandedSummary]);
 
   useEffect(() => {
     if (!metricsDialog) return;
@@ -403,119 +412,199 @@ export function AdminTabResumo({
                       Carregando...
                     </div>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          {expandedSummary === "residents" && (
-                            <>
-                              <TableHead>Casela</TableHead>
-                              <TableHead>Nome</TableHead>
-                            </>
-                          )}
-                          {expandedSummary === "medicines" && (
-                            <>
-                              <TableHead>Nome</TableHead>
-                              <TableHead>Princípio ativo</TableHead>
-                              <TableHead>Dosagem</TableHead>
-                              <TableHead>Unidade</TableHead>
-                            </>
-                          )}
-                          {expandedSummary === "inputs" && (
-                            <>
-                              <TableHead>Nome</TableHead>
-                              <TableHead>Descrição</TableHead>
-                            </>
-                          )}
-                          {expandedSummary === "cabinets" && (
-                            <>
-                              <TableHead>Número</TableHead>
-                              <TableHead>Categoria</TableHead>
-                            </>
-                          )}
-                          {expandedSummary === "drawers" && (
-                            <>
-                              <TableHead>Número</TableHead>
-                              <TableHead>Categoria</TableHead>
-                            </>
-                          )}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {summaryListData.length === 0 ? (
+                    <>
+                      <div className="flex items-center justify-end gap-2 p-2 border-b bg-slate-50">
+                        <span className="text-xs text-muted-foreground">
+                          Itens/página
+                        </span>
+                        <Select
+                          value={String(summaryListPageSize)}
+                          onValueChange={(v) => {
+                            setSummaryListPageSize(Number(v));
+                            setSummaryListPage(1);
+                          }}
+                        >
+                          <SelectTrigger className="w-24 h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="25">25</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                            <SelectItem value="100">100</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <Table>
+                        <TableHeader>
                           <TableRow>
-                            <TableCell
-                              colSpan={expandedSummary === "medicines" ? 4 : 2}
-                              className="text-center text-muted-foreground"
-                            >
-                              Nenhum registro
-                            </TableCell>
+                            {expandedSummary === "residents" && (
+                              <>
+                                <TableHead>Casela</TableHead>
+                                <TableHead>Nome</TableHead>
+                              </>
+                            )}
+                            {expandedSummary === "medicines" && (
+                              <>
+                                <TableHead>Nome</TableHead>
+                                <TableHead>Princípio ativo</TableHead>
+                                <TableHead>Dosagem</TableHead>
+                                <TableHead>Unidade</TableHead>
+                              </>
+                            )}
+                            {expandedSummary === "inputs" && (
+                              <>
+                                <TableHead>Nome</TableHead>
+                                <TableHead>Descrição</TableHead>
+                              </>
+                            )}
+                            {expandedSummary === "cabinets" && (
+                              <>
+                                <TableHead>Número</TableHead>
+                                <TableHead>Categoria</TableHead>
+                              </>
+                            )}
+                            {expandedSummary === "drawers" && (
+                              <>
+                                <TableHead>Número</TableHead>
+                                <TableHead>Categoria</TableHead>
+                              </>
+                            )}
                           </TableRow>
-                        ) : (
-                          summaryListData.map(
-                            (row: Record<string, unknown>, idx: number) => (
-                              <TableRow key={idx}>
-                                {expandedSummary === "residents" && (
-                                  <>
-                                    <TableCell>
-                                      {String(row.casela ?? "-")}
-                                    </TableCell>
-                                    <TableCell>
-                                      {String(row.name ?? "-")}
-                                    </TableCell>
-                                  </>
-                                )}
-                                {expandedSummary === "medicines" && (
-                                  <>
-                                    <TableCell>
-                                      {String(row.nome ?? "-")}
-                                    </TableCell>
-                                    <TableCell>
-                                      {String(row.principio_ativo ?? "-")}
-                                    </TableCell>
-                                    <TableCell>
-                                      {String(row.dosagem ?? "-")}
-                                    </TableCell>
-                                    <TableCell>
-                                      {String(row.unidade_medida ?? "-")}
-                                    </TableCell>
-                                  </>
-                                )}
-                                {expandedSummary === "inputs" && (
-                                  <>
-                                    <TableCell>
-                                      {String(row.nome ?? "-")}
-                                    </TableCell>
-                                    <TableCell>
-                                      {String(row.descricao ?? "-")}
-                                    </TableCell>
-                                  </>
-                                )}
-                                {expandedSummary === "cabinets" && (
-                                  <>
-                                    <TableCell>
-                                      {String(row.numero ?? "-")}
-                                    </TableCell>
-                                    <TableCell>
-                                      {String(row.categoria ?? "-")}
-                                    </TableCell>
-                                  </>
-                                )}
-                                {expandedSummary === "drawers" && (
-                                  <>
-                                    <TableCell>
-                                      {String(row.numero ?? "-")}
-                                    </TableCell>
-                                    <TableCell>
-                                      {String(row.categoria ?? "-")}
-                                    </TableCell>
-                                  </>
-                                )}
-                              </TableRow>
-                            ),
-                          )
-                        )}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {summaryListData.length === 0 ? (
+                            <TableRow>
+                              <TableCell
+                                colSpan={
+                                  expandedSummary === "medicines" ? 4 : 2
+                                }
+                                className="text-center text-muted-foreground"
+                              >
+                                Nenhum registro
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            summaryListData
+                              .slice(
+                                (summaryListPage - 1) * summaryListPageSize,
+                                (summaryListPage - 1) * summaryListPageSize +
+                                  summaryListPageSize,
+                              )
+                              .map(
+                                (row: Record<string, unknown>, idx: number) => (
+                                  <TableRow key={idx}>
+                                    {expandedSummary === "residents" && (
+                                      <>
+                                        <TableCell>
+                                          {String(row.casela ?? "-")}
+                                        </TableCell>
+                                        <TableCell>
+                                          {String(row.name ?? "-")}
+                                        </TableCell>
+                                      </>
+                                    )}
+                                    {expandedSummary === "medicines" && (
+                                      <>
+                                        <TableCell>
+                                          {String(row.nome ?? "-")}
+                                        </TableCell>
+                                        <TableCell>
+                                          {String(row.principio_ativo ?? "-")}
+                                        </TableCell>
+                                        <TableCell>
+                                          {String(row.dosagem ?? "-")}
+                                        </TableCell>
+                                        <TableCell>
+                                          {String(row.unidade_medida ?? "-")}
+                                        </TableCell>
+                                      </>
+                                    )}
+                                    {expandedSummary === "inputs" && (
+                                      <>
+                                        <TableCell>
+                                          {String(row.nome ?? "-")}
+                                        </TableCell>
+                                        <TableCell>
+                                          {String(row.descricao ?? "-")}
+                                        </TableCell>
+                                      </>
+                                    )}
+                                    {expandedSummary === "cabinets" && (
+                                      <>
+                                        <TableCell>
+                                          {String(row.numero ?? "-")}
+                                        </TableCell>
+                                        <TableCell>
+                                          {String(row.categoria ?? "-")}
+                                        </TableCell>
+                                      </>
+                                    )}
+                                    {expandedSummary === "drawers" && (
+                                      <>
+                                        <TableCell>
+                                          {String(row.numero ?? "-")}
+                                        </TableCell>
+                                        <TableCell>
+                                          {String(row.categoria ?? "-")}
+                                        </TableCell>
+                                      </>
+                                    )}
+                                  </TableRow>
+                                ),
+                              )
+                          )}
+                        </TableBody>
+                      </Table>
+
+                      {summaryListData.length > summaryListPageSize && (
+                        <div className="flex items-center justify-center gap-2 p-2 border-t bg-white">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={summaryListPage <= 1}
+                            onClick={() =>
+                              setSummaryListPage((p) => Math.max(1, p - 1))
+                            }
+                          >
+                            Anterior
+                          </Button>
+                          <span className="text-sm text-muted-foreground whitespace-nowrap">
+                            Página {summaryListPage} de{" "}
+                            {Math.max(
+                              1,
+                              Math.ceil(
+                                summaryListData.length / summaryListPageSize,
+                              ),
+                            )}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={
+                              summaryListPage >=
+                              Math.ceil(
+                                summaryListData.length / summaryListPageSize,
+                              )
+                            }
+                            onClick={() =>
+                              setSummaryListPage((p) =>
+                                Math.min(
+                                  Math.ceil(
+                                    summaryListData.length /
+                                      summaryListPageSize,
+                                  ),
+                                  p + 1,
+                                ),
+                              )
+                            }
+                          >
+                            Próxima
+                          </Button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
