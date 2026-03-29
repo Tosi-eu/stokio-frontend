@@ -15,7 +15,6 @@ import {
 import { lazy, Suspense, useEffect, type ReactNode } from "react";
 
 import { AuthProvider } from "./context/auth-context";
-import { UiDisplayProvider } from "./context/ui-display-context";
 import PrivateRoute from "./pages/PrivateRoute";
 import ModuleRoute from "./pages/ModuleRoute";
 import { NotificationProvider } from "./context/notification.context";

@@ -7,7 +7,18 @@ import { SkeletonCard } from "@/components/SkeletonCard";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DEFAULT_PAGE_SIZE, paginate } from "@/helpers/paginacao.helper";
+import {
+  DEFAULT_PAGE_SIZE,
+  fetchAllPaginated,
+  paginate,
+} from "@/helpers/paginacao.helper";
+import { getCabinets, getDrawers } from "@/api/requests";
+import {
+  cabinetCategoryByNumero,
+  drawerCategoryByNumero,
+  formatArmarioDisplay,
+  formatGavetaDisplay,
+} from "@/helpers/ui-display.helper";
 
 import EditableTable from "@/components/EditableTable";
 import { DashboardStatsCard } from "@/components/DashboardStatsCard";
@@ -32,7 +43,6 @@ import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
 export default function Dashboard() {
   const { uiDisplay } = useTenant();
   const navigate = useNavigate();
-  const { uiDisplay } = useUiDisplay();
 
   const [cabinetList, setCabinetList] = useState<
     Array<{ numero: number; categoria: string }>
@@ -234,7 +244,7 @@ export default function Dashboard() {
       setLoadingNonMovement(false);
       setLoadingRecentMovements(false);
     }
-  }, [summary, uiDisplay.casela]);
+  }, [summary, uiDisplay, cabMap, drwMap]);
 
   const stats = useMemo(
     () => [

@@ -36,6 +36,7 @@ import {
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { caselaModeForContext } from "@/helpers/ui-display.helper";
 
 export const MedicineForm = memo(function MedicineForm({
   medicines,
@@ -47,7 +48,6 @@ export const MedicineForm = memo(function MedicineForm({
 }: MedicineFormProps) {
   const { uiDisplay } = useTenant();
   const navigate = useNavigate();
-  const { uiDisplay } = useUiDisplay();
   const [medicineOpen, setMedicineOpen] = useState(false);
   const [caselaOpen, setCaselaOpen] = useState(false);
 

@@ -1,12 +1,24 @@
 export type TenantUiDisplay = {
   casela: "numero" | "nome";
+  caselaSetor: "farmacia" | "enfermagem" | "todos";
+  armario: "numero" | "categoria";
   gaveta: "numero" | "categoria";
 };
 
 export const DEFAULT_UI_DISPLAY: TenantUiDisplay = {
   casela: "nome",
+  caselaSetor: "todos",
+  armario: "numero",
   gaveta: "numero",
 };
+
+function normalizeCaselaSetor(
+  v: unknown,
+): TenantUiDisplay["caselaSetor"] {
+  const s = String(v ?? "").toLowerCase();
+  if (s === "farmacia" || s === "enfermagem" || s === "todos") return s;
+  return "todos";
+}
 
 export function normalizeUiDisplay(
   raw?: Partial<TenantUiDisplay> | null,
@@ -14,6 +26,8 @@ export function normalizeUiDisplay(
   if (!raw) return DEFAULT_UI_DISPLAY;
   return {
     casela: raw.casela === "numero" ? "numero" : "nome",
+    caselaSetor: normalizeCaselaSetor(raw.caselaSetor),
+    armario: raw.armario === "categoria" ? "categoria" : "numero",
     gaveta: raw.gaveta === "categoria" ? "categoria" : "numero",
   };
 }

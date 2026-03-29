@@ -19,14 +19,6 @@ import {
   getResidents,
   getDrawers,
 } from "@/api/requests";
-import { useUiDisplay } from "@/context/ui-display-context";
-import {
-  formatArmarioDisplay,
-  formatCaselaDisplay,
-  formatGavetaDisplay,
-  cabinetCategoryByNumero,
-  drawerCategoryByNumero,
-} from "@/helpers/ui-display.helper";
 import { ItemStockType, SectorType } from "@/utils/enums";
 import { StockActionType, StockItemType } from "@/interfaces/types";
 import {
@@ -306,8 +298,17 @@ export default function Stock() {
         residents,
         setor: filters.setor,
         displayCasela: uiDisplay.casela,
+        caselaSetor: uiDisplay.caselaSetor,
+        armarioMode: uiDisplay.armario,
       }),
-    [apiFilterOptions, residents, filters.setor, uiDisplay.casela],
+    [
+      apiFilterOptions,
+      residents,
+      filters.setor,
+      uiDisplay.casela,
+      uiDisplay.caselaSetor,
+      uiDisplay.armario,
+    ],
   );
 
   const displayItems = useMemo(() => {

@@ -3,7 +3,6 @@ import Layout from "@/components/Layout";
 import { toast } from "@/hooks/use-toast.hook";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createStockOut, getResidents, getStock } from "@/api/requests";
-import { useUiDisplay } from "@/context/ui-display-context";
 import {
   caselaFilterLabel,
   caselaModeForContext,
@@ -157,8 +156,18 @@ export default function StockOut() {
   );
 
   const caselaOptions = useMemo(() => {
-    const useNames = uiDisplay.casela === "nome" && residents.length > 0;
-    if (useNames) {
+    const sectorRaw = filters.setor?.trim().toLowerCase() ?? "";
+    const sector =
+      sectorRaw === "enfermagem" || sectorRaw === "farmacia"
+        ? sectorRaw
+        : "";
+    const eff = caselaModeForContext(
+      uiDisplay.casela,
+      uiDisplay.caselaSetor,
+      sector,
+    );
+    const useResidentLabels = eff === "nome" && residents.length > 0;
+    if (useResidentLabels) {
       return residents
         .filter((r) => caselaIdsFromItems.includes(r.casela))
         .sort((a, b) =>
@@ -176,8 +185,14 @@ export default function StockOut() {
     }
     return caselaIdsFromItems
       .sort((a, b) => a - b)
-      .map((id) => ({ label: `Casela ${id}`, value: String(id) }));
-  }, [residents, caselaIdsFromItems, uiDisplay.casela]);
+      .map((id) => {
+        const r = residents.find((x) => x.casela === id);
+        return {
+          label: caselaFilterLabel(id, r?.name ?? null, uiDisplay, sector),
+          value: String(id),
+        };
+      });
+  }, [residents, caselaIdsFromItems, uiDisplay, filters.setor]);
 
   const setorOptions = useMemo(
     () =>
