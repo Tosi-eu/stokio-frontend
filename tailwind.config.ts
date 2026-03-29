@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
@@ -13,7 +14,35 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        display: ['"Plus Jakarta Sans"', "Inter", "system-ui", "sans-serif"],
+      },
+      boxShadow: {
+        elevated: "var(--shadow-soft)",
+        "brand-glow": "0 8px 32px -8px hsl(174 45% 35% / 0.25)",
+      },
+      backgroundImage: {
+        "brand-hero":
+          "linear-gradient(160deg, hsl(168 38% 94%) 0%, hsl(165 35% 97%) 40%, hsl(88 35% 95%) 100%)",
+        "brand-strip":
+          "linear-gradient(135deg, hsl(180 55% 28%) 0%, hsl(165 50% 38%) 45%, hsl(88 48% 58%) 100%)",
+        "brand-mesh":
+          "radial-gradient(ellipse 120% 80% at 100% -20%, hsl(88 45% 88% / 0.5), transparent 50%), radial-gradient(ellipse 100% 60% at 0% 100%, hsl(180 40% 85% / 0.35), transparent 45%), hsl(165 35% 98%)",
+      },
       colors: {
+        sky: {
+          50: "hsl(165 42% 97%)",
+          100: "hsl(165 35% 93%)",
+          200: "hsl(168 32% 86%)",
+          300: "hsl(170 30% 76%)",
+          400: "hsl(172 35% 58%)",
+          500: "hsl(174 42% 44%)",
+          600: "hsl(174 58% 36%)",
+          700: "hsl(176 52% 30%)",
+          800: "hsl(178 45% 24%)",
+          900: "hsl(182 40% 18%)",
+          950: "hsl(186 45% 11%)",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -46,6 +75,16 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        chart: {
+          1: "hsl(var(--chart-1))",
+          2: "hsl(var(--chart-2))",
+          3: "hsl(var(--chart-3))",
+          4: "hsl(var(--chart-4))",
+          5: "hsl(var(--chart-5))",
+          6: "hsl(var(--chart-6))",
+          7: "hsl(var(--chart-7))",
+          8: "hsl(var(--chart-8))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
@@ -116,6 +155,5 @@ export default {
       },
     },
   },
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- Tailwind plugin convention
-  plugins: [require("tailwindcss-animate")],
+  plugins: [tailwindcssAnimate],
 } satisfies Config;

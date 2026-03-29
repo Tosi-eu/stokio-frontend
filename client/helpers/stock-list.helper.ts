@@ -102,8 +102,8 @@ export function formatStockItems(raw: unknown[]): StockItem[] {
 export interface BuildFilterOptionsParams {
   residents?: Array<{ casela: number; name: string }>;
   setor?: string;
-  uiDisplay?: UiDisplayConfig;
-  cabinets?: Array<{ numero: number; categoria: string }>;
+  /** Preferir nome do residente nos rótulos quando houver lista carregada. */
+  displayCasela?: "numero" | "nome";
 }
 
 export function buildFilterOptions(
@@ -134,20 +134,9 @@ export function buildFilterOptions(
       label: armarioFilterLabel(id, cabByNum.get(id) ?? null, armMode),
     }));
 
-  const ui: UiDisplayConfig = {
-    ...DEFAULT_UI_DISPLAY,
-    ...options?.uiDisplay,
-  };
-  const isEnfermagem =
-    options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
-  const effEnf = caselaModeForContext(ui.casela, ui.caselaSetor, "enfermagem");
-  const sectorForFarmaciaList = options?.setor === "farmacia" ? "farmacia" : "";
-  const effFarm = caselaModeForContext(
-    ui.casela,
-    ui.caselaSetor,
-    sectorForFarmaciaList,
-  );
-  const caselaIds: StockFilterOption[] = isEnfermagem
+  const useResidentCaselaLabels =
+    options?.displayCasela === "nome" && (options?.residents?.length ?? 0) > 0;
+  const caselaIds: StockFilterOption[] = useResidentCaselaLabels
     ? [...options!.residents!]
         .sort((a, b) =>
           effEnf === "nome"
@@ -237,20 +226,9 @@ export function buildFilterOptionsFromApi(
       label: armarioFilterLabel(id, cabByNum.get(id) ?? null, armMode),
     }));
 
-  const ui: UiDisplayConfig = {
-    ...DEFAULT_UI_DISPLAY,
-    ...options?.uiDisplay,
-  };
-  const isEnfermagem =
-    options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
-  const effEnf = caselaModeForContext(ui.casela, ui.caselaSetor, "enfermagem");
-  const sectorForFarmaciaList = options?.setor === "farmacia" ? "farmacia" : "";
-  const effFarm = caselaModeForContext(
-    ui.casela,
-    ui.caselaSetor,
-    sectorForFarmaciaList,
-  );
-  const caselas: StockFilterOption[] = isEnfermagem
+  const useResidentCaselaLabels =
+    options?.displayCasela === "nome" && (options?.residents?.length ?? 0) > 0;
+  const caselas: StockFilterOption[] = useResidentCaselaLabels
     ? [...options!.residents!]
         .sort((a, b) =>
           effEnf === "nome"

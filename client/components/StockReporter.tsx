@@ -7,6 +7,7 @@ import {
   Image,
   StyleSheet,
 } from "@react-pdf/renderer";
+import { PDF_REPORT_LOGO_URL } from "@/constants/app-branding";
 
 export enum MovementPeriod {
   DIARIO = "diario",
@@ -187,7 +188,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
 
-  logo: { width: 90 },
+  logo: { width: 130, height: 60, objectFit: "contain" },
 
   title: {
     fontSize: 20,
@@ -418,14 +419,7 @@ export function createStockPDF(
         <View style={styles.topLine} />
 
         <View style={styles.header}>
-          <Image
-            src={
-              import.meta.env.VITE_LOGO_URL ||
-              import.meta.env.LOGO_URL ||
-              "/logo.png"
-            }
-            style={styles.logo}
-          />
+          <Image src={PDF_REPORT_LOGO_URL} style={styles.logo} />
           <Text style={styles.title}>
             {isResidentConsumption
               ? "CONSUMO DO RESIDENTE"

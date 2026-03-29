@@ -243,7 +243,7 @@ export default function EditDrawer() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg"
                   >
                     {isSubmitting ? "Salvando..." : "Salvar Alterações"}
                   </Button>

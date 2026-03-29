@@ -26,18 +26,11 @@ import StockProportionCard from "@/components/StockProportionCard";
 import { prepareStockDistributionData } from "@/helpers/estoque.helper";
 import { SectorType } from "@/utils/enums";
 import { useMaxSectionRows } from "@/hooks/use-max-selection-rows";
-import { getCabinets, getDrawers } from "@/api/requests";
-import { fetchAllPaginated } from "@/helpers/paginacao.helper";
-import { useUiDisplay } from "@/context/ui-display-context";
-import {
-  formatArmarioDisplay,
-  formatCaselaDisplay,
-  formatGavetaDisplay,
-  cabinetCategoryByNumero,
-  drawerCategoryByNumero,
-} from "@/helpers/ui-display.helper";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
 
 export default function Dashboard() {
+  const { uiDisplay } = useTenant();
   const navigate = useNavigate();
   const { uiDisplay } = useUiDisplay();
 
@@ -151,28 +144,19 @@ export default function Dashboard() {
 
       const recent = summary.recentMovements || [];
       setRecentMovements(
-        recent.slice(0, DEFAULT_PAGE_SIZE).map((m) => {
-          const armNum = m.CabinetModel?.num_armario;
-          return {
-            name: m.MedicineModel?.nome || m.InputModel?.nome || "-",
-            type: m.tipo,
-            operator: m.LoginModel?.login || "-",
-            casela: formatCaselaDisplay(
-              m.ResidentModel?.num_casela,
-              m.ResidentModel?.nome,
-              uiDisplay,
-              m.setor,
-            ),
-            quantity: m.quantidade,
-            patient: m.ResidentModel ? m.ResidentModel.nome : "-",
-            cabinet: formatArmarioDisplay(
-              armNum,
-              armNum != null ? (cabMap.get(armNum) ?? null) : null,
-              uiDisplay.armario,
-            ),
-            date: m.data,
-          };
-        }),
+        recent.slice(0, DEFAULT_PAGE_SIZE).map((m) => ({
+          name: m.MedicineModel?.nome || m.InputModel?.nome || "-",
+          type: m.tipo,
+          operator: m.LoginModel?.login || "-",
+          casela: formatCaselaLabel(uiDisplay.casela, {
+            caselaId: m.ResidentModel?.num_casela,
+            residentName: m.ResidentModel?.nome,
+          }),
+          quantity: m.quantidade,
+          patient: m.ResidentModel ? m.ResidentModel.nome : "-",
+          cabinet: m.CabinetModel?.num_armario ?? "-",
+          date: m.data,
+        })),
       );
 
       setNonMovementProducts(
@@ -250,7 +234,7 @@ export default function Dashboard() {
       setLoadingNonMovement(false);
       setLoadingRecentMovements(false);
     }
-  }, [summary, uiDisplay, cabMap, drwMap]);
+  }, [summary, uiDisplay.casela]);
 
   const stats = useMemo(
     () => [
@@ -280,14 +264,14 @@ export default function Dashboard() {
 
   const COLORS = useMemo(
     () => [
-      "#0EA5E9",
-      "#FACC15",
-      "#10B981",
-      "#EF4444",
-      "#8B5CF6",
-      "#F97316",
-      "#14B8A6",
-      "#6366F1",
+      "hsl(var(--chart-1))",
+      "hsl(var(--chart-2))",
+      "hsl(var(--chart-3))",
+      "hsl(var(--chart-5))",
+      "hsl(var(--chart-6))",
+      "hsl(var(--chart-4))",
+      "hsl(var(--chart-8))",
+      "hsl(var(--chart-7))",
     ],
     [],
   );
@@ -356,7 +340,7 @@ export default function Dashboard() {
                 loading={loadingNonMovement}
               />
               <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
-                <span className="text-sm text-slate-500">
+                <span className="text-sm text-muted-foreground">
                   Página {nonMovementPage} de{" "}
                   {Math.max(
                     1,
@@ -365,14 +349,14 @@ export default function Dashboard() {
                 </span>
                 <div className="flex gap-2">
                   <button
-                    className="px-3 py-1 text-sm border rounded disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    className="px-3 py-1 text-sm border border-border rounded-md bg-background disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     disabled={nonMovementPage === 1}
                     onClick={() => setNonMovementPage((p) => p - 1)}
                   >
                     Anterior
                   </button>
                   <button
-                    className="px-3 py-1 text-sm border rounded disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    className="px-3 py-1 text-sm border border-border rounded-md bg-background disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     disabled={
                       nonMovementPage * DEFAULT_PAGE_SIZE >=
                       nonMovementProducts.length
@@ -414,7 +398,7 @@ export default function Dashboard() {
                 loading={loadingRecentMovements}
               />
               <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
-                <span className="text-sm text-slate-500">
+                <span className="text-sm text-muted-foreground">
                   Página {recentMovementsPage} de{" "}
                   {Math.max(
                     1,
@@ -423,14 +407,14 @@ export default function Dashboard() {
                 </span>
                 <div className="flex gap-2">
                   <button
-                    className="px-3 py-1 text-sm border rounded disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    className="px-3 py-1 text-sm border border-border rounded-md bg-background disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     disabled={recentMovementsPage === 1}
                     onClick={() => setRecentMovementsPage((p) => p - 1)}
                   >
                     Anterior
                   </button>
                   <button
-                    className="px-3 py-1 text-sm border rounded disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    className="px-3 py-1 text-sm border border-border rounded-md bg-background disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     disabled={
                       recentMovementsPage * DEFAULT_PAGE_SIZE >=
                       recentMovements.length
@@ -495,7 +479,10 @@ export default function Dashboard() {
               title="Quantidade de Itens por Armário"
               data={cabinetStockData}
               gradientId="barFillCabinet"
-              gradientColors={{ start: "#0284c7", end: "#0369a1" }}
+              gradientColors={{
+                start: "hsl(174 58% 36%)",
+                end: "hsl(178 45% 26%)",
+              }}
             />
           </Suspense>
 
@@ -504,7 +491,10 @@ export default function Dashboard() {
               title="Quantidade de Itens por Gaveta"
               data={drawerStockData}
               gradientId="barFillDrawer"
-              gradientColors={{ start: "#34d399", end: "#059669" }}
+              gradientColors={{
+                start: "hsl(88 48% 52%)",
+                end: "hsl(142 50% 36%)",
+              }}
             />
           </Suspense>
         </section>

@@ -7,11 +7,12 @@ import {
   AlertTriangle,
   FileText,
   Users,
-  Edit,
   LogIn,
   Settings,
   Bell,
   ShieldCheck,
+  Building2,
+  Edit,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth.hook";
 import {
@@ -36,47 +37,63 @@ import {
   AdminTabNotificacoes,
   AdminTabInsights,
   AdminTabQualidade,
+  AdminTabTenants,
   AdminAuditCompareDialog,
   AdminUserEditDialog,
   AdminUserCreateDialog,
   AdminUserDeleteDialog,
 } from "./components";
 import { parseYearMonthToDate } from "@/helpers/dates.helper";
+import { isSuperAdminUser } from "@/helpers/auth-roles.helper";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { getDefaultHomePath } from "@/helpers/default-home-route.helper";
 
 export default function AdminPanel() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isEnabled } = useTenant();
   const isAdmin = user?.role === "admin";
+  const isSuperAdmin = isSuperAdminUser(user);
 
   const [activeTab, setActiveTab] = useState("resumo");
 
-  useEffect(() => {
-    if (!isAdmin) navigate("/dashboard");
-  }, [isAdmin, navigate]);
+  const effectiveTab =
+    !isSuperAdmin && activeTab === "tenants" ? "resumo" : activeTab;
 
-  const summary = useAdminSummary(isAdmin, activeTab === "resumo");
-  const alerts = useAdminAlerts(isAdmin, activeTab === "alertas");
+  useEffect(() => {
+    if (!isAdmin) {
+      const path = getDefaultHomePath(isEnabled, user) ?? "/loading";
+      navigate(path, { replace: true });
+    }
+  }, [isAdmin, navigate, isEnabled, user]);
+
+  const summary = useAdminSummary(isAdmin, effectiveTab === "resumo");
+  const alerts = useAdminAlerts(isAdmin, effectiveTab === "alertas");
   const users = useAdminUsers(
     isAdmin,
-    activeTab === "users" || activeTab === "insights",
+    effectiveTab === "users" || effectiveTab === "insights",
   );
-  const loginLog = useAdminLoginLog(isAdmin, activeTab === "acessos");
-  const config = useAdminConfig(isAdmin, activeTab === "config");
-  const metrics = useAdminMetrics(isAdmin, activeTab === "resumo");
+  const loginLog = useAdminLoginLog(isAdmin, effectiveTab === "acessos");
+  const config = useAdminConfig(isAdmin, effectiveTab === "config");
+  const metrics = useAdminMetrics(isAdmin, effectiveTab === "resumo");
   const notifications = useAdminNotifications(
     isAdmin,
-    activeTab === "notificacoes",
+    effectiveTab === "notificacoes",
   );
-  const insights = useAdminInsights(isAdmin, activeTab === "insights");
-  const reports = useAdminReports(activeTab === "relatorios");
-  const resumoExtras = useAdminResumoExtras(isAdmin, activeTab === "resumo");
+  const insights = useAdminInsights(isAdmin, effectiveTab === "insights");
+  const reports = useAdminReports(effectiveTab === "relatorios");
+  const resumoExtras = useAdminResumoExtras(isAdmin, effectiveTab === "resumo");
 
   if (!isAdmin) return null;
 
   return (
     <Layout title="Painel administrativo">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-9 gap-1 w-full p-1">
+      <Tabs
+        value={effectiveTab}
+        onValueChange={setActiveTab}
+        className="w-full"
+      >
+        <TabsList className="grid grid-cols-10 gap-1 w-full p-1">
           <TabsTrigger
             value="resumo"
             className="gap-1.5 min-w-0 text-xs sm:text-sm"
@@ -126,6 +143,15 @@ export default function AdminPanel() {
             <ShieldCheck className="h-4 w-4 shrink-0" />
             <span className="truncate">Qualidade</span>
           </TabsTrigger>
+          {isSuperAdmin ? (
+            <TabsTrigger
+              value="tenants"
+              className="gap-1.5 min-w-0 text-xs sm:text-sm"
+            >
+              <Building2 className="h-4 w-4 shrink-0" />
+              <span className="truncate">Tenants</span>
+            </TabsTrigger>
+          ) : null}
           <TabsTrigger
             value="notificacoes"
             className="gap-1.5 min-w-0 text-xs sm:text-sm"
@@ -289,8 +315,17 @@ export default function AdminPanel() {
         </TabsContent>
 
         <TabsContent value="qualidade" className="mt-6">
-          <AdminTabQualidade enabled={isAdmin && activeTab === "qualidade"} />
+          <AdminTabQualidade
+            enabled={isAdmin && effectiveTab === "qualidade"}
+          />
         </TabsContent>
+        {isSuperAdmin ? (
+          <TabsContent value="tenants" className="mt-6">
+            <AdminTabTenants
+              enabled={isSuperAdmin && isAdmin && effectiveTab === "tenants"}
+            />
+          </TabsContent>
+        ) : null}
 
         <TabsContent value="notificacoes" className="mt-6">
           <AdminTabNotificacoes

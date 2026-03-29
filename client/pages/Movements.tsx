@@ -12,70 +12,17 @@ import {
 } from "@/api/requests";
 import { Card } from "@/components/ui/card";
 import type { RawMovement } from "@/interfaces/interfaces";
-import { fetchAllPaginated } from "@/helpers/paginacao.helper";
-import { useUiDisplay } from "@/context/ui-display-context";
+import { useTenant } from "@/hooks/use-tenant.hook";
 import {
-  formatArmarioDisplay,
-  formatCaselaDisplay,
-  formatGavetaDisplay,
-  cabinetCategoryByNumero,
-  drawerCategoryByNumero,
-} from "@/helpers/ui-display.helper";
+  formatCaselaLabel,
+  formatGavetaLabel,
+} from "@/helpers/storage-location-display.helper";
 
 const TABLE_LIMIT = 10;
 const REQUEST_LIMIT = 5;
 
 export default function InputMovements() {
-  const { uiDisplay } = useUiDisplay();
-  const [cabinetList, setCabinetList] = useState<
-    Array<{ numero: number; categoria: string }>
-  >([]);
-  const [drawerList, setDrawerList] = useState<
-    Array<{ numero: number; categoria: string }>
-  >([]);
-
-  const cabMap = useMemo(
-    () => cabinetCategoryByNumero(cabinetList),
-    [cabinetList],
-  );
-  const drwMap = useMemo(
-    () => drawerCategoryByNumero(drawerList),
-    [drawerList],
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [cabs, drs] = await Promise.all([
-          fetchAllPaginated((p, l) => getCabinets(p, l), 100),
-          fetchAllPaginated((p, l) => getDrawers(p, l), 100),
-        ]);
-        if (cancelled) return;
-        setCabinetList(
-          cabs.map((c: { numero: number; categoria: string }) => ({
-            numero: c.numero,
-            categoria: c.categoria,
-          })),
-        );
-        setDrawerList(
-          drs.map((d: { numero: number; categoria: string }) => ({
-            numero: d.numero,
-            categoria: d.categoria,
-          })),
-        );
-      } catch {
-        if (!cancelled) {
-          setCabinetList([]);
-          setDrawerList([]);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
+  const { uiDisplay } = useTenant();
   const [entriesInputPage, setEntriesInputPage] = useState(1);
   const [entriesMedicinePage, setEntriesMedicinePage] = useState(1);
   const [entriesHasNext, setEntriesHasNext] = useState(false);
@@ -97,7 +44,7 @@ export default function InputMovements() {
     { key: "operator", label: "Usuário", editable: false },
     { key: "movementDate", label: "Data", editable: false },
     { key: "cabinet", label: "Armário", editable: false },
-    { key: "drawer", label: "Gaveta", editable: false },
+    { key: "drawerDisplay", label: "Gaveta", editable: false },
     { key: "resident", label: "Casela", editable: false },
     { key: "sector", label: "Setor", editable: false },
     { key: "lot", label: "Lote", editable: false },
@@ -105,8 +52,7 @@ export default function InputMovements() {
 
   function normalizeMovement(item: RawMovement) {
     const isMedicine = item.medicamento_id != null;
-    const armId = item.armario_id;
-    const gavId = item.gaveta_id;
+    const gavetaCat = item.DrawerModel?.DrawerCategoryModel?.nome;
 
     return {
       id: item.id,
@@ -117,22 +63,15 @@ export default function InputMovements() {
       quantity: item.quantidade,
       operator: item.LoginModel?.first_name,
       movementDate: item.data,
-      cabinet: formatArmarioDisplay(
-        armId,
-        armId != null ? (cabMap.get(armId) ?? null) : null,
-        uiDisplay.armario,
-      ),
-      drawer: formatGavetaDisplay(
-        gavId,
-        gavId != null ? (drwMap.get(gavId) ?? null) : null,
-        uiDisplay.gaveta,
-      ),
-      resident: formatCaselaDisplay(
-        item.ResidentModel?.num_casela,
-        item.ResidentModel?.nome,
-        uiDisplay,
-        item.setor,
-      ),
+      cabinet: item.armario_id ?? "-",
+      drawerDisplay: formatGavetaLabel(uiDisplay.gaveta, {
+        gavetaId: item.gaveta_id,
+        categoriaNome: gavetaCat,
+      }),
+      resident: formatCaselaLabel(uiDisplay.casela, {
+        caselaId: item.ResidentModel?.num_casela,
+        residentName: item.ResidentModel?.nome,
+      }),
       type: item.tipo,
       sector: item.setor ?? "-",
       lot: item.lote ?? "-",

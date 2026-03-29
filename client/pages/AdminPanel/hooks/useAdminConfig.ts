@@ -10,6 +10,20 @@ import type { AdminHealthResponse } from "@/api/requests";
 export const CONFIG_KEYS = {
   expiring_days: "Dias para considerar “próximo ao vencimento”",
   estoque_minimo_padrao: "Estoque mínimo padrão (novos itens)",
+  display_casela: "Identificação de casela (estoque, movimentações, filtros)",
+  display_gaveta: "Identificação de gaveta (estoque, movimentações)",
+} as const;
+
+/** Chaves editadas com select (valores fixos), não campo numérico. */
+export const CONFIG_SELECT_KEYS = {
+  display_casela: [
+    { value: "nome", label: "Nome do residente" },
+    { value: "numero", label: "Número da casela" },
+  ],
+  display_gaveta: [
+    { value: "categoria", label: "Categoria da gaveta" },
+    { value: "numero", label: "Número da gaveta" },
+  ],
 } as const;
 
 export const DISPLAY_CONFIG_KEYS = {
@@ -43,9 +57,7 @@ export const DISPLAY_SELECT_OPTIONS = {
 const DEFAULT_VALUES: Record<string, string> = {
   expiring_days: "45",
   estoque_minimo_padrao: "0",
-  display_casela: "numero",
-  display_casela_setor: "todos",
-  display_armario: "numero",
+  display_casela: "nome",
   display_gaveta: "numero",
 };
 

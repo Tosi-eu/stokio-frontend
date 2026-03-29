@@ -38,8 +38,10 @@ import { ptBR } from "date-fns/locale";
 import "react-datepicker/dist/react-datepicker.css";
 import { parseDateFromString } from "@/utils/utils";
 import { SkeletonForm } from "@/components/SkeletonForm";
+import { useTenant } from "@/hooks/use-tenant.hook";
 
 export default function EditStock() {
+  const { uiDisplay } = useTenant();
   const location = useLocation();
   const navigate = useNavigate();
   const { uiDisplay } = useUiDisplay();
@@ -375,11 +377,10 @@ export default function EditStock() {
                               key={drawer.numero}
                               value={drawer.numero.toString()}
                             >
-                              {gavetaFilterLabel(
-                                drawer.numero,
-                                drawer.categoria,
-                                uiDisplay.gaveta,
-                              )}
+                              {uiDisplay.gaveta === "categoria" &&
+                              drawer.categoria
+                                ? drawer.categoria
+                                : `Gaveta ${drawer.numero}`}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -425,11 +426,7 @@ export default function EditStock() {
                               key={resident.casela}
                               value={resident.casela.toString()}
                             >
-                              {caselaModeForContext(
-                                uiDisplay.casela,
-                                uiDisplay.caselaSetor,
-                                stockItem?.sector,
-                              ) === "nome"
+                              {uiDisplay.casela === "nome"
                                 ? resident.name
                                 : String(resident.casela)}
                             </SelectItem>
@@ -692,7 +689,7 @@ export default function EditStock() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg"
               >
                 {isSubmitting ? "Salvando..." : "Salvar Alterações"}
               </Button>

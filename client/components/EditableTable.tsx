@@ -326,11 +326,11 @@ export default function EditableTable({
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-      <div className="flex justify-end px-4 py-3 border-b bg-sky-50">
+      <div className="flex justify-end px-4 py-3 border-b bg-accent/40">
         {showAddons && (
           <button
             onClick={handleAddRow}
-            className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100 rounded-lg"
+            className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-primary hover:bg-accent/70 rounded-lg"
           >
             <Plus size={16} /> Adicionar
           </button>
@@ -340,7 +340,7 @@ export default function EditableTable({
       <div className="overflow-x-auto">
         <table className="w-full min-w-max table-auto">
           <thead>
-            <tr className="bg-sky-100 border-b">
+            <tr className="bg-muted border-b">
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -350,7 +350,7 @@ export default function EditableTable({
                 </th>
               ))}
               {showAddons && (
-                <th className="px-4 py-3 text-xs font-semibold sticky right-0 bg-sky-100 z-10 min-w-[120px] whitespace-nowrap text-center">
+                <th className="px-4 py-3 text-xs font-semibold sticky right-0 bg-muted z-10 min-w-[120px] whitespace-nowrap text-center">
                   Ações
                 </th>
               )}
@@ -380,15 +380,15 @@ export default function EditableTable({
                         row
                           ? row.status === "suspended"
                             ? "bg-slate-200 opacity-70"
-                            : "hover:bg-sky-50"
-                          : "bg-white hover:bg-sky-50"
+                            : "hover:bg-accent/40"
+                          : "bg-white hover:bg-accent/40"
                       }`}
                     >
                       {columns.map((col) => (
                         <td
                           key={col.key}
                           className={`px-4 py-4 text-xs text-center align-middle ${
-                            !row ? "group-hover:bg-sky-50" : ""
+                            !row ? "group-hover:bg-accent/40" : ""
                           }`}
                         >
                           <div className="max-w-[200px] mx-auto">
@@ -403,8 +403,8 @@ export default function EditableTable({
                             row?.status === "suspended"
                               ? "bg-slate-200 opacity-70"
                               : row
-                                ? "bg-white group-hover:bg-sky-50"
-                                : "bg-white group-hover:bg-sky-50"
+                                ? "bg-white group-hover:bg-accent/40"
+                                : "bg-white group-hover:bg-accent/40"
                           }`}
                         >
                           {row && (
@@ -412,7 +412,7 @@ export default function EditableTable({
                               <button
                                 type="button"
                                 onClick={() => handleEditClick(row)}
-                                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-sky-700 hover:text-sky-900 hover:bg-sky-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-primary hover:text-primary/90 hover:bg-accent/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 aria-label="Editar"
                               >
                                 <Pencil size={16} />
@@ -508,7 +508,7 @@ export default function EditableTable({
             className={`px-4 py-2 rounded-lg border ${
               currentPage === 1
                 ? "bg-gray-200 text-gray-500"
-                : "bg-white text-sky-700 hover:bg-sky-50"
+                : "bg-white text-primary hover:bg-accent/40"
             }`}
           >
             Anterior
@@ -520,7 +520,7 @@ export default function EditableTable({
             className={`px-4 py-2 rounded-lg border ${
               !hasNextPage
                 ? "bg-gray-200 text-gray-500"
-                : "bg-white text-sky-700 hover:bg-sky-50"
+                : "bg-white text-primary hover:bg-accent/40"
             }`}
           >
             Próximo

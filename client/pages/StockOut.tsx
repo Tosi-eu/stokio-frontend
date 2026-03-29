@@ -35,11 +35,12 @@ import {
 } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTenant } from "@/hooks/use-tenant.hook";
 
 const UI_PAGE_SIZE = 6;
 
 export default function StockOut() {
-  const { uiDisplay } = useUiDisplay();
+  const { uiDisplay } = useTenant();
   const navigate = useNavigate();
   const location = useLocation();
   const { data: passedData } = location.state || {};
@@ -156,13 +157,8 @@ export default function StockOut() {
   );
 
   const caselaOptions = useMemo(() => {
-    const sector = filters.setor || "";
-    const eff = caselaModeForContext(
-      uiDisplay.casela,
-      uiDisplay.caselaSetor,
-      sector,
-    );
-    if (filters.setor === "enfermagem" && residents.length > 0) {
+    const useNames = uiDisplay.casela === "nome" && residents.length > 0;
+    if (useNames) {
       return residents
         .filter((r) => caselaIdsFromItems.includes(r.casela))
         .sort((a, b) =>
@@ -179,30 +175,9 @@ export default function StockOut() {
         }));
     }
     return caselaIdsFromItems
-      .sort((a, b) => {
-        if (eff === "nome" && residents.length > 0) {
-          const na = residents.find((r) => r.casela === a)?.name ?? "";
-          const nb = residents.find((r) => r.casela === b)?.name ?? "";
-          return na.localeCompare(nb, "pt-BR");
-        }
-        return a - b;
-      })
-      .map((id) => {
-        const r = residents.find((x) => x.casela === id);
-        return {
-          label: caselaFilterLabel(id, r?.name ?? null, uiDisplay, sector),
-          value: String(id),
-        };
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- caselaIdsFromItems already from items
-  }, [
-    items,
-    residents,
-    filters.setor,
-    caselaIdsFromItems,
-    uiDisplay.casela,
-    uiDisplay.caselaSetor,
-  ]);
+      .sort((a, b) => a - b)
+      .map((id) => ({ label: `Casela ${id}`, value: String(id) }));
+  }, [residents, caselaIdsFromItems, uiDisplay.casela]);
 
   const setorOptions = useMemo(
     () =>

@@ -1,13 +1,30 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { CONFIG_KEYS, CONFIG_SELECT_KEYS } from "../hooks/useAdminConfig";
+import type { AdminHealthResponse } from "@/api/requests";
 import {
-  CONFIG_KEYS,
-  DISPLAY_CONFIG_KEYS,
-  DISPLAY_SELECT_OPTIONS,
-} from "../hooks/useAdminConfig";
+  getAdminBackupStatus,
+  restoreBackup,
+  runAdminBackupNow,
+  updateTenantBranding,
+  updateTenantConfig,
+  uploadTenantLogoWithProgress,
+} from "@/api/requests";
+import { toast } from "@/hooks/use-toast.hook";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { LayoutGrid, Loader2, Upload } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { FadeInAvatarImage } from "@/components/FadeInAvatarImage";
+import { cn } from "@/lib/utils";
+import {
+  appendLogoCacheBust,
+  appendLogoRevision,
+  buildTenantLogoProxyUrl,
+} from "@/helpers/tenant-r2-logo-url.helper";
 import {
   Select,
   SelectContent,
@@ -15,14 +32,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { AdminHealthResponse } from "@/api/requests";
-import {
-  getAdminBackupStatus,
-  restoreBackup,
-  runAdminBackupNow,
-} from "@/api/requests";
-import { toast } from "@/hooks/use-toast.hook";
-import { Upload } from "lucide-react";
+
+const MODULE_OPTIONS: Array<{ key: string; label: string }> = [
+  { key: "dashboard", label: "Dashboard" },
+  { key: "residents", label: "Residentes" },
+  { key: "medicines", label: "Medicamentos" },
+  { key: "inputs", label: "Insumos" },
+  { key: "stock", label: "Estoque" },
+  { key: "cabinets", label: "Armários" },
+  { key: "drawers", label: "Gavetas" },
+  { key: "movements", label: "Movimentações" },
+  { key: "reports", label: "Relatórios" },
+  { key: "notifications", label: "Notificações" },
+  { key: "profile", label: "Perfil (conta e senha)" },
+  { key: "admin", label: "Painel administrativo" },
+];
 
 interface AdminTabConfigProps {
   form: Record<string, string>;
@@ -53,8 +77,50 @@ export function AdminTabConfig({
   onSave,
   refetchHealth,
 }: AdminTabConfigProps) {
+  const { modules, tenant, refetch: refetchTenant } = useTenant();
+  const [moduleEnabled, setModuleEnabled] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [savingModules, setSavingModules] = useState(false);
+
+  useEffect(() => {
+    setModuleEnabled(new Set(modules?.enabled ?? []));
+  }, [modules]);
+
   const [restoreLoading, setRestoreLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+  const [brandVisualName, setBrandVisualName] = useState("");
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [savingBranding, setSavingBranding] = useState(false);
+
+  useEffect(() => {
+    setBrandVisualName(String(tenant?.brandName ?? tenant?.name ?? "").trim());
+  }, [tenant?.brandName, tenant?.name]);
+
+  /** Preview via proxy da API (igual fluxo seguro pós-login), evitando GET direto ao R2 no browser (ERR_CONNECTION_CLOSED). */
+  useEffect(() => {
+    const serverLogo = tenant?.logoUrl?.trim() || null;
+    const slug = tenant?.slug?.trim();
+    const rev = tenant?.brandingUpdatedAt;
+    if (!serverLogo) {
+      setLogoPreviewUrl(null);
+      return;
+    }
+    const proxy = slug ? buildTenantLogoProxyUrl(slug) : "";
+    if (proxy) {
+      setLogoPreviewUrl(
+        rev ? appendLogoRevision(proxy, rev) : appendLogoCacheBust(proxy),
+      );
+    } else {
+      setLogoPreviewUrl(
+        rev
+          ? appendLogoRevision(serverLogo, rev)
+          : appendLogoCacheBust(serverLogo),
+      );
+    }
+  }, [tenant?.logoUrl, tenant?.slug, tenant?.brandingUpdatedAt]);
   const [backupStatusLoading, setBackupStatusLoading] = useState(false);
   const [backupRunLoading, setBackupRunLoading] = useState(false);
   const [backupStatus, setBackupStatus] = useState<{
@@ -118,8 +184,286 @@ export function AdminTabConfig({
     }
   };
 
+  const toggleModule = useCallback((key: string) => {
+    setModuleEnabled((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const saveModules = async () => {
+    if (moduleEnabled.size === 0) {
+      toast({
+        title: "Selecione ao menos um módulo",
+        variant: "error",
+      });
+      return;
+    }
+    setSavingModules(true);
+    try {
+      await updateTenantConfig({ enabled: Array.from(moduleEnabled) });
+      await refetchTenant();
+      toast({
+        title: "Módulos atualizados",
+        description: "O menu e os atalhos já refletem as áreas ativadas.",
+        variant: "success",
+      });
+    } catch (err) {
+      await refetchTenant();
+      toast({
+        title: "Não foi possível salvar os módulos",
+        description:
+          err instanceof Error ? err.message : "Tente novamente em instantes.",
+        variant: "error",
+      });
+    } finally {
+      setSavingModules(false);
+    }
+  };
+
+  const brandingInitials = (() => {
+    const n =
+      brandVisualName.trim() || String(tenant?.name ?? "").trim() || "A";
+    return n
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  })();
+
+  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "Imagem muito grande",
+        description: "Use uma imagem de até 2 MB.",
+        variant: "error",
+      });
+      e.target.value = "";
+      return;
+    }
+    setUploadingLogo(true);
+    try {
+      const bnForUpload =
+        brandVisualName.trim() ||
+        String(tenant?.brandName ?? "").trim() ||
+        String(tenant?.name ?? "").trim() ||
+        "logo";
+      const { logoUrl } = await uploadTenantLogoWithProgress(file, bnForUpload);
+      const brandingRes = await updateTenantBranding({
+        brandName: brandVisualName.trim() || null,
+        logoUrl,
+      });
+      const rev = brandingRes.tenant?.brandingUpdatedAt;
+      const slug = tenant?.slug?.trim();
+      const proxy = slug ? buildTenantLogoProxyUrl(slug) : "";
+      if (proxy) {
+        setLogoPreviewUrl(
+          rev ? appendLogoRevision(proxy, rev) : appendLogoCacheBust(proxy),
+        );
+      } else {
+        setLogoPreviewUrl(
+          rev ? appendLogoRevision(logoUrl, rev) : appendLogoCacheBust(logoUrl),
+        );
+      }
+      await refetchTenant();
+      toast({
+        title: "Logo atualizado",
+        description:
+          "Arquivo substituído no armazenamento (R2) e vinculado a este abrigo.",
+        variant: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Não foi possível atualizar o logo",
+        description:
+          err instanceof Error
+            ? err.message
+            : "Confira se o R2 está configurado no servidor.",
+        variant: "error",
+      });
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = "";
+    }
+  };
+
+  const saveBrandingNameOnly = async () => {
+    setSavingBranding(true);
+    try {
+      await updateTenantBranding({
+        brandName: brandVisualName.trim() || null,
+      });
+      await refetchTenant();
+      toast({
+        title: "Nome da marca atualizado",
+        description: "O nome exibido para a equipe foi salvo.",
+        variant: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Não foi possível salvar",
+        description:
+          err instanceof Error ? err.message : "Tente novamente em instantes.",
+        variant: "error",
+      });
+    } finally {
+      setSavingBranding(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-start gap-2">
+            <LayoutGrid className="h-5 w-5 mt-0.5 text-muted-foreground shrink-0" />
+            <div>
+              <CardTitle>Módulos do sistema</CardTitle>
+              <p className="text-sm text-muted-foreground font-normal mt-1">
+                Define quais áreas aparecem no menu para os usuários deste
+                abrigo. Quem faz cadastro como usuário comum não altera esta
+                lista — apenas administradores do painel. O menu{" "}
+                <span className="font-medium text-foreground">
+                  só atualiza após Salvar módulos
+                </span>
+                .
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {MODULE_OPTIONS.map((m) => {
+              const on = moduleEnabled.has(m.key);
+              return (
+                <label
+                  key={m.key}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors",
+                    on ? "border-primary/40 bg-primary/5" : "hover:bg-muted/40",
+                  )}
+                >
+                  <Checkbox
+                    checked={on}
+                    onCheckedChange={() => toggleModule(m.key)}
+                    aria-label={m.label}
+                  />
+                  <span className="text-sm font-medium leading-tight">
+                    {m.label}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <Button
+            type="button"
+            onClick={saveModules}
+            disabled={savingModules}
+            variant="secondary"
+          >
+            {savingModules ? "Salvando módulos..." : "Salvar módulos"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Logo e nome da marca</CardTitle>
+          <p className="text-sm text-muted-foreground font-normal mt-1">
+            Altere o que aparece no menu, no login e nas telas de carregamento.
+            Ao enviar um arquivo novo, o servidor{" "}
+            <span className="font-medium text-foreground">
+              remove as versões anteriores no R2
+            </span>{" "}
+            (mesmo nome de arquivo ou outra extensão) e grava o novo objeto —
+            não é necessário apagar manualmente.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="flex flex-col items-center gap-3 sm:items-start">
+              <Avatar className="h-24 w-24 rounded-xl border border-border bg-muted/40">
+                {logoPreviewUrl ? (
+                  <FadeInAvatarImage
+                    src={logoPreviewUrl}
+                    alt="Logo do abrigo"
+                    className="object-contain p-2"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : null}
+                <AvatarFallback className="rounded-xl text-sm font-semibold">
+                  {brandingInitials}
+                </AvatarFallback>
+              </Avatar>
+              <input
+                ref={logoFileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden"
+                onChange={handleLogoFile}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uploadingLogo}
+                onClick={() => logoFileInputRef.current?.click()}
+              >
+                {uploadingLogo ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                {uploadingLogo ? "Enviando…" : "Enviar novo logo"}
+              </Button>
+            </div>
+            <div className="min-w-0 flex-1 space-y-3">
+              <div className="grid gap-2 max-w-md">
+                <Label htmlFor="admin-brand-visual-name">
+                  Nome exibido (marca)
+                </Label>
+                <Input
+                  id="admin-brand-visual-name"
+                  value={brandVisualName}
+                  onChange={(e) => setBrandVisualName(e.target.value)}
+                  placeholder="Ex.: Abrigo São José"
+                  maxLength={160}
+                  autoComplete="organization"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={
+                    savingBranding ||
+                    String(tenant?.brandName ?? "").trim() ===
+                      brandVisualName.trim()
+                  }
+                  onClick={saveBrandingNameOnly}
+                >
+                  {savingBranding ? "Salvando…" : "Salvar só o nome"}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground max-w-lg">
+                PNG, JPEG, WebP ou GIF até 2 MB. Depois do envio, use{" "}
+                <span className="font-medium text-foreground">
+                  Salvar só o nome
+                </span>{" "}
+                se alterou apenas o texto.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Configurações do sistema</CardTitle>
@@ -133,53 +477,54 @@ export function AdminTabConfig({
             <p className="text-muted-foreground">Carregando...</p>
           ) : (
             <>
-              {Object.entries(CONFIG_KEYS).map(([key, label]) => (
-                <div key={key} className="grid gap-2 max-w-sm">
-                  <Label htmlFor={key}>{label}</Label>
-                  <Input
-                    id={key}
-                    type={
-                      key === "expiring_days" || key === "estoque_minimo_padrao"
-                        ? "number"
-                        : "text"
-                    }
-                    min={key === "expiring_days" ? 1 : undefined}
-                    max={key === "expiring_days" ? 365 : undefined}
-                    value={form[key] ?? ""}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, [key]: e.target.value }))
-                    }
-                  />
-                </div>
-              ))}
-              {(
-                Object.entries(DISPLAY_CONFIG_KEYS) as [
-                  keyof typeof DISPLAY_CONFIG_KEYS,
-                  string,
-                ][]
-              ).map(([key, label]) => (
-                <div key={key} className="grid gap-2 max-w-md">
-                  <Label htmlFor={key}>{label}</Label>
-                  <Select
-                    value={
-                      form[key] ??
-                      (key === "display_casela_setor" ? "todos" : "numero")
-                    }
-                    onValueChange={(v) => setForm((p) => ({ ...p, [key]: v }))}
-                  >
-                    <SelectTrigger id={key} className="bg-white max-w-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DISPLAY_SELECT_OPTIONS[key].map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
+              {Object.entries(CONFIG_KEYS).map(([key, label]) => {
+                const selectOptions =
+                  CONFIG_SELECT_KEYS[key as keyof typeof CONFIG_SELECT_KEYS];
+                if (selectOptions) {
+                  return (
+                    <div key={key} className="grid gap-2 max-w-md">
+                      <Label htmlFor={key}>{label}</Label>
+                      <Select
+                        value={form[key] ?? selectOptions[0]?.value ?? ""}
+                        onValueChange={(v) =>
+                          setForm((p) => ({ ...p, [key]: v }))
+                        }
+                      >
+                        <SelectTrigger id={key} className="bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {selectOptions.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={key} className="grid gap-2 max-w-sm">
+                    <Label htmlFor={key}>{label}</Label>
+                    <Input
+                      id={key}
+                      type={
+                        key === "expiring_days" ||
+                        key === "estoque_minimo_padrao"
+                          ? "number"
+                          : "text"
+                      }
+                      min={key === "expiring_days" ? 1 : undefined}
+                      max={key === "expiring_days" ? 365 : undefined}
+                      value={form[key] ?? ""}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, [key]: e.target.value }))
+                      }
+                    />
+                  </div>
+                );
+              })}
               <Button onClick={onSave} disabled={saving}>
                 {saving ? "Salvando..." : "Salvar configurações"}
               </Button>

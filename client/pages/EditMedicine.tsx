@@ -7,22 +7,11 @@ import { getErrorMessage } from "@/helpers/validation.helper";
 import { useFormWithZod } from "@/hooks/use-form-with-zod";
 import { editMedicineSchema } from "@/schemas/edit-medicine.schema";
 import { updateMedicine } from "@/api/requests";
-import {
-  MEASUREMENT_UNIT_LABEL,
-  MeasurementUnit,
-} from "@/pages/RegisterMedicine";
-
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectValue,
-  SelectItem,
-} from "@/components/ui/select";
+import { MeasurementUnitCombobox } from "@/components/MeasurementUnitCombobox";
 
 export default function EditMedicine() {
   const location = useLocation();
@@ -177,24 +166,16 @@ export default function EditMedicine() {
                   control={control}
                   render={({ field }) => (
                     <>
-                      <Select
+                      <MeasurementUnitCombobox
                         value={field.value}
                         onValueChange={field.onChange}
                         disabled={isSubmitting}
-                      >
-                        <SelectTrigger className="bg-white" id="unidade_medida">
-                          <SelectValue placeholder="Unidade" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(
-                            Object.values(MeasurementUnit) as MeasurementUnit[]
-                          ).map((unit) => (
-                            <SelectItem key={unit} value={unit}>
-                              {MEASUREMENT_UNIT_LABEL[unit]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        id="unidade_medida"
+                        placeholder="Unidade"
+                        aria-invalid={
+                          errors.unidade_medida ? "true" : undefined
+                        }
+                      />
                       {errors.unidade_medida && (
                         <p className="text-sm text-red-600 mt-1">
                           {errors.unidade_medida.message}
@@ -236,7 +217,7 @@ export default function EditMedicine() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg"
               >
                 {isSubmitting ? "Salvando..." : "Salvar Alterações"}
               </Button>

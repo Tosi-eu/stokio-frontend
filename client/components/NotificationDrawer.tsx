@@ -32,7 +32,6 @@ export function NotificationDrawer() {
 
   const [filterResidentName, setFilterResidentName] = useState("");
 
-  // Timeout para filtro leve
   const [filterTimeout, setFilterTimeout] = useState<NodeJS.Timeout | null>(
     null,
   );
@@ -43,7 +42,7 @@ export function NotificationDrawer() {
       try {
         const params: Parameters<typeof getNotifications>[0] = {
           page: p,
-          limit: 5, // limite ajustado
+          limit: 5,
           type: activeTab === "receita" ? "medicamento" : "reposicao_estoque",
           status: EventStatus.PENDENTE,
           residente_nome: filterResidentName || undefined,
@@ -74,7 +73,6 @@ export function NotificationDrawer() {
     [activeTab, filterResidentName, setCount],
   );
 
-  // Carrega itens quando o drawer abre ou muda de aba
   useEffect(() => {
     if (open) {
       setMode("list");
@@ -84,7 +82,6 @@ export function NotificationDrawer() {
     }
   }, [open, triggerReload, activeTab, fetchItems]);
 
-  // Atualiza itens quando o filtro muda, com delay de 300ms
   useEffect(() => {
     if (filterTimeout) clearTimeout(filterTimeout);
 
@@ -96,7 +93,6 @@ export function NotificationDrawer() {
     setFilterTimeout(timeout);
 
     return () => clearTimeout(timeout);
-    // filterTimeout is a ref set by this effect; omit to avoid re-running on its change
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterResidentName, fetchItems]);
 
@@ -141,7 +137,7 @@ export function NotificationDrawer() {
               <button
                 className={`flex-1 py-2 text-sm font-medium ${
                   activeTab === "receita"
-                    ? "border-b-2 border-sky-600 text-sky-600"
+                    ? "border-b-2 border-primary text-primary"
                     : "text-slate-500"
                 }`}
                 onClick={() => {
@@ -154,7 +150,7 @@ export function NotificationDrawer() {
               <button
                 className={`flex-1 py-2 text-sm font-medium ${
                   activeTab === "reposicao"
-                    ? "border-b-2 border-sky-600 text-sky-600"
+                    ? "border-b-2 border-primary text-primary"
                     : "text-slate-500"
                 }`}
                 onClick={() => {
@@ -269,7 +265,7 @@ export function NotificationDrawer() {
               {items.length > 0 && hasNext && (
                 <div className="text-center py-2">
                   <button
-                    className="text-sky-600 hover:text-sky-700 font-medium"
+                    className="text-primary hover:text-primary/90 font-medium"
                     onClick={() => {
                       const nextPage = page + 1;
                       setPage(nextPage);
@@ -285,7 +281,7 @@ export function NotificationDrawer() {
             <DrawerFooter>
               {activeTab === "receita" && (
                 <button
-                  className="bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700"
+                  className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90"
                   onClick={() => {
                     setMode("create");
                     setEditingNotification(null);
@@ -315,7 +311,7 @@ export function NotificationDrawer() {
               <button
                 form="create-notification-form"
                 type="submit"
-                className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg w-full"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg w-full"
               >
                 {editingNotification
                   ? "Salvar Alterações"

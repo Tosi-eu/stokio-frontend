@@ -79,7 +79,7 @@ export function AdminAuditCompareDialog({
       <DialogContent className="max-w-6xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Edit className="h-5 w-5 text-sky-600" />
+            <Edit className="h-5 w-5 text-primary" />
             Comparação: Antes e Depois
           </DialogTitle>
         </DialogHeader>
@@ -107,7 +107,7 @@ export function AdminAuditCompareDialog({
                     key={key}
                     className={
                       changed
-                        ? "bg-sky-50 dark:bg-sky-950/30 border-l-4 border-l-sky-500"
+                        ? "bg-accent/50 dark:bg-primary/10 border-l-4 border-l-primary"
                         : ""
                     }
                   >

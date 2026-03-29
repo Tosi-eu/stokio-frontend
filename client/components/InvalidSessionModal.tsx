@@ -63,12 +63,7 @@ export function InvalidSessionModal({
               </DialogHeader>
 
               <div className="flex justify-end gap-3 mt-6">
-                <Button
-                  onClick={handleGoToLogin}
-                  className="bg-sky-600 hover:bg-sky-700 text-white"
-                >
-                  Ir para Login
-                </Button>
+                <Button onClick={handleGoToLogin}>Ir para Login</Button>
               </div>
             </motion.div>
           </DialogContent>

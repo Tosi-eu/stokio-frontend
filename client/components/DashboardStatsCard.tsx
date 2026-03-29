@@ -20,7 +20,7 @@ export const DashboardStatsCard = memo(function DashboardStatsCard({
       className={cn(
         "w-full rounded-lg border bg-card text-card-foreground shadow-sm",
         "cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all text-left",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
       )}
       aria-label={`${label}: ${value}. Clique para ver a lista.`}
     >
@@ -28,7 +28,7 @@ export const DashboardStatsCard = memo(function DashboardStatsCard({
         <p className="text-sm text-muted-foreground mb-2 text-center">
           {label}
         </p>
-        <p className="text-5xl font-bold text-sky-700">{value}</p>
+        <p className="text-5xl font-bold text-primary">{value}</p>
       </CardContent>
     </button>
   );

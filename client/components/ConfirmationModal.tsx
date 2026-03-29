@@ -55,7 +55,7 @@ const ConfirmationModal: FC<ConfirmCategoryModalProps> = ({
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm hover:bg-sky-700 active:bg-sky-800 transition"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 active:bg-primary/80 transition"
           >
             Sim
           </button>

@@ -51,6 +51,7 @@ export interface LayoutProps {
   children: ReactNode;
   title?: string;
   breadcrumb?: BreadcrumbItem[];
+  minimal?: boolean;
 }
 
 export interface DeletePopUpProps {
@@ -71,11 +72,15 @@ export interface LoggedUser {
   first_name?: string;
   last_name?: string;
   role?: "admin" | "user";
+  tenantId?: number;
+  isSuperAdmin?: boolean;
+  /** Se vier cru da API em snake_case */
+  is_super_admin?: boolean;
 }
 
 export interface AuthContextType {
   user: LoggedUser | null;
-  login: (login: string, password: string) => Promise<void>;
+  login: (login: string, password: string, tenantSlug: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -365,6 +370,11 @@ export interface RawMovement {
 
   CabinetModel?: {
     num_armario?: number;
+  };
+
+  DrawerModel?: {
+    num_gaveta?: number;
+    DrawerCategoryModel?: { nome?: string };
   };
 }
 

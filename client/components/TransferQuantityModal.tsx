@@ -20,12 +20,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Check, ChevronDown } from "lucide-react";
 import { getDaysForReplacementForNursing } from "@/api/requests";
-import { useUiDisplay } from "@/context/ui-display-context";
-import {
-  caselaFilterLabel,
-  caselaModeForContext,
-  formatCaselaDisplay,
-} from "@/helpers/ui-display.helper";
+import { useTenant } from "@/hooks/use-tenant.hook";
 
 interface TransferQuantityModalProps {
   open: boolean;
@@ -62,7 +57,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
   onCancel,
   loading = false,
 }) => {
-  const { uiDisplay } = useUiDisplay();
+  const { uiDisplay } = useTenant();
   const [quantity, setQuantity] = useState("");
   const [selectedCasela, setSelectedCasela] = useState("");
   const [caselaOpen, setCaselaOpen] = useState(false);
@@ -278,14 +273,17 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                     className="w-full justify-between"
                   >
                     {selectedCasela
-                      ? formatCaselaDisplay(
-                          Number(selectedCasela),
-                          residents.find(
-                            (r) => r.casela === Number(selectedCasela),
-                          )?.name,
-                          uiDisplay,
-                          "enfermagem",
-                        )
+                      ? (() => {
+                          const r = residents.find(
+                            (x) => x.casela === Number(selectedCasela),
+                          );
+                          if (uiDisplay.casela === "numero") {
+                            return r
+                              ? `Casela ${selectedCasela} — ${r.name}`
+                              : `Casela ${selectedCasela}`;
+                          }
+                          return r?.name ?? `Casela ${selectedCasela}`;
+                        })()
                       : "Selecione uma casela..."}
                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                   </Button>
@@ -316,12 +314,9 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                                 : "opacity-0"
                             }`}
                           />
-                          {caselaFilterLabel(
-                            resident.casela,
-                            resident.name,
-                            uiDisplay,
-                            "enfermagem",
-                          )}
+                          {uiDisplay.casela === "numero"
+                            ? `Casela ${resident.casela} — ${resident.name}`
+                            : resident.name}
                         </CommandItem>
                       ))}
                     </CommandGroup>
@@ -387,7 +382,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                 disabled={loading}
                 className={
                   suggestedDiasParaRepor != null
-                    ? "border-sky-200 bg-sky-50 text-sky-800 font-medium"
+                    ? "border-primary/25 bg-accent/60 text-foreground font-medium"
                     : undefined
                 }
               />

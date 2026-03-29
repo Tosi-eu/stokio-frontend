@@ -1,16 +1,19 @@
-import { getBackendLoadingStatus } from "@/api/requests";
-import React, { useEffect, useState } from "react";
+import { getBackendHealthCheck } from "@/api/requests";
+import { APP_PUBLIC_NAME } from "@/constants/app-branding";
+import { usePublicDefaultLogoUrl } from "@/hooks/use-public-default-logo.hook";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function LoadingScreen() {
   const [progress, setProgress] = useState(0);
   const navigate = useNavigate();
+  const publicLogoUrl = usePublicDefaultLogoUrl();
 
   useEffect(() => {
     const checkBackend = async () => {
       try {
-        const res = await getBackendLoadingStatus();
-        if (res.ok) {
+        const res = await getBackendHealthCheck();
+        if (res?.status === "ok") {
           setProgress(100);
           clearInterval(intervalId);
           setTimeout(() => navigate("/user/login"), 500);
@@ -22,21 +25,25 @@ export default function LoadingScreen() {
       }
     };
 
-    const intervalId = setInterval(checkBackend, 500);
+    const intervalId = setInterval(checkBackend, 800);
 
     return () => clearInterval(intervalId);
   }, [navigate]);
 
   return (
-    <div className="h-screen w-screen flex flex-col justify-center items-center bg-sky-100">
-      <img src="/logo.png" alt="Logo" className="w-32 mb-4" />
-      <h1 className="text-sky-900 font-bold text-3xl mb-6">
-        Abrigo Helena Dornfeld
+    <div className="h-screen w-screen flex flex-col justify-center items-center bg-brand-mesh px-6">
+      <img
+        src={publicLogoUrl}
+        alt={APP_PUBLIC_NAME}
+        className="w-48 h-auto max-h-32 object-contain mb-4 drop-shadow-md"
+      />
+      <h1 className="font-display text-foreground font-semibold text-3xl mb-6 tracking-tight text-center">
+        {APP_PUBLIC_NAME}
       </h1>
 
-      <div className="w-64 h-4 bg-sky-200 rounded-full overflow-hidden">
+      <div className="w-64 h-2.5 bg-muted rounded-full overflow-hidden shadow-inner ring-1 ring-border/50">
         <div
-          className="h-4 bg-sky-900 rounded-full transition-all duration-300"
+          className="h-full rounded-full bg-gradient-to-r from-primary to-[hsl(88_48%_52%)] transition-all duration-300 ease-out"
           style={{ width: `${progress}%` }}
         />
       </div>

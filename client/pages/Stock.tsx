@@ -17,7 +17,6 @@ import {
   suspendInputFromStock,
   transferStockSector,
   getResidents,
-  getCabinets,
   getDrawers,
 } from "@/api/requests";
 import { useUiDisplay } from "@/context/ui-display-context";
@@ -57,6 +56,11 @@ import {
 } from "@/components/ui/command";
 import { ChevronsUpDown, X } from "lucide-react";
 import { TableFilter } from "@/components/TableFilter";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import {
+  formatCaselaLabel,
+  formatGavetaLabel,
+} from "@/helpers/storage-location-display.helper";
 
 const FILTER_LABELS: Record<string, string> = {
   belowMin: "Abaixo do estoque mínimo",
@@ -66,7 +70,7 @@ const FILTER_LABELS: Record<string, string> = {
 };
 
 export default function Stock() {
-  const { uiDisplay } = useUiDisplay();
+  const { uiDisplay } = useTenant();
   const navigate = useNavigate();
   const location = useLocation();
   const params = new URLSearchParams(location.search);
@@ -140,21 +144,9 @@ export default function Stock() {
   const [residents, setResidents] = useState<
     Array<{ casela: number; name: string }>
   >([]);
-  const [cabinetList, setCabinetList] = useState<
-    Array<{ numero: number; categoria: string }>
-  >([]);
-  const [drawerList, setDrawerList] = useState<
-    Array<{ numero: number; categoria: string }>
-  >([]);
-
-  const cabinetCatMap = useMemo(
-    () => cabinetCategoryByNumero(cabinetList),
-    [cabinetList],
-  );
-  const drawerCatMap = useMemo(
-    () => drawerCategoryByNumero(drawerList),
-    [drawerList],
-  );
+  const [drawerCategoryByNum, setDrawerCategoryByNum] = useState<
+    Map<number, string>
+  >(() => new Map());
 
   async function loadStock(pageToLoad: number, currentFilters = filters) {
     setLoading(true);
@@ -227,35 +219,22 @@ export default function Stock() {
     }
   }
 
-  async function loadCabinetDrawerCatalog() {
+  async function loadDrawerLabels() {
     try {
-      const [cabs, drs] = await Promise.all([
-        fetchAllPaginated((page, limit) => getCabinets(page, limit), 100),
-        fetchAllPaginated((page, limit) => getDrawers(page, limit), 100),
-      ]);
-      setCabinetList(
-        cabs.map((c: { numero: number; categoria: string }) => ({
-          numero: c.numero,
-          categoria: c.categoria,
-        })),
+      const allDrawers = await fetchAllPaginated(
+        (page, limit) => getDrawers(page, limit),
+        100,
       );
-      setDrawerList(
-        drs.map((d: { numero: number; categoria: string }) => ({
-          numero: d.numero,
-          categoria: d.categoria,
-        })),
-      );
-    } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Não foi possível carregar armários e gavetas.";
-      toast({
-        title: "Erro ao carregar catálogo",
-        description: errorMessage,
-        variant: "error",
-        duration: 3000,
-      });
+      const m = new Map<number, string>();
+      for (const d of allDrawers as Array<{
+        numero: number;
+        categoria?: string;
+      }>) {
+        if (d.categoria) m.set(d.numero, d.categoria);
+      }
+      setDrawerCategoryByNum(m);
+    } catch {
+      setDrawerCategoryByNum(new Map());
     }
   }
 
@@ -266,7 +245,7 @@ export default function Stock() {
         loadStock(1),
         loadFilterOptions(),
         loadResidents(),
-        loadCabinetDrawerCatalog(),
+        loadDrawerLabels(),
       ]);
     }
 
@@ -326,42 +305,40 @@ export default function Stock() {
       buildFilterOptionsFromApi(apiFilterOptions, {
         residents,
         setor: filters.setor,
-        uiDisplay,
-        cabinets: cabinetList,
+        displayCasela: uiDisplay.casela,
       }),
-    [apiFilterOptions, residents, filters.setor, uiDisplay, cabinetList],
+    [apiFilterOptions, residents, filters.setor, uiDisplay.casela],
   );
 
   const displayItems = useMemo(() => {
     return items.map((item) => {
-      const res =
-        item.casela != null
-          ? residents.find((r) => r.casela === item.casela)
-          : undefined;
-      const caselaDisplay = formatCaselaDisplay(
-        item.casela,
-        res?.name,
-        uiDisplay,
-        item.sector,
-      );
-      const cabNum = typeof item.cabinet === "number" ? item.cabinet : null;
-      const drwNum = typeof item.drawer === "number" ? item.drawer : null;
-      return {
-        ...item,
-        cabinetDisplay: formatArmarioDisplay(
-          cabNum,
-          cabNum != null ? (cabinetCatMap.get(cabNum) ?? null) : null,
-          uiDisplay.armario,
-        ),
-        drawerDisplay: formatGavetaDisplay(
-          drwNum,
-          drwNum != null ? (drawerCatMap.get(drwNum) ?? null) : null,
-          uiDisplay.gaveta,
-        ),
-        caselaDisplay,
-      };
+      const caselaId = item.casela;
+      const residentName =
+        item.patient && item.patient !== "-"
+          ? item.patient
+          : caselaId != null
+            ? residents.find((r) => r.casela === caselaId)?.name
+            : undefined;
+      const caselaDisplay = formatCaselaLabel(uiDisplay.casela, {
+        caselaId,
+        residentName,
+      });
+      const numDrawer =
+        typeof item.drawer === "number"
+          ? item.drawer
+          : item.drawer === "-" || item.drawer == null
+            ? null
+            : Number(item.drawer);
+      const drawerDisplay = formatGavetaLabel(uiDisplay.gaveta, {
+        gavetaId: numDrawer,
+        categoriaNome:
+          numDrawer != null && !Number.isNaN(numDrawer)
+            ? drawerCategoryByNum.get(numDrawer)
+            : undefined,
+      });
+      return { ...item, caselaDisplay, drawerDisplay };
     });
-  }, [items, residents, uiDisplay, cabinetCatMap, drawerCatMap]);
+  }, [items, residents, uiDisplay, drawerCategoryByNum]);
 
   const filteredCabinets = useMemo(() => {
     if (!armarioSearch) return filterOptions.cabinets;
@@ -390,7 +367,7 @@ export default function Stock() {
     { key: "description", label: "Descrição", editable: true },
     { key: "expiry", label: "Validade", editable: true },
     { key: "quantity", label: "Quantidade", editable: true },
-    { key: "cabinetDisplay", label: "Armário", editable: false },
+    { key: "cabinet", label: "Armário", editable: false },
     { key: "drawerDisplay", label: "Gaveta", editable: false },
     { key: "caselaDisplay", label: "Casela", editable: false },
     { key: "daysToReplacement", label: "Dias para Repor", editable: false },
@@ -565,7 +542,7 @@ export default function Stock() {
           <button
             onClick={() => navigate("/stock/out")}
             className="
-                h-12 px-6 rounded-lg font-semiboldfetchStockPage
+                h-12 px-6 rounded-lg font-semibold
                 bg-red-600 text-white
                 shadow-md hover:bg-red-700 hover:shadow-lg active:bg-red-800 active:shadow-xl
                 disabled:opacity-50 disabled:cursor-not-allowed
@@ -579,8 +556,8 @@ export default function Stock() {
             onClick={() => setReportModalOpen(true)}
             className="
                 h-12 px-6 rounded-lg font-semibold
-                bg-sky-600 text-white
-                shadow-md hover:bg-sky-700 hover:shadow-lg active:bg-sky-800 active:shadow-xl
+                bg-primary text-primary-foreground
+                shadow-md hover:bg-primary/90 hover:shadow-lg active:bg-primary/80 active:shadow-xl
                 disabled:opacity-50 disabled:cursor-not-allowed
                 transition-all ease-in-out duration-200
               "
@@ -591,9 +568,9 @@ export default function Stock() {
 
         {filter && FILTER_LABELS[filter] && (
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm text-slate-600">
+            <span className="text-sm text-muted-foreground">
               Exibindo:{" "}
-              <span className="font-medium text-slate-800">
+              <span className="font-medium text-foreground">
                 {FILTER_LABELS[filter]}
               </span>
             </span>
@@ -603,7 +580,7 @@ export default function Stock() {
                 setPage(1);
                 navigate("/stock");
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary hover:text-primary/90 hover:bg-accent rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <X className="h-4 w-4" />
               Limpar filtro
@@ -733,7 +710,13 @@ export default function Stock() {
                         {filters.casela
                           ? (filterOptions.caselas.find(
                               (c) => c.value === filters.casela,
-                            )?.label ?? `Casela ${filters.casela}`)
+                            )?.label ??
+                            formatCaselaLabel(uiDisplay.casela, {
+                              caselaId: Number(filters.casela),
+                              residentName: residents.find(
+                                (r) => r.casela === Number(filters.casela),
+                              )?.name,
+                            }))
                           : "Selecione"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />

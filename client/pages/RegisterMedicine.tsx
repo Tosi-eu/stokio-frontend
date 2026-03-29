@@ -15,46 +15,14 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { MeasurementUnitCombobox } from "@/components/MeasurementUnitCombobox";
+import { MeasurementUnit } from "@/constants/measurement-units";
 
-export enum MeasurementUnit {
-  MG = "mg",
-  ML = "ml",
-  G = "g",
-  MCG = "mcg",
-  MG_ML = "mg/ml",
-  G_ML = "g/ml",
-  MG_G = "mg/g",
-  MG_PLUS = "mg+",
-  UI = "UI",
-  GTS = "gts",
-  UI_G = "UI/g",
-  UI_MG = "UI/mg",
-  UI_ML = "UI/ml",
-}
-
-export const MEASUREMENT_UNIT_LABEL: Record<MeasurementUnit, string> = {
-  [MeasurementUnit.MG]: "mg",
-  [MeasurementUnit.ML]: "ml",
-  [MeasurementUnit.G]: "g",
-  [MeasurementUnit.MCG]: "mcg",
-  [MeasurementUnit.MG_ML]: "mg/ml",
-  [MeasurementUnit.G_ML]: "g/ml",
-  [MeasurementUnit.MG_G]: "mg/g",
-  [MeasurementUnit.MG_PLUS]: "mg+",
-  [MeasurementUnit.UI]: "UI",
-  [MeasurementUnit.GTS]: "gts",
-  [MeasurementUnit.UI_G]: "UI/g",
-  [MeasurementUnit.UI_MG]: "UI/mg",
-  [MeasurementUnit.UI_ML]: "UI/ml",
-};
+export {
+  MEASUREMENT_UNIT_LABEL,
+  MeasurementUnit,
+} from "@/constants/measurement-units";
 
 export default function SignUpMedicine() {
   const navigate = useNavigate();
@@ -233,25 +201,16 @@ export default function SignUpMedicine() {
                   control={control}
                   render={({ field }) => (
                     <>
-                      <Select
+                      <MeasurementUnitCombobox
                         value={field.value}
                         onValueChange={field.onChange}
                         disabled={isSubmitting}
-                      >
-                        <SelectTrigger
-                          className="bg-white"
-                          id="measurementUnit"
-                        >
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.values(MeasurementUnit).map((unit) => (
-                            <SelectItem key={unit} value={unit}>
-                              {MEASUREMENT_UNIT_LABEL[unit]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        id="measurementUnit"
+                        placeholder="Selecione"
+                        aria-invalid={
+                          errors.measurementUnit ? "true" : undefined
+                        }
+                      />
                       {errors.measurementUnit && (
                         <p className="text-sm text-red-600 mt-1">
                           {errors.measurementUnit.message}
@@ -313,7 +272,7 @@ export default function SignUpMedicine() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg"
               >
                 {isSubmitting ? "Cadastrando..." : "Cadastrar"}
               </Button>
