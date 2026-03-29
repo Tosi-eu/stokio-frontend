@@ -1,10 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Layout from "@/components/Layout";
 import EditableTable from "@/components/EditableTable";
 import { SkeletonTable } from "@/components/SkeletonTable";
 import { toast } from "@/hooks/use-toast.hook";
 
-import { getInputMovements, getMedicineMovements } from "@/api/requests";
+import {
+  getCabinets,
+  getDrawers,
+  getInputMovements,
+  getMedicineMovements,
+} from "@/api/requests";
 import { Card } from "@/components/ui/card";
 import type { RawMovement } from "@/interfaces/interfaces";
 import { useTenant } from "@/hooks/use-tenant.hook";
@@ -178,12 +183,12 @@ export default function InputMovements() {
   useEffect(() => {
     fetchEntries();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchEntries stable
-  }, [entriesInputPage, entriesMedicinePage]);
+  }, [entriesInputPage, entriesMedicinePage, uiDisplay, cabMap, drwMap]);
 
   useEffect(() => {
     fetchExits();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchExits stable
-  }, [exitsInputPage, exitsMedicinePage]);
+  }, [exitsInputPage, exitsMedicinePage, uiDisplay, cabMap, drwMap]);
 
   return (
     <Layout title="Movimentações">

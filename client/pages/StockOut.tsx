@@ -3,6 +3,11 @@ import Layout from "@/components/Layout";
 import { toast } from "@/hooks/use-toast.hook";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createStockOut, getResidents, getStock } from "@/api/requests";
+import { useUiDisplay } from "@/context/ui-display-context";
+import {
+  caselaFilterLabel,
+  caselaModeForContext,
+} from "@/helpers/ui-display.helper";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import { useFormWithZod } from "@/hooks/use-form-with-zod";
 import { stockOutQuantitySchema } from "@/schemas/stock-out.schema";
@@ -156,8 +161,18 @@ export default function StockOut() {
     if (useNames) {
       return residents
         .filter((r) => caselaIdsFromItems.includes(r.casela))
-        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
-        .map((r) => ({ label: r.name, value: String(r.casela) }));
+        .sort((a, b) =>
+          eff === "nome"
+            ? a.name.localeCompare(b.name, "pt-BR")
+            : a.casela - b.casela,
+        )
+        .map((r) => ({
+          label:
+            eff === "nome"
+              ? r.name
+              : caselaFilterLabel(r.casela, r.name, uiDisplay, sector),
+          value: String(r.casela),
+        }));
     }
     return caselaIdsFromItems
       .sort((a, b) => a - b)

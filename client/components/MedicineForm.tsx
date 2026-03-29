@@ -47,6 +47,7 @@ export const MedicineForm = memo(function MedicineForm({
 }: MedicineFormProps) {
   const { uiDisplay } = useTenant();
   const navigate = useNavigate();
+  const { uiDisplay } = useUiDisplay();
   const [medicineOpen, setMedicineOpen] = useState(false);
   const [caselaOpen, setCaselaOpen] = useState(false);
 
@@ -79,14 +80,17 @@ export const MedicineForm = memo(function MedicineForm({
   const casela = watch("casela");
 
   const selectedMedicine = medicines.find((m) => m.id === selectedMedicineId);
+  const effectiveCaselaMode = useMemo(
+    () => caselaModeForContext(uiDisplay.casela, uiDisplay.caselaSetor, sector),
+    [uiDisplay.casela, uiDisplay.caselaSetor, sector],
+  );
   const caselasForSelect = useMemo(() => {
-    if (sector === SectorType.ENFERMAGEM) {
-      return [...(caselas ?? [])].sort((a, b) =>
-        a.name.localeCompare(b.name, "pt-BR"),
-      );
+    const list = [...(caselas ?? [])];
+    if (effectiveCaselaMode === "nome") {
+      return list.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
     }
-    return caselas ?? [];
-  }, [caselas, sector]);
+    return list.sort((a, b) => a.casela - b.casela);
+  }, [caselas, effectiveCaselaMode]);
   const isEmergencyCart = stockType === ItemStockType.CARRINHO;
   const isPsychotropicCart = stockType === ItemStockType.CARRINHO_PSICOTROPICOS;
   const isCart = isEmergencyCart || isPsychotropicCart;
@@ -330,17 +334,10 @@ export const MedicineForm = memo(function MedicineForm({
         )}
       </div>
 
-      <div
-        className={cn(
-          "grid gap-6",
-          sector === SectorType.ENFERMAGEM
-            ? "grid-cols-1"
-            : "grid-cols-1 md:grid-cols-2",
-        )}
-      >
+      <div className="grid gap-6 grid-cols-1">
         <div className="grid gap-2">
           <label className="text-sm font-semibold text-slate-700">
-            {sector === SectorType.ENFERMAGEM ? "Casela (residente)" : "Casela"}
+            {effectiveCaselaMode === "nome" ? "Casela (residente)" : "Casela"}
           </label>
           <Controller
             name="casela"
@@ -367,7 +364,7 @@ export const MedicineForm = memo(function MedicineForm({
                           : String(selectedCasela.casela)
                         : uiDisplay.casela === "nome"
                           ? "Buscar por nome do residente..."
-                          : "Selecione a casela"}
+                          : "Buscar por número da casela..."}
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -440,25 +437,6 @@ export const MedicineForm = memo(function MedicineForm({
             )}
           />
         </div>
-        {sector === SectorType.FARMACIA && (
-          <div className="grid gap-2">
-            <label className="text-sm font-semibold text-slate-700">
-              Residente
-            </label>
-            <input
-              type="text"
-              value={selectedCasela?.name || ""}
-              readOnly
-              disabled={!isIndividual}
-              className={cn(
-                "w-full border rounded-lg px-3 py-2 text-sm",
-                !isIndividual
-                  ? "bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200"
-                  : "bg-slate-50 border-slate-200",
-              )}
-            />
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

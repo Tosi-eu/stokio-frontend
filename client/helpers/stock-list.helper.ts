@@ -1,6 +1,13 @@
 import { getStock } from "@/api/requests";
 import { StockItem, StockItemRaw } from "@/interfaces/interfaces";
 import { ItemStockType, StockTypeLabels } from "@/utils/enums";
+import {
+  armarioFilterLabel,
+  caselaFilterLabel,
+  caselaModeForContext,
+  DEFAULT_UI_DISPLAY,
+  type UiDisplayConfig,
+} from "@/helpers/ui-display.helper";
 
 export interface StockListFilters {
   nome?: string;
@@ -110,6 +117,10 @@ export function buildFilterOptions(
     { value: "farmacia", label: "Farmácia" },
   ];
 
+  const cabByNum = new Map(
+    (options?.cabinets ?? []).map((c) => [c.numero, c.categoria]),
+  );
+  const armMode = options?.uiDisplay?.armario ?? "numero";
   const cabinetIds = Array.from(
     new Set(
       raw
@@ -118,14 +129,27 @@ export function buildFilterOptions(
     ),
   )
     .sort((a, b) => a - b)
-    .map((id) => ({ value: String(id), label: `Armário ${id}` }));
+    .map((id) => ({
+      value: String(id),
+      label: armarioFilterLabel(id, cabByNum.get(id) ?? null, armMode),
+    }));
 
   const useResidentCaselaLabels =
     options?.displayCasela === "nome" && (options?.residents?.length ?? 0) > 0;
   const caselaIds: StockFilterOption[] = useResidentCaselaLabels
     ? [...options!.residents!]
-        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
-        .map((r) => ({ value: String(r.casela), label: r.name }))
+        .sort((a, b) =>
+          effEnf === "nome"
+            ? a.name.localeCompare(b.name, "pt-BR")
+            : a.casela - b.casela,
+        )
+        .map((r) => ({
+          value: String(r.casela),
+          label:
+            effEnf === "nome"
+              ? r.name
+              : caselaFilterLabel(r.casela, r.name, ui, "enfermagem"),
+        }))
     : Array.from(
         new Set(
           raw
@@ -135,8 +159,28 @@ export function buildFilterOptions(
             .filter((id): id is number => id != null),
         ),
       )
-        .sort((a, b) => a - b)
-        .map((id) => ({ value: String(id), label: `Casela ${id}` }));
+        .sort((a, b) => {
+          if (effFarm === "nome" && (options?.residents?.length ?? 0) > 0) {
+            const na =
+              options!.residents!.find((r) => r.casela === a)?.name ?? "";
+            const nb =
+              options!.residents!.find((r) => r.casela === b)?.name ?? "";
+            return na.localeCompare(nb, "pt-BR");
+          }
+          return a - b;
+        })
+        .map((id) => {
+          const r = options?.residents?.find((x) => x.casela === id);
+          return {
+            value: String(id),
+            label: caselaFilterLabel(
+              id,
+              r?.name ?? null,
+              ui,
+              sectorForFarmaciaList,
+            ),
+          };
+        });
 
   const lotes = Array.from(
     new Set(
@@ -171,19 +215,56 @@ export function buildFilterOptionsFromApi(
     { value: "farmacia", label: "Farmácia" },
   ];
 
+  const cabByNum = new Map(
+    (options?.cabinets ?? []).map((c) => [c.numero, c.categoria]),
+  );
+  const armMode = options?.uiDisplay?.armario ?? "numero";
   const cabinets: StockFilterOption[] = (apiOptions?.cabinets ?? [])
     .sort((a, b) => a - b)
-    .map((id) => ({ value: String(id), label: `Armário ${id}` }));
+    .map((id) => ({
+      value: String(id),
+      label: armarioFilterLabel(id, cabByNum.get(id) ?? null, armMode),
+    }));
 
   const useResidentCaselaLabels =
     options?.displayCasela === "nome" && (options?.residents?.length ?? 0) > 0;
   const caselas: StockFilterOption[] = useResidentCaselaLabels
     ? [...options!.residents!]
-        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
-        .map((r) => ({ value: String(r.casela), label: r.name }))
+        .sort((a, b) =>
+          effEnf === "nome"
+            ? a.name.localeCompare(b.name, "pt-BR")
+            : a.casela - b.casela,
+        )
+        .map((r) => ({
+          value: String(r.casela),
+          label:
+            effEnf === "nome"
+              ? r.name
+              : caselaFilterLabel(r.casela, r.name, ui, "enfermagem"),
+        }))
     : (apiOptions?.caselas ?? [])
-        .sort((a, b) => a - b)
-        .map((id) => ({ value: String(id), label: `Casela ${id}` }));
+        .sort((a, b) => {
+          if (effFarm === "nome" && (options?.residents?.length ?? 0) > 0) {
+            const na =
+              options!.residents!.find((r) => r.casela === a)?.name ?? "";
+            const nb =
+              options!.residents!.find((r) => r.casela === b)?.name ?? "";
+            return na.localeCompare(nb, "pt-BR");
+          }
+          return a - b;
+        })
+        .map((id) => {
+          const r = options?.residents?.find((x) => x.casela === id);
+          return {
+            value: String(id),
+            label: caselaFilterLabel(
+              id,
+              r?.name ?? null,
+              ui,
+              sectorForFarmaciaList,
+            ),
+          };
+        });
 
   const lots: StockFilterOption[] = (apiOptions?.lots ?? [])
     .sort((a, b) => a.localeCompare(b))

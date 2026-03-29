@@ -207,13 +207,18 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
     });
   };
 
-  const sortedResidents = useMemo(
-    () =>
-      [...(residents ?? [])].sort((a, b) =>
-        a.name.localeCompare(b.name, "pt-BR"),
-      ),
-    [residents],
-  );
+  const sortedResidents = useMemo(() => {
+    const eff = caselaModeForContext(
+      uiDisplay.casela,
+      uiDisplay.caselaSetor,
+      "enfermagem",
+    );
+    return [...(residents ?? [])].sort((a, b) =>
+      eff === "nome"
+        ? a.name.localeCompare(b.name, "pt-BR")
+        : a.casela - b.casela,
+    );
+  }, [residents, uiDisplay.casela, uiDisplay.caselaSetor]);
 
   const filteredResidents = sortedResidents.filter((r) => {
     if (!caselaSearch) return true;

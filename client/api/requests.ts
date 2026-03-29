@@ -466,6 +466,18 @@ export type CurrentUserResponse = {
 export const getCurrentUser = (): Promise<CurrentUserResponse> =>
   api.get<CurrentUserResponse>("/login/usuario-logado");
 
+export type DisplayConfigResponse = {
+  uiDisplay: {
+    casela: "numero" | "nome";
+    caselaSetor: "farmacia" | "enfermagem" | "todos";
+    armario: "numero" | "categoria";
+    gaveta: "numero" | "categoria";
+  };
+};
+
+export const getDisplayConfig = (): Promise<DisplayConfigResponse> =>
+  api.get<DisplayConfigResponse>("/login/display-config");
+
 export const register = (
   login: string,
   password: string,

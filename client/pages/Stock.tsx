@@ -19,6 +19,14 @@ import {
   getResidents,
   getDrawers,
 } from "@/api/requests";
+import { useUiDisplay } from "@/context/ui-display-context";
+import {
+  formatArmarioDisplay,
+  formatCaselaDisplay,
+  formatGavetaDisplay,
+  cabinetCategoryByNumero,
+  drawerCategoryByNumero,
+} from "@/helpers/ui-display.helper";
 import { ItemStockType, SectorType } from "@/utils/enums";
 import { StockActionType, StockItemType } from "@/interfaces/types";
 import {
@@ -334,9 +342,11 @@ export default function Stock() {
 
   const filteredCabinets = useMemo(() => {
     if (!armarioSearch) return filterOptions.cabinets;
-
-    return filterOptions.cabinets.filter((c) =>
-      c.value.startsWith(armarioSearch.trim()),
+    const q = armarioSearch.trim().toLowerCase();
+    return filterOptions.cabinets.filter(
+      (c) =>
+        c.value.startsWith(armarioSearch.trim()) ||
+        c.label.toLowerCase().includes(q),
     );
   }, [armarioSearch, filterOptions.cabinets]);
 
@@ -649,7 +659,9 @@ export default function Stock() {
                     <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white truncate">
                       <span className="truncate">
                         {filters.armario
-                          ? `Armário ${filters.armario}`
+                          ? (filterOptions.cabinets.find(
+                              (c) => c.value === filters.armario,
+                            )?.label ?? `Armário ${filters.armario}`)
                           : "Selecione"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />

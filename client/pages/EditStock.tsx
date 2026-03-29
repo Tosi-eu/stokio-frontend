@@ -26,6 +26,12 @@ import {
   StockTypeLabels,
 } from "@/utils/enums";
 import { useEditStockData } from "@/hooks/use-edit-stock-data.hook";
+import { useUiDisplay } from "@/context/ui-display-context";
+import {
+  armarioFilterLabel,
+  caselaModeForContext,
+  gavetaFilterLabel,
+} from "@/helpers/ui-display.helper";
 import ConfirmActionModal from "@/components/ConfirmationActionModal";
 import DatePicker from "react-datepicker";
 import { ptBR } from "date-fns/locale";
@@ -38,6 +44,7 @@ export default function EditStock() {
   const { uiDisplay } = useTenant();
   const location = useLocation();
   const navigate = useNavigate();
+  const { uiDisplay } = useUiDisplay();
 
   const {
     cabinets,
@@ -326,7 +333,11 @@ export default function EditStock() {
                               key={cabinet.numero}
                               value={cabinet.numero.toString()}
                             >
-                              Armário {cabinet.numero}
+                              {armarioFilterLabel(
+                                cabinet.numero,
+                                cabinet.categoria,
+                                uiDisplay.armario,
+                              )}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -417,7 +428,7 @@ export default function EditStock() {
                             >
                               {uiDisplay.casela === "nome"
                                 ? resident.name
-                                : resident.casela}
+                                : String(resident.casela)}
                             </SelectItem>
                           ))}
                         </SelectContent>
