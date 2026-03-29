@@ -108,9 +108,10 @@ export interface BuildFilterOptionsParams {
   cabinets?: Array<{ numero: number; categoria: string }>;
 }
 
-function caselaUiPick(
-  options?: BuildFilterOptionsParams,
-): { casela: UiDisplayCasela; caselaSetor: UiDisplayCaselaSetor } {
+function caselaUiPick(options?: BuildFilterOptionsParams): {
+  casela: UiDisplayCasela;
+  caselaSetor: UiDisplayCaselaSetor;
+} {
   return {
     casela: options?.displayCasela ?? "numero",
     caselaSetor: options?.caselaSetor ?? "todos",
@@ -153,8 +154,7 @@ export function buildFilterOptions(
     uiCasela.caselaSetor,
     "enfermagem",
   );
-  const sectorForFarmaciaList =
-    options?.setor === "farmacia" ? "farmacia" : "";
+  const sectorForFarmaciaList = options?.setor === "farmacia" ? "farmacia" : "";
   const effFarm = caselaModeForContext(
     uiCasela.casela,
     uiCasela.caselaSetor,
@@ -259,8 +259,7 @@ export function buildFilterOptionsFromApi(
     uiCasela.caselaSetor,
     "enfermagem",
   );
-  const sectorForFarmaciaList =
-    options?.setor === "farmacia" ? "farmacia" : "";
+  const sectorForFarmaciaList = options?.setor === "farmacia" ? "farmacia" : "";
   const effFarm = caselaModeForContext(
     uiCasela.casela,
     uiCasela.caselaSetor,

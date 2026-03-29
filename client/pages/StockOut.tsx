@@ -158,9 +158,7 @@ export default function StockOut() {
   const caselaOptions = useMemo(() => {
     const sectorRaw = filters.setor?.trim().toLowerCase() ?? "";
     const sector =
-      sectorRaw === "enfermagem" || sectorRaw === "farmacia"
-        ? sectorRaw
-        : "";
+      sectorRaw === "enfermagem" || sectorRaw === "farmacia" ? sectorRaw : "";
     const eff = caselaModeForContext(
       uiDisplay.casela,
       uiDisplay.caselaSetor,

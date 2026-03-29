@@ -12,9 +12,7 @@ export const DEFAULT_UI_DISPLAY: TenantUiDisplay = {
   gaveta: "numero",
 };
 
-function normalizeCaselaSetor(
-  v: unknown,
-): TenantUiDisplay["caselaSetor"] {
+function normalizeCaselaSetor(v: unknown): TenantUiDisplay["caselaSetor"] {
   const s = String(v ?? "").toLowerCase();
   if (s === "farmacia" || s === "enfermagem" || s === "todos") return s;
   return "todos";
