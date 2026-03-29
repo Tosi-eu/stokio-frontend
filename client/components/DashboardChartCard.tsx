@@ -11,8 +11,7 @@ import {
 
 interface DashboardChartCardProps {
   title: string;
-  data: Array<{ cabinet?: number; drawer?: number; total: number }>;
-  dataKey: "cabinet" | "drawer";
+  data: Array<{ label: string; total: number }>;
   gradientId: string;
   gradientColors: { start: string; end: string };
 }
@@ -20,7 +19,6 @@ interface DashboardChartCardProps {
 export const DashboardChartCard = memo(function DashboardChartCard({
   title,
   data,
-  dataKey,
   gradientId,
   gradientColors,
 }: DashboardChartCardProps) {
@@ -40,7 +38,7 @@ export const DashboardChartCard = memo(function DashboardChartCard({
               <XAxis type="number" />
               <YAxis
                 type="category"
-                dataKey={dataKey}
+                dataKey="label"
                 width={80}
                 interval={0}
               />

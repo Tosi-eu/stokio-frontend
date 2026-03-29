@@ -3,7 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CONFIG_KEYS } from "../hooks/useAdminConfig";
+import {
+  CONFIG_KEYS,
+  DISPLAY_CONFIG_KEYS,
+  DISPLAY_SELECT_OPTIONS,
+} from "../hooks/useAdminConfig";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { AdminHealthResponse } from "@/api/requests";
 import { restoreBackup } from "@/api/requests";
 import { toast } from "@/hooks/use-toast.hook";
@@ -113,6 +124,36 @@ export function AdminTabConfig({
                       setForm((p) => ({ ...p, [key]: e.target.value }))
                     }
                   />
+                </div>
+              ))}
+              {(
+                Object.entries(DISPLAY_CONFIG_KEYS) as [
+                  keyof typeof DISPLAY_CONFIG_KEYS,
+                  string,
+                ][]
+              ).map(([key, label]) => (
+                <div key={key} className="grid gap-2 max-w-md">
+                  <Label htmlFor={key}>{label}</Label>
+                  <Select
+                    value={
+                      form[key] ??
+                      (key === "display_casela_setor" ? "todos" : "numero")
+                    }
+                    onValueChange={(v) =>
+                      setForm((p) => ({ ...p, [key]: v }))
+                    }
+                  >
+                    <SelectTrigger id={key} className="bg-white max-w-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DISPLAY_SELECT_OPTIONS[key].map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               ))}
               <Button onClick={onSave} disabled={saving}>

@@ -10,6 +10,7 @@ import { lazy, Suspense, useEffect } from "react";
 import React from "react";
 
 import { AuthProvider } from "./context/auth-context";
+import { UiDisplayProvider } from "./context/ui-display-context";
 import PrivateRoute from "./pages/PrivateRoute";
 import { NotificationProvider } from "./context/notification.context";
 import {
@@ -410,13 +411,15 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
-        <NotificationProvider>
-          <InvalidSessionProvider>
-            <BrowserRouter>
-              <AppContent />
-            </BrowserRouter>
-          </InvalidSessionProvider>
-        </NotificationProvider>
+        <UiDisplayProvider>
+          <NotificationProvider>
+            <InvalidSessionProvider>
+              <BrowserRouter>
+                <AppContent />
+              </BrowserRouter>
+            </InvalidSessionProvider>
+          </NotificationProvider>
+        </UiDisplayProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

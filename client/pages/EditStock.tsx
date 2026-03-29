@@ -26,6 +26,12 @@ import {
   StockTypeLabels,
 } from "@/utils/enums";
 import { useEditStockData } from "@/hooks/use-edit-stock-data.hook";
+import { useUiDisplay } from "@/context/ui-display-context";
+import {
+  armarioFilterLabel,
+  caselaModeForContext,
+  gavetaFilterLabel,
+} from "@/helpers/ui-display.helper";
 import ConfirmActionModal from "@/components/ConfirmationActionModal";
 import DatePicker from "react-datepicker";
 import { ptBR } from "date-fns/locale";
@@ -36,6 +42,7 @@ import { SkeletonForm } from "@/components/SkeletonForm";
 export default function EditStock() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { uiDisplay } = useUiDisplay();
 
   const {
     cabinets,
@@ -324,7 +331,11 @@ export default function EditStock() {
                               key={cabinet.numero}
                               value={cabinet.numero.toString()}
                             >
-                              Armário {cabinet.numero}
+                              {armarioFilterLabel(
+                                cabinet.numero,
+                                cabinet.categoria,
+                                uiDisplay.armario,
+                              )}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -364,7 +375,11 @@ export default function EditStock() {
                               key={drawer.numero}
                               value={drawer.numero.toString()}
                             >
-                              Gaveta {drawer.numero}
+                              {gavetaFilterLabel(
+                                drawer.numero,
+                                drawer.categoria,
+                                uiDisplay.gaveta,
+                              )}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -410,9 +425,13 @@ export default function EditStock() {
                               key={resident.casela}
                               value={resident.casela.toString()}
                             >
-                              {stockItem?.sector === "enfermagem"
+                              {caselaModeForContext(
+                                uiDisplay.casela,
+                                uiDisplay.caselaSetor,
+                                stockItem?.sector,
+                              ) === "nome"
                                 ? resident.name
-                                : resident.casela}
+                                : String(resident.casela)}
                             </SelectItem>
                           ))}
                         </SelectContent>

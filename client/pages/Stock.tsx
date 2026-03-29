@@ -17,7 +17,17 @@ import {
   suspendInputFromStock,
   transferStockSector,
   getResidents,
+  getCabinets,
+  getDrawers,
 } from "@/api/requests";
+import { useUiDisplay } from "@/context/ui-display-context";
+import {
+  formatArmarioDisplay,
+  formatCaselaDisplay,
+  formatGavetaDisplay,
+  cabinetCategoryByNumero,
+  drawerCategoryByNumero,
+} from "@/helpers/ui-display.helper";
 import { ItemStockType, SectorType } from "@/utils/enums";
 import { StockActionType, StockItemType } from "@/interfaces/types";
 import {
@@ -56,6 +66,7 @@ const FILTER_LABELS: Record<string, string> = {
 };
 
 export default function Stock() {
+  const { uiDisplay } = useUiDisplay();
   const navigate = useNavigate();
   const location = useLocation();
   const params = new URLSearchParams(location.search);
@@ -129,6 +140,21 @@ export default function Stock() {
   const [residents, setResidents] = useState<
     Array<{ casela: number; name: string }>
   >([]);
+  const [cabinetList, setCabinetList] = useState<
+    Array<{ numero: number; categoria: string }>
+  >([]);
+  const [drawerList, setDrawerList] = useState<
+    Array<{ numero: number; categoria: string }>
+  >([]);
+
+  const cabinetCatMap = useMemo(
+    () => cabinetCategoryByNumero(cabinetList),
+    [cabinetList],
+  );
+  const drawerCatMap = useMemo(
+    () => drawerCategoryByNumero(drawerList),
+    [drawerList],
+  );
 
   async function loadStock(pageToLoad: number, currentFilters = filters) {
     setLoading(true);
@@ -201,10 +227,47 @@ export default function Stock() {
     }
   }
 
+  async function loadCabinetDrawerCatalog() {
+    try {
+      const [cabs, drs] = await Promise.all([
+        fetchAllPaginated((page, limit) => getCabinets(page, limit), 100),
+        fetchAllPaginated((page, limit) => getDrawers(page, limit), 100),
+      ]);
+      setCabinetList(
+        cabs.map((c: { numero: number; categoria: string }) => ({
+          numero: c.numero,
+          categoria: c.categoria,
+        })),
+      );
+      setDrawerList(
+        drs.map((d: { numero: number; categoria: string }) => ({
+          numero: d.numero,
+          categoria: d.categoria,
+        })),
+      );
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Não foi possível carregar armários e gavetas.";
+      toast({
+        title: "Erro ao carregar catálogo",
+        description: errorMessage,
+        variant: "error",
+        duration: 3000,
+      });
+    }
+  }
+
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([loadStock(1), loadFilterOptions(), loadResidents()]);
+      await Promise.all([
+        loadStock(1),
+        loadFilterOptions(),
+        loadResidents(),
+        loadCabinetDrawerCatalog(),
+      ]);
     }
 
     init();
@@ -263,26 +326,58 @@ export default function Stock() {
       buildFilterOptionsFromApi(apiFilterOptions, {
         residents,
         setor: filters.setor,
+        uiDisplay,
+        cabinets: cabinetList,
       }),
-    [apiFilterOptions, residents, filters.setor],
+    [apiFilterOptions, residents, filters.setor, uiDisplay, cabinetList],
   );
 
   const displayItems = useMemo(() => {
     return items.map((item) => {
-      const caselaDisplay =
-        item.sector === "enfermagem" && item.casela != null
-          ? (residents.find((r) => r.casela === item.casela)?.name ??
-            String(item.casela))
-          : (item.casela ?? "-");
-      return { ...item, caselaDisplay };
+      const res =
+        item.casela != null
+          ? residents.find((r) => r.casela === item.casela)
+          : undefined;
+      const caselaDisplay = formatCaselaDisplay(
+        item.casela,
+        res?.name,
+        uiDisplay,
+        item.sector,
+      );
+      const cabNum =
+        typeof item.cabinet === "number" ? item.cabinet : null;
+      const drwNum =
+        typeof item.drawer === "number" ? item.drawer : null;
+      return {
+        ...item,
+        cabinetDisplay: formatArmarioDisplay(
+          cabNum,
+          cabNum != null ? cabinetCatMap.get(cabNum) ?? null : null,
+          uiDisplay.armario,
+        ),
+        drawerDisplay: formatGavetaDisplay(
+          drwNum,
+          drwNum != null ? drawerCatMap.get(drwNum) ?? null : null,
+          uiDisplay.gaveta,
+        ),
+        caselaDisplay,
+      };
     });
-  }, [items, residents]);
+  }, [
+    items,
+    residents,
+    uiDisplay,
+    cabinetCatMap,
+    drawerCatMap,
+  ]);
 
   const filteredCabinets = useMemo(() => {
     if (!armarioSearch) return filterOptions.cabinets;
-
-    return filterOptions.cabinets.filter((c) =>
-      c.value.startsWith(armarioSearch.trim()),
+    const q = armarioSearch.trim().toLowerCase();
+    return filterOptions.cabinets.filter(
+      (c) =>
+        c.value.startsWith(armarioSearch.trim()) ||
+        c.label.toLowerCase().includes(q),
     );
   }, [armarioSearch, filterOptions.cabinets]);
 
@@ -303,8 +398,8 @@ export default function Stock() {
     { key: "description", label: "Descrição", editable: true },
     { key: "expiry", label: "Validade", editable: true },
     { key: "quantity", label: "Quantidade", editable: true },
-    { key: "cabinet", label: "Armário", editable: false },
-    { key: "drawer", label: "Gaveta", editable: false },
+    { key: "cabinetDisplay", label: "Armário", editable: false },
+    { key: "drawerDisplay", label: "Gaveta", editable: false },
     { key: "caselaDisplay", label: "Casela", editable: false },
     { key: "daysToReplacement", label: "Dias para Repor", editable: false },
     { key: "origin", label: "Origem", editable: false },
@@ -595,7 +690,9 @@ export default function Stock() {
                     <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white truncate">
                       <span className="truncate">
                         {filters.armario
-                          ? `Armário ${filters.armario}`
+                          ? (filterOptions.cabinets.find(
+                              (c) => c.value === filters.armario,
+                            )?.label ?? `Armário ${filters.armario}`)
                           : "Selecione"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
@@ -642,11 +739,10 @@ export default function Stock() {
                     <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white truncate">
                       <span className="truncate">
                         {filters.casela
-                          ? filters.setor === "enfermagem"
-                            ? (residents.find(
-                                (r) => r.casela === Number(filters.casela),
-                              )?.name ?? `Casela ${filters.casela}`)
-                            : `Casela ${filters.casela}`
+                          ? (filterOptions.caselas.find(
+                              (c) => c.value === filters.casela,
+                            )?.label ??
+                            `Casela ${filters.casela}`)
                           : "Selecione"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />

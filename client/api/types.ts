@@ -47,6 +47,7 @@ export interface RawDashboardMovement {
   tipo?: string;
   quantidade?: number;
   data?: string;
+  setor?: string | null;
   MedicineModel?: { nome?: string };
   InputModel?: { nome?: string };
   LoginModel?: { login?: string };

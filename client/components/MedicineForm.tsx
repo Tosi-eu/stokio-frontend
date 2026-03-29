@@ -35,6 +35,11 @@ import {
 } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useUiDisplay } from "@/context/ui-display-context";
+import {
+  caselaModeForContext,
+  formatCaselaDisplay,
+} from "@/helpers/ui-display.helper";
 
 export const MedicineForm = memo(function MedicineForm({
   medicines,
@@ -45,6 +50,7 @@ export const MedicineForm = memo(function MedicineForm({
   isLoading = false,
 }: MedicineFormProps) {
   const navigate = useNavigate();
+  const { uiDisplay } = useUiDisplay();
   const [medicineOpen, setMedicineOpen] = useState(false);
   const [caselaOpen, setCaselaOpen] = useState(false);
 
@@ -77,14 +83,22 @@ export const MedicineForm = memo(function MedicineForm({
   const casela = watch("casela");
 
   const selectedMedicine = medicines.find((m) => m.id === selectedMedicineId);
+  const effectiveCaselaMode = useMemo(
+    () =>
+      caselaModeForContext(
+        uiDisplay.casela,
+        uiDisplay.caselaSetor,
+        sector,
+      ),
+    [uiDisplay.casela, uiDisplay.caselaSetor, sector],
+  );
   const caselasForSelect = useMemo(() => {
-    if (sector === SectorType.ENFERMAGEM) {
-      return [...(caselas ?? [])].sort((a, b) =>
-        a.name.localeCompare(b.name, "pt-BR"),
-      );
+    const list = [...(caselas ?? [])];
+    if (effectiveCaselaMode === "nome") {
+      return list.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
     }
-    return caselas ?? [];
-  }, [caselas, sector]);
+    return list.sort((a, b) => a.casela - b.casela);
+  }, [caselas, effectiveCaselaMode]);
   const isEmergencyCart = stockType === ItemStockType.CARRINHO;
   const isPsychotropicCart = stockType === ItemStockType.CARRINHO_PSICOTROPICOS;
   const isCart = isEmergencyCart || isPsychotropicCart;
@@ -337,17 +351,12 @@ export const MedicineForm = memo(function MedicineForm({
         )}
       </div>
 
-      <div
-        className={cn(
-          "grid gap-6",
-          sector === SectorType.ENFERMAGEM
-            ? "grid-cols-1"
-            : "grid-cols-1 md:grid-cols-2",
-        )}
-      >
+      <div className="grid gap-6 grid-cols-1">
         <div className="grid gap-2">
           <label className="text-sm font-semibold text-slate-700">
-            {sector === SectorType.ENFERMAGEM ? "Casela (residente)" : "Casela"}
+            {effectiveCaselaMode === "nome"
+              ? "Casela (residente)"
+              : "Casela"}
           </label>
           <Controller
             name="casela"
@@ -369,12 +378,15 @@ export const MedicineForm = memo(function MedicineForm({
                       )}
                     >
                       {field.value != null && selectedCasela
-                        ? sector === SectorType.ENFERMAGEM
-                          ? selectedCasela.name
-                          : String(selectedCasela.casela)
-                        : sector === SectorType.ENFERMAGEM
+                        ? formatCaselaDisplay(
+                            selectedCasela.casela,
+                            selectedCasela.name,
+                            uiDisplay,
+                            sector,
+                          )
+                        : effectiveCaselaMode === "nome"
                           ? "Buscar por nome do residente..."
-                          : "Selecione a casela"}
+                          : "Buscar por número da casela..."}
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -395,16 +407,16 @@ export const MedicineForm = memo(function MedicineForm({
                     >
                       <CommandInput
                         placeholder={
-                          sector === SectorType.ENFERMAGEM
+                          effectiveCaselaMode === "nome"
                             ? "Buscar por nome do residente..."
-                            : "Buscar por número..."
+                            : "Buscar por número da casela..."
                         }
                       />
                       <CommandEmpty>Nenhuma casela encontrada.</CommandEmpty>
                       <CommandGroup>
                         {caselasForSelect.map((c) => {
                           const label =
-                            sector === SectorType.ENFERMAGEM
+                            effectiveCaselaMode === "nome"
                               ? c.name
                               : String(c.casela);
                           const searchValue = `${c.casela} ${c.name}`;
@@ -426,7 +438,7 @@ export const MedicineForm = memo(function MedicineForm({
                                 )}
                               />
                               {label}
-                              {sector === SectorType.ENFERMAGEM && (
+                              {effectiveCaselaMode === "nome" && (
                                 <span className="ml-2 text-slate-500 text-xs">
                                   (Casela {c.casela})
                                 </span>
@@ -447,25 +459,6 @@ export const MedicineForm = memo(function MedicineForm({
             )}
           />
         </div>
-        {sector === SectorType.FARMACIA && (
-          <div className="grid gap-2">
-            <label className="text-sm font-semibold text-slate-700">
-              Residente
-            </label>
-            <input
-              type="text"
-              value={selectedCasela?.name || ""}
-              readOnly
-              disabled={!isIndividual}
-              className={cn(
-                "w-full border rounded-lg px-3 py-2 text-sm",
-                !isIndividual
-                  ? "bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200"
-                  : "bg-slate-50 border-slate-200",
-              )}
-            />
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
