@@ -5,7 +5,26 @@ import { preloadBrandLogoImageUrl } from "@/helpers/tenant-brand-logo-prefetch.h
 
 const DEFAULT_LOGO_PRELOAD_TIMEOUT_MS = 1000;
 
+let tenantLogoDisplayCache: { key: string; src: string } | null = null;
+
+function buildTenantLogoDisplayCacheKey(
+  tenant: TenantBrandLogoInput,
+  publicDefaultLogo: string,
+): string {
+  if (!tenant?.id) return `no-tenant::${publicDefaultLogo}`;
+  return [
+    tenant.id,
+    tenant.slug ?? "",
+    tenant.logoUrl ?? "",
+    tenant.brandingUpdatedAt ?? "",
+    tenant.brandName ?? "",
+    tenant.name ?? "",
+    publicDefaultLogo,
+  ].join("::");
+}
+
 export type TenantBrandLogoInput = {
+  id?: number;
   logoUrl?: string | null;
   slug?: string | null;
   brandName?: string | null;
@@ -27,14 +46,23 @@ export function useTenantBrandLogoSrc(
   const logoPreloadTimeoutMs =
     options?.logoPreloadTimeoutMs ?? DEFAULT_LOGO_PRELOAD_TIMEOUT_MS;
 
+  const cacheKey = buildTenantLogoDisplayCacheKey(tenant, publicDefaultLogo);
+
   const [readyDisplaySrc, setReadyDisplaySrc] = useState<string | undefined>(
-    undefined,
+    () =>
+      tenantLogoDisplayCache?.key === cacheKey
+        ? tenantLogoDisplayCache.src
+        : undefined,
   );
 
   const requestIdRef = useRef(0);
 
   useEffect(() => {
     if (tenantConfigLoading) return;
+
+    if (tenantLogoDisplayCache?.key === cacheKey) {
+      return;
+    }
 
     const requestId = ++requestIdRef.current;
 
@@ -70,6 +98,7 @@ export function useTenantBrandLogoSrc(
 
       if (isCancelled()) return;
 
+      tenantLogoDisplayCache = { key: cacheKey, src: finalSrc };
       setReadyDisplaySrc(finalSrc);
     })();
 
@@ -77,16 +106,9 @@ export function useTenantBrandLogoSrc(
       cancelled = true;
       if (preloadTimeoutId !== undefined) clearTimeout(preloadTimeoutId);
     };
-  }, [
-    tenantConfigLoading,
-    logoPreloadTimeoutMs,
-    publicDefaultLogo,
-    tenant?.logoUrl,
-    tenant?.slug,
-    tenant?.brandName,
-    tenant?.name,
-    tenant?.brandingUpdatedAt,
-  ]);
+    // cacheKey já incorpora tenant + publicDefaultLogo (evita efeito por referência nova).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ver cacheKey
+  }, [tenantConfigLoading, logoPreloadTimeoutMs, cacheKey]);
 
   const isLogoResolved = !tenantConfigLoading && readyDisplaySrc !== undefined;
 

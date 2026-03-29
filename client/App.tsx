@@ -24,6 +24,7 @@ import {
   useInvalidSession,
 } from "./context/invalid-session.context";
 import { LoadingFallback } from "./components/LoadingFallback";
+import { AppShellLayout } from "./components/AppShellLayout";
 import { InvalidSessionModal } from "./components/InvalidSessionModal";
 import { toast } from "@/hooks/use-toast.hook";
 import { useAuth } from "@/hooks/use-auth.hook";
@@ -141,6 +142,14 @@ const AppContent = () => {
             </Suspense>
           }
         />
+        <Route
+          path="/user/forgot-password"
+          element={
+            <Suspense fallback={<LoadingFallback title="Carregando..." />}>
+              <ForgotPassword />
+            </Suspense>
+          }
+        />
 
         <Route
           path="/tenant/onboarding"
@@ -157,356 +166,316 @@ const AppContent = () => {
           }
         />
 
-        <Route
-          path="/dashboard"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando dashboard..." />}
-              >
-                <ModuleRoute moduleKey="dashboard">
-                  <Dashboard />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/movements"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={
-                  <LoadingFallback title="Carregando movimentações..." />
-                }
-              >
-                <ModuleRoute moduleKey="movements">
-                  <Movements />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/medicines"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={
-                  <LoadingFallback title="Carregando medicamentos..." />
-                }
-              >
-                <ModuleRoute moduleKey="medicines">
-                  <Medicines />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/medicines/register"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando formulário..." />}
-              >
-                <ModuleRoute moduleKey="medicines">
-                  <SignUpMedicine />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/medicines/edit"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando edição..." />}
-              >
-                <ModuleRoute moduleKey="medicines">
-                  <EditMedicine />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/stock"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando estoque..." />}
-              >
-                <ModuleRoute moduleKey="stock">
-                  <Stock />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/stock/in"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando entrada..." />}
-              >
-                <ModuleRoute moduleKey="stock">
-                  <StockEntry />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/stock/out"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando saída..." />}
-              >
-                <ModuleRoute moduleKey="stock">
-                  <StockOut />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/stock/edit"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando edição..." />}
-              >
-                <ModuleRoute moduleKey="stock">
-                  <EditStock />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/residents"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando residentes..." />}
-              >
-                <ModuleRoute moduleKey="residents">
-                  <Resident />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/residents/register"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando formulário..." />}
-              >
-                <ModuleRoute moduleKey="residents">
-                  <RegisterResident />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/residents/edit"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando edição..." />}
-              >
-                <ModuleRoute moduleKey="residents">
-                  <EditResident />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/inputs"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando insumos..." />}
-              >
-                <ModuleRoute moduleKey="inputs">
-                  <Inputs />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/inputs/register"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando formulário..." />}
-              >
-                <ModuleRoute moduleKey="inputs">
-                  <RegisterInput />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/inputs/edit"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando edição..." />}
-              >
-                <ModuleRoute moduleKey="inputs">
-                  <EditInput />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/cabinets"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando armários..." />}
-              >
-                <ModuleRoute moduleKey="cabinets">
-                  <Cabinets />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/cabinets/register"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando formulário..." />}
-              >
-                <ModuleRoute moduleKey="cabinets">
-                  <RegisterCabinet />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/cabinets/edit"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando edição..." />}
-              >
-                <ModuleRoute moduleKey="cabinets">
-                  <EditCabinet />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/drawers"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando gavetas..." />}
-              >
-                <ModuleRoute moduleKey="drawers">
-                  <Drawers />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/drawer/register"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando formulário..." />}
-              >
-                <ModuleRoute moduleKey="drawers">
-                  <RegisterDrawer />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/drawers/edit"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando edição..." />}
-              >
-                <ModuleRoute moduleKey="drawers">
-                  <EditDrawer />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/user/profile"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando perfil..." />}
-              >
-                <ModuleRoute moduleKey="profile">
-                  <Profile />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/user/forgot-password"
-          element={
-            <Suspense fallback={<LoadingFallback title="Carregando..." />}>
-              <ForgotPassword />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/reports/transfers"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={<LoadingFallback title="Carregando relatório..." />}
-              >
-                <ModuleRoute moduleKey="reports">
-                  <TransferReport />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <PrivateRoute>
-              <Suspense
-                fallback={
-                  <LoadingFallback title="Carregando painel administrativo..." />
-                }
-              >
-                <ModuleRoute moduleKey="admin">
-                  <AdminPanel />
-                </ModuleRoute>
-              </Suspense>
-            </PrivateRoute>
-          }
-        />
+        <Route element={<PrivateRoute />}>
+          <Route element={<AppShellLayout />}>
+            <Route
+              path="/dashboard"
+              element={
+                <Suspense
+                  fallback={<LoadingFallback title="Carregando dashboard..." />}
+                >
+                  <ModuleRoute moduleKey="dashboard">
+                    <Dashboard />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/movements"
+              element={
+                <Suspense
+                  fallback={
+                    <LoadingFallback title="Carregando movimentações..." />
+                  }
+                >
+                  <ModuleRoute moduleKey="movements">
+                    <Movements />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/medicines"
+              element={
+                <Suspense
+                  fallback={
+                    <LoadingFallback title="Carregando medicamentos..." />
+                  }
+                >
+                  <ModuleRoute moduleKey="medicines">
+                    <Medicines />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/medicines/register"
+              element={
+                <Suspense
+                  fallback={
+                    <LoadingFallback title="Carregando formulário..." />
+                  }
+                >
+                  <ModuleRoute moduleKey="medicines">
+                    <SignUpMedicine />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/medicines/edit"
+              element={
+                <Suspense
+                  fallback={<LoadingFallback title="Carregando edição..." />}
+                >
+                  <ModuleRoute moduleKey="medicines">
+                    <EditMedicine />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/stock"
+              element={
+                <Suspense
+                  fallback={<LoadingFallback title="Carregando estoque..." />}
+                >
+                  <ModuleRoute moduleKey="stock">
+                    <Stock />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/stock/in"
+              element={
+                <Suspense
+                  fallback={<LoadingFallback title="Carregando entrada..." />}
+                >
+                  <ModuleRoute moduleKey="stock">
+                    <StockEntry />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/stock/out"
+              element={
+                <Suspense
+                  fallback={<LoadingFallback title="Carregando saída..." />}
+                >
+                  <ModuleRoute moduleKey="stock">
+                    <StockOut />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/stock/edit"
+              element={
+                <Suspense
+                  fallback={<LoadingFallback title="Carregando edição..." />}
+                >
+                  <ModuleRoute moduleKey="stock">
+                    <EditStock />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/residents"
+              element={
+                <Suspense
+                  fallback={
+                    <LoadingFallback title="Carregando residentes..." />
+                  }
+                >
+                  <ModuleRoute moduleKey="residents">
+                    <Resident />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/residents/register"
+              element={
+                <Suspense
+                  fallback={
+                    <LoadingFallback title="Carregando formulário..." />
+                  }
+                >
+                  <ModuleRoute moduleKey="residents">
+                    <RegisterResident />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/residents/edit"
+              element={
+                <Suspense
+                  fallback={<LoadingFallback title="Carregando edição..." />}
+                >
+                  <ModuleRoute moduleKey="residents">
+                    <EditResident />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/inputs"
+              element={
+                <Suspense
+                  fallback={<LoadingFallback title="Carregando insumos..." />}
+                >
+                  <ModuleRoute moduleKey="inputs">
+                    <Inputs />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/inputs/register"
+              element={
+                <Suspense
+                  fallback={
+                    <LoadingFallback title="Carregando formulário..." />
+                  }
+                >
+                  <ModuleRoute moduleKey="inputs">
+                    <RegisterInput />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/inputs/edit"
+              element={
+                <Suspense
+                  fallback={<LoadingFallback title="Carregando edição..." />}
+                >
+                  <ModuleRoute moduleKey="inputs">
+                    <EditInput />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/cabinets"
+              element={
+                <Suspense
+                  fallback={<LoadingFallback title="Carregando armários..." />}
+                >
+                  <ModuleRoute moduleKey="cabinets">
+                    <Cabinets />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/cabinets/register"
+              element={
+                <Suspense
+                  fallback={
+                    <LoadingFallback title="Carregando formulário..." />
+                  }
+                >
+                  <ModuleRoute moduleKey="cabinets">
+                    <RegisterCabinet />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/cabinets/edit"
+              element={
+                <Suspense
+                  fallback={<LoadingFallback title="Carregando edição..." />}
+                >
+                  <ModuleRoute moduleKey="cabinets">
+                    <EditCabinet />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/drawers"
+              element={
+                <Suspense
+                  fallback={<LoadingFallback title="Carregando gavetas..." />}
+                >
+                  <ModuleRoute moduleKey="drawers">
+                    <Drawers />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/drawer/register"
+              element={
+                <Suspense
+                  fallback={
+                    <LoadingFallback title="Carregando formulário..." />
+                  }
+                >
+                  <ModuleRoute moduleKey="drawers">
+                    <RegisterDrawer />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/drawers/edit"
+              element={
+                <Suspense
+                  fallback={<LoadingFallback title="Carregando edição..." />}
+                >
+                  <ModuleRoute moduleKey="drawers">
+                    <EditDrawer />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/user/profile"
+              element={
+                <Suspense
+                  fallback={<LoadingFallback title="Carregando perfil..." />}
+                >
+                  <ModuleRoute moduleKey="profile">
+                    <Profile />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/reports/transfers"
+              element={
+                <Suspense
+                  fallback={<LoadingFallback title="Carregando relatório..." />}
+                >
+                  <ModuleRoute moduleKey="reports">
+                    <TransferReport />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <Suspense
+                  fallback={
+                    <LoadingFallback title="Carregando painel administrativo..." />
+                  }
+                >
+                  <ModuleRoute moduleKey="admin">
+                    <AdminPanel />
+                  </ModuleRoute>
+                </Suspense>
+              }
+            />
+          </Route>
+        </Route>
       </Routes>
     </>
   );
