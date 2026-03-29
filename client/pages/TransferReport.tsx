@@ -52,10 +52,7 @@ export default function TransferReport() {
     let cancelled = false;
     (async () => {
       try {
-        const cabs = await fetchAllPaginated(
-          (p, l) => getCabinets(p, l),
-          100,
-        );
+        const cabs = await fetchAllPaginated((p, l) => getCabinets(p, l), 100);
         if (cancelled) return;
         setCabinetList(
           cabs.map((c: { numero: number; categoria: string }) => ({
@@ -113,9 +110,7 @@ export default function TransferReport() {
     data: transfer.data,
     armario: formatArmarioDisplay(
       transfer.armario,
-      transfer.armario != null
-        ? cabMap.get(transfer.armario) ?? null
-        : null,
+      transfer.armario != null ? (cabMap.get(transfer.armario) ?? null) : null,
       uiDisplay.armario,
     ),
     casela: formatCaselaDisplay(

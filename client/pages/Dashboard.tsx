@@ -167,7 +167,7 @@ export default function Dashboard() {
             patient: m.ResidentModel ? m.ResidentModel.nome : "-",
             cabinet: formatArmarioDisplay(
               armNum,
-              armNum != null ? cabMap.get(armNum) ?? null : null,
+              armNum != null ? (cabMap.get(armNum) ?? null) : null,
               uiDisplay.armario,
             ),
             date: m.data,

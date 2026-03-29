@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { CommandInput } from "@/components/ui/command";
 import { useDebounce } from "@/hooks/use-debounce";
 
-interface CommandInputDebouncedProps
-  extends React.ComponentPropsWithoutRef<typeof CommandInput> {
+interface CommandInputDebouncedProps extends React.ComponentPropsWithoutRef<
+  typeof CommandInput
+> {
   debounceMs?: number;
   onDebouncedChange?: (value: string) => void;
 }

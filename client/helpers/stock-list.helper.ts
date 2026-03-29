@@ -140,13 +140,8 @@ export function buildFilterOptions(
   };
   const isEnfermagem =
     options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
-  const effEnf = caselaModeForContext(
-    ui.casela,
-    ui.caselaSetor,
-    "enfermagem",
-  );
-  const sectorForFarmaciaList =
-    options?.setor === "farmacia" ? "farmacia" : "";
+  const effEnf = caselaModeForContext(ui.casela, ui.caselaSetor, "enfermagem");
+  const sectorForFarmaciaList = options?.setor === "farmacia" ? "farmacia" : "";
   const effFarm = caselaModeForContext(
     ui.casela,
     ui.caselaSetor,
@@ -189,7 +184,12 @@ export function buildFilterOptions(
           const r = options?.residents?.find((x) => x.casela === id);
           return {
             value: String(id),
-            label: caselaFilterLabel(id, r?.name ?? null, ui, sectorForFarmaciaList),
+            label: caselaFilterLabel(
+              id,
+              r?.name ?? null,
+              ui,
+              sectorForFarmaciaList,
+            ),
           };
         });
 
@@ -243,13 +243,8 @@ export function buildFilterOptionsFromApi(
   };
   const isEnfermagem =
     options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
-  const effEnf = caselaModeForContext(
-    ui.casela,
-    ui.caselaSetor,
-    "enfermagem",
-  );
-  const sectorForFarmaciaList =
-    options?.setor === "farmacia" ? "farmacia" : "";
+  const effEnf = caselaModeForContext(ui.casela, ui.caselaSetor, "enfermagem");
+  const sectorForFarmaciaList = options?.setor === "farmacia" ? "farmacia" : "";
   const effFarm = caselaModeForContext(
     ui.casela,
     ui.caselaSetor,
@@ -284,7 +279,12 @@ export function buildFilterOptionsFromApi(
           const r = options?.residents?.find((x) => x.casela === id);
           return {
             value: String(id),
-            label: caselaFilterLabel(id, r?.name ?? null, ui, sectorForFarmaciaList),
+            label: caselaFilterLabel(
+              id,
+              r?.name ?? null,
+              ui,
+              sectorForFarmaciaList,
+            ),
           };
         });
 

@@ -139,9 +139,7 @@ export function AdminTabConfig({
                       form[key] ??
                       (key === "display_casela_setor" ? "todos" : "numero")
                     }
-                    onValueChange={(v) =>
-                      setForm((p) => ({ ...p, [key]: v }))
-                    }
+                    onValueChange={(v) => setForm((p) => ({ ...p, [key]: v }))}
                   >
                     <SelectTrigger id={key} className="bg-white max-w-sm">
                       <SelectValue />

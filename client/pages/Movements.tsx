@@ -119,12 +119,12 @@ export default function InputMovements() {
       movementDate: item.data,
       cabinet: formatArmarioDisplay(
         armId,
-        armId != null ? cabMap.get(armId) ?? null : null,
+        armId != null ? (cabMap.get(armId) ?? null) : null,
         uiDisplay.armario,
       ),
       drawer: formatGavetaDisplay(
         gavId,
-        gavId != null ? drwMap.get(gavId) ?? null : null,
+        gavId != null ? (drwMap.get(gavId) ?? null) : null,
         uiDisplay.gaveta,
       ),
       resident: formatCaselaDisplay(

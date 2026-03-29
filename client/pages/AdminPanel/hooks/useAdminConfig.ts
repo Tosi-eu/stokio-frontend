@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast.hook";
 import {
   getAdminConfig,
@@ -78,7 +78,7 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load is stable
   }, [isAdmin, enabled]);
 
-  async function refetchHealth() {
+  const refetchHealth = useCallback(async () => {
     if (!isAdmin) return;
     try {
       const h = await getAdminHealth();
@@ -86,12 +86,12 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
     } catch {
       setHealth(null);
     }
-  }
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!isAdmin || !enabled) return;
-    refetchHealth();
-  }, [isAdmin, enabled]);
+    void refetchHealth();
+  }, [isAdmin, enabled, refetchHealth]);
 
   async function save() {
     setSaving(true);

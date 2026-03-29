@@ -84,12 +84,7 @@ export const MedicineForm = memo(function MedicineForm({
 
   const selectedMedicine = medicines.find((m) => m.id === selectedMedicineId);
   const effectiveCaselaMode = useMemo(
-    () =>
-      caselaModeForContext(
-        uiDisplay.casela,
-        uiDisplay.caselaSetor,
-        sector,
-      ),
+    () => caselaModeForContext(uiDisplay.casela, uiDisplay.caselaSetor, sector),
     [uiDisplay.casela, uiDisplay.caselaSetor, sector],
   );
   const caselasForSelect = useMemo(() => {
@@ -354,9 +349,7 @@ export const MedicineForm = memo(function MedicineForm({
       <div className="grid gap-6 grid-cols-1">
         <div className="grid gap-2">
           <label className="text-sm font-semibold text-slate-700">
-            {effectiveCaselaMode === "nome"
-              ? "Casela (residente)"
-              : "Casela"}
+            {effectiveCaselaMode === "nome" ? "Casela (residente)" : "Casela"}
           </label>
           <Controller
             name="casela"

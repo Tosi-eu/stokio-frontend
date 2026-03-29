@@ -344,32 +344,24 @@ export default function Stock() {
         uiDisplay,
         item.sector,
       );
-      const cabNum =
-        typeof item.cabinet === "number" ? item.cabinet : null;
-      const drwNum =
-        typeof item.drawer === "number" ? item.drawer : null;
+      const cabNum = typeof item.cabinet === "number" ? item.cabinet : null;
+      const drwNum = typeof item.drawer === "number" ? item.drawer : null;
       return {
         ...item,
         cabinetDisplay: formatArmarioDisplay(
           cabNum,
-          cabNum != null ? cabinetCatMap.get(cabNum) ?? null : null,
+          cabNum != null ? (cabinetCatMap.get(cabNum) ?? null) : null,
           uiDisplay.armario,
         ),
         drawerDisplay: formatGavetaDisplay(
           drwNum,
-          drwNum != null ? drawerCatMap.get(drwNum) ?? null : null,
+          drwNum != null ? (drawerCatMap.get(drwNum) ?? null) : null,
           uiDisplay.gaveta,
         ),
         caselaDisplay,
       };
     });
-  }, [
-    items,
-    residents,
-    uiDisplay,
-    cabinetCatMap,
-    drawerCatMap,
-  ]);
+  }, [items, residents, uiDisplay, cabinetCatMap, drawerCatMap]);
 
   const filteredCabinets = useMemo(() => {
     if (!armarioSearch) return filterOptions.cabinets;
@@ -741,8 +733,7 @@ export default function Stock() {
                         {filters.casela
                           ? (filterOptions.caselas.find(
                               (c) => c.value === filters.casela,
-                            )?.label ??
-                            `Casela ${filters.casela}`)
+                            )?.label ?? `Casela ${filters.casela}`)
                           : "Selecione"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
