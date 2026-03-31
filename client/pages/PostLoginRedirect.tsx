@@ -11,7 +11,7 @@ import { prefetchTenantBrandLogoBeforeInicioNavigation } from "@/helpers/tenant-
 const POST_LOGIN_MIN_VISIBLE_MS = 6000;
 
 export default function PostLoginRedirect() {
-  const { loading, tenant, effectiveEnabled } = useTenant();
+  const { loading, tenant, effectiveEnabled, previewMode } = useTenant();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -59,6 +59,8 @@ export default function PostLoginRedirect() {
   );
 
   const [imageFailed, setImageFailed] = useState(false);
+  const effectiveLogoSrc = previewMode ? "/default_logo.png" : logoSrc;
+  const effectiveIsLogoResolved = previewMode ? true : isLogoResolved;
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-brand-mesh px-6 py-10 [perspective:1800px]">
@@ -74,14 +76,14 @@ export default function PostLoginRedirect() {
 
           <div
             className="flex min-h-[8.5rem] w-full max-w-[300px] items-center justify-center rounded-2xl border border-border/70 bg-muted/35 p-5 shadow-inner ring-1 ring-black/[0.03] dark:ring-white/[0.06]"
-            aria-busy={!isLogoResolved}
+            aria-busy={!effectiveIsLogoResolved}
           >
-            {!isLogoResolved ? (
+            {!effectiveIsLogoResolved ? (
               <div className="min-h-[7rem] w-full max-w-[280px]" aria-hidden />
-            ) : logoSrc && !imageFailed ? (
+            ) : effectiveLogoSrc && !imageFailed ? (
               <img
-                key={logoSrc}
-                src={logoSrc}
+                key={effectiveLogoSrc}
+                src={effectiveLogoSrc}
                 alt={`Logo de ${title}`}
                 className="max-h-[7rem] w-full object-contain object-center drop-shadow-md"
                 referrerPolicy="no-referrer"

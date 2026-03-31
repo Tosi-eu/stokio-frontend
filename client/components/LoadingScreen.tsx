@@ -1,13 +1,11 @@
 import { getBackendHealthCheck } from "@/api/requests";
 import { APP_PUBLIC_NAME } from "@/constants/app-branding";
-import { usePublicDefaultLogoUrl } from "@/hooks/use-public-default-logo.hook";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function LoadingScreen() {
   const [progress, setProgress] = useState(0);
   const navigate = useNavigate();
-  const publicLogoUrl = usePublicDefaultLogoUrl();
 
   useEffect(() => {
     const checkBackend = async () => {
@@ -33,7 +31,7 @@ export default function LoadingScreen() {
   return (
     <div className="h-screen w-screen flex flex-col justify-center items-center bg-brand-mesh px-6">
       <img
-        src={publicLogoUrl}
+        src="/default_logo.png"
         alt={APP_PUBLIC_NAME}
         className="w-48 h-auto max-h-32 object-contain mb-4 drop-shadow-md"
       />

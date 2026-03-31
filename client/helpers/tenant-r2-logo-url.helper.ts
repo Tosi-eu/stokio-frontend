@@ -1,7 +1,6 @@
 import { API_BASE_URL } from "@/api/canonical";
 import { normalizeViteR2PublicBaseUrl } from "@/constants/app-branding";
 
-/** Logo via API (same bucket no R2, mas sem expor `*.r2.dev` no `<img>` do browser). */
 export function buildTenantLogoProxyUrl(slug: string): string {
   const s = String(slug ?? "").trim();
   if (!s) return "";

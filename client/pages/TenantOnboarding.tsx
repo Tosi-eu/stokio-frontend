@@ -31,7 +31,20 @@ import {
   updateTenantBranding,
   updateTenantConfig,
   uploadTenantLogoWithProgress,
+  setTenantContractCode,
 } from "@/api/requests";
+import { setSkipTenantOnboarding } from "@/context/tenant-context";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast.hook";
@@ -149,17 +162,15 @@ const MODULES: Array<{
 export default function TenantOnboarding() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { modules, tenant, loading } = useTenant();
+  const { modules, tenant, loading, tenantId } = useTenant();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canManageModules =
     user?.role === "admin" || isSuperAdminUser(user ?? null);
 
   const [enabled, setEnabled] = useState<Set<string>>(new Set());
   const [brandName, setBrandName] = useState("");
-  /** URL pública no R2 após upload */
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  /** null = sem barra de % (servidor não reportou tamanho); número = bytes enviados ao backend */
   const [logoUploadPercent, setLogoUploadPercent] = useState<number | null>(
     null,
   );
@@ -167,11 +178,25 @@ export default function TenantOnboarding() {
     "idle" | "sending" | "storing"
   >("idle");
   const [saving, setSaving] = useState(false);
+  const [contractCode, setContractCode] = useState("");
+
+  const confirmSkipOnboarding = () => {
+    if (tenantId == null) return;
+    setSkipTenantOnboarding(tenantId, true);
+    toast({
+      title: "Modo de visualização",
+      description:
+        "Complete a configuração do abrigo quando quiser, em Administração ou ao voltar a esta página.",
+      duration: 5000,
+    });
+    navigate("/loading", { replace: true });
+  };
 
   useEffect(() => {
     if (loading) return;
     setEnabled(new Set(modules?.enabled ?? []));
     setBrandName(tenant?.brandName ?? tenant?.name ?? "");
+    setContractCode("");
     const serverLogo = tenant?.logoUrl?.trim() || null;
     const slug = tenant?.slug?.trim();
     const rev = tenant?.brandingUpdatedAt;
@@ -267,6 +292,7 @@ export default function TenantOnboarding() {
   const resetForm = () => {
     setEnabled(new Set(modules?.enabled ?? []));
     setBrandName(tenant?.brandName ?? tenant?.name ?? "");
+    setContractCode("");
     const serverLogo = tenant?.logoUrl?.trim() || null;
     const slug = tenant?.slug?.trim();
     const rev = tenant?.brandingUpdatedAt;
@@ -296,20 +322,36 @@ export default function TenantOnboarding() {
       });
       return;
     }
-    if (!brandName.trim() && !logoUrl) {
+    if (!logoUrl) {
       toast({
-        title: "Informe o nome da marca ou envie um logo",
+        title: "Logo obrigatório",
+        description: "Envie um logo para concluir a configuração do abrigo.",
         variant: "error",
       });
       return;
     }
     setSaving(true);
     try {
+      if (tenantId != null) setSkipTenantOnboarding(tenantId, false);
       const brandPayload = { brandName: brandName.trim() || null };
-      if (logoUrl) {
-        await updateTenantBranding({ ...brandPayload, logoUrl });
-      } else {
-        await updateTenantBranding({ ...brandPayload, logoUrl: null });
+      await updateTenantBranding({ ...brandPayload, logoUrl });
+      let contractRes: Awaited<
+        ReturnType<typeof setTenantContractCode>
+      > | null = null;
+      if (contractCode.trim()) {
+        contractRes = await setTenantContractCode(contractCode.trim());
+      }
+      if (contractRes?.migrated === true && contractRes.tenantId != null) {
+        const raw = sessionStorage.getItem("user");
+        if (raw && user?.id != null) {
+          try {
+            const parsed = JSON.parse(raw) as Record<string, unknown>;
+            const next = { ...parsed, tenantId: contractRes.tenantId };
+            sessionStorage.setItem("user", JSON.stringify(next));
+          } catch {
+            /* ignore */
+          }
+        }
       }
       if (canManageModules) {
         await updateTenantConfig({ enabled: Array.from(enabled) });
@@ -317,7 +359,9 @@ export default function TenantOnboarding() {
       toast({
         title: "Configuração salva",
         description:
-          "Faça login novamente: escolha seu abrigo e entre com e-mail e senha.",
+          contractRes?.migrated === true
+            ? "A sua conta foi associada ao abrigo definitivo. Faça login de novo com o mesmo e-mail; escolha o abrigo indicado se lhe pedir."
+            : "Faça login novamente: escolha seu abrigo e entre com e-mail e senha.",
         variant: "success",
       });
       await logout();
@@ -403,6 +447,23 @@ export default function TenantOnboarding() {
                 value="brand"
                 className="mt-6 space-y-6 outline-none"
               >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="contract_code">
+                      Código do contrato (opcional)
+                    </Label>
+                    <Input
+                      id="contract_code"
+                      value={contractCode}
+                      onChange={(e) => setContractCode(e.target.value)}
+                      placeholder="Se tiver, cole aqui"
+                      autoComplete="off"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Se deixar vazio, você pode usar em modo de visualização.
+                    </p>
+                  </div>
+                </div>
                 <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
                   <div className="flex flex-col items-center gap-3">
                     <Avatar className="h-28 w-28 rounded-2xl border-2 border-dashed border-border bg-card shadow-inner">
@@ -649,6 +710,42 @@ export default function TenantOnboarding() {
                 ) : null}
               </div>
               <div className="flex flex-wrap justify-end gap-2">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={saving}
+                      className="text-muted-foreground"
+                    >
+                      Cadastrar depois
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Continuar sem configurar o abrigo?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="text-left leading-relaxed">
+                        Você pode continuar em{" "}
+                        <strong>modo de visualização</strong> e concluir a
+                        configuração mais tarde em Administração.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Voltar</AlertDialogCancel>
+                      <AlertDialogAction
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          confirmSkipOnboarding();
+                        }}
+                      >
+                        Entendi, continuar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
                 <Button
                   type="button"
                   variant="outline"

@@ -99,7 +99,6 @@ export function AdminTabConfig({
     setBrandVisualName(String(tenant?.brandName ?? tenant?.name ?? "").trim());
   }, [tenant?.brandName, tenant?.name]);
 
-  /** Preview via proxy da API (igual fluxo seguro pós-login), evitando GET direto ao R2 no browser (ERR_CONNECTION_CLOSED). */
   useEffect(() => {
     const serverLogo = tenant?.logoUrl?.trim() || null;
     const slug = tenant?.slug?.trim();

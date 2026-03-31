@@ -21,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Check, ChevronDown } from "lucide-react";
 import { getDaysForReplacementForNursing } from "@/api/requests";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { caselaModeForContext } from "@/helpers/ui-display.helper";
 
 interface TransferQuantityModalProps {
   open: boolean;

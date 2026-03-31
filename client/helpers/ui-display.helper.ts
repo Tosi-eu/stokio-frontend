@@ -16,7 +16,6 @@ export const DEFAULT_UI_DISPLAY: UiDisplayConfig = {
   gaveta: "numero",
 };
 
-/** Modo efetivo (nome vs número) conforme o setor da linha/filtro e o escopo configurado. */
 export function caselaModeForContext(
   mode: UiDisplayCasela,
   scope: UiDisplayCaselaSetor,
@@ -66,7 +65,6 @@ export function formatGavetaDisplay(
   return String(num);
 }
 
-/** Rótulos em filtros/combo (com prefixo quando for número). */
 export function armarioFilterLabel(
   num: number,
   categoria: string | null | undefined,

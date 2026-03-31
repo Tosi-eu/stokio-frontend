@@ -1,17 +1,24 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast.hook";
 import { useAuth } from "@/hooks/use-auth.hook";
 import {
   fetchLoginTenantsForEmail,
-  fetchPublicTenantBrandingIfExists,
-  listPublicTenants,
-  register,
+  joinByInviteToken,
+  registerUser,
   type LoginTenantSummary,
-  type PublicTenantBranding,
-  type PublicTenantListItem,
 } from "@/api/requests";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { APP_PUBLIC_NAME } from "@/constants/app-branding";
 import {
   validateEmail,
@@ -23,6 +30,7 @@ import { prefetchTenantBrandLogoBeforeInicioNavigation } from "@/helpers/tenant-
 
 export default function Auth() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { login: authLogin } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
@@ -31,13 +39,6 @@ export default function Auth() {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [tenantSlug, setTenantSlug] = useState("");
-  const [tenantOptions, setTenantOptions] = useState<PublicTenantListItem[]>(
-    [],
-  );
-  const [tenantsLoading, setTenantsLoading] = useState(true);
-  const [tenantBranding, setTenantBranding] =
-    useState<PublicTenantBranding | null>(null);
-  const brandingFetchSlugRef = useRef<string>("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginLinkedTenants, setLoginLinkedTenants] = useState<
@@ -47,7 +48,7 @@ export default function Auth() {
     useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [contractCode, setContractCode] = useState("");
+  const [inviteToken, setInviteToken] = useState("");
   const [passwordStrength, setPasswordStrength] = useState<
     "weak" | "medium" | "strong" | null
   >(null);
@@ -56,7 +57,29 @@ export default function Auth() {
     error?: string;
   } | null>(null);
 
+  const [signupFlow, setSignupFlow] = useState<"user" | "join-token">("user");
+  const [userContractCode, setUserContractCode] = useState("");
+  const [viewModeConfirmOpen, setViewModeConfirmOpen] = useState(false);
+  const [pendingUserSignup, setPendingUserSignup] = useState<{
+    login: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+  } | null>(null);
+
   const authHeaderLogoSrc = "/default_logo.png";
+
+  useEffect(() => {
+    const qs = new URLSearchParams(location.search);
+    const invite = (qs.get("invite") ?? "").trim();
+    const email = (qs.get("email") ?? "").trim();
+    if (invite) {
+      setIsLogin(false);
+      setSignupFlow("join-token");
+      setInviteToken(invite);
+      if (email) setLogin(email);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     setPasswordStrength(null);
@@ -68,64 +91,12 @@ export default function Auth() {
     if (isLogin) {
       setFirstName("");
       setLastName("");
-      setContractCode("");
+      setInviteToken("");
+      setUserContractCode("");
+    } else {
+      setSignupFlow("user");
     }
   }, [isLogin]);
-
-  useEffect(() => {
-    if (isLogin) {
-      setTenantsLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setTenantsLoading(true);
-    (async () => {
-      try {
-        const res = await listPublicTenants({ limit: 200 });
-        if (!cancelled) setTenantOptions(res.data ?? []);
-      } catch {
-        if (!cancelled) setTenantOptions([]);
-      } finally {
-        if (!cancelled) setTenantsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isLogin]);
-
-  useEffect(() => {
-    if (isLogin) {
-      brandingFetchSlugRef.current = "";
-      setTenantBranding(null);
-      return;
-    }
-
-    const slug = tenantSlug.trim();
-    if (!slug) {
-      brandingFetchSlugRef.current = "";
-      setTenantBranding(null);
-      return;
-    }
-    brandingFetchSlugRef.current = slug;
-    setTenantBranding(null);
-    let cancelled = false;
-    (async () => {
-      try {
-        const b = await fetchPublicTenantBrandingIfExists(slug);
-        if (cancelled) return;
-        if (brandingFetchSlugRef.current !== slug) return;
-        setTenantBranding(b);
-      } finally {
-        if (!cancelled && brandingFetchSlugRef.current === slug) {
-          // NO-OP //
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isLogin, tenantSlug]);
 
   useEffect(() => {
     if (!isLogin) {
@@ -223,24 +194,13 @@ export default function Auth() {
       const sanitizedPassword = sanitizeInput(password);
 
       if (!isLogin) {
-        const slugReg = (tenantSlug || "").trim();
-        if (!slugReg) {
-          toast({
-            title: "Abrigo obrigatório",
-            description: "Selecione o abrigo em que deseja criar a conta.",
-            variant: "error",
-            duration: 3000,
-          });
-          setLoading(false);
-          return;
-        }
-
-        const passwordValidation = validatePassword(password);
-        if (!passwordValidation.valid) {
+        const passwordValidationResult = validatePassword(password);
+        if (!passwordValidationResult.valid) {
           toast({
             title: "Senha inválida",
             description:
-              passwordValidation.error || "A senha não atende aos requisitos.",
+              passwordValidationResult.error ||
+              "A senha não atende aos requisitos.",
             variant: "error",
             duration: 3000,
           });
@@ -284,16 +244,65 @@ export default function Auth() {
           return;
         }
 
-        let needContractCode = tenantBranding?.contractCodeMandatory === true;
-        if (!needContractCode && tenantBranding === null && slugReg) {
-          const b = await fetchPublicTenantBrandingIfExists(slugReg);
-          needContractCode = b?.contractCodeMandatory === true;
-        }
-        if (needContractCode && !contractCode.trim()) {
+        const performUserSignup = async (params: {
+          login: string;
+          password: string;
+          firstName: string;
+          lastName: string;
+          notifyViewMode?: boolean;
+        }) => {
+          const created = await registerUser(
+            params.login,
+            params.password,
+            params.firstName,
+            params.lastName,
+            userContractCode.trim()
+              ? { contract_code: userContractCode.trim() }
+              : undefined,
+          );
+          await authLogin(params.login, params.password, created.tenant.slug);
+          void prefetchTenantBrandLogoBeforeInicioNavigation();
           toast({
-            title: "Código de contrato obrigatório",
+            title: "Conta criada",
+            description: params.notifyViewMode
+              ? "Entrando em modo de visualização. Você pode configurar o abrigo depois."
+              : "Você já pode navegar.",
+            variant: "success",
+            duration: 4500,
+          });
+          skipLoadingResetAfterSuccess = true;
+          navigate("/loading");
+        };
+
+        if (signupFlow === "user") {
+          const cc = userContractCode.trim();
+          if (!cc) {
+            setPendingUserSignup({
+              login: sanitizedLogin,
+              password: sanitizedPassword,
+              firstName,
+              lastName,
+            });
+            setViewModeConfirmOpen(true);
+            setLoading(false);
+            return;
+          }
+          await performUserSignup({
+            login: sanitizedLogin,
+            password: sanitizedPassword,
+            firstName,
+            lastName,
+            notifyViewMode: false,
+          });
+          return;
+        }
+
+        const token = inviteToken.trim();
+        if (!token) {
+          toast({
+            title: "Token obrigatório",
             description:
-              "Informe o código fornecido na assinatura do contrato para este abrigo.",
+              "Cole o token de entrada que o administrador do abrigo lhe enviou.",
             variant: "error",
             duration: 4000,
           });
@@ -301,18 +310,17 @@ export default function Auth() {
           return;
         }
 
-        await register(
-          sanitizedLogin,
-          sanitizedPassword,
-          firstName,
-          lastName,
-          slugReg,
-          contractCode.trim() || undefined,
-        );
-        await authLogin(sanitizedLogin, sanitizedPassword, slugReg);
+        const joined = await joinByInviteToken({
+          token,
+          login: sanitizedLogin,
+          password: sanitizedPassword,
+          first_name: firstName,
+          last_name: lastName,
+        });
+        await authLogin(sanitizedLogin, sanitizedPassword, joined.tenant.slug);
         void prefetchTenantBrandLogoBeforeInicioNavigation();
         toast({
-          title: "Cadastro realizado!",
+          title: "Bem-vindo ao abrigo!",
           variant: "success",
           duration: 3000,
         });
@@ -343,7 +351,7 @@ export default function Auth() {
         toast({
           title: "E-mail não encontrado",
           description:
-            "Não encontramos este e-mail em nenhum abrigo. Verifique o endereço ou cadastre-se.",
+            "Não encontramos este e-mail. Verifique o endereço ou cadastre-se (utilizador, novo abrigo ou token de entrada).",
           variant: "error",
           duration: 4000,
         });
@@ -424,14 +432,26 @@ export default function Auth() {
             "Não foi possível fazer login. Verifique suas credenciais e tente novamente.";
         }
       } else {
-        if (rawMessage.includes("abrigo não encontrado")) {
+        if (
+          rawMessage.includes("token") &&
+          (rawMessage.includes("inválido") ||
+            rawMessage.includes("invalid") ||
+            rawMessage.includes("expirado"))
+        ) {
+          errorTitle = "Token de entrada";
+          errorDescription =
+            err instanceof Error
+              ? err.message
+              : "Token inválido ou expirado. Peça um novo convite ao administrador.";
+        } else if (rawMessage.includes("abrigo não encontrado")) {
           errorTitle = "Abrigo não encontrado";
           errorDescription =
             "Escolha um abrigo válido na lista ou contate o suporte.";
         } else if (
           rawMessage.includes("login já cadastrado") ||
           rawMessage.includes("duplicate") ||
-          rawMessage.includes("já existe")
+          rawMessage.includes("já existe") ||
+          rawMessage.includes("já está em uso")
         ) {
           errorTitle = "E-mail já cadastrado";
           errorDescription =
@@ -487,6 +507,69 @@ export default function Auth() {
         transition: "opacity 0.6s ease-in",
       }}
     >
+      <AlertDialog
+        open={viewModeConfirmOpen}
+        onOpenChange={(open) => {
+          setViewModeConfirmOpen(open);
+          if (!open) setPendingUserSignup(null);
+        }}
+      >
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Entrar em modo de visualização?</AlertDialogTitle>
+            <AlertDialogDescription className="leading-relaxed">
+              Você não informou o código do contrato. Vamos criar a conta e
+              entrar em modo de visualização. Depois, você pode configurar o
+              abrigo no banner do topo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                const p = pendingUserSignup;
+                if (!p) return;
+                setViewModeConfirmOpen(false);
+                setPendingUserSignup(null);
+                setLoading(true);
+                try {
+                  const created = await registerUser(
+                    p.login,
+                    p.password,
+                    p.firstName,
+                    p.lastName,
+                  );
+                  await authLogin(p.login, p.password, created.tenant.slug);
+                  void prefetchTenantBrandLogoBeforeInicioNavigation();
+                  toast({
+                    title: "Conta criada",
+                    description:
+                      "Entrando em modo de visualização. Configure o abrigo quando quiser.",
+                    variant: "success",
+                    duration: 4500,
+                  });
+                  navigate("/loading");
+                } catch (err) {
+                  toast({
+                    title: "Não foi possível criar a conta",
+                    description:
+                      err instanceof Error
+                        ? err.message
+                        : "Tente novamente em instantes.",
+                    variant: "error",
+                    duration: 3500,
+                  });
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              Continuar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <header className="shrink-0 border-b border-border/70 bg-brand-hero/90 backdrop-blur-sm">
         <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center gap-4">
           <img
@@ -512,45 +595,80 @@ export default function Auth() {
           <div className="max-w-md mx-auto">
             <div className="bg-card/95 backdrop-blur-sm border border-border/60 rounded-2xl shadow-elevated p-8 md:p-9">
               <h2 className="font-display text-2xl font-semibold text-foreground tracking-tight mb-6">
-                {isLogin ? "Acesso ao Sistema" : "Cadastro de Usuário"}
+                {isLogin ? "Acesso ao Sistema" : "Criar conta"}
               </h2>
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 {!isLogin && (
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Abrigo
-                    </label>
-                    <select
-                      value={tenantSlug}
-                      onChange={(e) => setTenantSlug(e.target.value)}
-                      required
-                      disabled={tenantsLoading}
-                      className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary bg-background disabled:opacity-60 disabled:cursor-wait transition-shadow"
-                    >
-                      <option value="">
-                        {tenantsLoading
-                          ? "Carregando abrigos…"
-                          : "Selecione o abrigo"}
-                      </option>
-                      {tenantOptions.map((t) => (
-                        <option key={t.id} value={t.slug}>
-                          {t.brandName || t.name} ({t.slug})
-                        </option>
-                      ))}
-                    </select>
-                    {!tenantsLoading && tenantOptions.length === 0 ? (
-                      <p className="mt-1 text-xs text-amber-700">
-                        Nenhum abrigo disponível no momento. Tente mais tarde ou
-                        contate o suporte.
-                      </p>
-                    ) : (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        O cadastro é feito no contexto do abrigo escolhido.
-                      </p>
-                    )}
+                  <div className="space-y-2">
+                    <span className="block text-sm font-medium text-foreground">
+                      Tipo
+                    </span>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSignupFlow("user");
+                          setInviteToken("");
+                        }}
+                        className={cn(
+                          "rounded-xl border px-3 py-2.5 text-left text-sm transition-colors",
+                          signupFlow === "user"
+                            ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/30"
+                            : "border-border bg-background hover:bg-muted/50 text-muted-foreground",
+                        )}
+                      >
+                        <span className="font-medium text-foreground">
+                          Utilizador
+                        </span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          Criar conta para navegar.
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSignupFlow("join-token");
+                          setUserContractCode("");
+                        }}
+                        className={cn(
+                          "rounded-xl border px-3 py-2.5 text-left text-sm transition-colors",
+                          signupFlow === "join-token"
+                            ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/30"
+                            : "border-border bg-background hover:bg-muted/50 text-muted-foreground",
+                        )}
+                      >
+                        <span className="font-medium text-foreground">
+                          Convite
+                        </span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          Token recebido por e-mail.
+                        </span>
+                      </button>
+                    </div>
                   </div>
                 )}
+
+                {!isLogin && signupFlow === "join-token" && (
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Token de entrada
+                    </label>
+                    <input
+                      type="text"
+                      autoComplete="off"
+                      value={inviteToken}
+                      onChange={(e) => setInviteToken(e.target.value)}
+                      required
+                      className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-shadow font-mono text-xs"
+                      placeholder="Cole o token enviado pelo administrador"
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Não precisa de código de contrato — só do token único.
+                    </p>
+                  </div>
+                )}
+
                 {isLogin && (
                   <p className="text-sm text-muted-foreground -mt-1">
                     Depois de um e-mail válido, mostramos em que abrigos ele
@@ -595,29 +713,6 @@ export default function Auth() {
                     </div>
                   </div>
                 )}
-                {!isLogin && (
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Código do contrato
-                    </label>
-                    <input
-                      type="text"
-                      autoComplete="off"
-                      value={contractCode}
-                      onChange={(e) =>
-                        setContractCode(sanitizeInput(e.target.value))
-                      }
-                      maxLength={256}
-                      className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-shadow"
-                      placeholder="Código informado na assinatura"
-                      required={tenantBranding?.contractCodeMandatory === true}
-                    />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Mesmo código fornecido pela equipe ao formalizar o uso do
-                      sistema.
-                    </p>
-                  </div>
-                )}
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
                     E-mail
@@ -633,6 +728,31 @@ export default function Auth() {
                   />
                 </div>
 
+                {!isLogin && signupFlow === "user" ? (
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Código do contrato{" "}
+                      <span className="font-normal text-muted-foreground">
+                        (opcional)
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      autoComplete="off"
+                      value={userContractCode}
+                      onChange={(e) =>
+                        setUserContractCode(sanitizeInput(e.target.value))
+                      }
+                      maxLength={256}
+                      className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-shadow"
+                      placeholder="Se já tiver, associa o abrigo ao contrato"
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Em branco: modo visualização até completar o onboarding.
+                    </p>
+                  </div>
+                ) : null}
+
                 {isLogin && loginEmailValid ? (
                   <div className="space-y-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-3">
                     {loginLinkedTenantsLoading ? (
@@ -646,8 +766,9 @@ export default function Auth() {
                     ) : loginLinkedTenants ===
                       null ? null : loginLinkedTenants.length === 0 ? (
                       <p className="text-xs text-amber-800 dark:text-amber-200/90">
-                        Nenhum abrigo encontrado para este e-mail. Verifique o
-                        endereço ou registe-se num abrigo.
+                        Nenhum abrigo encontrado para este e-mail. Em Cadastro,
+                        pode criar utilizador (visualização), abrir um novo
+                        abrigo ou usar um token de entrada.
                       </p>
                     ) : loginLinkedTenants.length === 1 ? (
                       <p className="text-xs text-muted-foreground">
@@ -756,7 +877,6 @@ export default function Auth() {
                   type="submit"
                   disabled={
                     loading ||
-                    tenantsLoading ||
                     (!isLogin &&
                       passwordValidation !== null &&
                       !passwordValidation.valid)
@@ -797,6 +917,7 @@ export default function Auth() {
               <div className="mt-4 text-center text-sm text-muted-foreground">
                 {isLogin ? "Não tem conta?" : "Já possui conta?"}{" "}
                 <button
+                  type="button"
                   onClick={() => setIsLogin(!isLogin)}
                   className="text-primary hover:underline font-medium"
                 >

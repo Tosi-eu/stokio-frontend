@@ -20,7 +20,6 @@ async function loadDrawerCategoryMap(): Promise<Map<number, string>> {
   return m;
 }
 
-/** Mapa gaveta número → nome da categoria (uma requisição compartilhada por sessão). */
 export function useDrawerCategoryMap() {
   const [map, setMap] = useState<Map<number, string>>(
     () => cachedMap ?? new Map(),

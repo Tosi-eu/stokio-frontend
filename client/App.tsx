@@ -75,11 +75,17 @@ function RootRedirect() {
 const AppContent = () => {
   const { showModal, setShowModal } = useInvalidSession();
   const { user } = useAuth();
-  const { onboardingComplete, loading: tenantLoading } = useTenant();
+  const {
+    onboardingComplete,
+    loading: tenantLoading,
+    previewMode,
+  } = useTenant();
 
   const location = useLocation();
 
-  const needsSetup = Boolean(user && !tenantLoading && !onboardingComplete);
+  const needsSetup = Boolean(
+    user && !tenantLoading && !onboardingComplete && !previewMode,
+  );
 
   const isOnboardingPath = location.pathname === "/tenant/onboarding";
 

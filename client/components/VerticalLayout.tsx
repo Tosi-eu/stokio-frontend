@@ -58,11 +58,22 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { tenant, isEnabled, loading: tenantLoading } = useTenant();
+  const {
+    tenant,
+    isEnabled,
+    loading: tenantLoading,
+    previewMode,
+  } = useTenant();
   const { displaySrc: sidebarLogoSrc, isLogoResolved } = useTenantBrandLogoSrc(
     tenant,
     { tenantConfigLoading: tenantLoading },
   );
+  const isViewerTenant =
+    (tenant?.slug ?? "").toLowerCase() === "viewer" || previewMode;
+  const sidebarLogoToShow = isViewerTenant
+    ? "/default_logo.png"
+    : sidebarLogoSrc;
+  const sidebarLogoReady = isViewerTenant ? true : isLogoResolved;
 
   const navigationTabs = [
     ...(user?.role === "admin" && isEnabled("admin")
@@ -89,13 +100,18 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
           className="cursor-pointer rounded-xl p-2 transition-all hover:opacity-95 hover:shadow-elevated focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="Ir para o início"
         >
-          {isLogoResolved && sidebarLogoSrc ? (
+          {sidebarLogoReady && sidebarLogoToShow ? (
             <img
-              key={sidebarLogoSrc}
-              src={sidebarLogoSrc}
+              key={sidebarLogoToShow}
+              src={sidebarLogoToShow}
               alt={tenant?.brandName || tenant?.name || APP_PUBLIC_NAME}
               className="h-32 w-auto max-w-[200px] object-contain drop-shadow-sm"
               referrerPolicy="no-referrer"
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (target.src.endsWith("/default_logo.png")) return;
+                target.src = "/default_logo.png";
+              }}
             />
           ) : (
             <div className="h-32 w-[200px] shrink-0" aria-busy={true} />

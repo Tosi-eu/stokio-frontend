@@ -1,4 +1,4 @@
-/** Base pública do bucket (sem path do ficheiro). Corrige .env com `.../default_logo.png` por engano. */
+
 export function normalizeViteR2PublicBaseUrl(
   raw: string | undefined,
 ): string | null {

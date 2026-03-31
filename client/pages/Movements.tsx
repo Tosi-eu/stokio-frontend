@@ -178,12 +178,12 @@ export default function InputMovements() {
   useEffect(() => {
     fetchEntries();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchEntries stable
-  }, [entriesInputPage, entriesMedicinePage, uiDisplay, cabMap, drwMap]);
+  }, [entriesInputPage, entriesMedicinePage, uiDisplay]);
 
   useEffect(() => {
     fetchExits();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchExits stable
-  }, [exitsInputPage, exitsMedicinePage, uiDisplay, cabMap, drwMap]);
+  }, [exitsInputPage, exitsMedicinePage, uiDisplay]);
 
   return (
     <Layout title="Movimentações">
