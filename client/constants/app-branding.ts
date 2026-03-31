@@ -1,4 +1,3 @@
-
 export function normalizeViteR2PublicBaseUrl(
   raw: string | undefined,
 ): string | null {

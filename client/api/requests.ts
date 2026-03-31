@@ -1148,8 +1148,7 @@ export const normalizeAdminMedicineUnits = (payload?: { dryRun?: boolean }) =>
 
 export type AdminSystemConfig = Record<string, string>;
 
-export const getAdminConfig = () =>
-  api.get<AdminSystemConfig>("/admin/config");
+export const getAdminConfig = () => api.get<AdminSystemConfig>("/admin/config");
 
 export const updateAdminConfig = (config: AdminSystemConfig) =>
   api.put<AdminSystemConfig>("/admin/config", config);

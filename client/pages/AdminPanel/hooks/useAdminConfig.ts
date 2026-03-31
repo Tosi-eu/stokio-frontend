@@ -5,10 +5,7 @@ import {
   updateAdminConfig,
   getAdminHealth,
 } from "@/api/requests";
-import type {
-  AdminHealthResponse,
-  AdminSystemConfig,
-} from "@/api/requests";
+import type { AdminHealthResponse, AdminSystemConfig } from "@/api/requests";
 
 export const CONFIG_KEYS = {
   expiring_days: "Dias para considerar “próximo ao vencimento”",
