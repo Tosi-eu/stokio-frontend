@@ -138,15 +138,18 @@ async function request(
   options: RequestInit & { body?: unknown } = {},
 ) {
   const isFormData = options.body instanceof FormData;
+  const { headers: optionHeaders, ...restOptions } = options;
+
   const res = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "include",
+    ...restOptions,
     headers: isFormData
-      ? { ...(options.headers as HeadersInit) }
+      ? { ...(optionHeaders as HeadersInit) }
       : {
           "Content-Type": "application/json",
-          ...(options.headers as HeadersInit),
+          Accept: "application/json",
+          ...(optionHeaders as HeadersInit),
         },
-    ...options,
   });
 
   const data = await res.json().catch(() => null);
@@ -156,6 +159,9 @@ async function request(
     const messageStr = String(rawMsg).toLowerCase();
 
     if (res?.status === 401) {
+      if (messageStr.includes("api key")) {
+        throw new Error(String(rawMsg));
+      }
       const isAuthError =
         messageStr.includes("invalidation") ||
         messageStr.includes("invalid session") ||
@@ -195,28 +201,41 @@ async function request(
 export const api = {
   get: <T = unknown>(
     path: string,
-    options?: { params?: Record<string, unknown> },
+    options?: {
+      params?: Record<string, unknown>;
+      headers?: HeadersInit;
+    },
   ) =>
     request(`${path}${buildQueryString(options?.params)}`, {
       method: "GET",
+      headers: options?.headers,
     }) as Promise<T>,
 
-  post: (path: string, body?: unknown, options?: RequestInit) =>
+  post: <T = unknown>(path: string, body?: unknown, options?: RequestInit) =>
     request(path, {
       method: "POST",
       body: body instanceof FormData ? body : JSON.stringify(body),
       ...options,
-    }),
+    }) as Promise<T>,
 
-  put: (path: string, body?: any) =>
-    request(path, { method: "PUT", body: JSON.stringify(body) }),
+  put: <T = unknown>(path: string, body?: any, options?: RequestInit) =>
+    request(path, {
+      method: "PUT",
+      body: JSON.stringify(body),
+      ...options,
+    }) as Promise<T>,
 
-  patch: (path: string, body?: any) =>
-    request(path, { method: "PATCH", body: JSON.stringify(body) }),
+  patch: <T = unknown>(path: string, body?: any, options?: RequestInit) =>
+    request(path, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+      ...options,
+    }) as Promise<T>,
 
-  delete: (path: string, body?: any) =>
+  delete: <T = unknown>(path: string, body?: any, options?: RequestInit) =>
     request(path, {
       method: "DELETE",
       body: body ? JSON.stringify(body) : undefined,
-    }),
+      ...options,
+    }) as Promise<T>,
 };

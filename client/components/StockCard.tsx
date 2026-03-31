@@ -6,6 +6,12 @@ import {
 } from "@radix-ui/react-tooltip";
 import { AlertTriangle } from "lucide-react";
 import type { StockItemRaw } from "@/interfaces/interfaces";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { useDrawerCategoryMap } from "@/hooks/use-drawer-category-map.hook";
+import {
+  formatCaselaLabel,
+  formatGavetaLabel,
+} from "@/helpers/storage-location-display.helper";
 
 interface StockCardProps {
   item: StockItemRaw;
@@ -21,6 +27,9 @@ export function StockCard({
   onSelect,
   disabled = false,
 }: StockCardProps) {
+  const { uiDisplay } = useTenant();
+  const drawerCategoryByNum = useDrawerCategoryMap();
+
   const display = (v: unknown): string | number =>
     v !== null && v !== undefined && v !== ""
       ? typeof v === "number"
@@ -56,9 +65,22 @@ export function StockCard({
 
   fields.push({ label: "Armário", value: display(item.armario_id) });
   if (item.casela_id) {
-    fields.push({ label: "Casela", value: display(item.casela_id) });
+    fields.push({
+      label: "Casela",
+      value: formatCaselaLabel(uiDisplay.casela, {
+        caselaId: item.casela_id,
+        residentName: item.paciente,
+      }),
+    });
   } else {
-    fields.push({ label: "Gaveta", value: display(item.gaveta_id) });
+    const gid = item.gaveta_id;
+    fields.push({
+      label: "Gaveta",
+      value: formatGavetaLabel(uiDisplay.gaveta, {
+        gavetaId: gid ?? undefined,
+        categoriaNome: gid != null ? drawerCategoryByNum.get(gid) : undefined,
+      }),
+    });
   }
   fields.push({ label: "Paciente", value: display(item.paciente) });
   fields.push({ label: "Setor", value: display(item.setor) });
@@ -79,7 +101,7 @@ export function StockCard({
         relative w-full h-[200px] rounded-xl p-5 border shadow-sm transition-all flex flex-col
         ${
           selected
-            ? "bg-sky-50 border-sky-600 shadow-md"
+            ? "bg-accent/50 border-primary shadow-md"
             : "bg-white border-slate-300 hover:bg-slate-50"
         }
         ${isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}

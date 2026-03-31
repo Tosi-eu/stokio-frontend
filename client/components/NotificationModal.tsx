@@ -34,7 +34,7 @@ const NotificationReminderModal: FC<NotificationReminderModalProps> = ({
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl text-slate-900">
-            <BellRing className="w-5 h-5 text-sky-600" />
+            <BellRing className="w-5 h-5 text-primary" />
             Notificações pendentes para hoje
           </DialogTitle>
         </DialogHeader>
@@ -78,7 +78,7 @@ const NotificationReminderModal: FC<NotificationReminderModalProps> = ({
         <DialogFooter>
           <Button
             onClick={onClose}
-            className="w-full sm:w-auto bg-sky-600 hover:bg-sky-700 text-white"
+            className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             OK
           </Button>

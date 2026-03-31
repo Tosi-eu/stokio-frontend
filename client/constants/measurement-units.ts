@@ -1,0 +1,31 @@
+export enum MeasurementUnit {
+  MG = "mg",
+  ML = "ml",
+  G = "g",
+  MCG = "mcg",
+  MG_ML = "mg/ml",
+  G_ML = "g/ml",
+  MG_G = "mg/g",
+  MG_PLUS = "mg+",
+  UI = "UI",
+  GTS = "gts",
+  UI_G = "UI/g",
+  UI_MG = "UI/mg",
+  UI_ML = "UI/ml",
+}
+
+export const MEASUREMENT_UNIT_LABEL: Record<MeasurementUnit, string> = {
+  [MeasurementUnit.MG]: "mg",
+  [MeasurementUnit.ML]: "ml",
+  [MeasurementUnit.G]: "g",
+  [MeasurementUnit.MCG]: "mcg",
+  [MeasurementUnit.MG_ML]: "mg/ml",
+  [MeasurementUnit.G_ML]: "g/ml",
+  [MeasurementUnit.MG_G]: "mg/g",
+  [MeasurementUnit.MG_PLUS]: "mg+",
+  [MeasurementUnit.UI]: "UI",
+  [MeasurementUnit.GTS]: "gts",
+  [MeasurementUnit.UI_G]: "UI/g",
+  [MeasurementUnit.UI_MG]: "UI/mg",
+  [MeasurementUnit.UI_ML]: "UI/ml",
+};

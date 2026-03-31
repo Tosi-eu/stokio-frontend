@@ -31,7 +31,7 @@ export default function QuantityStep({
   return (
     <div className="max-w-4xl mx-auto w-full">
       <div className="bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden">
-        <div className="bg-sky-50 px-6 py-4 border-b border-slate-100">
+        <div className="bg-accent/40 px-6 py-4 border-b border-border">
           <h2 className="text-lg font-semibold text-slate-800">
             Detalhes do Item
           </h2>
@@ -63,7 +63,7 @@ export default function QuantityStep({
                 "w-full rounded-lg p-3 text-sm transition-all focus:outline-none",
                 exceedsStock || quantityErrors.quantity
                   ? "border border-red-500 focus:ring-2 focus:ring-red-500 bg-red-50"
-                  : "border border-slate-300 focus:ring-2 focus:ring-sky-600 focus:border-sky-600",
+                  : "border border-input focus:ring-2 focus:ring-ring focus:border-primary",
               )}
             />
 
@@ -99,7 +99,7 @@ export default function QuantityStep({
                   "flex-1 px-4 py-2 rounded-lg font-semibold transition",
                   isInvalid || isSubmitting
                     ? "bg-slate-300 text-slate-500 cursor-not-allowed"
-                    : "bg-sky-600 text-white hover:bg-sky-700",
+                    : "bg-primary text-primary-foreground hover:bg-primary/90",
                 )}
               >
                 {isSubmitting ? "Confirmando..." : "Confirmar"}

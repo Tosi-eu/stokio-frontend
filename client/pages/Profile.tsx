@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
+import { APP_PUBLIC_NAME } from "@/constants/app-branding";
 import { VALIDATION_LIMITS } from "@/constants/app.constants";
 import { authStorage } from "@/helpers/auth.helper";
 
@@ -242,7 +243,7 @@ export default function Profile() {
               <CardFooter className="flex gap-2 px-0">
                 <Button
                   type="submit"
-                  className="w-full bg-sky-600 hover:bg-sky-700"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? "Salvando..." : "Salvar"}
@@ -263,7 +264,7 @@ export default function Profile() {
       </div>
 
       <div className="text-center text-xs text-slate-400">
-        © {new Date().getFullYear()} Abrigo Helena Dornfeld
+        © {new Date().getFullYear()} {APP_PUBLIC_NAME}
       </div>
     </Layout>
   );

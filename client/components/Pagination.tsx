@@ -13,7 +13,7 @@ export default function Pagination({ page, totalPages, onChange }: Props) {
         className={`px-4 py-2 rounded-lg font-medium border transition ${
           page === 1
             ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-            : "bg-white text-sky-700 hover:bg-sky-50"
+            : "bg-white text-primary hover:bg-accent/50"
         }`}
       >
         Anterior
@@ -29,7 +29,7 @@ export default function Pagination({ page, totalPages, onChange }: Props) {
         className={`px-4 py-2 rounded-lg font-medium border transition ${
           page === totalPages
             ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-            : "bg-white text-sky-700 hover:bg-sky-50"
+            : "bg-white text-primary hover:bg-accent/50"
         }`}
       >
         Próxima

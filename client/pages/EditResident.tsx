@@ -147,7 +147,7 @@ export default function EditResident() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-sky-600 hover:bg-sky-700 text-white"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
               >
                 {isSubmitting ? "Salvando..." : "Salvar Alterações"}
               </Button>

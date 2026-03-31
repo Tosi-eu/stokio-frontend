@@ -57,7 +57,7 @@ const StockReplacementModal: FC<StockReplacementModalProps> = ({
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl text-slate-900">
-            <Package className="w-5 h-5 text-sky-600" />
+            <Package className="w-5 h-5 text-primary" />
             Reposição de estoque amanhã
           </DialogTitle>
         </DialogHeader>
@@ -120,7 +120,7 @@ const StockReplacementModal: FC<StockReplacementModalProps> = ({
 
           <Button
             onClick={onClose}
-            className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg"
           >
             OK
           </Button>

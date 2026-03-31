@@ -5,7 +5,108 @@ import {
   OperationType,
   SectorType,
 } from "@/utils/enums";
+import type {
+  PublicTenantListItem,
+  PublicTenantBranding,
+  TenantBrandingApiResponse,
+  TenantConfigResponse,
+  UpdateTenantBrandingPayload,
+} from "@porto-sdk/sdk";
 import { api, API_BASE_URL } from "./canonical";
+
+export type {
+  PublicTenantListItem,
+  PublicTenantBranding,
+  TenantBrandingApiResponse,
+  TenantConfigResponse,
+  UpdateTenantBrandingPayload,
+} from "@porto-sdk/sdk";
+
+export type LoginTenantSummary = {
+  slug: string;
+  label: string;
+};
+
+export type TenantLogoUploadPhase = "sending" | "storing";
+
+export type TenantLogoUploadCallbacks = {
+  onUploadProgress?: (percentLoaded: number) => void;
+  onPhase?: (phase: TenantLogoUploadPhase) => void;
+};
+
+function parseLogoUploadResponse(xhr: XMLHttpRequest): { logoUrl: string } {
+  let data: { error?: string; logoUrl?: string } | null = null;
+  try {
+    if (typeof xhr.response === "string") {
+      data = JSON.parse(xhr.response) as { error?: string; logoUrl?: string };
+    } else if (xhr.response && typeof xhr.response === "object") {
+      data = xhr.response as { error?: string; logoUrl?: string };
+    }
+  } catch {
+    data = null;
+  }
+  const status = xhr.status;
+  if (status >= 200 && status < 300 && data?.logoUrl) {
+    return { logoUrl: data.logoUrl };
+  }
+  const msg =
+    typeof data?.error === "string" ? data.error : "Falha no upload do logo";
+  throw new Error(msg);
+}
+
+export function uploadTenantLogoWithProgress(
+  file: File,
+  brandName: string,
+  callbacks?: TenantLogoUploadCallbacks,
+): Promise<{ logoUrl: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_BASE_URL}/tenant/branding/logo`);
+    xhr.withCredentials = true;
+    xhr.responseType = "json";
+    xhr.timeout = 120_000;
+
+    xhr.upload.onprogress = (ev) => {
+      if (ev.lengthComputable && callbacks?.onUploadProgress) {
+        const pct = Math.round((ev.loaded / Math.max(ev.total, 1)) * 100);
+        callbacks.onUploadProgress(Math.min(100, pct));
+      }
+    };
+
+    xhr.upload.onload = () => {
+      callbacks?.onPhase?.("storing");
+    };
+
+    xhr.onload = () => {
+      try {
+        resolve(parseLogoUploadResponse(xhr));
+      } catch (e) {
+        reject(e instanceof Error ? e : new Error(String(e)));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error("Falha de rede ao enviar o logo"));
+    };
+
+    xhr.ontimeout = () => {
+      reject(new Error("Tempo esgotado ao enviar o logo. Tente de novo."));
+    };
+
+    callbacks?.onPhase?.("sending");
+    const form = new FormData();
+    form.append("file", file);
+    form.append("brandName", brandName.trim());
+    xhr.send(form);
+  });
+}
+
+export function uploadTenantLogo(
+  file: File,
+  brandName: string,
+): Promise<{ logoUrl: string }> {
+  return uploadTenantLogoWithProgress(file, brandName);
+}
 import type {
   PaginatedResponse,
   DashboardSummaryResponse,
@@ -203,7 +304,6 @@ export const getReport = (
   return api.get(`/relatorios?${search.toString()}`);
 };
 
-/** Build query params for admin CSV export (same shape as getReport). */
 export function buildAdminExportParams(
   type: string,
   casela?: number,
@@ -219,7 +319,6 @@ export function buildAdminExportParams(
   return out;
 }
 
-/** Download admin export as CSV (uses credentials). */
 export async function downloadAdminExportCSV(
   queryParams: Record<string, string>,
 ): Promise<void> {
@@ -249,8 +348,97 @@ export const getDailyMovementsReport = () => {
   return api.get("/relatorios?type=movimentos_dia");
 };
 
-export const login = (login: string, password: string) =>
-  api.post("/login/authenticate", { login, password });
+export const listPublicTenants = (params?: { q?: string; limit?: number }) =>
+  api.get<{ data: PublicTenantListItem[] }>("/tenants", {
+    params: params ?? {},
+  });
+
+export type PublicAppConfigResponse = {
+  defaultLogoUrl: string | null;
+};
+
+export const fetchPublicAppConfig = () =>
+  api.get<PublicAppConfigResponse>("/public/app-config");
+
+export async function fetchPublicTenantBrandingIfExists(
+  slug: string,
+): Promise<PublicTenantBranding | null> {
+  const s = slug.trim();
+  if (!s) return null;
+  const path = `/tenants/${encodeURIComponent(s)}/branding`;
+  try {
+    const res = await fetch(`${API_BASE_URL}${path}`, {
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as TenantBrandingApiResponse;
+    if (!data || typeof data !== "object" || !("found" in data)) return null;
+    if (!data.found) return null;
+    return {
+      slug: data.slug,
+      name: data.name,
+      brandName: data.brandName ?? null,
+      logoUrl: data.logoUrl ?? null,
+      requiresContractCode: true,
+      contractCodeMandatory: Boolean(data.contractCodeMandatory),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export const login = (login: string, password: string, tenantSlug: string) =>
+  api.post(
+    "/login/authenticate",
+    { login, password },
+    { headers: { "X-Tenant": tenantSlug } },
+  );
+
+export type ResolveTenantAmbiguousTenant = { slug: string; label: string };
+
+export async function fetchLoginTenantsForEmail(
+  login: string,
+): Promise<LoginTenantSummary[]> {
+  const trimmed = login.trim();
+  if (!trimmed) return [];
+  const res = await fetch(
+    `${API_BASE_URL}/login/tenants-for-email?${new URLSearchParams({ login: trimmed })}`,
+    { credentials: "include", headers: { Accept: "application/json" } },
+  );
+  const data = (await res.json().catch(() => null)) as {
+    tenants?: LoginTenantSummary[];
+  } | null;
+  if (!res.ok) return [];
+  return Array.isArray(data?.tenants) ? data.tenants : [];
+}
+export async function resolveTenantByLogin(
+  login: string,
+): Promise<
+  | { ok: true; slug: string }
+  | { ok: false; reason: "not_found" }
+  | { ok: false; reason: "ambiguous"; tenants: ResolveTenantAmbiguousTenant[] }
+> {
+  const trimmed = login.trim();
+  if (!trimmed) return { ok: false, reason: "not_found" };
+
+  const res = await fetch(
+    `${API_BASE_URL}/login/resolve-tenant?${new URLSearchParams({ login: trimmed })}`,
+    { credentials: "include", headers: { Accept: "application/json" } },
+  );
+  const data = (await res.json().catch(() => null)) as {
+    slug?: string;
+    tenants?: ResolveTenantAmbiguousTenant[];
+  } | null;
+
+  if (res.ok && data && typeof data.slug === "string" && data.slug.trim())
+    return { ok: true, slug: data.slug.trim() };
+
+  if (res.status === 409 && data?.tenants && Array.isArray(data.tenants))
+    return { ok: false, reason: "ambiguous", tenants: data.tenants };
+
+  return { ok: false, reason: "not_found" };
+}
 
 export type CurrentUserResponse = {
   id?: number;
@@ -258,7 +446,6 @@ export type CurrentUserResponse = {
   role?: "admin" | "user";
   firstName?: string;
   lastName?: string;
-  // Some endpoints may still return snake_case
   first_name?: string;
   last_name?: string;
 };
@@ -283,13 +470,128 @@ export const register = (
   password: string,
   firstName: string,
   lastName: string,
+  tenantSlug: string,
+  contractCode?: string,
 ) =>
-  api.post("/login", {
+  api.post(
+    "/login",
+    {
+      login,
+      password,
+      first_name: firstName,
+      last_name: lastName,
+      ...(contractCode != null && contractCode.trim() !== ""
+        ? { contract_code: contractCode.trim() }
+        : {}),
+    },
+    { headers: { "X-Tenant": tenantSlug } },
+  );
+
+export type RegisterAccountResponse = {
+  tenant: { id: number; slug: string };
+  user: { id: number; login: string; role: string };
+};
+
+export const registerAccount = (
+  login: string,
+  password: string,
+  firstName: string,
+  lastName: string,
+): Promise<RegisterAccountResponse> =>
+  api.post<RegisterAccountResponse>("/login/register-account", {
     login,
     password,
     first_name: firstName,
     last_name: lastName,
   });
+
+export type RegisterUserResponse = {
+  tenant: { id: number; slug: string };
+  user: { id: number; login: string; role: string };
+};
+
+export const registerUser = (
+  login: string,
+  password: string,
+  firstName: string,
+  lastName: string,
+  opts?: { contract_code?: string },
+): Promise<RegisterUserResponse> => {
+  const cc = opts?.contract_code?.trim();
+  return api.post<RegisterUserResponse>("/login/register-user", {
+    login,
+    password,
+    first_name: firstName,
+    last_name: lastName,
+    ...(cc ? { contract_code: cc } : {}),
+  });
+};
+
+export const joinByInviteToken = (payload: {
+  token: string;
+  login: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+}): Promise<RegisterUserResponse> =>
+  api.post<RegisterUserResponse>("/login/join-by-token", payload);
+
+export type CreateTenantInviteResponse =
+  | {
+      ok: true;
+      emailSent: true;
+      expiresAt: string;
+    }
+  | {
+      token: string;
+      link: string;
+      emailSent: false;
+      expiresAt: string;
+      warning?: string;
+    };
+
+export const createTenantInvite = (payload: {
+  email: string;
+  role: "user" | "admin";
+  permissions?: {
+    read?: boolean;
+    create?: boolean;
+    update?: boolean;
+    delete?: boolean;
+  };
+  expires_in_days?: number;
+}): Promise<CreateTenantInviteResponse> => api.post("/tenant/invites", payload);
+
+export type VerifyContractCodeResponse = {
+  valid: boolean;
+  contractCodeRequired?: boolean;
+  reason?: "missing" | "mismatch";
+};
+
+export const verifyTenantContractCode = (
+  tenantSlug: string,
+  contractCode: string,
+) =>
+  api.post<VerifyContractCodeResponse>(
+    `/tenants/${encodeURIComponent(tenantSlug)}/verify-contract-code`,
+    { contract_code: contractCode },
+  );
+
+function superAdminApiKeyHeaders(): HeadersInit | undefined {
+  const k = import.meta.env.VITE_X_API_KEY;
+  if (k == null || String(k).trim() === "") return undefined;
+  return { "X-API-Key": String(k).trim() };
+}
+
+export const adminSetTenantContractCodeBySlug = (
+  slug: string,
+  payload: { contract_code: string } | { clear_contract_code: true },
+) =>
+  api.put<{ ok: boolean; slug: string; contractCodeConfigured: boolean }>(
+    `/admin/tenants/by-slug/${encodeURIComponent(slug)}/contract-code`,
+    payload,
+    { headers: superAdminApiKeyHeaders() },
+  );
 
 export const updateInput = (id: number, data: Record<string, unknown>) =>
   api.put(`/insumos/${id}`, data);
@@ -648,9 +950,41 @@ export const updateStockItem = (
   });
 };
 
-export const getBackendLoadingStatus = () => api.get("/status");
+export type HealthCheckResponse = {
+  status: string;
+  database?: string;
+  redis?: string;
+};
+
+export const getBackendHealthCheck = () =>
+  api.get<HealthCheckResponse>("/health");
 
 export const logoutRequest = () => api.post("/login/logout");
+
+export const getTenantConfig = () =>
+  api.get<TenantConfigResponse>("/tenant/config");
+
+export const updateTenantConfig = (modules: { enabled: string[] }) =>
+  api.put<{ tenantId: number; modules: { enabled: string[] } }>(
+    "/tenant/config",
+    { modules },
+  );
+
+export const updateTenantBranding = (payload: UpdateTenantBrandingPayload) =>
+  api.put<{ tenantId: number; tenant: TenantConfigResponse["tenant"] }>(
+    "/tenant/branding",
+    payload,
+  );
+
+export const setTenantContractCode = (contractCode: string) =>
+  api.post<{
+    ok: true;
+    migrated?: boolean;
+    tenantId?: number;
+    tenantSlug?: string;
+  }>("/tenant/contract-code", {
+    contract_code: contractCode,
+  });
 
 export const getAdminUsers = (params?: { page?: number; limit?: number }) =>
   api.get("/admin/users", { params: params ?? {} });
@@ -812,17 +1146,71 @@ export const mergeAdminMedicines = (payload: {
 export const normalizeAdminMedicineUnits = (payload?: { dryRun?: boolean }) =>
   api.post("/admin/data-quality/normalize-medicine-units", payload ?? {});
 
-export const getAdminConfig = () =>
-  api.get<Record<string, string>>("/admin/config");
+export type AdminSystemConfig = Record<string, string>;
 
-export const updateAdminConfig = (config: Record<string, string>) =>
-  api.put("/admin/config", config);
+export const getAdminConfig = () => api.get<AdminSystemConfig>("/admin/config");
+
+export const updateAdminConfig = (config: AdminSystemConfig) =>
+  api.put<AdminSystemConfig>("/admin/config", config);
+
+export type AdminTenant = {
+  id: number;
+  slug: string;
+  name: string;
+  brandName?: string | null;
+  logoUrl?: string | null;
+  contractPortfolioId?: number | null;
+};
+export type AdminTenantsResponse = {
+  data: AdminTenant[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+export const getAdminTenants = (params?: { page?: number; limit?: number }) =>
+  api.get<AdminTenantsResponse>("/admin/tenants", {
+    params: params ?? {},
+    headers: superAdminApiKeyHeaders(),
+  });
+export const createAdminTenant = (data: {
+  slug: string;
+  name: string;
+  contract_code?: string;
+}) =>
+  api.post<AdminTenant>("/admin/tenants", data, {
+    headers: superAdminApiKeyHeaders(),
+  });
+export const updateAdminTenant = (
+  id: number,
+  data: Partial<{ slug: string; name: string; contract_code?: string }>,
+) =>
+  api.put<AdminTenant>(`/admin/tenants/${id}`, data, {
+    headers: superAdminApiKeyHeaders(),
+  });
+export const deleteAdminTenant = (id: number) =>
+  api.delete<{ ok: boolean }>(`/admin/tenants/${id}`, undefined, {
+    headers: superAdminApiKeyHeaders(),
+  });
+
+export const getAdminTenantConfig = (id: number) =>
+  api.get<TenantConfigResponse>(`/admin/tenants/${id}/config`, {
+    headers: superAdminApiKeyHeaders(),
+  });
+export const setAdminTenantConfig = (
+  id: number,
+  modules: { enabled: string[] },
+) =>
+  api.put<TenantConfigResponse>(
+    `/admin/tenants/${id}/config`,
+    { modules },
+    { headers: superAdminApiKeyHeaders() },
+  );
 
 export type RestoreBackupResponse = {
   message: string;
 };
 
-/** Envia o arquivo de dump (backup_*.sql.gz ou .sql) para restaurar o banco. */
 export const restoreBackup = (file: File) => {
   const form = new FormData();
   form.append("file", file);
