@@ -16,6 +16,8 @@ import {
 
 export type TenantModules = {
   enabled: string[];
+  automatic_price_search?: boolean;
+  automatic_reposicao_notifications?: boolean;
 };
 
 export type TenantContextType = {

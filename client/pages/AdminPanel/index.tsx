@@ -311,6 +311,7 @@ export default function AdminPanel() {
             health={config.health}
             onSave={config.save}
             refetchHealth={config.refetchHealth}
+            isSuperAdmin={isSuperAdmin}
           />
         </TabsContent>
 

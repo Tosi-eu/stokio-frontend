@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { CONFIG_KEYS, CONFIG_SELECT_KEYS } from "../hooks/useAdminConfig";
 import type { AdminHealthResponse } from "@/api/requests";
 import {
@@ -56,6 +57,8 @@ interface AdminTabConfigProps {
   health: AdminHealthResponse | null;
   onSave: () => void;
   refetchHealth?: () => Promise<void>;
+  /** Backup/restore e execução manual de backup: só super-admin. */
+  isSuperAdmin?: boolean;
 }
 
 function formatBackupDate(s: string | null): string {
@@ -76,15 +79,26 @@ export function AdminTabConfig({
   health,
   onSave,
   refetchHealth,
+  isSuperAdmin = false,
 }: AdminTabConfigProps) {
   const { modules, tenant, refetch: refetchTenant } = useTenant();
   const [moduleEnabled, setModuleEnabled] = useState<Set<string>>(
     () => new Set(),
   );
   const [savingModules, setSavingModules] = useState(false);
+  const [autoPriceSearch, setAutoPriceSearch] = useState(true);
+  const [autoReposicaoNotifications, setAutoReposicaoNotifications] =
+    useState(true);
 
   useEffect(() => {
     setModuleEnabled(new Set(modules?.enabled ?? []));
+  }, [modules]);
+
+  useEffect(() => {
+    setAutoPriceSearch(modules?.automatic_price_search !== false);
+    setAutoReposicaoNotifications(
+      modules?.automatic_reposicao_notifications !== false,
+    );
   }, [modules]);
 
   const [restoreLoading, setRestoreLoading] = useState(false);
@@ -202,7 +216,11 @@ export function AdminTabConfig({
     }
     setSavingModules(true);
     try {
-      await updateTenantConfig({ enabled: Array.from(moduleEnabled) });
+      await updateTenantConfig({
+        enabled: Array.from(moduleEnabled),
+        automatic_price_search: autoPriceSearch,
+        automatic_reposicao_notifications: autoReposicaoNotifications,
+      });
       await refetchTenant();
       toast({
         title: "Módulos atualizados",
@@ -359,6 +377,45 @@ export function AdminTabConfig({
                 </label>
               );
             })}
+          </div>
+          <div className="rounded-lg border p-4 space-y-4 bg-muted/20">
+            <p className="text-sm font-medium text-foreground">
+              Automações do abrigo
+            </p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1 flex-1">
+                <Label htmlFor="auto-price-search" className="text-sm">
+                  Busca automática de preços
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Ao cadastrar medicamento ou insumo, o sistema pode consultar
+                  preço de referência em segundo plano.
+                </p>
+              </div>
+              <Switch
+                id="auto-price-search"
+                checked={autoPriceSearch}
+                onCheckedChange={setAutoPriceSearch}
+                aria-label="Busca automática de preços"
+              />
+            </div>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1 flex-1">
+                <Label htmlFor="auto-reposicao" className="text-sm">
+                  Notificações automáticas de reposição
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  O agendamento cria avisos de reposição com base no estoque e
+                  nos dias para repor.
+                </p>
+              </div>
+              <Switch
+                id="auto-reposicao"
+                checked={autoReposicaoNotifications}
+                onCheckedChange={setAutoReposicaoNotifications}
+                aria-label="Notificações automáticas de reposição"
+              />
+            </div>
           </div>
           <Button
             type="button"
@@ -532,9 +589,10 @@ export function AdminTabConfig({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Restaurar backup (dump)</CardTitle>
+      {isSuperAdmin ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Restaurar backup (dump)</CardTitle>
           <p className="text-sm text-muted-foreground">
             Envie o arquivo de dump gerado pelo job de backup (
             <code className="text-xs bg-muted px-1 rounded">
@@ -561,7 +619,8 @@ export function AdminTabConfig({
             {restoreLoading ? "Restaurando..." : "Selecionar dump e restaurar"}
           </Button>
         </CardContent>
-      </Card>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -617,9 +676,10 @@ export function AdminTabConfig({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Backup (status e execução)</CardTitle>
+      {isSuperAdmin ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Backup (status e execução)</CardTitle>
           <p className="text-sm text-muted-foreground">
             Veja o status do último backup e rode um backup manual (gera um dump
             e atualiza os metadados).
@@ -715,7 +775,8 @@ export function AdminTabConfig({
             </p>
           )}
         </CardContent>
-      </Card>
+        </Card>
+      ) : null}
     </div>
   );
 }

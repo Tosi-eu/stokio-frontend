@@ -964,8 +964,14 @@ export const logoutRequest = () => api.post("/login/logout");
 export const getTenantConfig = () =>
   api.get<TenantConfigResponse>("/tenant/config");
 
-export const updateTenantConfig = (modules: { enabled: string[] }) =>
-  api.put<{ tenantId: number; modules: { enabled: string[] } }>(
+export type UpdateTenantModulesPayload = {
+  enabled: string[];
+  automatic_price_search?: boolean;
+  automatic_reposicao_notifications?: boolean;
+};
+
+export const updateTenantConfig = (modules: UpdateTenantModulesPayload) =>
+  api.put<{ tenantId: number; modules: UpdateTenantModulesPayload }>(
     "/tenant/config",
     { modules },
   );
