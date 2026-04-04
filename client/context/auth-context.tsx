@@ -10,6 +10,7 @@ import { AuthContextType, LoggedUser } from "@/interfaces/interfaces";
 import { login as apiLogin, logoutRequest } from "@/api/requests";
 import { cleanupSessionTimeout } from "@/helpers/session-timeout.helper";
 import { isSuperAdminUser } from "@/helpers/auth-roles.helper";
+import { authStorage } from "@/helpers/auth.helper";
 
 export const AuthContext = createContext<AuthContextType | undefined>(
   undefined,
@@ -35,6 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setUser(null);
       sessionStorage.removeItem("user");
+      sessionStorage.removeItem("authToken");
       cleanupSessionTimeout();
     }
   }, []);
@@ -74,13 +76,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     async (loginStr: string, password: string, tenantSlug: string) => {
       const data = await apiLogin(loginStr, password, tenantSlug);
 
-      const response = data as { user?: LoggedUser };
+      const response = data as { user?: LoggedUser; token?: string };
       const loggedUser = response.user ?? (data as LoggedUser);
       const normalized = normalizeSessionUser(loggedUser);
 
       setUser(normalized);
 
       sessionStorage.setItem("user", JSON.stringify(normalized));
+      if (response.token && typeof response.token === "string") {
+        authStorage.setToken(response.token);
+      }
     },
     [],
   );
