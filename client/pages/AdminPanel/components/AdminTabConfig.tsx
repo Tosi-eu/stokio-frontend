@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { CONFIG_KEYS, CONFIG_SELECT_KEYS } from "../hooks/useAdminConfig";
 import type { AdminHealthResponse } from "@/api/requests";
 import {
@@ -56,6 +57,8 @@ interface AdminTabConfigProps {
   health: AdminHealthResponse | null;
   onSave: () => void;
   refetchHealth?: () => Promise<void>;
+  /** Backup/restore e execução manual de backup: só super-admin. */
+  isSuperAdmin?: boolean;
 }
 
 function formatBackupDate(s: string | null): string {
@@ -76,15 +79,26 @@ export function AdminTabConfig({
   health,
   onSave,
   refetchHealth,
+  isSuperAdmin = false,
 }: AdminTabConfigProps) {
   const { modules, tenant, refetch: refetchTenant } = useTenant();
   const [moduleEnabled, setModuleEnabled] = useState<Set<string>>(
     () => new Set(),
   );
   const [savingModules, setSavingModules] = useState(false);
+  const [autoPriceSearch, setAutoPriceSearch] = useState(true);
+  const [autoReposicaoNotifications, setAutoReposicaoNotifications] =
+    useState(true);
 
   useEffect(() => {
     setModuleEnabled(new Set(modules?.enabled ?? []));
+  }, [modules]);
+
+  useEffect(() => {
+    setAutoPriceSearch(modules?.automatic_price_search !== false);
+    setAutoReposicaoNotifications(
+      modules?.automatic_reposicao_notifications !== false,
+    );
   }, [modules]);
 
   const [restoreLoading, setRestoreLoading] = useState(false);
@@ -202,7 +216,11 @@ export function AdminTabConfig({
     }
     setSavingModules(true);
     try {
-      await updateTenantConfig({ enabled: Array.from(moduleEnabled) });
+      await updateTenantConfig({
+        enabled: Array.from(moduleEnabled),
+        automatic_price_search: autoPriceSearch,
+        automatic_reposicao_notifications: autoReposicaoNotifications,
+      });
       await refetchTenant();
       toast({
         title: "Módulos atualizados",
@@ -359,6 +377,45 @@ export function AdminTabConfig({
                 </label>
               );
             })}
+          </div>
+          <div className="rounded-lg border p-4 space-y-4 bg-muted/20">
+            <p className="text-sm font-medium text-foreground">
+              Automações do abrigo
+            </p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1 flex-1">
+                <Label htmlFor="auto-price-search" className="text-sm">
+                  Busca automática de preços
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Ao cadastrar medicamento ou insumo, o sistema pode consultar
+                  preço de referência em segundo plano.
+                </p>
+              </div>
+              <Switch
+                id="auto-price-search"
+                checked={autoPriceSearch}
+                onCheckedChange={setAutoPriceSearch}
+                aria-label="Busca automática de preços"
+              />
+            </div>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1 flex-1">
+                <Label htmlFor="auto-reposicao" className="text-sm">
+                  Notificações automáticas de reposição
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  O agendamento cria avisos de reposição com base no estoque e
+                  nos dias para repor.
+                </p>
+              </div>
+              <Switch
+                id="auto-reposicao"
+                checked={autoReposicaoNotifications}
+                onCheckedChange={setAutoReposicaoNotifications}
+                aria-label="Notificações automáticas de reposição"
+              />
+            </div>
           </div>
           <Button
             type="button"
@@ -532,36 +589,40 @@ export function AdminTabConfig({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Restaurar backup (dump)</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Envie o arquivo de dump gerado pelo job de backup (
-            <code className="text-xs bg-muted px-1 rounded">
-              backup_*.sql.gz
-            </code>
-            ou <code className="text-xs bg-muted px-1 rounded">.sql</code>). O
-            banco será restaurado com o conteúdo do dump.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".sql,.sql.gz,application/gzip"
-            className="hidden"
-            onChange={handleRestoreBackup}
-          />
-          <Button
-            variant="outline"
-            disabled={restoreLoading}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            {restoreLoading ? "Restaurando..." : "Selecionar dump e restaurar"}
-          </Button>
-        </CardContent>
-      </Card>
+      {isSuperAdmin ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Restaurar backup (dump)</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Envie o arquivo de dump gerado pelo job de backup (
+              <code className="text-xs bg-muted px-1 rounded">
+                backup_*.sql.gz
+              </code>
+              ou <code className="text-xs bg-muted px-1 rounded">.sql</code>). O
+              banco será restaurado com o conteúdo do dump.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".sql,.sql.gz,application/gzip"
+              className="hidden"
+              onChange={handleRestoreBackup}
+            />
+            <Button
+              variant="outline"
+              disabled={restoreLoading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              {restoreLoading
+                ? "Restaurando..."
+                : "Selecionar dump e restaurar"}
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -617,105 +678,109 @@ export function AdminTabConfig({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Backup (status e execução)</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Veja o status do último backup e rode um backup manual (gera um dump
-            e atualiza os metadados).
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={refetchBackupStatus}
-              disabled={backupStatusLoading}
-            >
-              {backupStatusLoading ? "Atualizando..." : "Atualizar status"}
-            </Button>
-            <Button
-              onClick={async () => {
-                setBackupRunLoading(true);
-                try {
-                  await runAdminBackupNow();
-                  toast({
-                    title: "Backup iniciado",
-                    description: "Backup gerado com sucesso.",
-                    variant: "success",
-                  });
-                  await refetchBackupStatus();
-                  await refetchHealth?.();
-                } catch (err) {
-                  toast({
-                    title: "Erro ao gerar backup",
-                    description:
-                      err instanceof Error ? err.message : "Falha inesperada.",
-                    variant: "error",
-                  });
-                } finally {
-                  setBackupRunLoading(false);
-                }
-              }}
-              disabled={backupRunLoading}
-            >
-              {backupRunLoading ? "Gerando..." : "Rodar backup agora"}
-            </Button>
-          </div>
-
-          {backupStatus ? (
-            <dl className="grid gap-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Último backup (at)</dt>
-                <dd>{formatBackupDate(backupStatus.lastBackupAt)}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Status</dt>
-                <dd
-                  className={
-                    backupStatus.lastBackupStatus === "ok"
-                      ? "text-green-600 font-medium"
-                      : backupStatus.lastBackupStatus === "error"
-                        ? "text-red-600 font-medium"
-                        : "text-muted-foreground"
-                  }
-                >
-                  {backupStatus.lastBackupStatus ?? "—"}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Duração</dt>
-                <dd>
-                  {backupStatus.lastBackupDurationMs != null
-                    ? `${backupStatus.lastBackupDurationMs}ms`
-                    : "—"}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Tamanho</dt>
-                <dd>
-                  {backupStatus.lastBackupSizeBytes != null
-                    ? `${backupStatus.lastBackupSizeBytes} bytes`
-                    : "—"}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Retenção (R2)</dt>
-                <dd>{backupStatus.retentionCount ?? "—"}</dd>
-              </div>
-              {backupStatus.lastBackupError && (
-                <div className="text-sm text-red-600">
-                  {backupStatus.lastBackupError}
-                </div>
-              )}
-            </dl>
-          ) : (
-            <p className="text-muted-foreground">
-              Clique em “Atualizar status” para carregar.
+      {isSuperAdmin ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Backup (status e execução)</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Veja o status do último backup e rode um backup manual (gera um
+              dump e atualiza os metadados).
             </p>
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={refetchBackupStatus}
+                disabled={backupStatusLoading}
+              >
+                {backupStatusLoading ? "Atualizando..." : "Atualizar status"}
+              </Button>
+              <Button
+                onClick={async () => {
+                  setBackupRunLoading(true);
+                  try {
+                    await runAdminBackupNow();
+                    toast({
+                      title: "Backup iniciado",
+                      description: "Backup gerado com sucesso.",
+                      variant: "success",
+                    });
+                    await refetchBackupStatus();
+                    await refetchHealth?.();
+                  } catch (err) {
+                    toast({
+                      title: "Erro ao gerar backup",
+                      description:
+                        err instanceof Error
+                          ? err.message
+                          : "Falha inesperada.",
+                      variant: "error",
+                    });
+                  } finally {
+                    setBackupRunLoading(false);
+                  }
+                }}
+                disabled={backupRunLoading}
+              >
+                {backupRunLoading ? "Gerando..." : "Rodar backup agora"}
+              </Button>
+            </div>
+
+            {backupStatus ? (
+              <dl className="grid gap-2 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Último backup (at)</dt>
+                  <dd>{formatBackupDate(backupStatus.lastBackupAt)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Status</dt>
+                  <dd
+                    className={
+                      backupStatus.lastBackupStatus === "ok"
+                        ? "text-green-600 font-medium"
+                        : backupStatus.lastBackupStatus === "error"
+                          ? "text-red-600 font-medium"
+                          : "text-muted-foreground"
+                    }
+                  >
+                    {backupStatus.lastBackupStatus ?? "—"}
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Duração</dt>
+                  <dd>
+                    {backupStatus.lastBackupDurationMs != null
+                      ? `${backupStatus.lastBackupDurationMs}ms`
+                      : "—"}
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Tamanho</dt>
+                  <dd>
+                    {backupStatus.lastBackupSizeBytes != null
+                      ? `${backupStatus.lastBackupSizeBytes} bytes`
+                      : "—"}
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Retenção (R2)</dt>
+                  <dd>{backupStatus.retentionCount ?? "—"}</dd>
+                </div>
+                {backupStatus.lastBackupError && (
+                  <div className="text-sm text-red-600">
+                    {backupStatus.lastBackupError}
+                  </div>
+                )}
+              </dl>
+            ) : (
+              <p className="text-muted-foreground">
+                Clique em “Atualizar status” para carregar.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

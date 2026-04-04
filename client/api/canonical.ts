@@ -21,6 +21,15 @@ export class InvalidSessionError extends Error {
   }
 }
 
+function readBearerToken(): string | null {
+  try {
+    const token = sessionStorage.getItem("authToken");
+    return token && token.trim() ? token.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 function buildQueryString(params?: Record<string, any>): string {
   if (!params) return "";
 
@@ -139,15 +148,20 @@ async function request(
 ) {
   const isFormData = options.body instanceof FormData;
   const { headers: optionHeaders, ...restOptions } = options;
+  const token = readBearerToken();
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "include",
     ...restOptions,
     headers: isFormData
-      ? { ...(optionHeaders as HeadersInit) }
+      ? {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(optionHeaders as HeadersInit),
+        }
       : {
           "Content-Type": "application/json",
           Accept: "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(optionHeaders as HeadersInit),
         },
   });
