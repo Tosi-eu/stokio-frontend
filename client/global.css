@@ -144,10 +144,7 @@
   h3,
   .font-display {
     font-family:
-      var(--font-display),
-      var(--font-sans),
-      ui-sans-serif,
-      system-ui,
+      var(--font-display), var(--font-sans), ui-sans-serif, system-ui,
       sans-serif;
     letter-spacing: -0.025em;
   }

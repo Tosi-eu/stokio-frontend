@@ -76,13 +76,13 @@ frontend/
 
 ## Scripts
 
-| Script            | Descrição              |
-| ----------------- | ---------------------- |
-| `npm run dev`     | Desenvolvimento        |
-| `npm run build`   | Build de produção      |
-| `npm run start`   | Servidor de produção   |
-| `npm run lint`    | ESLint                 |
-| `npm run typecheck` | TypeScript (tsc)   |
+| Script              | Descrição            |
+| ------------------- | -------------------- |
+| `npm run dev`       | Desenvolvimento      |
+| `npm run build`     | Build de produção    |
+| `npm run start`     | Servidor de produção |
+| `npm run lint`      | ESLint               |
+| `npm run typecheck` | TypeScript (tsc)     |
 
 ## Troubleshooting
 

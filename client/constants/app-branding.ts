@@ -14,7 +14,9 @@ export function normalizeR2PublicBaseUrl(
 }
 
 function r2DefaultLogoUrl(): string | null {
-  const r2 = normalizeR2PublicBaseUrl(process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL);
+  const r2 = normalizeR2PublicBaseUrl(
+    process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
+  );
   if (!r2) return null;
   return `${r2}/default_logo.png`;
 }
@@ -76,7 +78,9 @@ export function mergePublicLogoWithServerDefault(
 export const PDF_REPORT_LOGO_URL = resolvePdfLogoUrl();
 
 export function getR2PublicOriginForPreconnect(): string | null {
-  const r2 = normalizeR2PublicBaseUrl(process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL);
+  const r2 = normalizeR2PublicBaseUrl(
+    process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
+  );
   if (!r2) return null;
   try {
     return new URL(r2).origin;

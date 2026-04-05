@@ -10,9 +10,7 @@ const TenantOnboarding = dynamic(() => import("@/pages/TenantOnboarding"), {
 
 export default function TenantOnboardingPage() {
   return (
-    <Suspense
-      fallback={<LoadingFallback title="Carregando configuração..." />}
-    >
+    <Suspense fallback={<LoadingFallback title="Carregando configuração..." />}>
       <TenantOnboarding />
     </Suspense>
   );

@@ -11,9 +11,7 @@ const RegisterDrawer = dynamic(() => import("@/pages/RegisterDrawer"), {
 
 export default function RegisterDrawerPage() {
   return (
-    <Suspense
-      fallback={<LoadingFallback title="Carregando formulário..." />}
-    >
+    <Suspense fallback={<LoadingFallback title="Carregando formulário..." />}>
       <ModuleRoute moduleKey="drawers">
         <RegisterDrawer />
       </ModuleRoute>

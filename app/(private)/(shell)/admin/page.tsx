@@ -12,9 +12,7 @@ const AdminPanel = dynamic(() => import("@/pages/AdminPanel"), {
 export default function AdminPage() {
   return (
     <Suspense
-      fallback={
-        <LoadingFallback title="Carregando painel administrativo..." />
-      }
+      fallback={<LoadingFallback title="Carregando painel administrativo..." />}
     >
       <ModuleRoute moduleKey="admin">
         <AdminPanel />

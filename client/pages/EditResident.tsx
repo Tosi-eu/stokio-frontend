@@ -16,9 +16,10 @@ import { Button } from "@/components/ui/button";
 
 export default function EditResident() {
   const router = useRouter();
-  const [item] = useState(() =>
-    consumeSpaNavigationState<{ item?: { name?: string; casela?: number } }>()
-      ?.item,
+  const [item] = useState(
+    () =>
+      consumeSpaNavigationState<{ item?: { name?: string; casela?: number } }>()
+        ?.item,
   );
 
   const {

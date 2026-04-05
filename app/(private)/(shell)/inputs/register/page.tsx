@@ -11,9 +11,7 @@ const RegisterInput = dynamic(() => import("@/pages/RegisterInput"), {
 
 export default function RegisterInputPage() {
   return (
-    <Suspense
-      fallback={<LoadingFallback title="Carregando formulário..." />}
-    >
+    <Suspense fallback={<LoadingFallback title="Carregando formulário..." />}>
       <ModuleRoute moduleKey="inputs">
         <RegisterInput />
       </ModuleRoute>

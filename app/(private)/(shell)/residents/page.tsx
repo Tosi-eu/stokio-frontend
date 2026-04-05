@@ -9,9 +9,7 @@ const Resident = dynamic(() => import("@/pages/Residents"), { ssr: false });
 
 export default function ResidentsPage() {
   return (
-    <Suspense
-      fallback={<LoadingFallback title="Carregando residentes..." />}
-    >
+    <Suspense fallback={<LoadingFallback title="Carregando residentes..." />}>
       <ModuleRoute moduleKey="residents">
         <Resident />
       </ModuleRoute>

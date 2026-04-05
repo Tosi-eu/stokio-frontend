@@ -43,9 +43,7 @@ const toastVariants = cva(
 );
 
 const iconMap: Record<string, React.ReactNode> = {
-  success: (
-    <CheckCircle2 className="h-5 w-5 text-primary" />
-  ),
+  success: <CheckCircle2 className="h-5 w-5 text-primary" />,
   error: <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />,
   warning: (
     <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />

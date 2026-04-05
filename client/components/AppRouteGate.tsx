@@ -19,10 +19,7 @@ function InvalidSessionModalBridge() {
   }, [setShowModal]);
 
   return (
-    <InvalidSessionModal
-      open={showModal}
-      onClose={() => setShowModal(false)}
-    />
+    <InvalidSessionModal open={showModal} onClose={() => setShowModal(false)} />
   );
 }
 
@@ -59,8 +56,7 @@ export function AppRouteGate({ children }: { children: ReactNode }) {
       });
     };
     window.addEventListener("insufficient-privileges", handler);
-    return () =>
-      window.removeEventListener("insufficient-privileges", handler);
+    return () => window.removeEventListener("insufficient-privileges", handler);
   }, []);
 
   if (needsSetup && !isOnboardingPath) {

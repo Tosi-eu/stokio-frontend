@@ -5,10 +5,9 @@ import dynamic from "next/dynamic";
 import ModuleRoute from "@/pages/ModuleRoute";
 import { LoadingFallback } from "@/components/LoadingFallback";
 
-const TransferReport = dynamic(
-  () => import("@/pages/TransferReport"),
-  { ssr: false },
-);
+const TransferReport = dynamic(() => import("@/pages/TransferReport"), {
+  ssr: false,
+});
 
 export default function TransferReportPage() {
   return (

@@ -9,9 +9,7 @@ const Medicines = dynamic(() => import("@/pages/Medicines"), { ssr: false });
 
 export default function MedicinesPage() {
   return (
-    <Suspense
-      fallback={<LoadingFallback title="Carregando medicamentos..." />}
-    >
+    <Suspense fallback={<LoadingFallback title="Carregando medicamentos..." />}>
       <ModuleRoute moduleKey="medicines">
         <Medicines />
       </ModuleRoute>
