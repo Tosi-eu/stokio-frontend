@@ -27,7 +27,7 @@ export default function LogoutConfirmDialog({
           minWidth: 360,
           boxShadow:
             "0px 8px 20px rgba(0, 0, 0, 0.08), 0px 3px 6px rgba(0, 0, 0, 0.05)",
-          backgroundColor: "hsl(165 35% 98%)",
+          backgroundColor: "hsl(210 42% 98%)",
           fontFamily: "'Inter', sans-serif",
         },
       }}
@@ -71,11 +71,11 @@ export default function LogoutConfirmDialog({
           sx={{
             borderRadius: "8px",
             textTransform: "none",
-            borderColor: "hsl(160 18% 88%)",
-            color: "hsl(200 12% 42%)",
+            borderColor: "hsl(214 20% 88%)",
+            color: "hsl(215 16% 42%)",
             "&:hover": {
-              borderColor: "hsl(160 20% 78%)",
-              backgroundColor: "hsl(165 28% 96%)",
+              borderColor: "hsl(214 22% 78%)",
+              backgroundColor: "hsl(210 32% 96%)",
             },
           }}
         >
@@ -89,11 +89,11 @@ export default function LogoutConfirmDialog({
           sx={{
             borderRadius: "8px",
             textTransform: "none",
-            backgroundColor: "hsl(174 62% 36%)",
+            backgroundColor: "hsl(191 76% 40%)",
             color: "#fff",
-            boxShadow: "0 1px 2px hsl(174 45% 28% / 0.15)",
+            boxShadow: "0 1px 2px hsl(215 45% 32% / 0.18)",
             "&:hover": {
-              backgroundColor: "hsl(176 52% 30%)",
+              backgroundColor: "hsl(191 72% 34%)",
             },
           }}
         >

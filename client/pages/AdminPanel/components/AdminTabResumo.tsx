@@ -283,7 +283,7 @@ export function AdminTabResumo({
                   >
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2">
-                        <LogIn className="h-8 w-8 text-green-600" />
+                        <LogIn className="h-8 w-8 text-sky-600" />
                         <div>
                           <p className="text-2xl font-bold">
                             {metrics.activeUsersThisMonth}
@@ -323,12 +323,12 @@ export function AdminTabResumo({
                   </CardContent>
                 </Card>
                 <Card
-                  className={`bg-muted/40 cursor-pointer transition-all hover:shadow-md ${expandedSummary === "medicines" ? "ring-2 ring-emerald-500" : ""}`}
+                  className={`bg-muted/40 cursor-pointer transition-all hover:shadow-md ${expandedSummary === "medicines" ? "ring-2 ring-primary" : ""}`}
                   onClick={() => loadSummaryList("medicines")}
                 >
                   <CardContent className="pt-4">
                     <div className="flex items-center gap-2">
-                      <Pill className="h-8 w-8 text-emerald-600" />
+                      <Pill className="h-8 w-8 text-primary" />
                       <div>
                         <p className="text-2xl font-bold">
                           {summary.medicines}
@@ -380,12 +380,12 @@ export function AdminTabResumo({
                   </CardContent>
                 </Card>
                 <Card
-                  className={`bg-muted/40 cursor-pointer transition-all hover:shadow-md ${expandedSummary === "drawers" ? "ring-2 ring-lime-500/80" : ""}`}
+                  className={`bg-muted/40 cursor-pointer transition-all hover:shadow-md ${expandedSummary === "drawers" ? "ring-2 ring-sky-500/80" : ""}`}
                   onClick={() => loadSummaryList("drawers")}
                 >
                   <CardContent className="pt-4">
                     <div className="flex items-center gap-2">
-                      <Grid className="h-8 w-8 text-lime-600" />
+                      <Grid className="h-8 w-8 text-sky-600" />
                       <div>
                         <p className="text-2xl font-bold">{summary.drawers}</p>
                         <p className="text-sm text-muted-foreground">Gavetas</p>

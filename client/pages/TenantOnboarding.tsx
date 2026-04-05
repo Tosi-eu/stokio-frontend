@@ -46,7 +46,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast.hook";
 import { useAuth } from "@/hooks/use-auth.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
@@ -160,7 +160,7 @@ const MODULES: Array<{
 ];
 
 export default function TenantOnboarding() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, logout } = useAuth();
   const { modules, tenant, loading, tenantId } = useTenant();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -189,7 +189,7 @@ export default function TenantOnboarding() {
         "Complete a configuração do abrigo quando quiser, em Administração ou ao voltar a esta página.",
       duration: 5000,
     });
-    navigate("/loading", { replace: true });
+    router.replace("/loading");
   };
 
   useEffect(() => {
@@ -365,7 +365,7 @@ export default function TenantOnboarding() {
         variant: "success",
       });
       await logout();
-      navigate("/user/login", { replace: true });
+      router.replace("/user/login");
     } catch {
       toast({
         title: "Erro ao salvar",

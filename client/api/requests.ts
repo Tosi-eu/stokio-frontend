@@ -578,7 +578,7 @@ export const verifyTenantContractCode = (
   );
 
 function superAdminApiKeyHeaders(): HeadersInit | undefined {
-  const k = import.meta.env.VITE_X_API_KEY;
+  const k = process.env.NEXT_PUBLIC_X_API_KEY;
   if (k == null || String(k).trim() === "") return undefined;
   return { "X-API-Key": String(k).trim() };
 }

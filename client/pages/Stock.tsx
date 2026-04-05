@@ -2,7 +2,7 @@ import Layout from "@/components/Layout";
 import EditableTable from "@/components/EditableTable";
 import { SkeletonTable } from "@/components/SkeletonTable";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useRouter, useSearchParams } from "next/navigation";
 import { StockItem } from "@/interfaces/interfaces";
 import { lazy, Suspense } from "react";
 
@@ -63,10 +63,9 @@ const FILTER_LABELS: Record<string, string> = {
 
 export default function Stock() {
   const { uiDisplay } = useTenant();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const filter = params.get("filter"); // "noStock" | "belowMin" | "expired" | "expiringSoon"
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const filter = searchParams.get("filter"); // "noStock" | "belowMin" | "expired" | "expiringSoon"
 
   const stockBreadcrumb = useMemo(
     () =>
@@ -541,7 +540,7 @@ export default function Stock() {
       <div className="space-y-6 max-w-7xl mx-auto">
         <div className="flex flex-wrap gap-3 justify-end mt-8">
           <button
-            onClick={() => navigate("/stock/out")}
+            onClick={() => router.push("/stock/out")}
             className="
                 h-12 px-6 rounded-lg font-semibold
                 bg-red-600 text-white
@@ -579,7 +578,7 @@ export default function Stock() {
               type="button"
               onClick={() => {
                 setPage(1);
-                navigate("/stock");
+                router.push("/stock");
               }}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary hover:text-primary/90 hover:bg-accent rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >

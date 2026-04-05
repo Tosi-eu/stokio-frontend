@@ -1,4 +1,7 @@
-import { useNavigate, Link } from "react-router-dom";
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { LayoutProps } from "@/interfaces/interfaces";
 import { useAuth } from "@/hooks/use-auth.hook";
 import { useState } from "react";
@@ -11,7 +14,7 @@ export default function Layout({
   breadcrumb,
   minimal = false,
 }: LayoutProps) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { logout } = useAuth();
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -20,7 +23,7 @@ export default function Layout({
 
   const confirmLogout = () => {
     logout();
-    navigate("/user/login");
+    router.push("/user/login");
   };
 
   const cancelLogout = () => setShowLogoutModal(false);
@@ -68,7 +71,7 @@ export default function Layout({
                     )}
                     {item.path ? (
                       <Link
-                        to={item.path}
+                        href={item.path}
                         className="hover:text-primary transition-colors"
                       >
                         {item.label}

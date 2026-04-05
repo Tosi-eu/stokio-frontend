@@ -641,7 +641,7 @@ export function AdminTabConfig({
                   <span
                     className={
                       health.database === "connected"
-                        ? "text-green-600 font-medium"
+                        ? "text-primary font-medium"
                         : "text-red-600 font-medium"
                     }
                   >
@@ -657,7 +657,7 @@ export function AdminTabConfig({
                   <span
                     className={
                       health.redis === "connected"
-                        ? "text-green-600 font-medium"
+                        ? "text-primary font-medium"
                         : "text-amber-600 font-medium"
                     }
                   >
@@ -738,7 +738,7 @@ export function AdminTabConfig({
                   <dd
                     className={
                       backupStatus.lastBackupStatus === "ok"
-                        ? "text-green-600 font-medium"
+                        ? "text-primary font-medium"
                         : backupStatus.lastBackupStatus === "error"
                           ? "text-red-600 font-medium"
                           : "text-muted-foreground"

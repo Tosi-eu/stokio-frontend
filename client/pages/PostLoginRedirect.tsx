@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { Building2 } from "lucide-react";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { useAuth } from "@/hooks/use-auth.hook";
@@ -13,7 +13,7 @@ const POST_LOGIN_MIN_VISIBLE_MS = 6000;
 export default function PostLoginRedirect() {
   const { loading, tenant, effectiveEnabled, previewMode } = useTenant();
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const userId = user?.id;
   const userRole = user?.role;
@@ -45,11 +45,11 @@ export default function PostLoginRedirect() {
     const timer = window.setTimeout(() => {
       if (doneRef.current) return;
       doneRef.current = true;
-      navigate(path, { replace: true });
+      router.replace(path);
     }, remaining);
 
     return () => window.clearTimeout(timer);
-  }, [loading, userId, userRole, navigate, effectiveEnabled]);
+  }, [loading, userId, userRole, router, effectiveEnabled]);
 
   const title = tenant?.brandName || tenant?.name || APP_PUBLIC_NAME;
 

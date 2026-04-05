@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast.hook";
 import { resetPassword } from "@/api/requests";
 import { APP_PUBLIC_NAME } from "@/constants/app-branding";
@@ -11,7 +11,7 @@ import {
 } from "@/schemas/password.schema";
 
 export default function ForgotPassword() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toast } = useToast();
   const publicLogoUrl = usePublicDefaultLogoUrl();
 
@@ -43,7 +43,7 @@ export default function ForgotPassword() {
         duration: 3000,
       });
 
-      navigate("/user/login");
+      router.push("/user/login");
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "";
       const rawMessage = errorMessage.toLowerCase();
@@ -153,7 +153,7 @@ export default function ForgotPassword() {
                   {watchedPassword &&
                     !errors.newPassword &&
                     watchedPassword.length >= 8 && (
-                      <p className="text-xs text-green-600 mt-1">
+                      <p className="text-xs text-primary mt-1">
                         ✓ Senha válida
                       </p>
                     )}
@@ -197,7 +197,7 @@ export default function ForgotPassword() {
 
                 <button
                   type="button"
-                  onClick={() => navigate("/user/login")}
+                  onClick={() => router.push("/user/login")}
                   className="w-full h-11 border border-input bg-background hover:bg-muted/60 text-foreground rounded-xl text-sm font-semibold transition"
                 >
                   Voltar

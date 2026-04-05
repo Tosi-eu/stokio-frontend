@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast.hook";
 import Layout from "@/components/Layout";
 import { getCurrentUser, updateUser } from "@/api/requests";
@@ -25,7 +25,7 @@ import { VALIDATION_LIMITS } from "@/constants/app.constants";
 import { authStorage } from "@/helpers/auth.helper";
 
 export default function Profile() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toast } = useToast();
   const [logoutOpen, setLogoutOpen] = useState(false);
 
@@ -120,7 +120,7 @@ export default function Profile() {
 
   const handleLogout = () => {
     authStorage.clearAll();
-    navigate("/user/login");
+    router.push("/user/login");
   };
 
   return (

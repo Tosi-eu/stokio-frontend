@@ -1,11 +1,11 @@
 import { getBackendHealthCheck } from "@/api/requests";
 import { APP_PUBLIC_NAME } from "@/constants/app-branding";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 
 export default function LoadingScreen() {
   const [progress, setProgress] = useState(0);
-  const navigate = useNavigate();
+  const router = useRouter();
 
   useEffect(() => {
     const checkBackend = async () => {
@@ -14,7 +14,7 @@ export default function LoadingScreen() {
         if (res?.status === "ok") {
           setProgress(100);
           clearInterval(intervalId);
-          setTimeout(() => navigate("/user/login"), 500);
+          setTimeout(() => router.push("/user/login"), 500);
         } else {
           throw new Error("Backend ainda não pronto");
         }
@@ -26,7 +26,7 @@ export default function LoadingScreen() {
     const intervalId = setInterval(checkBackend, 800);
 
     return () => clearInterval(intervalId);
-  }, [navigate]);
+  }, [router]);
 
   return (
     <div className="h-screen w-screen flex flex-col justify-center items-center bg-brand-mesh px-6">

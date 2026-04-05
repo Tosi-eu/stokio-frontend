@@ -8,7 +8,8 @@ import {
   UserMinus,
   ArrowLeftRight,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { setSpaNavigationState } from "@/helpers/spa-navigation-state.helper";
 import { EditableTableProps } from "@/interfaces/interfaces";
 import { useToast } from "@/hooks/use-toast.hook";
 import {
@@ -101,7 +102,7 @@ const StatusBadge = ({ row }: StatusBadgeProps) => {
   }
 
   return (
-    <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
+    <span className="px-2 py-1 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 border border-sky-200">
       Ativo
     </span>
   );
@@ -145,7 +146,7 @@ export default function EditableTable({
 
   const instanceId = useId();
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   useEffect(() => {
     setRows(data);
@@ -184,7 +185,7 @@ export default function EditableTable({
     };
 
     const route = routes[entityType ?? ""];
-    if (route) navigate(route);
+    if (route) router.push(route);
   };
 
   const canTransfer = (row: Record<string, unknown>): boolean => {
@@ -208,11 +209,13 @@ export default function EditableTable({
     if (!type) return;
 
     if (entityType === "stock") {
-      navigate("/stock/edit", { state: { item: row } });
+      setSpaNavigationState({ item: row });
+      router.push("/stock/edit");
       return;
     }
 
-    navigate(`/${type}/edit`, { state: { item: row } });
+    setSpaNavigationState({ item: row });
+    router.push(`/${type}/edit`);
   };
 
   const renderCell = (
@@ -458,7 +461,7 @@ export default function EditableTable({
                                 className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded focus:outline-none focus-visible:ring-2 ${
                                   isActive(row)
                                     ? "text-yellow-600 hover:bg-amber-50 focus-visible:ring-amber-500"
-                                    : "text-green-600 hover:bg-green-50 focus-visible:ring-green-500"
+                                    : "text-primary hover:bg-primary/10 focus-visible:ring-primary"
                                 } ${
                                   !isIndividualMedicine(row) &&
                                   disabledActionClass
@@ -574,7 +577,7 @@ const renderExpiryTag = (row: Record<string, unknown>) => {
     expired: "bg-red-50 text-red-700 border border-red-200",
     critical: "bg-orange-50 text-orange-700 border border-orange-200",
     warning: "bg-yellow-50 text-yellow-700 border border-yellow-200",
-    healthy: "bg-green-50 text-green-700 border border-green-200",
+    healthy: "bg-sky-50 text-sky-800 border border-sky-200",
   };
 
   return (
@@ -604,8 +607,8 @@ const renderQuantityTag = (row: Record<string, unknown>) => {
     low: "bg-orange-100 text-orange-700 border border-orange-300",
     critical: "bg-red-100 text-red-700 border border-red-300",
     medium: "bg-yellow-100 text-yellow-700 border border-yellow-300",
-    high: "bg-green-100 text-green-700 border border-green-300",
-    normal: "bg-green-100 text-green-700 border border-green-300",
+    high: "bg-sky-100 text-sky-800 border border-sky-300",
+    normal: "bg-sky-100 text-sky-800 border border-sky-300",
   };
 
   return (

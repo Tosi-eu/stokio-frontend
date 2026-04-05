@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Layout from "@/components/Layout";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { consumeSpaNavigationState } from "@/helpers/spa-navigation-state.helper";
 import { toast } from "@/hooks/use-toast.hook";
 import { getErrorMessage } from "@/helpers/validation.helper";
 import { useFormWithZod } from "@/hooks/use-form-with-zod";
@@ -13,8 +14,19 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 export default function EditInput() {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const router = useRouter();
+  const navState = useMemo(
+    () =>
+      consumeSpaNavigationState<{
+        item?: {
+          id: number;
+          nome?: string;
+          descricao?: string;
+          estoque_minimo?: number;
+        };
+      }>(),
+    [],
+  );
 
   const [inputId, setInputId] = useState<number | null>(null);
 
@@ -32,7 +44,7 @@ export default function EditInput() {
   });
 
   useEffect(() => {
-    const item = location.state?.item;
+    const item = navState?.item;
 
     if (!item || !item.id) {
       toast({
@@ -41,7 +53,7 @@ export default function EditInput() {
         variant: "error",
         duration: 3000,
       });
-      navigate("/inputs");
+      router.push("/inputs");
       return;
     }
 
@@ -54,7 +66,7 @@ export default function EditInput() {
       });
     }, 0);
     return () => clearTimeout(id);
-  }, [location.state, navigate, reset]);
+  }, [navState, router, reset]);
 
   const onSubmit = async (data: {
     nome: string;
@@ -85,7 +97,7 @@ export default function EditInput() {
         duration: 3000,
       });
 
-      navigate("/inputs");
+      router.push("/inputs");
     } catch (err: unknown) {
       toast({
         title: "Erro ao atualizar",
@@ -167,7 +179,7 @@ export default function EditInput() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate("/inputs")}
+                onClick={() => router.push("/inputs")}
                 disabled={isSubmitting}
                 className="rounded-lg"
               >

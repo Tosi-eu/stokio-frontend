@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { toast } from "@/hooks/use-toast.hook";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { consumeSpaNavigationState } from "@/helpers/spa-navigation-state.helper";
 import { createStockOut, getResidents, getStock } from "@/api/requests";
 import {
   caselaFilterLabel,
@@ -40,9 +41,11 @@ const UI_PAGE_SIZE = 6;
 
 export default function StockOut() {
   const { uiDisplay } = useTenant();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { data: passedData } = location.state || {};
+  const router = useRouter();
+  const [initialNav] = useState(() =>
+    consumeSpaNavigationState<{ data?: StockItemRaw[] }>(),
+  );
+  const passedData = initialNav?.data;
   const [items, setItems] = useState<StockItemRaw[]>([]);
   const [residents, setResidents] = useState<
     Array<{ casela: number; name: string }>
@@ -282,7 +285,7 @@ export default function StockOut() {
         duration: 3000,
       });
 
-      navigate("/stock");
+      router.push("/stock");
     } catch (err: unknown) {
       toast({
         title: "Erro ao registrar saída",

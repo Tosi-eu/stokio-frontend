@@ -168,7 +168,7 @@ export function AdminTabAcessos({
                           <span
                             className={
                               row.success
-                                ? "text-green-600 font-medium"
+                                ? "text-primary font-medium"
                                 : "text-red-600 font-medium"
                             }
                           >

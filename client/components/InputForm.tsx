@@ -1,7 +1,7 @@
 import "react-datepicker/dist/react-datepicker.css";
 import { useEffect, useState, memo, useMemo } from "react";
 import { Controller } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import DatePicker from "react-datepicker";
 import { ptBR } from "date-fns/locale";
 
@@ -41,7 +41,7 @@ export const InputForm = memo(function InputForm({
   isLoading = false,
 }: InputFormProps) {
   const { uiDisplay } = useTenant();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [inputOpen, setInputOpen] = useState(false);
   const [caselaOpen, setCaselaOpen] = useState(false);
 
@@ -522,7 +522,7 @@ export const InputForm = memo(function InputForm({
       <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
         <button
           type="button"
-          onClick={() => navigate("/stock")}
+          onClick={() => router.push("/stock")}
           className="px-5 py-2 border border-slate-400 rounded-lg text-sm"
         >
           Cancelar

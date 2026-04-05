@@ -28,7 +28,7 @@ const toastVariants = cva(
       variant: {
         default: "border bg-background text-foreground",
         success:
-          "border-green-500/20 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-200",
+          "border-primary/25 bg-primary/10 text-foreground dark:bg-primary/15 dark:text-foreground",
         error:
           "border-red-500/20 bg-red-50 text-red-900 dark:bg-red-900/20 dark:text-red-200",
         warning:
@@ -44,7 +44,7 @@ const toastVariants = cva(
 
 const iconMap: Record<string, React.ReactNode> = {
   success: (
-    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+    <CheckCircle2 className="h-5 w-5 text-primary" />
   ),
   error: <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />,
   warning: (
