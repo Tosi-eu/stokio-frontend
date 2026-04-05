@@ -94,10 +94,10 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
 
   return (
     <aside
-      className="h-screen w-64 flex flex-col border-r border-sidebar-border bg-sidebar bg-gradient-to-b from-sidebar via-background/30 to-sidebar"
+      className="h-screen w-64 flex flex-col shrink-0 rounded-r-2xl border border-border/50 border-l-0 shadow-elevated bg-sidebar bg-gradient-to-b from-sidebar via-sidebar to-background/25 overflow-hidden"
       aria-label="Navegação principal"
     >
-      <div className="h-36 shrink-0 flex items-center justify-center px-4 border-b border-sidebar-border bg-brand-hero shadow-[inset_0_-1px_0_0_hsl(214_22%_88%/0.65)]">
+      <div className="h-36 shrink-0 flex items-center justify-center px-4 border-b border-border/50 bg-brand-hero shadow-[inset_0_-1px_0_0_hsl(214_22%_88%/0.5)]">
         <button
           type="button"
           onClick={() => router.push(homeHref)}
@@ -161,7 +161,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
       </nav>
 
       {user && (
-        <div className="p-3 border-t border-sidebar-border bg-background/40 backdrop-blur-[2px] space-y-2">
+        <div className="p-3 border-t border-border/50 bg-background/50 backdrop-blur-sm space-y-2">
           <p
             className="px-3 py-1 text-xs text-muted-foreground truncate"
             title={user.login}
@@ -172,7 +172,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
           </p>
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40 focus-visible:ring-offset-2"
             aria-label="Sair da conta"
           >
             <LogOut className="h-4 w-4" aria-hidden="true" />

@@ -22,6 +22,7 @@ import DeletePopUp from "./DeletePopUp";
 import { SkeletonTable } from "@/components/SkeletonTable";
 import DeleteStockModal from "./DeleteStockModal";
 import { AnimatePresence, motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 
 import {
   deleteCabinet,
@@ -49,7 +50,7 @@ const rowVariants = {
 };
 
 const SkeletonCell = () => (
-  <div className="h-4 w-full bg-slate-200 rounded animate-pulse" />
+  <div className="h-4 w-full bg-muted rounded-md animate-pulse" />
 );
 
 const SkeletonRow = ({ cols }: { cols: number }) => (
@@ -66,8 +67,8 @@ const SkeletonRow = ({ cols }: { cols: number }) => (
     ))}
     <td className="px-4 py-3">
       <div className="flex justify-center gap-3">
-        <div className="h-5 w-5 bg-slate-200 rounded animate-pulse" />
-        <div className="h-5 w-5 bg-slate-200 rounded animate-pulse" />
+        <div className="h-5 w-5 bg-muted rounded animate-pulse" />
+        <div className="h-5 w-5 bg-muted rounded animate-pulse" />
       </div>
     </td>
   </motion.tr>
@@ -328,32 +329,35 @@ export default function EditableTable({
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-      <div className="flex justify-end px-4 py-3 border-b bg-accent/40">
+    <div className="rounded-2xl border border-border/70 bg-card text-card-foreground shadow-elevated overflow-hidden ring-1 ring-black/[0.02] dark:ring-white/[0.04]">
+      <div className="flex justify-end px-3 sm:px-4 py-3 border-b border-border/60 bg-muted/30 backdrop-blur-[2px]">
         {showAddons && (
-          <button
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={handleAddRow}
-            className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-primary hover:bg-accent/70 rounded-lg"
+            className="rounded-xl border-primary/20 bg-background/80 hover:bg-primary/5"
           >
             <Plus size={16} /> Adicionar
-          </button>
+          </Button>
         )}
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-max table-auto">
           <thead>
-            <tr className="bg-muted border-b">
+            <tr className="bg-muted/80 border-b border-border/60">
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="px-4 py-3 text-xs font-semibold text-center whitespace-nowrap"
+                  className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground text-center whitespace-nowrap"
                 >
                   {col.label}
                 </th>
               ))}
               {showAddons && (
-                <th className="px-4 py-3 text-xs font-semibold sticky right-0 bg-muted z-10 min-w-[120px] whitespace-nowrap text-center">
+                <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground sticky right-0 bg-muted/95 backdrop-blur-sm z-10 min-w-[120px] whitespace-nowrap text-center border-l border-border/40 shadow-[-8px_0_16px_-8px_rgba(0,0,0,0.06)]">
                   Ações
                 </th>
               )}
@@ -379,12 +383,12 @@ export default function EditableTable({
                       variants={rowVariants}
                       initial="initial"
                       animate="animate"
-                      className={`border-b group ${
+                      className={`border-b border-border/50 group transition-colors ${
                         row
                           ? row.status === "suspended"
-                            ? "bg-slate-200 opacity-70"
-                            : "hover:bg-accent/40"
-                          : "bg-white hover:bg-accent/40"
+                            ? "bg-muted/70 opacity-80"
+                            : "hover:bg-accent/50"
+                          : "bg-card/50 hover:bg-accent/30"
                       }`}
                     >
                       {columns.map((col) => (
@@ -402,12 +406,12 @@ export default function EditableTable({
 
                       {showAddons && (
                         <td
-                          className={`px-4 py-3 flex justify-center gap-4 sticky right-0 z-10 min-w-[120px] ${
+                          className={`px-4 py-3 flex justify-center gap-4 sticky right-0 z-10 min-w-[120px] border-l border-border/30 shadow-[-8px_0_16px_-8px_rgba(0,0,0,0.05)] ${
                             row?.status === "suspended"
-                              ? "bg-slate-200 opacity-70"
+                              ? "bg-muted/70 opacity-80"
                               : row
-                                ? "bg-white group-hover:bg-accent/40"
-                                : "bg-white group-hover:bg-accent/40"
+                                ? "bg-card group-hover:bg-accent/50"
+                                : "bg-card/80 group-hover:bg-accent/30"
                           }`}
                         >
                           {row && (
@@ -504,30 +508,28 @@ export default function EditableTable({
       </div>
 
       {(onNextPage || onPrevPage) && (
-        <div className="flex justify-center gap-4 py-4 border-t">
-          <button
+        <div className="flex justify-center gap-3 py-4 px-4 border-t border-border/60 bg-muted/20">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={onPrevPage}
             disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg border ${
-              currentPage === 1
-                ? "bg-gray-200 text-gray-500"
-                : "bg-white text-primary hover:bg-accent/40"
-            }`}
+            className="min-w-[6.5rem] rounded-xl"
           >
             Anterior
-          </button>
+          </Button>
 
-          <button
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={onNextPage}
             disabled={!hasNextPage}
-            className={`px-4 py-2 rounded-lg border ${
-              !hasNextPage
-                ? "bg-gray-200 text-gray-500"
-                : "bg-white text-primary hover:bg-accent/40"
-            }`}
+            className="min-w-[6.5rem] rounded-xl"
           >
             Próximo
-          </button>
+          </Button>
         </div>
       )}
 

@@ -36,7 +36,7 @@ export function AppShellLayout({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <div className="h-screen flex bg-background text-foreground overflow-hidden">
+      <div className="h-screen flex bg-muted/30 text-foreground overflow-hidden">
         <VerticalLayout onLogout={handleLogout} />
 
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">

@@ -41,7 +41,7 @@ export default function LoadingScreen() {
 
       <div className="w-64 h-2.5 bg-muted rounded-full overflow-hidden shadow-inner ring-1 ring-border/50">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-primary to-[hsl(88_48%_52%)] transition-all duration-300 ease-out"
+          className="h-full rounded-full bg-gradient-to-r from-primary via-[hsl(205_55%_48%)] to-[hsl(191_78%_46%)] transition-all duration-300 ease-out"
           style={{ width: `${progress}%` }}
         />
       </div>

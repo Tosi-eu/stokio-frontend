@@ -30,17 +30,17 @@ export default function Layout({
 
   if (minimal) {
     return (
-      <div className="min-h-screen flex flex-col bg-background text-foreground">
-        <header className="shrink-0 flex justify-end items-center px-4 sm:px-6 py-3 border-b border-border/80 bg-card/80 backdrop-blur-md">
+      <div className="min-h-screen flex flex-col bg-brand-mesh text-foreground">
+        <header className="shrink-0 flex justify-end items-center px-4 sm:px-6 py-3.5 border-b border-border/60 bg-card/90 backdrop-blur-md shadow-sm">
           <button
             type="button"
             onClick={handleLogout}
-            className="text-sm text-muted-foreground hover:text-primary font-medium transition-colors"
+            className="text-sm text-muted-foreground hover:text-primary font-medium transition-colors rounded-lg px-2 py-1 hover:bg-accent/60"
           >
             Sair
           </button>
         </header>
-        <main className="flex-1 overflow-y-auto" role="main">
+        <main className="flex-1 overflow-y-auto bg-brand-mesh" role="main">
           <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {children}
           </div>
@@ -57,22 +57,26 @@ export default function Layout({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background text-foreground">
       {(breadcrumb?.length || title) && (
-        <div className="shrink-0 border-b border-border/70 bg-card/85 backdrop-blur-md shadow-sm">
-          <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <header className="shrink-0 relative border-b border-border/60 bg-gradient-to-br from-card via-card to-primary/[0.06] backdrop-blur-md shadow-sm">
+          <div
+            className="absolute inset-x-0 bottom-0 h-px bg-brand-strip opacity-[0.35]"
+            aria-hidden
+          />
+          <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
             {breadcrumb && breadcrumb.length > 0 && (
               <nav
                 aria-label="Navegação"
-                className="flex items-center gap-1 text-sm text-muted-foreground mb-1"
+                className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground mb-2"
               >
                 {breadcrumb.map((item, i) => (
                   <span key={i} className="flex items-center gap-1">
                     {i > 0 && (
-                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/70" />
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
                     )}
                     {item.path ? (
                       <Link
                         href={item.path}
-                        className="hover:text-primary transition-colors"
+                        className="rounded-md px-1 -mx-1 hover:text-primary hover:bg-primary/5 transition-colors"
                       >
                         {item.label}
                       </Link>
@@ -86,16 +90,19 @@ export default function Layout({
               </nav>
             )}
             {title && (
-              <h1 className="font-display text-2xl font-semibold text-foreground tracking-tight">
+              <h1 className="font-display text-3xl sm:text-[1.75rem] font-semibold text-foreground tracking-tight text-balance">
                 {title}
               </h1>
             )}
           </div>
-        </div>
+        </header>
       )}
 
-      <main className="min-h-0 flex-1 overflow-y-auto" role="main">
-        <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main
+        className="min-h-0 flex-1 overflow-y-auto bg-brand-mesh"
+        role="main"
+      >
+        <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           {children}
         </div>
       </main>

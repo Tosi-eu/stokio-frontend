@@ -303,9 +303,9 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="space-y-10 pt-10">
+      <div className="space-y-8 sm:space-y-10 pt-2 sm:pt-4">
         <section>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
             {loadingSummary
               ? Array.from({ length: 4 }).map((_, i) => (
                   <Card key={i} className="overflow-hidden">
@@ -329,7 +329,7 @@ export default function Dashboard() {
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-center">
+              <CardTitle className="text-center font-display text-lg tracking-tight">
                 Produtos com Maior Tempo Sem Movimentação
               </CardTitle>
             </CardHeader>
@@ -382,7 +382,7 @@ export default function Dashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-center">
+              <CardTitle className="text-center font-display text-lg tracking-tight">
                 Movimentações Recentes
               </CardTitle>
             </CardHeader>
@@ -442,7 +442,7 @@ export default function Dashboard() {
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-center">
+              <CardTitle className="text-center font-display text-lg tracking-tight">
                 Top 10 Medicações Mais Movimentadas
               </CardTitle>
             </CardHeader>
@@ -463,7 +463,7 @@ export default function Dashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-center">
+              <CardTitle className="text-center font-display text-lg tracking-tight">
                 Top 10 Medicações Menos Movimentadas
               </CardTitle>
             </CardHeader>

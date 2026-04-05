@@ -609,11 +609,13 @@ export default function Auth() {
           </div>
           <div className="space-y-3">
             <p className="font-display text-2xl font-semibold leading-tight tracking-tight xl:text-3xl">
-              Estoque e medicamentos com visibilidade total.
+              Medicamentos e estoque organizados — do jeito que o abrigo
+              precisa.
             </p>
             <p className="max-w-sm text-sm leading-relaxed text-primary-foreground/85">
-              Uma plataforma pensada para abrigos e equipas que precisam de
-              rastreio fiável, menos erros e relatórios prontos para auditoria.
+              Cadastre itens, registre entradas e saídas e acompanhe tudo em um
+              só lugar. Menos planilhas, menos falhas: mais tempo para quem
+              importa.
             </p>
           </div>
           <ul className="space-y-4 text-sm text-primary-foreground/90">
@@ -622,9 +624,12 @@ export default function Auth() {
                 <Package className="h-4 w-4" aria-hidden />
               </span>
               <span>
-                <span className="font-medium text-white">Multi-abrigo</span>
+                <span className="font-medium text-white">
+                  Vários abrigos, uma conta
+                </span>
                 <span className="mt-0.5 block text-xs text-primary-foreground/75">
-                  Troque de contexto sem confundir stock nem movimentos.
+                  Trabalha em mais de um lugar? Alterna entre eles sem misturar
+                  dados nem estoque.
                 </span>
               </span>
             </li>
@@ -633,9 +638,12 @@ export default function Auth() {
                 <ShieldCheck className="h-4 w-4" aria-hidden />
               </span>
               <span>
-                <span className="font-medium text-white">Controlo de acesso</span>
+                <span className="font-medium text-white">
+                  Só quem deve ver, vê
+                </span>
                 <span className="mt-0.5 block text-xs text-primary-foreground/75">
-                  Convites, papéis e sessões alinhados à operação real.
+                  Convites e permissões por função: sua equipe acessa só o que
+                  precisa para trabalhar.
                 </span>
               </span>
             </li>
@@ -644,9 +652,12 @@ export default function Auth() {
                 <Sparkles className="h-4 w-4" aria-hidden />
               </span>
               <span>
-                <span className="font-medium text-white">Relatórios claros</span>
+                <span className="font-medium text-white">
+                  Números prontos para mostrar
+                </span>
                 <span className="mt-0.5 block text-xs text-primary-foreground/75">
-                  PDFs e indicadores para decisões rápidas no dia a dia.
+                  Indicadores e relatórios para reuniões, diretoria ou
+                  parceiros — sem montar tudo na mão.
                 </span>
               </span>
             </li>
@@ -676,6 +687,9 @@ export default function Auth() {
               <p className="font-display truncate text-base font-semibold text-foreground">
                 {APP_PUBLIC_NAME}
               </p>
+              <p className="mt-0.5 text-xs leading-snug text-muted-foreground line-clamp-2">
+                Medicamentos e estoque organizados para o seu abrigo.
+              </p>
             </div>
           </div>
         </header>
@@ -689,8 +703,8 @@ export default function Auth() {
                 </CardTitle>
                 <CardDescription>
                   {isLogin
-                    ? "Use o e-mail e a palavra-passe da sua organização."
-                    : "Crie credenciais para começar ou utilize um convite."}
+                    ? "Entre com o e-mail e a senha da sua organização."
+                    : "Crie sua conta em poucos passos ou use o convite que você recebeu."}
                 </CardDescription>
               </CardHeader>
 
