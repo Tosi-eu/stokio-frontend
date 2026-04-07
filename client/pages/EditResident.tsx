@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Controller } from "react-hook-form";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { consumeSpaNavigationState } from "@/helpers/spa-navigation-state.helper";
 import Layout from "@/components/Layout";
 import { toast } from "@/hooks/use-toast.hook";
 import { getErrorMessage } from "@/helpers/validation.helper";
@@ -14,9 +15,12 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 export default function EditResident() {
-  const location = useLocation();
-  const item = location.state?.item;
-  const navigate = useNavigate();
+  const router = useRouter();
+  const [item] = useState(
+    () =>
+      consumeSpaNavigationState<{ item?: { name?: string; casela?: number } }>()
+        ?.item,
+  );
 
   const {
     register,
@@ -44,9 +48,9 @@ export default function EditResident() {
         variant: "warning",
         duration: 3000,
       });
-      navigate("/residents");
+      router.push("/residents");
     }
-  }, [item, navigate, reset]);
+  }, [item, router, reset]);
 
   const onSubmit = async (data: { name: string; casela: string }) => {
     if (!data.casela) {
@@ -60,18 +64,18 @@ export default function EditResident() {
     }
 
     try {
-      const updated = await updateResident(data.casela, {
+      await updateResident(data.casela, {
         nome: data.name.trim(),
       });
 
       toast({
         title: "Residente atualizado",
-        description: `O residente ${updated.name} foi atualizado com sucesso!`,
+        description: `O residente ${data.name.trim()} foi atualizado com sucesso!`,
         variant: "success",
         duration: 3000,
       });
 
-      navigate("/residents");
+      router.push("/residents");
     } catch (err: unknown) {
       toast({
         title: "Erro ao editar residente",
@@ -138,7 +142,7 @@ export default function EditResident() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate("/residents")}
+                onClick={() => router.push("/residents")}
                 disabled={isSubmitting}
               >
                 Cancelar

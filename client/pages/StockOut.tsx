@@ -1,9 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { toast } from "@/hooks/use-toast.hook";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { consumeSpaNavigationState } from "@/helpers/spa-navigation-state.helper";
 import { createStockOut, getResidents, getStock } from "@/api/requests";
-import { useUiDisplay } from "@/context/ui-display-context";
 import {
   caselaFilterLabel,
   caselaModeForContext,
@@ -41,9 +41,11 @@ const UI_PAGE_SIZE = 6;
 
 export default function StockOut() {
   const { uiDisplay } = useTenant();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { data: passedData } = location.state || {};
+  const router = useRouter();
+  const [initialNav] = useState(() =>
+    consumeSpaNavigationState<{ data?: StockItemRaw[] }>(),
+  );
+  const passedData = initialNav?.data;
   const [items, setItems] = useState<StockItemRaw[]>([]);
   const [residents, setResidents] = useState<
     Array<{ casela: number; name: string }>
@@ -157,8 +159,16 @@ export default function StockOut() {
   );
 
   const caselaOptions = useMemo(() => {
-    const useNames = uiDisplay.casela === "nome" && residents.length > 0;
-    if (useNames) {
+    const sectorRaw = filters.setor?.trim().toLowerCase() ?? "";
+    const sector =
+      sectorRaw === "enfermagem" || sectorRaw === "farmacia" ? sectorRaw : "";
+    const eff = caselaModeForContext(
+      uiDisplay.casela,
+      uiDisplay.caselaSetor,
+      sector,
+    );
+    const useResidentLabels = eff === "nome" && residents.length > 0;
+    if (useResidentLabels) {
       return residents
         .filter((r) => caselaIdsFromItems.includes(r.casela))
         .sort((a, b) =>
@@ -176,8 +186,14 @@ export default function StockOut() {
     }
     return caselaIdsFromItems
       .sort((a, b) => a - b)
-      .map((id) => ({ label: `Casela ${id}`, value: String(id) }));
-  }, [residents, caselaIdsFromItems, uiDisplay.casela]);
+      .map((id) => {
+        const r = residents.find((x) => x.casela === id);
+        return {
+          label: caselaFilterLabel(id, r?.name ?? null, uiDisplay, sector),
+          value: String(id),
+        };
+      });
+  }, [residents, caselaIdsFromItems, uiDisplay, filters.setor]);
 
   const setorOptions = useMemo(
     () =>
@@ -269,7 +285,7 @@ export default function StockOut() {
         duration: 3000,
       });
 
-      navigate("/stock");
+      router.push("/stock");
     } catch (err: unknown) {
       toast({
         title: "Erro ao registrar saída",

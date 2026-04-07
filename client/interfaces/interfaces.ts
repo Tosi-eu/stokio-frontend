@@ -74,7 +74,6 @@ export interface LoggedUser {
   role?: "admin" | "user";
   tenantId?: number;
   isSuperAdmin?: boolean;
-  /** Se vier cru da API em snake_case */
   is_super_admin?: boolean;
 }
 

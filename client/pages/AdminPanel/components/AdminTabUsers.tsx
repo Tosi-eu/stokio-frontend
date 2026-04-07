@@ -15,8 +15,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Pencil, Trash2, UserPlus } from "lucide-react";
 import type { AdminUser } from "../types";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast.hook";
+import { createTenantInvite } from "@/api/requests";
+import { useState } from "react";
 
 interface AdminTabUsersProps {
   users: AdminUser[];
@@ -46,6 +51,35 @@ export function AdminTabUsers({
   total,
 }: AdminTabUsersProps) {
   const totalPages = Math.max(1, Math.ceil((total || 0) / (limit || 1)));
+  const { toast } = useToast();
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"user" | "admin">("user");
+  const [invitePermissions, setInvitePermissions] = useState({
+    read: true,
+    create: false,
+    update: false,
+    delete: false,
+  });
+  const [sendingInvite, setSendingInvite] = useState(false);
+  const [lastInviteToken, setLastInviteToken] = useState<string | null>(null);
+  const [lastInviteLink, setLastInviteLink] = useState<string | null>(null);
+
+  const copy = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast({
+        title: `${label} copiado`,
+        duration: 2000,
+      });
+    } catch {
+      toast({
+        title: "Não foi possível copiar",
+        description: "Copie manualmente do campo exibido.",
+        variant: "error",
+        duration: 3000,
+      });
+    }
+  };
 
   return (
     <Card>
@@ -54,16 +88,217 @@ export function AdminTabUsers({
           <div>
             <CardTitle>Usuários do sistema</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Crie, edite e remova usuários. Defina privilégio e permissões.
+              Gerencie usuários e convites.
             </p>
           </div>
-          <Button onClick={openCreate} className="gap-2">
-            <UserPlus className="h-4 w-4" />
-            Novo usuário
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/20 px-2 py-2">
+              <Input
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="Convidar por e-mail"
+                className="h-9 w-[220px]"
+                type="email"
+              />
+              <Select
+                value={inviteRole}
+                onValueChange={(v) => {
+                  const next = v === "admin" ? "admin" : "user";
+                  setInviteRole(next);
+                  if (next === "admin") {
+                    setInvitePermissions({
+                      read: true,
+                      create: true,
+                      update: true,
+                      delete: true,
+                    });
+                  } else {
+                    setInvitePermissions((p) => ({ ...p, read: true }));
+                  }
+                }}
+              >
+                <SelectTrigger className="h-9 w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">Usuário</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="hidden lg:flex items-center gap-3 rounded-lg border border-border/60 bg-background/60 px-2 py-1">
+                <span className="text-xs text-muted-foreground">
+                  Permissões
+                </span>
+                <label className="flex items-center gap-2 cursor-not-allowed opacity-70">
+                  <Checkbox checked disabled />
+                  <span className="text-xs">Ler</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={invitePermissions.create}
+                    disabled={inviteRole === "admin"}
+                    onCheckedChange={(checked) =>
+                      setInvitePermissions((p) => ({
+                        ...p,
+                        create: Boolean(checked),
+                      }))
+                    }
+                  />
+                  <span className="text-xs">Criar</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={invitePermissions.update}
+                    disabled={inviteRole === "admin"}
+                    onCheckedChange={(checked) =>
+                      setInvitePermissions((p) => ({
+                        ...p,
+                        update: Boolean(checked),
+                      }))
+                    }
+                  />
+                  <span className="text-xs">Editar</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={invitePermissions.delete}
+                    disabled={inviteRole === "admin"}
+                    onCheckedChange={(checked) =>
+                      setInvitePermissions((p) => ({
+                        ...p,
+                        delete: Boolean(checked),
+                      }))
+                    }
+                  />
+                  <span className="text-xs">Remover</span>
+                </label>
+              </div>
+              <Button
+                size="sm"
+                className="gap-2"
+                disabled={sendingInvite || !inviteEmail.trim()}
+                onClick={async () => {
+                  const email = inviteEmail.trim();
+                  if (!email || !email.includes("@")) {
+                    toast({
+                      title: "E-mail inválido",
+                      variant: "error",
+                      duration: 2500,
+                    });
+                    return;
+                  }
+                  setSendingInvite(true);
+                  try {
+                    const permissionsToSend =
+                      inviteRole === "admin"
+                        ? {
+                            read: true,
+                            create: true,
+                            update: true,
+                            delete: true,
+                          }
+                        : { ...invitePermissions, read: true };
+                    const res = await createTenantInvite({
+                      email,
+                      role: inviteRole,
+                      permissions: permissionsToSend,
+                      expires_in_days: 7,
+                    });
+                    if ("emailSent" in res && res.emailSent === false) {
+                      setLastInviteToken(res.token || null);
+                      setLastInviteLink(res.link || null);
+                      toast({
+                        title: "Convite gerado",
+                        description:
+                          "SMTP não configurado. Copie o link (ou token) abaixo.",
+                        duration: 4500,
+                      });
+                    } else {
+                      setLastInviteToken(null);
+                      setLastInviteLink(null);
+                      toast({
+                        title: "Convite enviado",
+                        duration: 2500,
+                      });
+                    }
+                    setInviteEmail("");
+                  } catch (e) {
+                    toast({
+                      title: "Falha ao convidar",
+                      description: e instanceof Error ? e.message : String(e),
+                      variant: "error",
+                      duration: 3500,
+                    });
+                  } finally {
+                    setSendingInvite(false);
+                  }
+                }}
+              >
+                Convidar
+              </Button>
+            </div>
+            <Button onClick={openCreate} className="gap-2">
+              <UserPlus className="h-4 w-4" />
+              Novo usuário
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
+        {lastInviteToken || lastInviteLink ? (
+          <div className="mb-4 rounded-xl border border-border/60 bg-muted/20 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium text-foreground">
+                Convite gerado (copie e envie ao utilizador)
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setLastInviteToken(null);
+                  setLastInviteLink(null);
+                }}
+              >
+                Limpar
+              </Button>
+            </div>
+            {lastInviteLink ? (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-muted-foreground">Link</p>
+                <div className="flex items-center gap-2">
+                  <Input value={lastInviteLink} readOnly className="h-9" />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void copy(lastInviteLink, "Link")}
+                  >
+                    Copiar
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+            {lastInviteToken ? (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-muted-foreground">Token</p>
+                <div className="flex items-center gap-2">
+                  <Input value={lastInviteToken} readOnly className="h-9" />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void copy(lastInviteToken, "Token")}
+                  >
+                    Copiar
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Importante: use este token original (não o token_digest da
+                  base).
+                </p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         {loadingUsers ? (
           <p className="text-muted-foreground">Carregando...</p>
         ) : (

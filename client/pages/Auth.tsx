@@ -1,17 +1,37 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast.hook";
 import { useAuth } from "@/hooks/use-auth.hook";
 import {
   fetchLoginTenantsForEmail,
-  fetchPublicTenantBrandingIfExists,
-  listPublicTenants,
-  register,
+  joinByInviteToken,
+  registerUser,
   type LoginTenantSummary,
-  type PublicTenantBranding,
-  type PublicTenantListItem,
 } from "@/api/requests";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { APP_PUBLIC_NAME } from "@/constants/app-branding";
 import {
   validateEmail,
@@ -20,9 +40,11 @@ import {
   validateTextInput,
 } from "@/helpers/validation.helper";
 import { prefetchTenantBrandLogoBeforeInicioNavigation } from "@/helpers/tenant-brand-logo-prefetch.helper";
+import { Package, ShieldCheck, Sparkles } from "lucide-react";
 
 export default function Auth() {
-  const navigate = useNavigate();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { login: authLogin } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
@@ -31,13 +53,6 @@ export default function Auth() {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [tenantSlug, setTenantSlug] = useState("");
-  const [tenantOptions, setTenantOptions] = useState<PublicTenantListItem[]>(
-    [],
-  );
-  const [tenantsLoading, setTenantsLoading] = useState(true);
-  const [tenantBranding, setTenantBranding] =
-    useState<PublicTenantBranding | null>(null);
-  const brandingFetchSlugRef = useRef<string>("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginLinkedTenants, setLoginLinkedTenants] = useState<
@@ -47,7 +62,7 @@ export default function Auth() {
     useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [contractCode, setContractCode] = useState("");
+  const [inviteToken, setInviteToken] = useState("");
   const [passwordStrength, setPasswordStrength] = useState<
     "weak" | "medium" | "strong" | null
   >(null);
@@ -56,7 +71,28 @@ export default function Auth() {
     error?: string;
   } | null>(null);
 
+  const [signupFlow, setSignupFlow] = useState<"user" | "join-token">("user");
+  const [userContractCode, setUserContractCode] = useState("");
+  const [viewModeConfirmOpen, setViewModeConfirmOpen] = useState(false);
+  const [pendingUserSignup, setPendingUserSignup] = useState<{
+    login: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+  } | null>(null);
+
   const authHeaderLogoSrc = "/default_logo.png";
+
+  useEffect(() => {
+    const invite = (searchParams.get("invite") ?? "").trim();
+    const email = (searchParams.get("email") ?? "").trim();
+    if (invite) {
+      setIsLogin(false);
+      setSignupFlow("join-token");
+      setInviteToken(invite);
+      if (email) setLogin(email);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     setPasswordStrength(null);
@@ -68,64 +104,12 @@ export default function Auth() {
     if (isLogin) {
       setFirstName("");
       setLastName("");
-      setContractCode("");
+      setInviteToken("");
+      setUserContractCode("");
+    } else {
+      setSignupFlow("user");
     }
   }, [isLogin]);
-
-  useEffect(() => {
-    if (isLogin) {
-      setTenantsLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setTenantsLoading(true);
-    (async () => {
-      try {
-        const res = await listPublicTenants({ limit: 200 });
-        if (!cancelled) setTenantOptions(res.data ?? []);
-      } catch {
-        if (!cancelled) setTenantOptions([]);
-      } finally {
-        if (!cancelled) setTenantsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isLogin]);
-
-  useEffect(() => {
-    if (isLogin) {
-      brandingFetchSlugRef.current = "";
-      setTenantBranding(null);
-      return;
-    }
-
-    const slug = tenantSlug.trim();
-    if (!slug) {
-      brandingFetchSlugRef.current = "";
-      setTenantBranding(null);
-      return;
-    }
-    brandingFetchSlugRef.current = slug;
-    setTenantBranding(null);
-    let cancelled = false;
-    (async () => {
-      try {
-        const b = await fetchPublicTenantBrandingIfExists(slug);
-        if (cancelled) return;
-        if (brandingFetchSlugRef.current !== slug) return;
-        setTenantBranding(b);
-      } finally {
-        if (!cancelled && brandingFetchSlugRef.current === slug) {
-          // NO-OP //
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isLogin, tenantSlug]);
 
   useEffect(() => {
     if (!isLogin) {
@@ -223,24 +207,13 @@ export default function Auth() {
       const sanitizedPassword = sanitizeInput(password);
 
       if (!isLogin) {
-        const slugReg = (tenantSlug || "").trim();
-        if (!slugReg) {
-          toast({
-            title: "Abrigo obrigatório",
-            description: "Selecione o abrigo em que deseja criar a conta.",
-            variant: "error",
-            duration: 3000,
-          });
-          setLoading(false);
-          return;
-        }
-
-        const passwordValidation = validatePassword(password);
-        if (!passwordValidation.valid) {
+        const passwordValidationResult = validatePassword(password);
+        if (!passwordValidationResult.valid) {
           toast({
             title: "Senha inválida",
             description:
-              passwordValidation.error || "A senha não atende aos requisitos.",
+              passwordValidationResult.error ||
+              "A senha não atende aos requisitos.",
             variant: "error",
             duration: 3000,
           });
@@ -284,16 +257,65 @@ export default function Auth() {
           return;
         }
 
-        let needContractCode = tenantBranding?.contractCodeMandatory === true;
-        if (!needContractCode && tenantBranding === null && slugReg) {
-          const b = await fetchPublicTenantBrandingIfExists(slugReg);
-          needContractCode = b?.contractCodeMandatory === true;
-        }
-        if (needContractCode && !contractCode.trim()) {
+        const performUserSignup = async (params: {
+          login: string;
+          password: string;
+          firstName: string;
+          lastName: string;
+          notifyViewMode?: boolean;
+        }) => {
+          const created = await registerUser(
+            params.login,
+            params.password,
+            params.firstName,
+            params.lastName,
+            userContractCode.trim()
+              ? { contract_code: userContractCode.trim() }
+              : undefined,
+          );
+          await authLogin(params.login, params.password, created.tenant.slug);
+          void prefetchTenantBrandLogoBeforeInicioNavigation();
           toast({
-            title: "Código de contrato obrigatório",
+            title: "Conta criada",
+            description: params.notifyViewMode
+              ? "Entrando em modo de visualização. Você pode configurar o abrigo depois."
+              : "Você já pode navegar.",
+            variant: "success",
+            duration: 4500,
+          });
+          skipLoadingResetAfterSuccess = true;
+          router.push("/loading");
+        };
+
+        if (signupFlow === "user") {
+          const cc = userContractCode.trim();
+          if (!cc) {
+            setPendingUserSignup({
+              login: sanitizedLogin,
+              password: sanitizedPassword,
+              firstName,
+              lastName,
+            });
+            setViewModeConfirmOpen(true);
+            setLoading(false);
+            return;
+          }
+          await performUserSignup({
+            login: sanitizedLogin,
+            password: sanitizedPassword,
+            firstName,
+            lastName,
+            notifyViewMode: false,
+          });
+          return;
+        }
+
+        const token = inviteToken.trim();
+        if (!token) {
+          toast({
+            title: "Token obrigatório",
             description:
-              "Informe o código fornecido na assinatura do contrato para este abrigo.",
+              "Cole o token de entrada que o administrador do abrigo lhe enviou.",
             variant: "error",
             duration: 4000,
           });
@@ -301,23 +323,22 @@ export default function Auth() {
           return;
         }
 
-        await register(
-          sanitizedLogin,
-          sanitizedPassword,
-          firstName,
-          lastName,
-          slugReg,
-          contractCode.trim() || undefined,
-        );
-        await authLogin(sanitizedLogin, sanitizedPassword, slugReg);
+        const joined = await joinByInviteToken({
+          token,
+          login: sanitizedLogin,
+          password: sanitizedPassword,
+          first_name: firstName,
+          last_name: lastName,
+        });
+        await authLogin(sanitizedLogin, sanitizedPassword, joined.tenant.slug);
         void prefetchTenantBrandLogoBeforeInicioNavigation();
         toast({
-          title: "Cadastro realizado!",
+          title: "Bem-vindo ao abrigo!",
           variant: "success",
           duration: 3000,
         });
         skipLoadingResetAfterSuccess = true;
-        navigate("/loading");
+        router.push("/loading");
         return;
       }
 
@@ -343,7 +364,7 @@ export default function Auth() {
         toast({
           title: "E-mail não encontrado",
           description:
-            "Não encontramos este e-mail em nenhum abrigo. Verifique o endereço ou cadastre-se.",
+            "Não encontramos este e-mail. Verifique o endereço ou cadastre-se (utilizador, novo abrigo ou token de entrada).",
           variant: "error",
           duration: 4000,
         });
@@ -377,7 +398,7 @@ export default function Auth() {
         duration: 3000,
       });
       skipLoadingResetAfterSuccess = true;
-      navigate("/loading");
+      router.push("/loading");
     } catch (err: unknown) {
       const rawMessage = (
         err instanceof Error ? err.message : String(err)
@@ -424,14 +445,26 @@ export default function Auth() {
             "Não foi possível fazer login. Verifique suas credenciais e tente novamente.";
         }
       } else {
-        if (rawMessage.includes("abrigo não encontrado")) {
+        if (
+          rawMessage.includes("token") &&
+          (rawMessage.includes("inválido") ||
+            rawMessage.includes("invalid") ||
+            rawMessage.includes("expirado"))
+        ) {
+          errorTitle = "Token de entrada";
+          errorDescription =
+            err instanceof Error
+              ? err.message
+              : "Token inválido ou expirado. Peça um novo convite ao administrador.";
+        } else if (rawMessage.includes("abrigo não encontrado")) {
           errorTitle = "Abrigo não encontrado";
           errorDescription =
             "Escolha um abrigo válido na lista ou contate o suporte.";
         } else if (
           rawMessage.includes("login já cadastrado") ||
           rawMessage.includes("duplicate") ||
-          rawMessage.includes("já existe")
+          rawMessage.includes("já existe") ||
+          rawMessage.includes("já está em uso")
         ) {
           errorTitle = "E-mail já cadastrado";
           errorDescription =
@@ -479,338 +512,580 @@ export default function Auth() {
     setAuthHeaderImgSrc(authHeaderLogoSrc);
   }, [authHeaderLogoSrc]);
 
+  const inputFieldClass =
+    "h-11 rounded-xl border-border/70 bg-background/95 shadow-sm transition-shadow focus-visible:ring-primary/30";
+
   return (
     <div
-      className="min-h-screen flex flex-col bg-brand-mesh"
+      className="min-h-screen flex flex-col bg-brand-mesh lg:flex-row"
       style={{
         opacity: isVisible ? 1 : 0,
         transition: "opacity 0.6s ease-in",
       }}
     >
-      <header className="shrink-0 border-b border-border/70 bg-brand-hero/90 backdrop-blur-sm">
-        <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center gap-4">
-          <img
-            key={authHeaderImgSrc}
-            src={authHeaderImgSrc}
-            alt={APP_PUBLIC_NAME}
-            className="h-28 w-auto max-w-[360px] object-contain object-left drop-shadow-sm"
-            referrerPolicy="no-referrer"
-            onError={() => {
-              setAuthHeaderImgSrc((current) =>
-                current === "/default_logo.png" ? current : "/default_logo.png",
-              );
-            }}
-          />
-          <h1 className="font-display text-xl font-semibold text-foreground tracking-tight hidden sm:block">
-            {APP_PUBLIC_NAME}
-          </h1>
+      <AlertDialog
+        open={viewModeConfirmOpen}
+        onOpenChange={(open) => {
+          setViewModeConfirmOpen(open);
+          if (!open) setPendingUserSignup(null);
+        }}
+      >
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Entrar em modo de visualização?</AlertDialogTitle>
+            <AlertDialogDescription className="leading-relaxed">
+              Você não informou o código do contrato. Vamos criar a conta e
+              entrar em modo de visualização. Depois, você pode configurar o
+              abrigo no banner do topo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                const p = pendingUserSignup;
+                if (!p) return;
+                setViewModeConfirmOpen(false);
+                setPendingUserSignup(null);
+                setLoading(true);
+                try {
+                  const created = await registerUser(
+                    p.login,
+                    p.password,
+                    p.firstName,
+                    p.lastName,
+                  );
+                  await authLogin(p.login, p.password, created.tenant.slug);
+                  void prefetchTenantBrandLogoBeforeInicioNavigation();
+                  toast({
+                    title: "Conta criada",
+                    description:
+                      "Entrando em modo de visualização. Configure o abrigo quando quiser.",
+                    variant: "success",
+                    duration: 4500,
+                  });
+                  router.push("/loading");
+                } catch (err) {
+                  toast({
+                    title: "Não foi possível criar a conta",
+                    description:
+                      err instanceof Error
+                        ? err.message
+                        : "Tente novamente em instantes.",
+                    variant: "error",
+                    duration: 3500,
+                  });
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              Continuar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Painel de marca — desktop */}
+      <aside className="relative hidden shrink-0 overflow-hidden lg:flex lg:min-h-screen lg:w-[min(42%,480px)] lg:flex-col lg:justify-between bg-brand-strip px-10 py-12 text-primary-foreground xl:px-14">
+        <div
+          className="pointer-events-none absolute -right-24 top-1/4 h-72 w-72 rounded-full bg-white/10 blur-3xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -left-16 bottom-0 h-56 w-56 rounded-full bg-cyan-300/20 blur-3xl"
+          aria-hidden
+        />
+        <div className="relative z-10 space-y-8">
+          <div className="flex w-full justify-center px-2">
+            <div className="inline-flex max-w-full items-center justify-center rounded-2xl bg-white/12 p-4 ring-1 ring-white/25 backdrop-blur-sm xl:p-5">
+              <img
+                key={`aside-${authHeaderImgSrc}`}
+                src={authHeaderImgSrc}
+                alt=""
+                className="mx-auto block h-44 w-auto max-w-[min(100%,460px)] object-contain object-center xl:h-52 xl:max-w-[min(100%,500px)] 2xl:h-56"
+                referrerPolicy="no-referrer"
+                onError={() => {
+                  setAuthHeaderImgSrc((current) =>
+                    current === "/default_logo.png"
+                      ? current
+                      : "/default_logo.png",
+                  );
+                }}
+              />
+            </div>
+          </div>
+          <div className="space-y-3">
+            <p className="font-display text-2xl font-semibold leading-tight tracking-tight xl:text-3xl">
+              Medicamentos e estoque organizados — do jeito que o abrigo
+              precisa.
+            </p>
+            <p className="max-w-sm text-sm leading-relaxed text-primary-foreground/85">
+              Cadastre itens, registre entradas e saídas e acompanhe tudo em um
+              só lugar. Menos planilhas, menos falhas: mais tempo para quem
+              importa.
+            </p>
+          </div>
+          <ul className="space-y-4 text-sm text-primary-foreground/90">
+            <li className="flex gap-3">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
+                <Package className="h-4 w-4" aria-hidden />
+              </span>
+              <span>
+                <span className="font-medium text-white">
+                  Vários abrigos, uma conta
+                </span>
+                <span className="mt-0.5 block text-xs text-primary-foreground/75">
+                  Trabalha em mais de um lugar? Alterna entre eles sem misturar
+                  dados nem estoque.
+                </span>
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
+                <ShieldCheck className="h-4 w-4" aria-hidden />
+              </span>
+              <span>
+                <span className="font-medium text-white">
+                  Só quem deve ver, vê
+                </span>
+                <span className="mt-0.5 block text-xs text-primary-foreground/75">
+                  Convites e permissões por função: sua equipe acessa só o que
+                  precisa para trabalhar.
+                </span>
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
+                <Sparkles className="h-4 w-4" aria-hidden />
+              </span>
+              <span>
+                <span className="font-medium text-white">
+                  Números prontos para mostrar
+                </span>
+                <span className="mt-0.5 block text-xs text-primary-foreground/75">
+                  Indicadores e relatórios para reuniões, diretoria ou parceiros
+                  — sem montar tudo na mão.
+                </span>
+              </span>
+            </li>
+          </ul>
         </div>
-      </header>
+        <p className="relative z-10 mx-auto w-full max-w-sm shrink-0 px-2 text-center text-xs leading-snug text-primary-foreground/65">
+          © {new Date().getFullYear()} {APP_PUBLIC_NAME}
+        </p>
+      </aside>
 
-      <main className="flex-1 bg-transparent">
-        <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">
-          <div className="max-w-md mx-auto">
-            <div className="bg-card/95 backdrop-blur-sm border border-border/60 rounded-2xl shadow-elevated p-8 md:p-9">
-              <h2 className="font-display text-2xl font-semibold text-foreground tracking-tight mb-6">
-                {isLogin ? "Acesso ao Sistema" : "Cadastro de Usuário"}
-              </h2>
+      <div className="flex min-h-screen flex-1 flex-col">
+        <header className="shrink-0 border-b border-border/60 bg-card/80 backdrop-blur-md lg:border-0 lg:bg-transparent lg:backdrop-blur-none">
+          <div className="mx-auto flex max-w-lg items-center gap-3 px-4 py-5 sm:px-6 lg:max-w-none lg:justify-end lg:px-10 lg:py-8">
+            <img
+              key={authHeaderImgSrc}
+              src={authHeaderImgSrc}
+              alt={APP_PUBLIC_NAME}
+              className="h-10 w-auto max-w-[200px] object-contain object-left drop-shadow-sm lg:hidden"
+              referrerPolicy="no-referrer"
+              onError={() => {
+                setAuthHeaderImgSrc((current) =>
+                  current === "/default_logo.png"
+                    ? current
+                    : "/default_logo.png",
+                );
+              }}
+            />
+            <div className="min-w-0 flex-1 lg:hidden">
+              <p className="font-display truncate text-base font-semibold text-foreground">
+                {APP_PUBLIC_NAME}
+              </p>
+              <p className="mt-0.5 text-xs leading-snug text-muted-foreground line-clamp-2">
+                Medicamentos e estoque organizados para o seu abrigo.
+              </p>
+            </div>
+          </div>
+        </header>
 
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {!isLogin && (
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Abrigo
-                    </label>
-                    <select
-                      value={tenantSlug}
-                      onChange={(e) => setTenantSlug(e.target.value)}
-                      required
-                      disabled={tenantsLoading}
-                      className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary bg-background disabled:opacity-60 disabled:cursor-wait transition-shadow"
-                    >
-                      <option value="">
-                        {tenantsLoading
-                          ? "Carregando abrigos…"
-                          : "Selecione o abrigo"}
-                      </option>
-                      {tenantOptions.map((t) => (
-                        <option key={t.id} value={t.slug}>
-                          {t.brandName || t.name} ({t.slug})
-                        </option>
-                      ))}
-                    </select>
-                    {!tenantsLoading && tenantOptions.length === 0 ? (
-                      <p className="mt-1 text-xs text-amber-700">
-                        Nenhum abrigo disponível no momento. Tente mais tarde ou
-                        contate o suporte.
-                      </p>
-                    ) : (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        O cadastro é feito no contexto do abrigo escolhido.
-                      </p>
+        <main className="flex flex-1 items-start justify-center px-4 pb-16 pt-2 sm:px-6 lg:items-center lg:px-10 lg:pb-20 lg:pt-0">
+          <div className="w-full max-w-md">
+            <Card className="border-border/70 bg-card/95 shadow-elevated backdrop-blur-sm">
+              <CardHeader className="space-y-1 pb-2">
+                <CardTitle className="font-display text-2xl">
+                  {isLogin ? "Entrar" : "Nova conta"}
+                </CardTitle>
+                <CardDescription>
+                  {isLogin
+                    ? "Entre com o e-mail e a senha da sua organização."
+                    : "Crie sua conta em poucos passos ou use o convite que você recebeu."}
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="space-y-6 pt-2">
+                <div
+                  className="grid grid-cols-2 gap-1 rounded-xl bg-muted/70 p-1 ring-1 ring-border/60"
+                  role="tablist"
+                  aria-label="Modo de acesso"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={isLogin}
+                    onClick={() => setIsLogin(true)}
+                    className={cn(
+                      "rounded-lg py-2.5 text-sm font-semibold transition-all",
+                      isLogin
+                        ? "bg-background text-foreground shadow-sm ring-1 ring-border/50"
+                        : "text-muted-foreground hover:text-foreground",
                     )}
-                  </div>
-                )}
-                {isLogin && (
-                  <p className="text-sm text-muted-foreground -mt-1">
-                    Depois de um e-mail válido, mostramos em que abrigos ele
-                    está registado. Se houver mais do que um, escolha onde quer
-                    entrar.
-                  </p>
-                )}
-                {!isLogin && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">
-                        Nome
-                      </label>
-                      <input
-                        type="text"
-                        value={firstName}
-                        onChange={(e) =>
-                          setFirstName(sanitizeInput(e.target.value))
-                        }
-                        maxLength={100}
-                        className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-shadow"
-                        placeholder="Fulano"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">
-                        Sobrenome
-                      </label>
-                      <input
-                        type="text"
-                        value={lastName}
-                        onChange={(e) =>
-                          setLastName(sanitizeInput(e.target.value))
-                        }
-                        maxLength={100}
-                        className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-shadow"
-                        placeholder="Silva"
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
-                {!isLogin && (
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Código do contrato
-                    </label>
-                    <input
-                      type="text"
-                      autoComplete="off"
-                      value={contractCode}
-                      onChange={(e) =>
-                        setContractCode(sanitizeInput(e.target.value))
-                      }
-                      maxLength={256}
-                      className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-shadow"
-                      placeholder="Código informado na assinatura"
-                      required={tenantBranding?.contractCodeMandatory === true}
-                    />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Mesmo código fornecido pela equipe ao formalizar o uso do
-                      sistema.
-                    </p>
-                  </div>
-                )}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    E-mail
-                  </label>
-                  <input
-                    type="email"
-                    value={login}
-                    onChange={(e) => setLogin(sanitizeInput(e.target.value))}
-                    maxLength={255}
-                    className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary transition-shadow"
-                    placeholder="fulana@gmail.com"
-                    required
-                  />
+                  >
+                    Entrar
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={!isLogin}
+                    onClick={() => setIsLogin(false)}
+                    className={cn(
+                      "rounded-lg py-2.5 text-sm font-semibold transition-all",
+                      !isLogin
+                        ? "bg-background text-foreground shadow-sm ring-1 ring-border/50"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Cadastrar
+                  </button>
                 </div>
 
-                {isLogin && loginEmailValid ? (
-                  <div className="space-y-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-3">
-                    {loginLinkedTenantsLoading ? (
-                      <p className="text-xs text-muted-foreground flex items-center gap-2">
-                        <span
-                          className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border-2 border-primary/40 border-t-primary animate-spin"
-                          aria-hidden
-                        />
-                        A procurar abrigos para este e-mail…
-                      </p>
-                    ) : loginLinkedTenants ===
-                      null ? null : loginLinkedTenants.length === 0 ? (
-                      <p className="text-xs text-amber-800 dark:text-amber-200/90">
-                        Nenhum abrigo encontrado para este e-mail. Verifique o
-                        endereço ou registe-se num abrigo.
-                      </p>
-                    ) : loginLinkedTenants.length === 1 ? (
-                      <p className="text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">
-                          Abrigo:
-                        </span>{" "}
-                        {loginLinkedTenants[0]!.label}{" "}
-                        <span className="text-muted-foreground/80">
-                          ({loginLinkedTenants[0]!.slug})
-                        </span>
-                      </p>
-                    ) : (
-                      <div>
-                        <label className="block text-xs font-medium text-foreground mb-1.5">
-                          Onde quer entrar?
-                        </label>
-                        <select
-                          value={tenantSlug}
-                          onChange={(e) => setTenantSlug(e.target.value)}
-                          required
-                          className="w-full px-3 py-2.5 border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary bg-background transition-shadow"
+                <Separator className="bg-border/70" />
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  {!isLogin && (
+                    <div className="space-y-2">
+                      <span className="block text-sm font-medium leading-none text-foreground">
+                        Tipo
+                      </span>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSignupFlow("user");
+                            setInviteToken("");
+                          }}
+                          className={cn(
+                            "rounded-xl border px-3 py-2.5 text-left text-sm transition-colors",
+                            signupFlow === "user"
+                              ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/30"
+                              : "border-border bg-background hover:bg-muted/50 text-muted-foreground",
+                          )}
                         >
-                          <option value="">Selecione o abrigo</option>
-                          {loginLinkedTenants.map((t) => (
-                            <option key={t.slug} value={t.slug}>
-                              {t.label} ({t.slug})
-                            </option>
-                          ))}
-                        </select>
+                          <span className="font-medium text-foreground">
+                            Utilizador
+                          </span>
+                          <span className="mt-0.5 block text-xs text-muted-foreground">
+                            Criar conta para navegar.
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSignupFlow("join-token");
+                            setUserContractCode("");
+                          }}
+                          className={cn(
+                            "rounded-xl border px-3 py-2.5 text-left text-sm transition-colors",
+                            signupFlow === "join-token"
+                              ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/30"
+                              : "border-border bg-background hover:bg-muted/50 text-muted-foreground",
+                          )}
+                        >
+                          <span className="font-medium text-foreground">
+                            Convite
+                          </span>
+                          <span className="mt-0.5 block text-xs text-muted-foreground">
+                            Token recebido por e-mail.
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {!isLogin && signupFlow === "join-token" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="invite-token">Token de entrada</Label>
+                      <Input
+                        id="invite-token"
+                        type="text"
+                        autoComplete="off"
+                        value={inviteToken}
+                        onChange={(e) => setInviteToken(e.target.value)}
+                        required
+                        className={cn(inputFieldClass, "font-mono text-xs")}
+                        placeholder="Cole o token enviado pelo administrador"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Não precisa de código de contrato — só do token único.
+                      </p>
+                    </div>
+                  )}
+
+                  {isLogin && (
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      Depois de um e-mail válido, mostramos em que abrigos ele
+                      está registado. Se houver mais do que um, escolha onde
+                      quer entrar.
+                    </p>
+                  )}
+                  {!isLogin && (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="first-name">Nome</Label>
+                        <Input
+                          id="first-name"
+                          type="text"
+                          value={firstName}
+                          onChange={(e) =>
+                            setFirstName(sanitizeInput(e.target.value))
+                          }
+                          maxLength={100}
+                          className={inputFieldClass}
+                          placeholder="Fulano"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="last-name">Sobrenome</Label>
+                        <Input
+                          id="last-name"
+                          type="text"
+                          value={lastName}
+                          onChange={(e) =>
+                            setLastName(sanitizeInput(e.target.value))
+                          }
+                          maxLength={100}
+                          className={inputFieldClass}
+                          placeholder="Silva"
+                          required
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="auth-email">E-mail</Label>
+                    <Input
+                      id="auth-email"
+                      type="email"
+                      value={login}
+                      onChange={(e) => setLogin(sanitizeInput(e.target.value))}
+                      maxLength={255}
+                      className={inputFieldClass}
+                      placeholder="fulana@gmail.com"
+                      autoComplete="email"
+                      required
+                    />
+                  </div>
+
+                  {!isLogin && signupFlow === "user" ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="contract-code">
+                        Código do contrato{" "}
+                        <span className="font-normal text-muted-foreground">
+                          (opcional)
+                        </span>
+                      </Label>
+                      <Input
+                        id="contract-code"
+                        type="text"
+                        autoComplete="off"
+                        value={userContractCode}
+                        onChange={(e) =>
+                          setUserContractCode(sanitizeInput(e.target.value))
+                        }
+                        maxLength={256}
+                        className={inputFieldClass}
+                        placeholder="Se já tiver, associa o abrigo ao contrato"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Em branco: modo visualização até completar o onboarding.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {isLogin && loginEmailValid ? (
+                    <div className="space-y-2 rounded-xl border border-primary/15 bg-primary/[0.04] px-3 py-3 dark:bg-primary/10">
+                      {loginLinkedTenantsLoading ? (
+                        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span
+                            className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border-2 border-primary/40 border-t-primary animate-spin"
+                            aria-hidden
+                          />
+                          A procurar abrigos para este e-mail…
+                        </p>
+                      ) : loginLinkedTenants ===
+                        null ? null : loginLinkedTenants.length === 0 ? (
+                        <p className="text-xs text-amber-800 dark:text-amber-200/90">
+                          Nenhum abrigo encontrado para este e-mail. Em
+                          Cadastro, pode criar utilizador (visualização), abrir
+                          um novo abrigo ou usar um token de entrada.
+                        </p>
+                      ) : loginLinkedTenants.length === 1 ? (
+                        <p className="text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground">
+                            Abrigo:
+                          </span>{" "}
+                          {loginLinkedTenants[0]!.label}{" "}
+                          <span className="text-muted-foreground/80">
+                            ({loginLinkedTenants[0]!.slug})
+                          </span>
+                        </p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="tenant-slug"
+                            className="text-xs font-medium"
+                          >
+                            Onde quer entrar?
+                          </Label>
+                          <select
+                            id="tenant-slug"
+                            value={tenantSlug}
+                            onChange={(e) => setTenantSlug(e.target.value)}
+                            required
+                            className={cn(inputFieldClass, "bg-background")}
+                          >
+                            <option value="">Selecione o abrigo</option>
+                            {loginLinkedTenants.map((t) => (
+                              <option key={t.slug} value={t.slug}>
+                                {t.label} ({t.slug})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="auth-password">Senha</Label>
+                    <Input
+                      id="auth-password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => handlePasswordChange(e.target.value)}
+                      maxLength={128}
+                      className={cn(
+                        inputFieldClass,
+                        !isLogin &&
+                          passwordValidation &&
+                          !passwordValidation.valid
+                          ? "border-destructive/80 focus-visible:ring-destructive/30"
+                          : "",
+                      )}
+                      placeholder="••••••••••••"
+                      autoComplete={
+                        isLogin ? "current-password" : "new-password"
+                      }
+                      required
+                    />
+                    {!isLogin && passwordValidation && (
+                      <div className="mt-1 text-xs">
+                        {passwordValidation.valid ? (
+                          <span
+                            className={
+                              passwordStrength === "strong"
+                                ? "text-primary"
+                                : passwordStrength === "medium"
+                                  ? "text-yellow-600"
+                                  : "text-orange-600"
+                            }
+                          >
+                            ✓ Senha válida - Força:{" "}
+                            {passwordStrength === "strong"
+                              ? "Forte"
+                              : passwordStrength === "medium"
+                                ? "Média"
+                                : "Aceitável"}
+                          </span>
+                        ) : (
+                          <span className="text-red-600">
+                            ✗ {passwordValidation.error}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
-                ) : null}
 
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Senha
-                  </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => handlePasswordChange(e.target.value)}
-                    maxLength={128}
-                    className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 ${
-                      !isLogin &&
-                      passwordValidation &&
-                      !passwordValidation.valid
-                        ? "border-red-300 focus:ring-red-200 focus:border-red-400"
-                        : "border-input focus:ring-ring/30 focus:border-primary"
-                    }`}
-                    placeholder="••••••••••••"
-                    required
-                  />
-                  {!isLogin && passwordValidation && (
-                    <div className="mt-1 text-xs">
-                      {passwordValidation.valid ? (
-                        <span
-                          className={
-                            passwordStrength === "strong"
-                              ? "text-green-600"
-                              : passwordStrength === "medium"
-                                ? "text-yellow-600"
-                                : "text-orange-600"
-                          }
+                  {isLogin && (
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="remember-me"
+                          checked={rememberMe}
+                          onCheckedChange={(v) => setRememberMe(v === true)}
+                        />
+                        <Label
+                          htmlFor="remember-me"
+                          className="cursor-pointer text-sm font-normal text-foreground"
                         >
-                          ✓ Senha válida - Força:{" "}
-                          {passwordStrength === "strong"
-                            ? "Forte"
-                            : passwordStrength === "medium"
-                              ? "Média"
-                              : "Aceitável"}
-                        </span>
-                      ) : (
-                        <span className="text-red-600">
-                          ✗ {passwordValidation.error}
-                        </span>
-                      )}
+                          Lembrar de mim
+                        </Label>
+                      </div>
+
+                      <Link
+                        href="/user/forgot-password"
+                        className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                      >
+                        Esqueci minha senha
+                      </Link>
                     </div>
                   )}
-                </div>
 
-                {isLogin && (
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                        className="w-4 h-4 text-primary border-input rounded"
-                      />
-                      <span className="text-sm text-foreground">
-                        Lembrar de mim
-                      </span>
-                    </label>
+                  <Button
+                    type="submit"
+                    size="lg"
+                    disabled={
+                      loading ||
+                      (!isLogin &&
+                        passwordValidation !== null &&
+                        !passwordValidation.valid)
+                    }
+                    className={cn(
+                      "h-12 w-full rounded-xl text-base font-semibold shadow-brand-glow",
+                      loading && "cursor-wait opacity-100",
+                    )}
+                    aria-busy={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <span
+                          className="h-6 w-6 shrink-0 rounded-full border-2 border-primary-foreground/35 border-t-primary-foreground animate-spin"
+                          aria-hidden
+                        />
+                        <span className="sr-only">
+                          {isLogin ? "A entrar" : "A cadastrar"}
+                        </span>
+                      </>
+                    ) : isLogin ? (
+                      "Entrar"
+                    ) : (
+                      "Cadastrar"
+                    )}
+                  </Button>
+                  {!isLogin &&
+                    passwordValidation !== null &&
+                    !passwordValidation.valid && (
+                      <p className="text-center text-xs text-destructive">
+                        Corrija a senha antes de continuar
+                      </p>
+                    )}
+                </form>
+              </CardContent>
+            </Card>
 
-                    <Link
-                      to="/user/forgot-password"
-                      className="text-sm text-primary hover:underline"
-                    >
-                      Esqueci minha senha
-                    </Link>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={
-                    loading ||
-                    tenantsLoading ||
-                    (!isLogin &&
-                      passwordValidation !== null &&
-                      !passwordValidation.valid)
-                  }
-                  className={cn(
-                    "flex h-11 w-full items-center justify-center rounded-xl text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/90 shadow-brand-glow transition-all duration-200 disabled:cursor-wait",
-                    loading
-                      ? "opacity-100"
-                      : "disabled:opacity-50 disabled:cursor-not-allowed",
-                  )}
-                  aria-busy={loading}
-                >
-                  {loading ? (
-                    <>
-                      <span
-                        className="h-6 w-6 shrink-0 rounded-full border-2 border-primary-foreground/35 border-t-primary-foreground animate-spin"
-                        aria-hidden
-                      />
-                      <span className="sr-only">
-                        {isLogin ? "A entrar" : "A cadastrar"}
-                      </span>
-                    </>
-                  ) : isLogin ? (
-                    "Entrar"
-                  ) : (
-                    "Cadastrar"
-                  )}
-                </button>
-                {!isLogin &&
-                  passwordValidation !== null &&
-                  !passwordValidation.valid && (
-                    <p className="text-xs text-red-600 text-center mt-1">
-                      Corrija a senha antes de continuar
-                    </p>
-                  )}
-              </form>
-
-              <div className="mt-4 text-center text-sm text-muted-foreground">
-                {isLogin ? "Não tem conta?" : "Já possui conta?"}{" "}
-                <button
-                  onClick={() => setIsLogin(!isLogin)}
-                  className="text-primary hover:underline font-medium"
-                >
-                  {isLogin ? "Cadastre-se" : "Login"}
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-6 text-center text-xs text-muted-foreground/70">
+            <p className="mt-8 text-center text-xs text-muted-foreground/80 lg:hidden">
               © {new Date().getFullYear()} {APP_PUBLIC_NAME}
-            </div>
+            </p>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

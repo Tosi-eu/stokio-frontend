@@ -1,6 +1,6 @@
 import Layout from "@/components/Layout";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/hooks/use-toast.hook";
@@ -25,7 +25,7 @@ export {
 } from "@/constants/measurement-units";
 
 export default function SignUpMedicine() {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const {
     register,
@@ -111,7 +111,7 @@ export default function SignUpMedicine() {
         duration: 3000,
       });
 
-      navigate("/medicines");
+      router.push("/medicines");
     } catch (error: unknown) {
       toast({
         title: "Erro ao cadastrar",
@@ -207,9 +207,7 @@ export default function SignUpMedicine() {
                         disabled={isSubmitting}
                         id="measurementUnit"
                         placeholder="Selecione"
-                        aria-invalid={
-                          errors.measurementUnit ? "true" : undefined
-                        }
+                        aria-invalid={Boolean(errors.measurementUnit)}
                       />
                       {errors.measurementUnit && (
                         <p className="text-sm text-red-600 mt-1">
@@ -262,7 +260,7 @@ export default function SignUpMedicine() {
               <Button
                 variant="outline"
                 type="button"
-                onClick={() => navigate("/medicines")}
+                onClick={() => router.push("/medicines")}
                 disabled={isSubmitting}
                 className="rounded-lg"
               >

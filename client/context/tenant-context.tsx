@@ -16,6 +16,8 @@ import {
 
 export type TenantModules = {
   enabled: string[];
+  automatic_price_search?: boolean;
+  automatic_reposicao_notifications?: boolean;
 };
 
 export type TenantContextType = {
@@ -24,6 +26,7 @@ export type TenantContextType = {
   modules: TenantModules | null;
   modulesConfigured: boolean;
   onboardingComplete: boolean;
+  previewMode: boolean;
   uiDisplay: TenantUiDisplay;
   loading: boolean;
   refetch: () => Promise<void>;
@@ -31,6 +34,42 @@ export type TenantContextType = {
   effectiveEnabled: string[];
   setModulesPreview: (enabled: string[] | null) => void;
 };
+
+const SKIP_ONBOARDING_EVENT = "abrigo:skip-onboarding-changed";
+
+export function readSkipTenantOnboarding(tenantId: number): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return (
+      window.localStorage.getItem(`abrigo.skipOnboarding.${tenantId}`) === "1"
+    );
+  } catch {
+    return false;
+  }
+}
+
+function hasSkipTenantOnboardingPreference(tenantId: number): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return (
+      window.localStorage.getItem(`abrigo.skipOnboarding.${tenantId}`) !== null
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function setSkipTenantOnboarding(tenantId: number, value: boolean) {
+  if (typeof window === "undefined") return;
+  try {
+    const k = `abrigo.skipOnboarding.${tenantId}`;
+    if (value) window.localStorage.setItem(k, "1");
+    else window.localStorage.removeItem(k);
+    window.dispatchEvent(new Event(SKIP_ONBOARDING_EVENT));
+  } catch {
+    /* ignore */
+  }
+}
 
 export const TenantContext = createContext<TenantContextType | undefined>(
   undefined,
@@ -44,9 +83,14 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const [modulesPreview, setModulesPreview] = useState<string[] | null>(null);
   const [modulesConfigured, setModulesConfigured] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
+  const [skipOnboarding, setSkipOnboarding] = useState(false);
   const [uiDisplay, setUiDisplay] =
     useState<TenantUiDisplay>(DEFAULT_UI_DISPLAY);
   const [loading, setLoading] = useState(() => Boolean(user));
+
+  const previewMode = Boolean(
+    tenantId != null && !onboardingComplete && skipOnboarding,
+  );
 
   const refetch = useCallback(async () => {
     if (!user) {
@@ -56,6 +100,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       setModulesPreview(null);
       setModulesConfigured(false);
       setOnboardingComplete(false);
+      setSkipOnboarding(false);
       setUiDisplay(DEFAULT_UI_DISPLAY);
       setLoading(false);
       return;
@@ -68,7 +113,23 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       setTenant(res.tenant ?? null);
       setModules(res.modules ?? null);
       setModulesConfigured(Boolean(res.modulesConfigured));
-      setOnboardingComplete(Boolean(res.onboardingComplete));
+      const onboardDone = Boolean(res.onboardingComplete);
+      setOnboardingComplete(onboardDone);
+      const tid = Number(res.tenantId) || null;
+      if (onboardDone && tid != null) {
+        setSkipTenantOnboarding(tid, false);
+      } else if (
+        !onboardDone &&
+        tid != null &&
+        res.tenant?.slug &&
+        String(res.tenant.slug).startsWith("u-") &&
+        !hasSkipTenantOnboardingPreference(tid)
+      ) {
+        // Tenant provisório (linha A): por padrão, libera navegação em modo visualização.
+        setSkipTenantOnboarding(tid, true);
+        // Evita corrida com o redirect do App: ativa o estado local imediatamente.
+        setSkipOnboarding(true);
+      }
       setUiDisplay(
         normalizeUiDisplay(
           (res as { uiDisplay?: Partial<TenantUiDisplay> }).uiDisplay,
@@ -81,11 +142,27 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       setModulesPreview(null);
       setModulesConfigured(false);
       setOnboardingComplete(false);
+      setSkipOnboarding(false);
       setUiDisplay(DEFAULT_UI_DISPLAY);
     } finally {
       setLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (tenantId == null) {
+      setSkipOnboarding(false);
+      return;
+    }
+    const sync = () => setSkipOnboarding(readSkipTenantOnboarding(tenantId));
+    sync();
+    window.addEventListener(SKIP_ONBOARDING_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(SKIP_ONBOARDING_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, [tenantId]);
 
   useEffect(() => {
     refetch();
@@ -109,6 +186,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         modules,
         modulesConfigured,
         onboardingComplete,
+        previewMode,
         uiDisplay,
         loading,
         refetch,

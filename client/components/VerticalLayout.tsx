@@ -1,4 +1,7 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -17,6 +20,7 @@ import { useTenant } from "@/hooks/use-tenant.hook";
 import { APP_PUBLIC_NAME } from "@/constants/app-branding";
 import { getDefaultHomePath } from "@/helpers/default-home-route.helper";
 import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
+import { LocalBrandLogoImage } from "@/components/LocalBrandLogoImage";
 
 const baseNavigationTabs = [
   {
@@ -55,14 +59,25 @@ interface SidebarProps {
 }
 
 export function VerticalLayout({ onLogout }: SidebarProps) {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const pathname = usePathname();
+  const router = useRouter();
   const { user } = useAuth();
-  const { tenant, isEnabled, loading: tenantLoading } = useTenant();
+  const {
+    tenant,
+    isEnabled,
+    loading: tenantLoading,
+    previewMode,
+  } = useTenant();
   const { displaySrc: sidebarLogoSrc, isLogoResolved } = useTenantBrandLogoSrc(
     tenant,
     { tenantConfigLoading: tenantLoading },
   );
+  const isViewerTenant =
+    (tenant?.slug ?? "").toLowerCase() === "viewer" || previewMode;
+  const sidebarLogoToShow = isViewerTenant
+    ? "/default_logo.png"
+    : sidebarLogoSrc;
+  const sidebarLogoReady = isViewerTenant ? true : isLogoResolved;
 
   const navigationTabs = [
     ...(user?.role === "admin" && isEnabled("admin")
@@ -79,24 +94,36 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
 
   return (
     <aside
-      className="h-screen w-64 flex flex-col border-r border-sidebar-border bg-sidebar bg-gradient-to-b from-sidebar via-background/30 to-sidebar"
+      className="h-screen w-64 flex flex-col shrink-0 rounded-r-2xl border border-border/50 border-l-0 shadow-elevated bg-sidebar bg-gradient-to-b from-sidebar via-sidebar to-background/25 overflow-hidden"
       aria-label="Navegação principal"
     >
-      <div className="h-36 shrink-0 flex items-center justify-center px-4 border-b border-sidebar-border bg-brand-hero shadow-[inset_0_-1px_0_0_hsl(160_20%_90%/0.6)]">
+      <div className="h-36 shrink-0 flex items-center justify-center px-4 border-b border-border/50 bg-brand-hero shadow-[inset_0_-1px_0_0_hsl(214_22%_88%/0.5)]">
         <button
           type="button"
-          onClick={() => navigate(homeHref)}
+          onClick={() => router.push(homeHref)}
           className="cursor-pointer rounded-xl p-2 transition-all hover:opacity-95 hover:shadow-elevated focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="Ir para o início"
         >
-          {isLogoResolved && sidebarLogoSrc ? (
-            <img
-              key={sidebarLogoSrc}
-              src={sidebarLogoSrc}
-              alt={tenant?.brandName || tenant?.name || APP_PUBLIC_NAME}
-              className="h-32 w-auto max-w-[200px] object-contain drop-shadow-sm"
-              referrerPolicy="no-referrer"
-            />
+          {sidebarLogoReady && sidebarLogoToShow ? (
+            sidebarLogoToShow === "/default_logo.png" ? (
+              <LocalBrandLogoImage
+                key={sidebarLogoToShow}
+                alt={tenant?.brandName || tenant?.name || APP_PUBLIC_NAME}
+              />
+            ) : (
+              <img
+                key={sidebarLogoToShow}
+                src={sidebarLogoToShow}
+                alt={tenant?.brandName || tenant?.name || APP_PUBLIC_NAME}
+                className="h-32 w-auto max-w-[200px] object-contain drop-shadow-sm"
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (target.src.endsWith("/default_logo.png")) return;
+                  target.src = "/default_logo.png";
+                }}
+              />
+            )
           ) : (
             <div className="h-32 w-[200px] shrink-0" aria-busy={true} />
           )}
@@ -109,15 +136,15 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
       >
         {navigationTabs.map((item) => {
           const isActive =
-            location.pathname === item.href ||
-            (item.href !== homeHref && location.pathname.startsWith(item.href));
+            pathname === item.href ||
+            (item.href !== homeHref && pathname.startsWith(item.href));
 
           const Icon = item.icon;
 
           return (
             <Link
               key={item.name}
-              to={item.href}
+              href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
                 ${
                   isActive
@@ -134,7 +161,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
       </nav>
 
       {user && (
-        <div className="p-3 border-t border-sidebar-border bg-background/40 backdrop-blur-[2px] space-y-2">
+        <div className="p-3 border-t border-border/50 bg-background/50 backdrop-blur-sm space-y-2">
           <p
             className="px-3 py-1 text-xs text-muted-foreground truncate"
             title={user.login}
@@ -145,7 +172,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
           </p>
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40 focus-visible:ring-offset-2"
             aria-label="Sair da conta"
           >
             <LogOut className="h-4 w-4" aria-hidden="true" />

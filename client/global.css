@@ -1,80 +1,77 @@
-/** @import must precede all other statements */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   /**
-   * Tema Abrigo — gradiente teal → verde-lima (default_logo)
-   * Primário: teal profundo; acentos: hortelã / lima suave
+   * Tema Stokio — alinhado ao default_logo (azul-marinho, azul médio/claro, ciano de destaque)
+   * Primário: ciano/azul para CTAs; superfícies e texto puxados para azul (não verde)
    */
   :root {
-    --background: 165 35% 98%;
-    --foreground: 200 18% 14%;
+    --background: 210 42% 98%;
+    --foreground: 222 38% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 200 18% 14%;
+    --card-foreground: 222 38% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 200 18% 14%;
+    --popover-foreground: 222 38% 14%;
 
-    --primary: 174 62% 36%;
+    --primary: 191 76% 40%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 165 28% 93%;
-    --secondary-foreground: 186 30% 22%;
+    --secondary: 214 28% 93%;
+    --secondary-foreground: 222 32% 22%;
 
-    --muted: 160 22% 94%;
-    --muted-foreground: 200 12% 42%;
+    --muted: 210 26% 94%;
+    --muted-foreground: 215 16% 42%;
 
-    --accent: 88 42% 92%;
-    --accent-foreground: 186 35% 22%;
+    --accent: 205 48% 94%;
+    --accent-foreground: 222 35% 22%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 160 18% 88%;
-    --input: 160 18% 88%;
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
 
-    --ring: 174 58% 40%;
+    --ring: 191 72% 42%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 165 32% 97%;
-    --sidebar-foreground: 200 16% 26%;
+    --sidebar-background: 210 38% 97%;
+    --sidebar-foreground: 222 28% 24%;
 
-    --sidebar-primary: 174 58% 34%;
+    --sidebar-primary: 215 52% 36%;
     --sidebar-primary-foreground: 0 0% 100%;
 
-    --sidebar-accent: 160 26% 92%;
-    --sidebar-accent-foreground: 186 28% 20%;
-    --sidebar-border: 160 20% 90%;
+    --sidebar-accent: 210 28% 92%;
+    --sidebar-accent-foreground: 222 30% 20%;
+    --sidebar-border: 214 22% 90%;
 
-    --sidebar-ring: 174 58% 40%;
+    --sidebar-ring: 191 72% 42%;
 
-    /* Gradientes reutilizáveis (alinhados ao ícone) */
+    /* Gradientes (marinho → azul → ciano, como o ícone) */
     --gradient-brand: linear-gradient(
       135deg,
-      hsl(180 55% 28%) 0%,
-      hsl(165 50% 38%) 45%,
-      hsl(88 48% 58%) 100%
+      hsl(222 48% 22%) 0%,
+      hsl(210 48% 40%) 45%,
+      hsl(191 78% 48%) 100%
     );
     --gradient-subtle: linear-gradient(
       180deg,
-      hsl(165 40% 97%) 0%,
-      hsl(160 28% 98.5%) 100%
+      hsl(210 42% 97%) 0%,
+      hsl(214 32% 98.5%) 100%
     );
     --shadow-soft:
-      0 2px 16px -4px hsl(174 45% 28% / 0.12),
-      0 8px 32px -12px hsl(200 20% 10% / 0.08);
+      0 2px 16px -4px hsl(215 45% 32% / 0.12),
+      0 8px 32px -12px hsl(222 28% 10% / 0.08);
 
-    /* Séries de gráficos / destaques (teal → lima, harmônico com --primary) */
-    --chart-1: 174 58% 38%;
-    --chart-2: 88 48% 48%;
-    --chart-3: 160 45% 42%;
-    --chart-4: 38 92% 50%;
+    /* Séries de gráficos (tons de azul + acentos) */
+    --chart-1: 215 58% 42%;
+    --chart-2: 191 72% 46%;
+    --chart-3: 205 52% 48%;
+    --chart-4: 220 48% 58%;
     --chart-5: 0 72% 52%;
     --chart-6: 280 45% 52%;
     --chart-7: 25 90% 48%;
@@ -82,48 +79,48 @@
   }
 
   .dark {
-    --background: 200 18% 9%;
-    --foreground: 160 15% 96%;
+    --background: 222 24% 9%;
+    --foreground: 210 22% 96%;
 
-    --card: 200 16% 11%;
-    --card-foreground: 160 15% 96%;
+    --card: 222 22% 11%;
+    --card-foreground: 210 22% 96%;
 
-    --popover: 200 16% 11%;
-    --popover-foreground: 160 15% 96%;
+    --popover: 222 22% 11%;
+    --popover-foreground: 210 22% 96%;
 
-    --primary: 168 55% 48%;
-    --primary-foreground: 186 40% 8%;
+    --primary: 191 68% 52%;
+    --primary-foreground: 222 45% 10%;
 
-    --secondary: 200 14% 18%;
-    --secondary-foreground: 160 15% 96%;
+    --secondary: 220 18% 18%;
+    --secondary-foreground: 210 20% 96%;
 
-    --muted: 200 12% 18%;
-    --muted-foreground: 160 10% 65%;
+    --muted: 220 16% 18%;
+    --muted-foreground: 215 14% 65%;
 
-    --accent: 200 14% 20%;
-    --accent-foreground: 160 15% 96%;
+    --accent: 220 18% 20%;
+    --accent-foreground: 210 20% 96%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 200 12% 20%;
-    --input: 200 12% 20%;
+    --border: 220 14% 20%;
+    --input: 220 14% 20%;
 
-    --ring: 168 50% 50%;
+    --ring: 191 60% 50%;
 
-    --sidebar-background: 200 18% 9%;
-    --sidebar-foreground: 160 12% 92%;
-    --sidebar-primary: 168 55% 48%;
-    --sidebar-primary-foreground: 186 40% 8%;
-    --sidebar-accent: 200 12% 16%;
-    --sidebar-accent-foreground: 160 12% 92%;
-    --sidebar-border: 200 12% 18%;
-    --sidebar-ring: 168 50% 50%;
+    --sidebar-background: 222 24% 9%;
+    --sidebar-foreground: 210 18% 92%;
+    --sidebar-primary: 210 55% 52%;
+    --sidebar-primary-foreground: 222 45% 10%;
+    --sidebar-accent: 220 14% 16%;
+    --sidebar-accent-foreground: 210 18% 92%;
+    --sidebar-border: 220 14% 18%;
+    --sidebar-ring: 191 60% 50%;
 
-    --chart-1: 168 55% 52%;
-    --chart-2: 88 42% 58%;
-    --chart-3: 160 40% 48%;
-    --chart-4: 38 85% 55%;
+    --chart-1: 215 55% 55%;
+    --chart-2: 191 65% 58%;
+    --chart-3: 205 48% 55%;
+    --chart-4: 220 45% 60%;
     --chart-5: 0 65% 58%;
     --chart-6: 280 40% 58%;
     --chart-7: 25 85% 55%;
@@ -137,25 +134,24 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
-    font-family:
-      "Inter",
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      Roboto,
-      Helvetica,
-      Arial,
-      sans-serif;
+    @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    text-rendering: optimizeLegibility;
   }
 
   h1,
   h2,
   h3,
   .font-display {
-    font-family: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
-    letter-spacing: -0.02em;
+    font-family:
+      var(--font-display), var(--font-sans), ui-sans-serif, system-ui,
+      sans-serif;
+    letter-spacing: -0.025em;
+  }
+
+  ::selection {
+    background-color: hsl(var(--primary) / 0.2);
+    color: hsl(var(--foreground));
   }
 }
 
@@ -185,14 +181,8 @@
 
 /* React DatePicker Custom Styles */
 .react-datepicker {
-  font-family:
-    "Inter",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
-  border: 1px solid hsl(160 18% 88%);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  border: 1px solid hsl(var(--border));
   border-radius: 0.75rem;
   box-shadow: var(--shadow-soft);
 }
@@ -200,10 +190,10 @@
 .react-datepicker__header {
   background: linear-gradient(
     180deg,
-    hsl(165 35% 96%) 0%,
-    hsl(160 28% 97%) 100%
+    hsl(210 38% 96%) 0%,
+    hsl(214 32% 97%) 100%
   );
-  border-bottom: 1px solid hsl(160 18% 88%);
+  border-bottom: 1px solid hsl(var(--border));
   border-top-left-radius: 0.5rem;
   border-top-right-radius: 0.5rem;
   padding-top: 0.75rem;
@@ -253,25 +243,25 @@
 }
 
 .react-datepicker__day:hover {
-  background-color: hsl(165 40% 92%);
+  background-color: hsl(210 40% 92%);
   border-radius: 0.375rem;
 }
 
 .react-datepicker__day--selected,
 .react-datepicker__day--keyboard-selected {
-  background-color: hsl(174 58% 36%);
+  background-color: hsl(var(--primary));
   color: white;
   font-weight: 600;
 }
 
 .react-datepicker__day--selected:hover,
 .react-datepicker__day--keyboard-selected:hover {
-  background-color: hsl(176 55% 30%);
+  background-color: hsl(191 72% 34%);
 }
 
 .react-datepicker__day--today {
   font-weight: 600;
-  background-color: hsl(88 40% 92%);
+  background-color: hsl(205 50% 92%);
 }
 
 .react-datepicker__day--disabled {
@@ -299,7 +289,7 @@
 }
 
 .react-datepicker__navigation:hover *::before {
-  border-color: hsl(174 58% 36%);
+  border-color: hsl(var(--primary));
 }
 
 .react-datepicker__input-container input {
@@ -308,7 +298,7 @@
 }
 
 .react-datepicker__input-container input:focus {
-  outline: 2px solid hsl(174 58% 40%);
+  outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
 

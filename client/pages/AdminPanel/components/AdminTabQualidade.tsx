@@ -73,8 +73,12 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
   const loadRows = useCallback(async () => {
     setLoadingRows(true);
     try {
-      const res = await getAdminInconsistencies({ type, page, limit });
-      setRows(Array.isArray(res?.data) ? (res.data as any[]) : []);
+      const res = (await getAdminInconsistencies({
+        type,
+        page,
+        limit,
+      })) as { data?: Record<string, unknown>[]; total?: number };
+      setRows(Array.isArray(res?.data) ? res.data : []);
       setTotal(Number(res?.total) || 0);
     } catch {
       setRows([]);
@@ -88,11 +92,11 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
   const loadDuplicates = useCallback(async () => {
     setLoadingDup(true);
     try {
-      const res = await getAdminMedicineDuplicates({
+      const res = (await getAdminMedicineDuplicates({
         page: dupPage,
         limit: 25,
-      });
-      setDupRows(Array.isArray(res?.data) ? (res.data as any[]) : []);
+      })) as { data?: Record<string, unknown>[]; total?: number };
+      setDupRows(Array.isArray(res?.data) ? res.data : []);
       setDupTotal(Number(res?.total) || 0);
     } catch {
       setDupRows([]);
@@ -338,12 +342,12 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
               variant="outline"
               onClick={async () => {
                 try {
-                  const res = await normalizeAdminMedicineUnits({
+                  const res = (await normalizeAdminMedicineUnits({
                     dryRun: true,
-                  });
+                  })) as { updated?: number };
                   toast({
                     title: "Prévia de normalização",
-                    description: `${res.updated} medicamento(s) seriam atualizados (mostrando até 50).`,
+                    description: `${res.updated ?? 0} medicamento(s) seriam atualizados (mostrando até 50).`,
                     variant: "success",
                   });
                 } catch (err) {
@@ -361,12 +365,12 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
             <Button
               onClick={async () => {
                 try {
-                  const res = await normalizeAdminMedicineUnits({
+                  const res = (await normalizeAdminMedicineUnits({
                     dryRun: false,
-                  });
+                  })) as { updated?: number };
                   toast({
                     title: "Unidades padronizadas",
-                    description: `${res.updated} medicamento(s) atualizado(s).`,
+                    description: `${res.updated ?? 0} medicamento(s) atualizado(s).`,
                     variant: "success",
                   });
                   loadDuplicates();

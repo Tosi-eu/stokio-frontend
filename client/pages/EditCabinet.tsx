@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Controller } from "react-hook-form";
 import Layout from "@/components/Layout";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { consumeSpaNavigationState } from "@/helpers/spa-navigation-state.helper";
 import { toast } from "@/hooks/use-toast.hook";
 import { getErrorMessage } from "@/helpers/validation.helper";
 import { useFormWithZod } from "@/hooks/use-form-with-zod";
@@ -27,10 +28,12 @@ import {
 } from "@/components/ui/select";
 
 export default function EditCabinet() {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const router = useRouter();
 
-  const item = location.state?.item as Cabinet | undefined;
+  const [item] = useState(() => {
+    const s = consumeSpaNavigationState<{ item?: Cabinet }>();
+    return s?.item as Cabinet | undefined;
+  });
 
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
   const [categories, setCategories] = useState<{ id: number; nome: string }[]>(
@@ -136,7 +139,7 @@ export default function EditCabinet() {
         duration: 3000,
       });
 
-      navigate("/cabinets");
+      router.push("/cabinets");
     } catch (err: unknown) {
       toast({
         title: "Erro ao editar armário",
@@ -245,7 +248,7 @@ export default function EditCabinet() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => navigate("/cabinets")}
+                    onClick={() => router.push("/cabinets")}
                     disabled={isSubmitting}
                     className="rounded-lg"
                   >

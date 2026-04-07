@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { SkeletonTable } from "@/components/SkeletonTable";
 import { toast } from "@/hooks/use-toast.hook";
-import { getCabinets, getTransferReport } from "@/api/requests";
+import { getTransferReport } from "@/api/requests";
 import { Card } from "@/components/ui/card";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";

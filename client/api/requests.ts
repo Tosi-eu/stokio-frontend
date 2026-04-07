@@ -22,7 +22,6 @@ export type {
   UpdateTenantBrandingPayload,
 } from "@porto-sdk/sdk";
 
-/** Contrato de `GET /login/tenants-for-email` (alinhado com `LoginTenantSummary` no SDK). */
 export type LoginTenantSummary = {
   slug: string;
   label: string;
@@ -32,7 +31,6 @@ export type TenantLogoUploadPhase = "sending" | "storing";
 
 export type TenantLogoUploadCallbacks = {
   onUploadProgress?: (percentLoaded: number) => void;
-  /** Disparado quando o arquivo terminou de sair do navegador; o servidor ainda grava no R2. */
   onPhase?: (phase: TenantLogoUploadPhase) => void;
 };
 
@@ -56,9 +54,6 @@ function parseLogoUploadResponse(xhr: XMLHttpRequest): { logoUrl: string } {
   throw new Error(msg);
 }
 
-/**
- * Upload com XMLHttpRequest para expor progresso do envio e fase “gravando no R2” após o stream.
- */
 export function uploadTenantLogoWithProgress(
   file: File,
   brandName: string,
@@ -362,7 +357,6 @@ export type PublicAppConfigResponse = {
   defaultLogoUrl: string | null;
 };
 
-/** Logo padrão no R2 (a partir de R2_PUBLIC_BASE_URL no servidor). */
 export const fetchPublicAppConfig = () =>
   api.get<PublicAppConfigResponse>("/public/app-config");
 
@@ -403,9 +397,6 @@ export const login = (login: string, password: string, tenantSlug: string) =>
 
 export type ResolveTenantAmbiguousTenant = { slug: string; label: string };
 
-/**
- * Lista todos os abrigos onde o e-mail tem conta (0, 1 ou N). Não autentica.
- */
 export async function fetchLoginTenantsForEmail(
   login: string,
 ): Promise<LoginTenantSummary[]> {
@@ -421,10 +412,6 @@ export async function fetchLoginTenantsForEmail(
   if (!res.ok) return [];
   return Array.isArray(data?.tenants) ? data.tenants : [];
 }
-
-/**
- * Descobre o slug do abrigo pelo e-mail (correspondência única). Não autentica.
- */
 export async function resolveTenantByLogin(
   login: string,
 ): Promise<
@@ -500,6 +487,81 @@ export const register = (
     { headers: { "X-Tenant": tenantSlug } },
   );
 
+export type RegisterAccountResponse = {
+  tenant: { id: number; slug: string };
+  user: { id: number; login: string; role: string };
+};
+
+export const registerAccount = (
+  login: string,
+  password: string,
+  firstName: string,
+  lastName: string,
+): Promise<RegisterAccountResponse> =>
+  api.post<RegisterAccountResponse>("/login/register-account", {
+    login,
+    password,
+    first_name: firstName,
+    last_name: lastName,
+  });
+
+export type RegisterUserResponse = {
+  tenant: { id: number; slug: string };
+  user: { id: number; login: string; role: string };
+};
+
+export const registerUser = (
+  login: string,
+  password: string,
+  firstName: string,
+  lastName: string,
+  opts?: { contract_code?: string },
+): Promise<RegisterUserResponse> => {
+  const cc = opts?.contract_code?.trim();
+  return api.post<RegisterUserResponse>("/login/register-user", {
+    login,
+    password,
+    first_name: firstName,
+    last_name: lastName,
+    ...(cc ? { contract_code: cc } : {}),
+  });
+};
+
+export const joinByInviteToken = (payload: {
+  token: string;
+  login: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+}): Promise<RegisterUserResponse> =>
+  api.post<RegisterUserResponse>("/login/join-by-token", payload);
+
+export type CreateTenantInviteResponse =
+  | {
+      ok: true;
+      emailSent: true;
+      expiresAt: string;
+    }
+  | {
+      token: string;
+      link: string;
+      emailSent: false;
+      expiresAt: string;
+      warning?: string;
+    };
+
+export const createTenantInvite = (payload: {
+  email: string;
+  role: "user" | "admin";
+  permissions?: {
+    read?: boolean;
+    create?: boolean;
+    update?: boolean;
+    delete?: boolean;
+  };
+  expires_in_days?: number;
+}): Promise<CreateTenantInviteResponse> => api.post("/tenant/invites", payload);
+
 export type VerifyContractCodeResponse = {
   valid: boolean;
   contractCodeRequired?: boolean;
@@ -516,7 +578,7 @@ export const verifyTenantContractCode = (
   );
 
 function superAdminApiKeyHeaders(): HeadersInit | undefined {
-  const k = import.meta.env.VITE_X_API_KEY;
+  const k = process.env.NEXT_PUBLIC_X_API_KEY;
   if (k == null || String(k).trim() === "") return undefined;
   return { "X-API-Key": String(k).trim() };
 }
@@ -902,8 +964,14 @@ export const logoutRequest = () => api.post("/login/logout");
 export const getTenantConfig = () =>
   api.get<TenantConfigResponse>("/tenant/config");
 
-export const updateTenantConfig = (modules: { enabled: string[] }) =>
-  api.put<{ tenantId: number; modules: { enabled: string[] } }>(
+export type UpdateTenantModulesPayload = {
+  enabled: string[];
+  automatic_price_search?: boolean;
+  automatic_reposicao_notifications?: boolean;
+};
+
+export const updateTenantConfig = (modules: UpdateTenantModulesPayload) =>
+  api.put<{ tenantId: number; modules: UpdateTenantModulesPayload }>(
     "/tenant/config",
     { modules },
   );
@@ -913,6 +981,16 @@ export const updateTenantBranding = (payload: UpdateTenantBrandingPayload) =>
     "/tenant/branding",
     payload,
   );
+
+export const setTenantContractCode = (contractCode: string) =>
+  api.post<{
+    ok: true;
+    migrated?: boolean;
+    tenantId?: number;
+    tenantSlug?: string;
+  }>("/tenant/contract-code", {
+    contract_code: contractCode,
+  });
 
 export const getAdminUsers = (params?: { page?: number; limit?: number }) =>
   api.get("/admin/users", { params: params ?? {} });
@@ -1074,11 +1152,12 @@ export const mergeAdminMedicines = (payload: {
 export const normalizeAdminMedicineUnits = (payload?: { dryRun?: boolean }) =>
   api.post("/admin/data-quality/normalize-medicine-units", payload ?? {});
 
-export const getAdminConfig = () =>
-  api.get<Record<string, string>>("/admin/config");
+export type AdminSystemConfig = Record<string, string>;
 
-export const updateAdminConfig = (config: Record<string, string>) =>
-  api.put("/admin/config", config);
+export const getAdminConfig = () => api.get<AdminSystemConfig>("/admin/config");
+
+export const updateAdminConfig = (config: AdminSystemConfig) =>
+  api.put<AdminSystemConfig>("/admin/config", config);
 
 export type AdminTenant = {
   id: number;
@@ -1086,7 +1165,6 @@ export type AdminTenant = {
   name: string;
   brandName?: string | null;
   logoUrl?: string | null;
-  /** Mesmo contrato comercial pode cobrir vários abrigos. */
   contractPortfolioId?: number | null;
 };
 export type AdminTenantsResponse = {

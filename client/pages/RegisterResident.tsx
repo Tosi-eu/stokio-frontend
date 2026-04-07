@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Layout from "@/components/Layout";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast.hook";
 import { createResident } from "@/api/requests";
 import {
@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 export default function RegisterResident() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toast } = useToast();
 
   const {
@@ -42,7 +42,7 @@ export default function RegisterResident() {
         duration: 3000,
       });
 
-      navigate("/residents");
+      router.push("/residents");
     } catch (err: unknown) {
       toast({
         title: "Erro ao cadastrar",
@@ -107,7 +107,7 @@ export default function RegisterResident() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate("/residents")}
+                onClick={() => router.push("/residents")}
                 disabled={isSubmitting}
               >
                 Cancelar

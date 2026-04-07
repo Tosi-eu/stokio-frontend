@@ -621,7 +621,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                   initial={{ scale: 0 }}
                   animate={{ scale: [0, 1.2, 1] }}
                   transition={{ delay: 0.2, duration: 0.4 }}
-                  className="absolute inset-0 bg-green-100 rounded-full"
+                  className="absolute inset-0 bg-primary/15 rounded-full"
                   style={{
                     width: iconSize + 40,
                     height: iconSize + 40,
@@ -630,7 +630,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                   }}
                 />
                 <Check
-                  className="text-green-600 relative z-10"
+                  className="text-primary relative z-10"
                   style={{ width: iconSize, height: iconSize }}
                   strokeWidth={3}
                 />
@@ -639,7 +639,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="mt-6 text-xl font-bold text-green-600"
+                className="mt-6 text-xl font-bold text-primary"
               >
                 Relatório gerado com sucesso!
               </motion.p>

@@ -1,13 +1,24 @@
 import Layout from "@/components/Layout";
 import { useEffect, useState, useMemo, lazy, Suspense } from "react";
 import { useDashboardSummary } from "@/hooks/use-dashboard-summary.hook";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast.hook";
 import { SkeletonCard } from "@/components/SkeletonCard";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DEFAULT_PAGE_SIZE, paginate } from "@/helpers/paginacao.helper";
+import {
+  DEFAULT_PAGE_SIZE,
+  fetchAllPaginated,
+  paginate,
+} from "@/helpers/paginacao.helper";
+import { getCabinets, getDrawers } from "@/api/requests";
+import {
+  cabinetCategoryByNumero,
+  drawerCategoryByNumero,
+  formatArmarioDisplay,
+  formatGavetaDisplay,
+} from "@/helpers/ui-display.helper";
 
 import EditableTable from "@/components/EditableTable";
 import { DashboardStatsCard } from "@/components/DashboardStatsCard";
@@ -31,8 +42,7 @@ import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
 
 export default function Dashboard() {
   const { uiDisplay } = useTenant();
-  const navigate = useNavigate();
-  const { uiDisplay } = useUiDisplay();
+  const router = useRouter();
 
   const [cabinetList, setCabinetList] = useState<
     Array<{ numero: number; categoria: string }>
@@ -234,32 +244,32 @@ export default function Dashboard() {
       setLoadingNonMovement(false);
       setLoadingRecentMovements(false);
     }
-  }, [summary, uiDisplay.casela]);
+  }, [summary, uiDisplay, cabMap, drwMap]);
 
   const stats = useMemo(
     () => [
       {
         label: "Itens Abaixo do Estoque Mínimo",
         value: belowMin,
-        onClick: () => navigate("/stock?filter=belowMin"),
+        onClick: () => router.push("/stock?filter=belowMin"),
       },
       {
         label: "Itens Próximos do Estoque Mínimo",
         value: nearMin,
-        onClick: () => navigate("/stock?filter=nearMin"),
+        onClick: () => router.push("/stock?filter=nearMin"),
       },
       {
         label: "Itens Vencidos",
         value: expired,
-        onClick: () => navigate("/stock?filter=expired"),
+        onClick: () => router.push("/stock?filter=expired"),
       },
       {
         label: "Itens com Vencimento Próximo",
         value: expiringSoonCount,
-        onClick: () => navigate("/stock?filter=expiringSoon"),
+        onClick: () => router.push("/stock?filter=expiringSoon"),
       },
     ],
-    [belowMin, nearMin, expired, expiringSoonCount, navigate],
+    [belowMin, nearMin, expired, expiringSoonCount, router],
   );
 
   const COLORS = useMemo(
@@ -293,9 +303,9 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="space-y-10 pt-10">
+      <div className="space-y-8 sm:space-y-10 pt-2 sm:pt-4">
         <section>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
             {loadingSummary
               ? Array.from({ length: 4 }).map((_, i) => (
                   <Card key={i} className="overflow-hidden">
@@ -319,7 +329,7 @@ export default function Dashboard() {
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-center">
+              <CardTitle className="text-center font-display text-lg tracking-tight">
                 Produtos com Maior Tempo Sem Movimentação
               </CardTitle>
             </CardHeader>
@@ -372,7 +382,7 @@ export default function Dashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-center">
+              <CardTitle className="text-center font-display text-lg tracking-tight">
                 Movimentações Recentes
               </CardTitle>
             </CardHeader>
@@ -432,7 +442,7 @@ export default function Dashboard() {
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-center">
+              <CardTitle className="text-center font-display text-lg tracking-tight">
                 Top 10 Medicações Mais Movimentadas
               </CardTitle>
             </CardHeader>
@@ -453,7 +463,7 @@ export default function Dashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-center">
+              <CardTitle className="text-center font-display text-lg tracking-tight">
                 Top 10 Medicações Menos Movimentadas
               </CardTitle>
             </CardHeader>
@@ -480,8 +490,8 @@ export default function Dashboard() {
               data={cabinetStockData}
               gradientId="barFillCabinet"
               gradientColors={{
-                start: "hsl(174 58% 36%)",
-                end: "hsl(178 45% 26%)",
+                start: "hsl(215 52% 42%)",
+                end: "hsl(222 48% 28%)",
               }}
             />
           </Suspense>
@@ -492,8 +502,8 @@ export default function Dashboard() {
               data={drawerStockData}
               gradientId="barFillDrawer"
               gradientColors={{
-                start: "hsl(88 48% 52%)",
-                end: "hsl(142 50% 36%)",
+                start: "hsl(191 72% 48%)",
+                end: "hsl(205 55% 38%)",
               }}
             />
           </Suspense>

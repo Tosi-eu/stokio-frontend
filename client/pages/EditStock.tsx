@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { Controller } from "react-hook-form";
 import Layout from "@/components/Layout";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { consumeSpaNavigationState } from "@/helpers/spa-navigation-state.helper";
 import { toast } from "@/hooks/use-toast.hook";
 import { getErrorMessage } from "@/helpers/validation.helper";
 import { useFormWithZod } from "@/hooks/use-form-with-zod";
@@ -26,12 +27,7 @@ import {
   StockTypeLabels,
 } from "@/utils/enums";
 import { useEditStockData } from "@/hooks/use-edit-stock-data.hook";
-import { useUiDisplay } from "@/context/ui-display-context";
-import {
-  armarioFilterLabel,
-  caselaModeForContext,
-  gavetaFilterLabel,
-} from "@/helpers/ui-display.helper";
+import { armarioFilterLabel } from "@/helpers/ui-display.helper";
 import ConfirmActionModal from "@/components/ConfirmationActionModal";
 import DatePicker from "react-datepicker";
 import { ptBR } from "date-fns/locale";
@@ -42,9 +38,10 @@ import { useTenant } from "@/hooks/use-tenant.hook";
 
 export default function EditStock() {
   const { uiDisplay } = useTenant();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { uiDisplay } = useUiDisplay();
+  const router = useRouter();
+  const [navState] = useState(() =>
+    consumeSpaNavigationState<{ item?: StockItem }>(),
+  );
 
   const {
     cabinets,
@@ -89,8 +86,8 @@ export default function EditStock() {
   const watchedTipo = watch("tipo");
 
   useEffect(() => {
-    if (!location.state?.item || loadingData) return;
-    const item = location.state.item as StockItem;
+    if (!navState?.item || loadingData) return;
+    const item = navState.item as StockItem;
     const loadData = () => {
       try {
         setStockItem(item);
@@ -149,14 +146,14 @@ export default function EditStock() {
           variant: "error",
           duration: 3000,
         });
-        navigate("/stock");
+        router.push("/stock");
       } finally {
         setLoading(false);
       }
     };
 
     loadData();
-  }, [location.state, loadingData, navigate, reset]);
+  }, [navState, loadingData, router, reset]);
 
   useEffect(() => {
     if (watchedGavetaId !== null) {
@@ -242,7 +239,7 @@ export default function EditStock() {
         duration: 3000,
       });
 
-      navigate("/stock");
+      router.push("/stock");
     } catch (err: unknown) {
       toast({
         title: "Erro ao atualizar",
@@ -679,7 +676,7 @@ export default function EditStock() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate("/stock")}
+                onClick={() => router.push("/stock")}
                 disabled={isSubmitting}
                 className="rounded-lg"
               >
