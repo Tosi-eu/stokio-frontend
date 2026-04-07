@@ -13,6 +13,8 @@ import {
   normalizeUiDisplay,
   type TenantUiDisplay,
 } from "@/helpers/storage-location-display.helper";
+import { setPreviewModeStorage } from "@/helpers/preview-mode-storage";
+import { isPreviewUiModuleKey } from "@/helpers/tenant-modules-preview.helper";
 
 export type TenantModules = {
   enabled: string[];
@@ -103,6 +105,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       setSkipOnboarding(false);
       setUiDisplay(DEFAULT_UI_DISPLAY);
       setLoading(false);
+      setPreviewModeStorage(false);
       return;
     }
     setLoading(true);
@@ -174,9 +177,16 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   );
 
   const isEnabled = useCallback(
-    (key: string) => effectiveEnabled.includes(key),
-    [effectiveEnabled],
+    (key: string) => {
+      if (previewMode && isPreviewUiModuleKey(key)) return true;
+      return effectiveEnabled.includes(key);
+    },
+    [previewMode, effectiveEnabled],
   );
+
+  useEffect(() => {
+    setPreviewModeStorage(previewMode);
+  }, [previewMode]);
 
   return (
     <TenantContext.Provider

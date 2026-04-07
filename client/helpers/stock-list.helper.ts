@@ -13,6 +13,7 @@ export interface StockListFilters {
   nome?: string;
   casela?: string;
   armario?: string;
+  gaveta?: string;
   setor?: string;
   lote?: string;
 }
@@ -39,6 +40,7 @@ export async function fetchStockPage(
   if (filters.nome?.trim()) filterParams.name = filters.nome.trim();
   if (filters.casela?.trim()) filterParams.casela = filters.casela.trim();
   if (filters.armario?.trim()) filterParams.cabinet = filters.armario.trim();
+  if (filters.gaveta?.trim()) filterParams.drawer = filters.gaveta.trim();
   if (filters.setor?.trim()) filterParams.sector = filters.setor.trim();
   if (filters.lote?.trim()) filterParams.lot = filters.lote.trim();
 

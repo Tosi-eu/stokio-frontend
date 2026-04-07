@@ -1,3 +1,7 @@
+import { assertFrontendEnvAtBuild } from "./env.validation.mjs";
+
+assertFrontendEnvAtBuild();
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,

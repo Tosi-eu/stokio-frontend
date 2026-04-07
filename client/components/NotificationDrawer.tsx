@@ -14,9 +14,15 @@ import { useNotifications } from "@/hooks/use-notification.hook";
 import { getNotifications, updateNotification } from "@/api/requests";
 import { EventStatus } from "@/utils/enums";
 import { AnimatePresence, motion } from "framer-motion";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import {
+  getPreviewNotificationsReceita,
+  getPreviewNotificationsReposicao,
+} from "@/helpers/preview-mock-data";
 
 export function NotificationDrawer() {
   const { open, setOpen, triggerReload, setCount } = useNotifications();
+  const { previewMode } = useTenant();
 
   const [items, setItems] = useState<any[]>([]);
   const [page, setPage] = useState(1);
@@ -40,6 +46,25 @@ export function NotificationDrawer() {
     async (p = 1, append = false) => {
       setLoading(true);
       try {
+        if (previewMode) {
+          const raw =
+            activeTab === "receita"
+              ? getPreviewNotificationsReceita()
+              : getPreviewNotificationsReposicao();
+          const term = filterResidentName.trim().toLowerCase();
+          const filtered = term
+            ? raw.filter((n) =>
+                String(n.residente_nome ?? "")
+                  .toLowerCase()
+                  .includes(term),
+              )
+            : raw;
+          setItems((prev) => (append ? [...prev, ...filtered] : filtered));
+          setCount(filtered.length);
+          setHasNext(false);
+          return;
+        }
+
         const params: Parameters<typeof getNotifications>[0] = {
           page: p,
           limit: 5,
@@ -70,7 +95,7 @@ export function NotificationDrawer() {
         setLoading(false);
       }
     },
-    [activeTab, filterResidentName, setCount],
+    [activeTab, filterResidentName, previewMode, setCount],
   );
 
   useEffect(() => {
@@ -101,6 +126,15 @@ export function NotificationDrawer() {
     status: "sent" | "cancelled",
     message: string,
   ) => {
+    if (previewMode) {
+      toast({
+        title: "Modo de visualização",
+        description: "Não é possível alterar notificações na demonstração.",
+        variant: "warning",
+        duration: 3500,
+      });
+      return;
+    }
     try {
       await updateNotification(id, { status });
       toast({ title: message, variant: "success", duration: 3000 });
@@ -225,6 +259,16 @@ export function NotificationDrawer() {
                             )
                           }
                           onEdit={() => {
+                            if (previewMode) {
+                              toast({
+                                title: "Modo de visualização",
+                                description:
+                                  "Edição de notificações não está disponível na demonstração.",
+                                variant: "warning",
+                                duration: 3500,
+                              });
+                              return;
+                            }
                             setMode("create");
                             setEditingNotification({
                               medicamento_id: n.medicamento_id,
@@ -279,7 +323,7 @@ export function NotificationDrawer() {
             </div>
 
             <DrawerFooter>
-              {activeTab === "receita" && (
+              {activeTab === "receita" && !previewMode ? (
                 <button
                   className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90"
                   onClick={() => {
@@ -289,12 +333,12 @@ export function NotificationDrawer() {
                 >
                   Criar Notificação
                 </button>
-              )}
+              ) : null}
             </DrawerFooter>
           </>
         )}
 
-        {mode === "create" && activeTab === "receita" && (
+        {mode === "create" && activeTab === "receita" && !previewMode && (
           <>
             <div className="pt-2">
               <CreateNotificationForm

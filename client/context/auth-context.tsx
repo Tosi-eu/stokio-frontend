@@ -11,6 +11,7 @@ import { login as apiLogin, logoutRequest } from "@/api/requests";
 import { cleanupSessionTimeout } from "@/helpers/session-timeout.helper";
 import { isSuperAdminUser } from "@/helpers/auth-roles.helper";
 import { authStorage } from "@/helpers/auth.helper";
+import { setPreviewModeStorage } from "@/helpers/preview-mode-storage";
 
 export const AuthContext = createContext<AuthContextType | undefined>(
   undefined,
@@ -37,6 +38,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       sessionStorage.removeItem("user");
       sessionStorage.removeItem("authToken");
+      setPreviewModeStorage(false);
       cleanupSessionTimeout();
     }
   }, []);

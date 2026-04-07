@@ -17,7 +17,7 @@ export function AppShellLayout({ children }: { children: ReactNode }) {
   const { logout } = useAuth();
   const { isEnabled, previewMode } = useTenant();
   const { setOpen: setNotificationsOpen } = useNotifications();
-  const showNotificationsUi = isEnabled("notifications");
+  const showNotificationsUi = previewMode || isEnabled("notifications");
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 

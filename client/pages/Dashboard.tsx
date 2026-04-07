@@ -39,9 +39,10 @@ import { SectorType } from "@/utils/enums";
 import { useMaxSectionRows } from "@/hooks/use-max-selection-rows";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
+import { PREVIEW_CABINETS, PREVIEW_DRAWERS } from "@/helpers/preview-mock-data";
 
 export default function Dashboard() {
-  const { uiDisplay } = useTenant();
+  const { uiDisplay, previewMode } = useTenant();
   const router = useRouter();
 
   const [cabinetList, setCabinetList] = useState<
@@ -102,32 +103,44 @@ export default function Dashboard() {
           fetchAllPaginated((p, l) => getDrawers(p, l), 100),
         ]);
         if (cancelled) return;
-        setCabinetList(
-          cabs.map((c: { numero: number; categoria: string }) => ({
+        const cabMapped = cabs.map(
+          (c: { numero: number; categoria: string }) => ({
             numero: c.numero,
             categoria: c.categoria,
-          })),
+          }),
         );
-        setDrawerList(
-          drs.map((d: { numero: number; categoria: string }) => ({
+        const drwMapped = drs.map(
+          (d: { numero: number; categoria: string }) => ({
             numero: d.numero,
             categoria: d.categoria,
-          })),
+          }),
         );
+        if (previewMode && cabMapped.length === 0 && drwMapped.length === 0) {
+          setCabinetList(PREVIEW_CABINETS);
+          setDrawerList(PREVIEW_DRAWERS);
+        } else {
+          setCabinetList(cabMapped);
+          setDrawerList(drwMapped);
+        }
       } catch {
         if (!cancelled) {
-          setCabinetList([]);
-          setDrawerList([]);
+          if (previewMode) {
+            setCabinetList(PREVIEW_CABINETS);
+            setDrawerList(PREVIEW_DRAWERS);
+          } else {
+            setCabinetList([]);
+            setDrawerList([]);
+          }
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [previewMode]);
 
   useEffect(() => {
-    if (summaryError) {
+    if (summaryError && !previewMode) {
       toast({
         title: "Erro ao carregar dados",
         description:
@@ -138,7 +151,7 @@ export default function Dashboard() {
         duration: 3000,
       });
     }
-  }, [summaryError]);
+  }, [summaryError, previewMode]);
 
   useEffect(() => {
     if (!summary) return;

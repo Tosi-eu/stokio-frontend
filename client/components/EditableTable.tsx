@@ -114,6 +114,7 @@ export default function EditableTable({
   columns,
   entityType,
   showAddons = true,
+  readOnly = false,
   currentPage = 1,
   hasNextPage = false,
   loading = false,
@@ -128,6 +129,7 @@ export default function EditableTable({
 }: EditableTableProps & {
   entityType?: string;
   showAddons?: boolean;
+  readOnly?: boolean;
   currentPage?: number;
   hasNextPage?: boolean;
   minRows?: number;
@@ -140,6 +142,7 @@ export default function EditableTable({
   onResume?: (row: Record<string, unknown>) => void;
   onDeleteSuccess?: () => void;
 }) {
+  const effectiveShowAddons = showAddons && !readOnly;
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
   const [showStockDeleteModal, setShowStockDeleteModal] = useState(false);
@@ -331,7 +334,7 @@ export default function EditableTable({
   return (
     <div className="rounded-2xl border border-border/70 bg-card text-card-foreground shadow-elevated overflow-hidden ring-1 ring-black/[0.02] dark:ring-white/[0.04]">
       <div className="flex justify-end px-3 sm:px-4 py-3 border-b border-border/60 bg-muted/30 backdrop-blur-[2px]">
-        {showAddons && (
+        {effectiveShowAddons && (
           <Button
             type="button"
             variant="outline"
@@ -356,7 +359,7 @@ export default function EditableTable({
                   {col.label}
                 </th>
               ))}
-              {showAddons && (
+              {effectiveShowAddons && (
                 <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground sticky right-0 bg-muted/95 backdrop-blur-sm z-10 min-w-[120px] whitespace-nowrap text-center border-l border-border/40 shadow-[-8px_0_16px_-8px_rgba(0,0,0,0.06)]">
                   Ações
                 </th>
@@ -404,7 +407,7 @@ export default function EditableTable({
                         </td>
                       ))}
 
-                      {showAddons && (
+                      {effectiveShowAddons && (
                         <td
                           className={`px-4 py-3 flex justify-center gap-4 sticky right-0 z-10 min-w-[120px] border-l border-border/30 shadow-[-8px_0_16px_-8px_rgba(0,0,0,0.05)] ${
                             row?.status === "suspended"

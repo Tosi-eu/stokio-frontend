@@ -47,11 +47,12 @@ import { parseYearMonthToDate } from "@/helpers/dates.helper";
 import { isSuperAdminUser } from "@/helpers/auth-roles.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { getDefaultHomePath } from "@/helpers/default-home-route.helper";
+import AdminPanelPreview from "./AdminPanelPreview";
 
 export default function AdminPanel() {
   const router = useRouter();
   const { user } = useAuth();
-  const { isEnabled } = useTenant();
+  const { isEnabled, previewMode } = useTenant();
   const isAdmin = user?.role === "admin";
   const isSuperAdmin = isSuperAdminUser(user);
 
@@ -61,11 +62,11 @@ export default function AdminPanel() {
     !isSuperAdmin && activeTab === "tenants" ? "resumo" : activeTab;
 
   useEffect(() => {
-    if (!isAdmin) {
+    if (!isAdmin && !previewMode) {
       const path = getDefaultHomePath(isEnabled, user) ?? "/loading";
       router.replace(path);
     }
-  }, [isAdmin, router, isEnabled, user]);
+  }, [isAdmin, previewMode, router, isEnabled, user]);
 
   const summary = useAdminSummary(isAdmin, effectiveTab === "resumo");
   const alerts = useAdminAlerts(isAdmin, effectiveTab === "alertas");
@@ -83,6 +84,12 @@ export default function AdminPanel() {
   const insights = useAdminInsights(isAdmin, effectiveTab === "insights");
   const reports = useAdminReports(effectiveTab === "relatorios");
   const resumoExtras = useAdminResumoExtras(isAdmin, effectiveTab === "resumo");
+
+  if (!isAdmin && !previewMode) return null;
+
+  if (!isAdmin && previewMode) {
+    return <AdminPanelPreview />;
+  }
 
   if (!isAdmin) return null;
 

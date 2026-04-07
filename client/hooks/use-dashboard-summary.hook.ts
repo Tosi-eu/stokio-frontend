@@ -2,8 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { getDashboardSummary } from "@/api/requests";
 import type { DashboardSummaryResponse } from "@/api/types";
 import { APP_CONFIG } from "@/constants/app.constants";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { getPreviewDashboardSummary } from "@/helpers/preview-mock-data";
+import { useMemo } from "react";
 
 export function useDashboardSummary(expiringDays?: number) {
+  const { previewMode } = useTenant();
+  const previewSummary = useMemo(() => getPreviewDashboardSummary(), []);
   const { data, isLoading, error, refetch } =
     useQuery<DashboardSummaryResponse>({
       queryKey: ["dashboard-summary", expiringDays],
@@ -12,12 +17,13 @@ export function useDashboardSummary(expiringDays?: number) {
           expiringDays != null ? { expiringDays } : undefined,
         ),
       staleTime: (APP_CONFIG.CACHE_TTL.DASHBOARD ?? 60) * 1000,
+      enabled: !previewMode,
     });
 
   return {
-    summary: data,
-    isLoading,
-    error,
+    summary: previewMode ? previewSummary : data,
+    isLoading: previewMode ? false : isLoading,
+    error: previewMode ? null : error,
     refetch,
   };
 }

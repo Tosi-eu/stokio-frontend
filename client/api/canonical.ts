@@ -1,3 +1,6 @@
+import { readPreviewModeFromStorage } from "@/helpers/preview-mode-storage";
+import { toast } from "@/hooks/use-toast.hook";
+
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   process.env.API_BASE_URL ||
@@ -144,12 +147,44 @@ function sanitizeErrorMessage(message: string): string {
   return cleanedMessage;
 }
 
+const PREVIEW_MUTATION_ALLOW_PREFIXES = [
+  "/login/authenticate",
+  "/login/logout",
+  "/login/register-account",
+  "/login/register-user",
+  "/login/join-by-token",
+  "/login/reset-password",
+  "/tenant/",
+];
+
+function isMutationAllowedInPreviewMode(path: string, method: string): boolean {
+  const m = method.toUpperCase();
+  if (m === "GET" || m === "HEAD" || m === "OPTIONS") return true;
+  return PREVIEW_MUTATION_ALLOW_PREFIXES.some((p) => path.startsWith(p));
+}
+
 async function request(
   path: string,
   options: RequestInit & { body?: unknown } = {},
 ) {
   const isFormData = options.body instanceof FormData;
   const { headers: optionHeaders, ...restOptions } = options;
+  const method = (restOptions.method || "GET").toUpperCase();
+  if (
+    readPreviewModeFromStorage() &&
+    !isMutationAllowedInPreviewMode(path, method)
+  ) {
+    toast({
+      title: "Modo de visualização",
+      description:
+        "Alterações não estão disponíveis enquanto explora o sistema. Conclua a configuração do abrigo para utilizar todas as funções.",
+      variant: "warning",
+      duration: 4500,
+    });
+    return Promise.reject(
+      new Error("Modo de visualização: alterações indisponíveis."),
+    );
+  }
   const token = readBearerToken();
 
   const res = await fetch(`${API_BASE_URL}${path}`, {

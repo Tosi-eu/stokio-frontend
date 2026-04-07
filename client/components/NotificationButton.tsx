@@ -14,11 +14,12 @@ import {
 export function NotificationButton() {
   const { count, setOpen } = useNotifications();
   const { user } = useAuth();
-  const { isEnabled } = useTenant();
+  const { isEnabled, previewMode } = useTenant();
   const { toast } = useToast();
   const hasNotifications = count > 0;
   const moduleOn = isEnabled("notifications");
-  const canAccessNotifications = moduleOn && user?.role === "admin";
+  const canAccessNotifications =
+    previewMode || (moduleOn && user?.role === "admin");
 
   const handleClick = () => {
     if (!canAccessNotifications) {
@@ -40,7 +41,9 @@ export function NotificationButton() {
       className="fixed bottom-6 right-6 bg-primary text-primary-foreground rounded-full w-14 h-14 flex items-center justify-center shadow-brand-glow hover:bg-primary/90 transition-colors z-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       aria-label={
         canAccessNotifications
-          ? "Notificações e reposições"
+          ? previewMode
+            ? "Notificações (visualização)"
+            : "Notificações e reposições"
           : "Sem permissão para acessar notificações"
       }
       animate={
@@ -82,7 +85,9 @@ export function NotificationButton() {
         <TooltipTrigger asChild>{button}</TooltipTrigger>
         <TooltipContent side="left" className="max-w-[220px]">
           {canAccessNotifications
-            ? "Notificações e reposições"
+            ? previewMode
+              ? "Visualização: exemplos de notificações e reposição"
+              : "Notificações e reposições"
             : "Você não tem permissão para acessar notificações e reposições."}
         </TooltipContent>
       </Tooltip>

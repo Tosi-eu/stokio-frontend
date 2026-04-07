@@ -80,7 +80,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
   const sidebarLogoReady = isViewerTenant ? true : isLogoResolved;
 
   const navigationTabs = [
-    ...(user?.role === "admin" && isEnabled("admin")
+    ...((previewMode || user?.role === "admin") && isEnabled("admin")
       ? [{ name: "Painel administrativo", href: "/admin", icon: ShieldCheck }]
       : []),
     ...baseNavigationTabs.filter((t) =>

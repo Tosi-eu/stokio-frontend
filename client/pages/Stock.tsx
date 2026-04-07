@@ -50,6 +50,12 @@ import { ChevronsUpDown, X } from "lucide-react";
 import { TableFilter } from "@/components/TableFilter";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import {
+  getPreviewStockItems,
+  PREVIEW_CABINETS,
+  PREVIEW_DRAWERS,
+  PREVIEW_RESIDENTS,
+} from "@/helpers/preview-mock-data";
+import {
   formatCaselaLabel,
   formatGavetaLabel,
 } from "@/helpers/storage-location-display.helper";
@@ -62,7 +68,7 @@ const FILTER_LABELS: Record<string, string> = {
 };
 
 export default function Stock() {
-  const { uiDisplay } = useTenant();
+  const { uiDisplay, previewMode } = useTenant();
   const router = useRouter();
   const searchParams = useSearchParams();
   const filter = searchParams.get("filter"); // "noStock" | "belowMin" | "expired" | "expiringSoon"
@@ -148,19 +154,29 @@ export default function Stock() {
         currentFilters,
         filter,
       );
-      setItems(formatStockItems(data));
-      setHasNext(hasNext);
+      let formatted = formatStockItems(data);
+      const previewFill = previewMode && formatted.length === 0;
+      if (previewFill) {
+        formatted = getPreviewStockItems();
+      }
+      setItems(formatted);
+      setHasNext(previewFill ? false : hasNext);
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Não foi possível carregar os itens do estoque.";
-      toast({
-        title: "Erro ao carregar estoque",
-        description: errorMessage,
-        variant: "error",
-        duration: 3000,
-      });
+      if (previewMode) {
+        setItems(getPreviewStockItems());
+        setHasNext(false);
+      } else {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : "Não foi possível carregar os itens do estoque.";
+        toast({
+          title: "Erro ao carregar estoque",
+          description: errorMessage,
+          variant: "error",
+          duration: 3000,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -171,16 +187,24 @@ export default function Stock() {
       const res = await getStockFilterOptions();
       setApiFilterOptions(res ?? null);
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Não foi possível carregar as opções de filtro.";
-      toast({
-        title: "Erro ao carregar opções",
-        description: errorMessage,
-        variant: "error",
-        duration: 3000,
-      });
+      if (previewMode) {
+        setApiFilterOptions({
+          cabinets: PREVIEW_CABINETS.map((c) => c.numero),
+          caselas: PREVIEW_RESIDENTS.map((r) => r.casela),
+          lots: ["LT-DEMO"],
+        });
+      } else {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : "Não foi possível carregar as opções de filtro.";
+        toast({
+          title: "Erro ao carregar opções",
+          description: errorMessage,
+          variant: "error",
+          duration: 3000,
+        });
+      }
     }
   }
 
@@ -197,16 +221,22 @@ export default function Stock() {
         })),
       );
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Não foi possível carregar os residentes.";
-      toast({
-        title: "Erro ao carregar residentes",
-        description: errorMessage,
-        variant: "error",
-        duration: 3000,
-      });
+      if (previewMode) {
+        setResidents(
+          PREVIEW_RESIDENTS.map((r) => ({ casela: r.casela, name: r.name })),
+        );
+      } else {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : "Não foi possível carregar os residentes.";
+        toast({
+          title: "Erro ao carregar residentes",
+          description: errorMessage,
+          variant: "error",
+          duration: 3000,
+        });
+      }
     }
   }
 
@@ -225,7 +255,15 @@ export default function Stock() {
       }
       setDrawerCategoryByNum(m);
     } catch {
-      setDrawerCategoryByNum(new Map());
+      if (previewMode) {
+        const m = new Map<number, string>();
+        for (const d of PREVIEW_DRAWERS) {
+          if (d.categoria) m.set(d.numero, d.categoria);
+        }
+        setDrawerCategoryByNum(m);
+      } else {
+        setDrawerCategoryByNum(new Map());
+      }
     }
   }
 
@@ -541,6 +579,7 @@ export default function Stock() {
         <div className="flex flex-wrap gap-3 justify-end mt-8">
           <button
             onClick={() => router.push("/stock/out")}
+            disabled={previewMode}
             className="
                 h-12 px-6 rounded-lg font-semibold
                 bg-red-600 text-white
@@ -554,6 +593,7 @@ export default function Stock() {
 
           <button
             onClick={() => setReportModalOpen(true)}
+            disabled={previewMode}
             className="
                 h-12 px-6 rounded-lg font-semibold
                 bg-primary text-primary-foreground
@@ -773,6 +813,7 @@ export default function Stock() {
               data={displayItems as unknown as Record<string, unknown>[]}
               columns={columns}
               showAddons={true}
+              readOnly={previewMode}
               currentPage={page}
               hasNextPage={hasNext}
               onNextPage={() => setPage((p) => p + 1)}

@@ -11,7 +11,7 @@ import { prefetchTenantBrandLogoBeforeInicioNavigation } from "@/helpers/tenant-
 const POST_LOGIN_MIN_VISIBLE_MS = 6000;
 
 export default function PostLoginRedirect() {
-  const { loading, tenant, effectiveEnabled, previewMode } = useTenant();
+  const { loading, tenant, isEnabled, previewMode } = useTenant();
   const { user } = useAuth();
   const router = useRouter();
 
@@ -35,7 +35,7 @@ export default function PostLoginRedirect() {
     if (loading || doneRef.current || screenStartRef.current === null) return;
 
     const path =
-      getDefaultHomePath((key) => effectiveEnabled.includes(key), {
+      getDefaultHomePath(isEnabled, {
         role: userRole,
       }) ?? "/user/profile";
 
@@ -49,7 +49,7 @@ export default function PostLoginRedirect() {
     }, remaining);
 
     return () => window.clearTimeout(timer);
-  }, [loading, userId, userRole, router, effectiveEnabled]);
+  }, [loading, userId, userRole, router, isEnabled]);
 
   const title = tenant?.brandName || tenant?.name || APP_PUBLIC_NAME;
 

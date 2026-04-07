@@ -8,6 +8,8 @@ import { getInputMovements, getMedicineMovements } from "@/api/requests";
 import { Card } from "@/components/ui/card";
 import type { RawMovement } from "@/interfaces/interfaces";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { getPreviewMovementRows } from "@/helpers/preview-mock-data";
+import { MovementType } from "@/utils/enums";
 import {
   formatCaselaLabel,
   formatGavetaLabel,
@@ -17,7 +19,7 @@ const TABLE_LIMIT = 10;
 const REQUEST_LIMIT = 5;
 
 export default function InputMovements() {
-  const { uiDisplay } = useTenant();
+  const { uiDisplay, previewMode } = useTenant();
   const [entriesInputPage, setEntriesInputPage] = useState(1);
   const [entriesMedicinePage, setEntriesMedicinePage] = useState(1);
   const [entriesHasNext, setEntriesHasNext] = useState(false);
@@ -31,6 +33,13 @@ export default function InputMovements() {
   const [exits, setExits] = useState<any[]>([]);
   const [loadingExits, setLoadingExits] = useState(true);
   const exitsRequestId = useRef(0);
+
+  const [transfersInputPage, setTransfersInputPage] = useState(1);
+  const [transfersMedicinePage, setTransfersMedicinePage] = useState(1);
+  const [transfersHasNext, setTransfersHasNext] = useState(false);
+  const [transfers, setTransfers] = useState<any[]>([]);
+  const [loadingTransfers, setLoadingTransfers] = useState(true);
+  const transfersRequestId = useRef(0);
 
   const columnsBase = [
     { key: "name", label: "Produto", editable: false },
@@ -80,12 +89,12 @@ export default function InputMovements() {
     try {
       const [insumos, medicamentos] = await Promise.all([
         getInputMovements({
-          type: "entrada",
+          type: MovementType.IN,
           limit: REQUEST_LIMIT,
           page: entriesInputPage,
         }),
         getMedicineMovements({
-          type: "entrada",
+          type: MovementType.IN,
           limit: REQUEST_LIMIT,
           page: entriesMedicinePage,
         }),
@@ -102,23 +111,36 @@ export default function InputMovements() {
           new Date(a.movementDate).getTime(),
       );
 
-      setEntries(merged.slice(0, TABLE_LIMIT));
-      setEntriesHasNext(
-        insumos.hasNext || medicamentos.hasNext || merged.length > TABLE_LIMIT,
-      );
+      const slice = merged.slice(0, TABLE_LIMIT);
+      if (previewMode && slice.length === 0) {
+        setEntries(getPreviewMovementRows("entrada"));
+        setEntriesHasNext(false);
+      } else {
+        setEntries(slice);
+        setEntriesHasNext(
+          insumos.hasNext ||
+            medicamentos.hasNext ||
+            merged.length > TABLE_LIMIT,
+        );
+      }
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Não foi possível carregar as movimentações de entrada.";
-      toast({
-        title: "Erro ao carregar entradas",
-        description: errorMessage,
-        variant: "error",
-        duration: 3000,
-      });
-      setEntries([]);
-      setEntriesHasNext(false);
+      if (previewMode) {
+        setEntries(getPreviewMovementRows("entrada"));
+        setEntriesHasNext(false);
+      } else {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : "Não foi possível carregar as movimentações de entrada.";
+        toast({
+          title: "Erro ao carregar entradas",
+          description: errorMessage,
+          variant: "error",
+          duration: 3000,
+        });
+        setEntries([]);
+        setEntriesHasNext(false);
+      }
     } finally {
       setLoadingEntries(false);
     }
@@ -131,12 +153,12 @@ export default function InputMovements() {
     try {
       const [insumos, medicamentos] = await Promise.all([
         getInputMovements({
-          type: "saida",
+          type: MovementType.OUT,
           limit: REQUEST_LIMIT,
           page: exitsInputPage,
         }),
         getMedicineMovements({
-          type: "saida",
+          type: MovementType.OUT,
           limit: REQUEST_LIMIT,
           page: exitsMedicinePage,
         }),
@@ -153,25 +175,102 @@ export default function InputMovements() {
           new Date(a.movementDate).getTime(),
       );
 
-      setExits(merged.slice(0, TABLE_LIMIT));
-      setExitsHasNext(
-        insumos.hasNext || medicamentos.hasNext || merged.length > TABLE_LIMIT,
-      );
+      const slice = merged.slice(0, TABLE_LIMIT);
+      if (previewMode && slice.length === 0) {
+        setExits(getPreviewMovementRows("saida"));
+        setExitsHasNext(false);
+      } else {
+        setExits(slice);
+        setExitsHasNext(
+          insumos.hasNext ||
+            medicamentos.hasNext ||
+            merged.length > TABLE_LIMIT,
+        );
+      }
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Não foi possível carregar as movimentações de saída.";
-      toast({
-        title: "Erro ao carregar saídas",
-        description: errorMessage,
-        variant: "error",
-        duration: 3000,
-      });
-      setExits([]);
-      setExitsHasNext(false);
+      if (previewMode) {
+        setExits(getPreviewMovementRows("saida"));
+        setExitsHasNext(false);
+      } else {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : "Não foi possível carregar as movimentações de saída.";
+        toast({
+          title: "Erro ao carregar saídas",
+          description: errorMessage,
+          variant: "error",
+          duration: 3000,
+        });
+        setExits([]);
+        setExitsHasNext(false);
+      }
     } finally {
       setLoadingExits(false);
+    }
+  }
+
+  async function fetchTransfers() {
+    const requestId = +transfersRequestId.current;
+    setLoadingTransfers(true);
+
+    try {
+      const [insumos, medicamentos] = await Promise.all([
+        getInputMovements({
+          type: MovementType.TRANSFER,
+          limit: REQUEST_LIMIT,
+          page: transfersInputPage,
+        }),
+        getMedicineMovements({
+          type: MovementType.TRANSFER,
+          limit: REQUEST_LIMIT,
+          page: transfersMedicinePage,
+        }),
+      ]);
+
+      if (requestId !== transfersRequestId.current) return;
+
+      const merged = [
+        ...insumos.data.map(normalizeMovement),
+        ...medicamentos.data.map(normalizeMovement),
+      ].sort(
+        (a, b) =>
+          new Date(b.movementDate).getTime() -
+          new Date(a.movementDate).getTime(),
+      );
+
+      const slice = merged.slice(0, TABLE_LIMIT);
+      if (previewMode && slice.length === 0) {
+        setTransfers(getPreviewMovementRows("transferencia"));
+        setTransfersHasNext(false);
+      } else {
+        setTransfers(slice);
+        setTransfersHasNext(
+          insumos.hasNext ||
+            medicamentos.hasNext ||
+            merged.length > TABLE_LIMIT,
+        );
+      }
+    } catch (err: unknown) {
+      if (previewMode) {
+        setTransfers(getPreviewMovementRows("transferencia"));
+        setTransfersHasNext(false);
+      } else {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : "Não foi possível carregar as movimentações de transferência.";
+        toast({
+          title: "Erro ao carregar transferências",
+          description: errorMessage,
+          variant: "error",
+          duration: 3000,
+        });
+        setTransfers([]);
+        setTransfersHasNext(false);
+      }
+    } finally {
+      setLoadingTransfers(false);
     }
   }
 
@@ -184,6 +283,11 @@ export default function InputMovements() {
     fetchExits();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchExits stable
   }, [exitsInputPage, exitsMedicinePage, uiDisplay]);
+
+  useEffect(() => {
+    fetchTransfers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchTransfers stable
+  }, [transfersInputPage, transfersMedicinePage, uiDisplay]);
 
   return (
     <Layout title="Movimentações">
@@ -210,6 +314,7 @@ export default function InputMovements() {
                   setEntriesMedicinePage((p) => Math.max(1, p - 1));
                 }}
                 showAddons={false}
+                readOnly={previewMode}
               />
             )}
           </div>
@@ -235,6 +340,36 @@ export default function InputMovements() {
                   setExitsMedicinePage((p) => Math.max(1, p - 1));
                 }}
                 showAddons={false}
+                readOnly={previewMode}
+              />
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Transferências</h2>
+
+            {loadingTransfers ? (
+              <SkeletonTable rows={5} cols={columnsBase.length} />
+            ) : (
+              <EditableTable
+                data={transfers}
+                columns={columnsBase}
+                entityType="transfers"
+                currentPage={Math.max(
+                  transfersInputPage,
+                  transfersMedicinePage,
+                )}
+                hasNextPage={transfersHasNext}
+                onNextPage={() => {
+                  setTransfersInputPage((p) => p + 1);
+                  setTransfersMedicinePage((p) => p + 1);
+                }}
+                onPrevPage={() => {
+                  setTransfersInputPage((p) => Math.max(1, p - 1));
+                  setTransfersMedicinePage((p) => Math.max(1, p - 1));
+                }}
+                showAddons={false}
+                readOnly={previewMode}
               />
             )}
           </div>

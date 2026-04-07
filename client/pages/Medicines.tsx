@@ -6,6 +6,8 @@ import { TableFilter } from "@/components/TableFilter";
 import { getMedicines } from "@/api/requests";
 import { toast } from "@/hooks/use-toast.hook";
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { PREVIEW_MEDICINES } from "@/helpers/preview-mock-data";
 
 const columns = [
   { key: "nome", label: "Nome" },
@@ -16,6 +18,7 @@ const columns = [
 ];
 
 export default function Medicines() {
+  const { previewMode } = useTenant();
   const [medicines, setMedicines] = useState<Record<string, unknown>[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -31,18 +34,31 @@ export default function Medicines() {
         DEFAULT_PAGE_SIZE,
         searchFilter || undefined,
       );
-      setMedicines(res.data as unknown as Record<string, unknown>[]);
-      setHasNext(res.hasNext);
-      setTotal(res.total);
+      const rows = res.data as unknown as Record<string, unknown>[];
+      if (previewMode && rows.length === 0) {
+        setMedicines(PREVIEW_MEDICINES);
+        setHasNext(false);
+        setTotal(PREVIEW_MEDICINES.length);
+      } else {
+        setMedicines(rows);
+        setHasNext(res.hasNext);
+        setTotal(res.total);
+      }
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Erro inesperado";
-      toast({
-        title: "Erro ao carregar medicamentos",
-        description: errorMessage,
-        variant: "error",
-        duration: 3000,
-      });
+      if (previewMode) {
+        setMedicines(PREVIEW_MEDICINES);
+        setHasNext(false);
+        setTotal(PREVIEW_MEDICINES.length);
+      } else {
+        const errorMessage =
+          err instanceof Error ? err.message : "Erro inesperado";
+        toast({
+          title: "Erro ao carregar medicamentos",
+          description: errorMessage,
+          variant: "error",
+          duration: 3000,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -78,6 +94,7 @@ export default function Medicines() {
               data={medicines}
               columns={columns}
               entityType="medicines"
+              readOnly={previewMode}
               currentPage={page}
               hasNextPage={hasNextPage}
               onNextPage={() => {

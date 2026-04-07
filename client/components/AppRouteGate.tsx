@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { readSkipTenantOnboarding } from "@/context/tenant-context";
 import { useInvalidSession } from "@/context/invalid-session.context";
 import { InvalidSessionModal } from "@/components/InvalidSessionModal";
 import { toast } from "@/hooks/use-toast.hook";
@@ -28,13 +29,21 @@ export function AppRouteGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user } = useAuth();
   const {
+    tenantId,
     onboardingComplete,
     loading: tenantLoading,
     previewMode,
   } = useTenant();
 
+  const skipOnboardingPref =
+    tenantId != null && readSkipTenantOnboarding(tenantId);
+
   const needsSetup = Boolean(
-    user && !tenantLoading && !onboardingComplete && !previewMode,
+    user &&
+    !tenantLoading &&
+    !onboardingComplete &&
+    !previewMode &&
+    !skipOnboardingPref,
   );
   const isOnboardingPath = pathname === "/tenant/onboarding";
 
