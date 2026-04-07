@@ -28,7 +28,7 @@ export async function prefetchTenantBrandLogoBeforeInicioNavigation(): Promise<v
     const publicDefault = mergePublicLogoWithServerDefault(serverDefault);
 
     const resolved = await resolveTenantR2LogoUrl({
-      viteR2PublicBaseUrl: import.meta.env.VITE_R2_PUBLIC_BASE_URL,
+      r2PublicBaseUrl: process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
       logoUrlFromApi: tenant?.logoUrl,
       slug: tenant?.slug,
       brandName: tenant?.brandName,

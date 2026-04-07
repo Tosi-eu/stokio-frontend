@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Controller } from "react-hook-form";
 import Layout from "@/components/Layout";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { consumeSpaNavigationState } from "@/helpers/spa-navigation-state.helper";
 import { toast } from "@/hooks/use-toast.hook";
 import { getErrorMessage } from "@/helpers/validation.helper";
 import { useFormWithZod } from "@/hooks/use-form-with-zod";
@@ -14,8 +15,21 @@ import { Button } from "@/components/ui/button";
 import { MeasurementUnitCombobox } from "@/components/MeasurementUnitCombobox";
 
 export default function EditMedicine() {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const router = useRouter();
+  const navState = useMemo(
+    () =>
+      consumeSpaNavigationState<{
+        item?: {
+          id: number;
+          nome?: string;
+          principio_ativo?: string;
+          dosagem?: string;
+          unidade_medida?: string;
+          estoque_minimo?: number;
+        };
+      }>(),
+    [],
+  );
 
   const [medicineId, setMedicineId] = useState<number | null>(null);
 
@@ -36,8 +50,8 @@ export default function EditMedicine() {
   });
 
   useEffect(() => {
-    if (location.state?.item) {
-      const item = location.state.item;
+    if (navState?.item) {
+      const item = navState.item;
       const id = setTimeout(() => {
         setMedicineId(item.id);
         reset({
@@ -50,7 +64,7 @@ export default function EditMedicine() {
       }, 0);
       return () => clearTimeout(id);
     }
-  }, [location.state, reset]);
+  }, [navState, reset]);
 
   const onSubmit = async (data: {
     nome: string;
@@ -85,7 +99,7 @@ export default function EditMedicine() {
         duration: 3000,
       });
 
-      navigate("/medicines");
+      router.push("/medicines");
     } catch (err: unknown) {
       toast({
         title: "Erro ao atualizar",
@@ -172,9 +186,7 @@ export default function EditMedicine() {
                         disabled={isSubmitting}
                         id="unidade_medida"
                         placeholder="Unidade"
-                        aria-invalid={
-                          errors.unidade_medida ? "true" : undefined
-                        }
+                        aria-invalid={Boolean(errors.unidade_medida)}
                       />
                       {errors.unidade_medida && (
                         <p className="text-sm text-red-600 mt-1">
@@ -207,7 +219,7 @@ export default function EditMedicine() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate("/medicines")}
+                onClick={() => router.push("/medicines")}
                 disabled={isSubmitting}
                 className="rounded-lg"
               >

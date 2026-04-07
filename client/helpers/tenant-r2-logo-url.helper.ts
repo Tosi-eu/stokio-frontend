@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "@/api/canonical";
-import { normalizeViteR2PublicBaseUrl } from "@/constants/app-branding";
+import { normalizeR2PublicBaseUrl } from "@/constants/app-branding";
 
 export function buildTenantLogoProxyUrl(slug: string): string {
   const s = String(slug ?? "").trim();
@@ -103,7 +103,7 @@ export async function probeFirstResolvableTenantLogoUrl(
 }
 
 export async function resolveTenantR2LogoUrl(params: {
-  viteR2PublicBaseUrl: string | undefined;
+  r2PublicBaseUrl: string | undefined;
   logoUrlFromApi: string | null | undefined;
   slug: string | null | undefined;
   brandName: string | null | undefined;
@@ -132,7 +132,7 @@ export async function resolveTenantR2LogoUrl(params: {
     if (ok) return apiUrl;
   }
 
-  const base = normalizeViteR2PublicBaseUrl(params.viteR2PublicBaseUrl);
+  const base = normalizeR2PublicBaseUrl(params.r2PublicBaseUrl);
   const brandLabel = params.brandName?.trim() || params.name?.trim() || "logo";
   if (!base || !slug) return null;
 

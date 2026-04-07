@@ -1,6 +1,4 @@
-# Debian/glibc: Vite/Rollup precisam do binding nativo certo; em Alpine (musl)
-# o @rollup/rollup-linux-x64-musl costuma faltar por causa de optional deps + lockfile.
-# A imagem final continua nginx:alpine.
+# Debian/glibc para builds Node estáveis.
 FROM node:20-bookworm-slim AS build
 
 WORKDIR /app
@@ -10,24 +8,38 @@ RUN npm install
 
 COPY . .
 
-ARG VITE_API_BASE_URL
-ARG VITE_LOGO_URL
-ARG VITE_PUBLIC_APP_NAME
-ARG VITE_PUBLIC_APP_LOGO_URL
-ARG VITE_R2_PUBLIC_BASE_URL
+ARG NEXT_PUBLIC_API_BASE_URL
+ARG NEXT_PUBLIC_LOGO_URL
+ARG NEXT_PUBLIC_APP_NAME
+ARG NEXT_PUBLIC_APP_LOGO_URL
+ARG NEXT_PUBLIC_R2_PUBLIC_BASE_URL
+ARG NEXT_PUBLIC_X_API_KEY
 
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-ENV VITE_LOGO_URL=$VITE_LOGO_URL
-ENV VITE_PUBLIC_APP_NAME=$VITE_PUBLIC_APP_NAME
-ENV VITE_PUBLIC_APP_LOGO_URL=$VITE_PUBLIC_APP_LOGO_URL
-ENV VITE_R2_PUBLIC_BASE_URL=$VITE_R2_PUBLIC_BASE_URL
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_LOGO_URL=$NEXT_PUBLIC_LOGO_URL
+ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
+ENV NEXT_PUBLIC_APP_LOGO_URL=$NEXT_PUBLIC_APP_LOGO_URL
+ENV NEXT_PUBLIC_R2_PUBLIC_BASE_URL=$NEXT_PUBLIC_R2_PUBLIC_BASE_URL
+ENV NEXT_PUBLIC_X_API_KEY=$NEXT_PUBLIC_X_API_KEY
 
 RUN npm run build
 
-FROM nginx:alpine
-RUN rm /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist/spa /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/app.conf
+FROM node:20-bookworm-slim AS runner
 
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=8081
+ENV HOSTNAME=0.0.0.0
+
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+
+COPY --from=build /app/public ./public
+COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 8081
+
+CMD ["node", "server.js"]

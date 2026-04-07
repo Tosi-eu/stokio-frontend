@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Package } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 
 export interface StockReplacementItem {
   id: number;
@@ -40,11 +40,11 @@ const StockReplacementModal: FC<StockReplacementModalProps> = ({
   items,
   onClose,
 }) => {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleGoToStock = () => {
     onClose();
-    navigate("/stock");
+    router.push("/stock");
   };
 
   return (

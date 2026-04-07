@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Layout from "@/components/Layout";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast.hook";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCabinetCategories } from "@/hooks/use-categories.hook";
@@ -15,7 +15,7 @@ import ConfirmationModal from "@/components/ConfirmationModal";
 import { getErrorMessage } from "@/helpers/validation.helper";
 
 export default function RegisterCabinet() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { categories } = useCabinetCategories();
@@ -68,7 +68,9 @@ export default function RegisterCabinet() {
       let finalCategoryId = categoryId;
 
       if (!finalCategoryId) {
-        const res = await createCabinetCategory(category.trim());
+        const res = (await createCabinetCategory(category.trim())) as {
+          id: number;
+        };
         finalCategoryId = res.id;
         await queryClient.invalidateQueries({
           queryKey: ["cabinet-categories"],
@@ -83,7 +85,7 @@ export default function RegisterCabinet() {
         variant: "success",
       });
 
-      navigate("/cabinets");
+      router.push("/cabinets");
     } catch (err) {
       toast({
         title: "Erro ao cadastrar",
@@ -142,7 +144,7 @@ export default function RegisterCabinet() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate("/cabinets")}
+                onClick={() => router.push("/cabinets")}
                 disabled={saving}
               >
                 Cancelar

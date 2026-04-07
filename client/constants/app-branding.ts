@@ -1,4 +1,4 @@
-export function normalizeViteR2PublicBaseUrl(
+export function normalizeR2PublicBaseUrl(
   raw: string | undefined,
 ): string | null {
   let s = raw?.trim();
@@ -14,8 +14,8 @@ export function normalizeViteR2PublicBaseUrl(
 }
 
 function r2DefaultLogoUrl(): string | null {
-  const r2 = normalizeViteR2PublicBaseUrl(
-    import.meta.env.VITE_R2_PUBLIC_BASE_URL,
+  const r2 = normalizeR2PublicBaseUrl(
+    process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
   );
   if (!r2) return null;
   return `${r2}/default_logo.png`;
@@ -26,7 +26,7 @@ function isAbsoluteHttpUrl(value: string): boolean {
 }
 
 function resolvePublicLogoUrl(): string {
-  const explicit = import.meta.env.VITE_PUBLIC_APP_LOGO_URL?.trim();
+  const explicit = process.env.NEXT_PUBLIC_APP_LOGO_URL?.trim();
   if (explicit && isAbsoluteHttpUrl(explicit)) return explicit;
 
   const r2Logo = r2DefaultLogoUrl();
@@ -40,7 +40,7 @@ function resolvePublicLogoUrl(): string {
 }
 
 function resolvePdfLogoUrl(): string {
-  const pdf = import.meta.env.VITE_LOGO_URL?.trim();
+  const pdf = process.env.NEXT_PUBLIC_LOGO_URL?.trim();
   if (pdf && isAbsoluteHttpUrl(pdf)) return pdf;
 
   const r2Logo = r2DefaultLogoUrl();
@@ -54,10 +54,10 @@ function resolvePdfLogoUrl(): string {
 }
 
 function resolvePublicAppName(): string {
-  const raw = import.meta.env.VITE_PUBLIC_APP_NAME;
+  const raw = process.env.NEXT_PUBLIC_APP_NAME;
   const s = typeof raw === "string" ? raw.trim() : "";
   if (s) return s;
-  return "Porto - Gestão Inteligente de Abrigos";
+  return "Stokio - Gestão Inteligente de Abrigos";
 }
 
 export const APP_PUBLIC_NAME = resolvePublicAppName();
@@ -78,8 +78,8 @@ export function mergePublicLogoWithServerDefault(
 export const PDF_REPORT_LOGO_URL = resolvePdfLogoUrl();
 
 export function getR2PublicOriginForPreconnect(): string | null {
-  const r2 = normalizeViteR2PublicBaseUrl(
-    import.meta.env.VITE_R2_PUBLIC_BASE_URL,
+  const r2 = normalizeR2PublicBaseUrl(
+    process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
   );
   if (!r2) return null;
   try {

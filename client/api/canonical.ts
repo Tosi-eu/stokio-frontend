@@ -1,13 +1,15 @@
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.API_BASE_URL ||
-  (import.meta.env.DEV ? "http://localhost:3001/api/v1" : "");
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.API_BASE_URL ||
+  (process.env.NODE_ENV === "development"
+    ? "http://localhost:3001/api/v1"
+    : "");
 
 if (!API_BASE_URL) {
   console.warn(
     "⚠️ API_BASE_URL environment variable is not set.",
-    "\nFor Docker builds, set VITE_API_BASE_URL in docker-compose.yml build args or .env file.",
-    "\nFor local builds, set VITE_API_BASE_URL in frontend/.env file.",
+    "\nFor Docker builds, set NEXT_PUBLIC_API_BASE_URL in build args or .env file.",
+    "\nFor local builds, set NEXT_PUBLIC_API_BASE_URL in frontend/.env file.",
   );
 }
 

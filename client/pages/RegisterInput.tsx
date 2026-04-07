@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Layout from "@/components/Layout";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast.hook";
 import { getErrorMessage } from "@/helpers/validation.helper";
 import { createInput } from "@/api/requests";
@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 export default function RegisterInput() {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const {
     register,
@@ -44,7 +44,7 @@ export default function RegisterInput() {
         duration: 3000,
       });
 
-      navigate("/inputs");
+      router.push("/inputs");
     } catch (err: unknown) {
       toast({
         title: "Erro ao cadastrar insumo",
@@ -145,7 +145,7 @@ export default function RegisterInput() {
               <Button
                 variant="outline"
                 type="button"
-                onClick={() => navigate("/inputs")}
+                onClick={() => router.push("/inputs")}
                 disabled={isSubmitting}
                 className="rounded-lg"
               >

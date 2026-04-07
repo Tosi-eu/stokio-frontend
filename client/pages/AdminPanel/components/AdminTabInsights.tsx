@@ -170,7 +170,7 @@ export function AdminTabInsights({
               <Card
                 className={`cursor-pointer transition-all hover:shadow-md ${
                   insightFilter === "create"
-                    ? "ring-2 ring-green-500 bg-green-50/50 dark:bg-green-950/20"
+                    ? "ring-2 ring-primary bg-primary/5 dark:bg-primary/10"
                     : ""
                 }`}
                 onClick={() => {
@@ -182,7 +182,7 @@ export function AdminTabInsights({
               >
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <PlusCircle className="h-4 w-4 text-green-600" />
+                    <PlusCircle className="h-4 w-4 text-primary" />
                     Criados
                   </CardTitle>
                 </CardHeader>

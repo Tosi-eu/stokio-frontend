@@ -24,7 +24,7 @@ import {
   getMedicines,
   getResidents,
 } from "@/api/requests";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import {
   Select,
@@ -54,7 +54,7 @@ export default function StockIn() {
   const [drawers, setDrawers] = useState<Drawer[]>([]);
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const navigate = useNavigate();
+  const router = useRouter();
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -121,7 +121,7 @@ export default function StockIn() {
         duration: 3000,
       });
 
-      navigate("/stock");
+      router.push("/stock");
     } catch (err: unknown) {
       const errorMessage = getErrorMessage(
         err,
@@ -166,7 +166,7 @@ export default function StockIn() {
         duration: 3000,
       });
 
-      navigate("/stock");
+      router.push("/stock");
     } catch (err: unknown) {
       const errorMessage = getErrorMessage(
         err,

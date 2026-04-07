@@ -58,7 +58,7 @@ export function NotificationCard({
           {onComplete && (
             <button
               onClick={onComplete}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg"
             >
               Concluir
             </button>

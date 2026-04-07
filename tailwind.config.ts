@@ -3,7 +3,7 @@ import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
-  content: ["./client/**/*.{ts,tsx}"],
+  content: ["./app/**/*.{ts,tsx}", "./client/**/*.{ts,tsx}"],
   prefix: "",
   theme: {
     container: {
@@ -15,33 +15,40 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['"Plus Jakarta Sans"', "Inter", "system-ui", "sans-serif"],
+        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: [
+          "var(--font-display)",
+          "var(--font-sans)",
+          "ui-sans-serif",
+          "system-ui",
+          "sans-serif",
+        ],
       },
       boxShadow: {
         elevated: "var(--shadow-soft)",
-        "brand-glow": "0 8px 32px -8px hsl(174 45% 35% / 0.25)",
+        "brand-glow": "0 8px 32px -8px hsl(191 55% 38% / 0.28)",
       },
       backgroundImage: {
         "brand-hero":
-          "linear-gradient(160deg, hsl(168 38% 94%) 0%, hsl(165 35% 97%) 40%, hsl(88 35% 95%) 100%)",
+          "linear-gradient(160deg, hsl(214 38% 94%) 0%, hsl(210 40% 97%) 45%, hsl(205 42% 96%) 100%)",
         "brand-strip":
-          "linear-gradient(135deg, hsl(180 55% 28%) 0%, hsl(165 50% 38%) 45%, hsl(88 48% 58%) 100%)",
+          "linear-gradient(135deg, hsl(222 48% 24%) 0%, hsl(210 48% 40%) 45%, hsl(191 78% 48%) 100%)",
         "brand-mesh":
-          "radial-gradient(ellipse 120% 80% at 100% -20%, hsl(88 45% 88% / 0.5), transparent 50%), radial-gradient(ellipse 100% 60% at 0% 100%, hsl(180 40% 85% / 0.35), transparent 45%), hsl(165 35% 98%)",
+          "radial-gradient(ellipse 120% 80% at 100% -20%, hsl(205 50% 88% / 0.55), transparent 50%), radial-gradient(ellipse 100% 60% at 0% 100%, hsl(215 45% 86% / 0.4), transparent 45%), hsl(210 42% 98%)",
       },
       colors: {
         sky: {
-          50: "hsl(165 42% 97%)",
-          100: "hsl(165 35% 93%)",
-          200: "hsl(168 32% 86%)",
-          300: "hsl(170 30% 76%)",
-          400: "hsl(172 35% 58%)",
-          500: "hsl(174 42% 44%)",
-          600: "hsl(174 58% 36%)",
-          700: "hsl(176 52% 30%)",
-          800: "hsl(178 45% 24%)",
-          900: "hsl(182 40% 18%)",
-          950: "hsl(186 45% 11%)",
+          50: "hsl(210 45% 97%)",
+          100: "hsl(214 38% 93%)",
+          200: "hsl(213 32% 86%)",
+          300: "hsl(215 30% 76%)",
+          400: "hsl(210 38% 58%)",
+          500: "hsl(208 42% 46%)",
+          600: "hsl(215 52% 38%)",
+          700: "hsl(220 48% 30%)",
+          800: "hsl(222 42% 24%)",
+          900: "hsl(224 38% 16%)",
+          950: "hsl(226 42% 10%)",
         },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

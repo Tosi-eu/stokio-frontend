@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -49,7 +49,7 @@ import { useTenant } from "@/hooks/use-tenant.hook";
 import { getDefaultHomePath } from "@/helpers/default-home-route.helper";
 
 export default function AdminPanel() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user } = useAuth();
   const { isEnabled } = useTenant();
   const isAdmin = user?.role === "admin";
@@ -63,9 +63,9 @@ export default function AdminPanel() {
   useEffect(() => {
     if (!isAdmin) {
       const path = getDefaultHomePath(isEnabled, user) ?? "/loading";
-      navigate(path, { replace: true });
+      router.replace(path);
     }
-  }, [isAdmin, navigate, isEnabled, user]);
+  }, [isAdmin, router, isEnabled, user]);
 
   const summary = useAdminSummary(isAdmin, effectiveTab === "resumo");
   const alerts = useAdminAlerts(isAdmin, effectiveTab === "alertas");

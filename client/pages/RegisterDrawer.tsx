@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Layout from "@/components/Layout";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast.hook";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDrawerCategories } from "@/hooks/use-categories.hook";
@@ -15,7 +15,7 @@ import ConfirmationModal from "@/components/ConfirmationModal";
 import { getErrorMessage } from "@/helpers/validation.helper";
 
 export default function RegisterDrawer() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { categories } = useDrawerCategories();
@@ -67,7 +67,9 @@ export default function RegisterDrawer() {
       let finalCategoryId = categoryId;
 
       if (!finalCategoryId) {
-        const res = await createDrawerCategory(category.trim());
+        const res = (await createDrawerCategory(category.trim())) as {
+          id: number;
+        };
         finalCategoryId = res.id;
         await queryClient.invalidateQueries({
           queryKey: ["drawer-categories"],
@@ -82,7 +84,7 @@ export default function RegisterDrawer() {
         variant: "success",
       });
 
-      navigate("/drawers");
+      router.push("/drawers");
     } catch (err) {
       toast({
         title: "Erro ao cadastrar",
@@ -141,7 +143,7 @@ export default function RegisterDrawer() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate("/drawers")}
+                onClick={() => router.push("/drawers")}
                 disabled={saving}
               >
                 Cancelar

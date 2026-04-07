@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Controller } from "react-hook-form";
 import Layout from "@/components/Layout";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { consumeSpaNavigationState } from "@/helpers/spa-navigation-state.helper";
 import { toast } from "@/hooks/use-toast.hook";
 import { getErrorMessage } from "@/helpers/validation.helper";
 import { useFormWithZod } from "@/hooks/use-form-with-zod";
@@ -23,10 +24,12 @@ import {
 } from "@/components/ui/select";
 
 export default function EditDrawer() {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const router = useRouter();
 
-  const item = location.state?.item as Drawer | undefined;
+  const [item] = useState(() => {
+    const s = consumeSpaNavigationState<{ item?: Drawer }>();
+    return s?.item as Drawer | undefined;
+  });
 
   const [drawers, setDrawers] = useState<Drawer[]>([]);
   const [categories, setCategories] = useState<{ id: number; nome: string }[]>(
@@ -125,7 +128,7 @@ export default function EditDrawer() {
         duration: 3000,
       });
 
-      navigate("/drawers");
+      router.push("/drawers");
     } catch (err: unknown) {
       toast({
         title: "Erro ao editar gaveta",
@@ -233,7 +236,7 @@ export default function EditDrawer() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => navigate("/drawers")}
+                    onClick={() => router.push("/drawers")}
                     disabled={isSubmitting}
                     className="rounded-lg"
                   >

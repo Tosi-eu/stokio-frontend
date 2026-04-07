@@ -1,24 +1,16 @@
 {
-  "name": "fusion-starter",
+  "name": "abrigo-frontend",
   "private": true,
   "type": "module",
-  "pkg": {
-    "assets": [
-      "dist/spa/*"
-    ],
-    "scripts": [
-      "dist/server/**/*.js"
-    ]
-  },
   "scripts": {
-    "dev": "vite",
-    "dev:local": "vite --host",
-    "build": "npm run build:client",
-    "build:client": "vite build",
+    "dev": "next dev -p 8081",
+    "dev:local": "next dev -p 8081 --hostname 0.0.0.0",
+    "build": "next build",
+    "build:client": "next build",
+    "start": "next start -p 8081",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v && docker compose up -d",
-    "test": "vitest --run",
     "format:fix": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint \"**/*.ts\" \"**/*.tsx\"",
@@ -26,19 +18,14 @@
     "resize-logos": "node scripts/resize-logos.mjs"
   },
   "dependencies": {
-    "@porto-sdk/sdk": "^0.1.4",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.4",
     "@mui/material": "^7.3.4",
+    "@porto-sdk/sdk": "^0.1.4",
     "@react-pdf/renderer": "^4.3.1",
     "@tanstack/react-virtual": "^3.13.18",
-    "dotenv": "^17.2.1",
-    "express": "^5.1.0",
-    "node-cron": "^4.2.1",
-    "pdfkit": "^0.17.2",
-    "pg": "^8.16.3",
-    "pnpm": "^10.32.1",
+    "next": "^14.2.25",
     "react-pdf": "^10.2.0",
     "zod": "^3.25.76"
   },
@@ -76,24 +63,19 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
-    "@swc/core": "^1.13.3",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/react-query": "^5.84.2",
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.3",
     "@types/node": "^24.2.1",
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
     "@types/three": "^0.176.0",
     "@typescript-eslint/eslint-plugin": "^8.46.0",
     "@typescript-eslint/parser": "^8.46.0",
-    "@vitejs/plugin-react-swc": "^4.0.0",
     "autoprefixer": "^10.4.21",
     "baseline-browser-mapping": "^2.9.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "cors": "^2.8.5",
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "eslint": "^9.37.0",
@@ -114,10 +96,8 @@
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.62.0",
     "react-resizable-panels": "^3.0.4",
-    "react-router-dom": "^6.30.1",
     "react-select": "^5.10.2",
     "recharts": "^2.12.7",
-    "serverless-http": "^3.2.0",
     "sharp": "^0.33.5",
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.6.0",
@@ -127,9 +107,6 @@
     "tsx": "^4.20.3",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.57.0",
-    "vaul": "^1.1.2",
-    "vite": "^7.1.2",
-    "vitest": "^3.2.4"
-  },
-  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
+    "vaul": "^1.1.2"
+  }
 }

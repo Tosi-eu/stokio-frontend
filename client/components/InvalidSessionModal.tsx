@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -19,13 +19,13 @@ export function InvalidSessionModal({
   open,
   onClose,
 }: InvalidSessionModalProps) {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleGoToLogin = () => {
     sessionStorage.removeItem("user");
     sessionStorage.removeItem("token");
     onClose();
-    navigate("/user/login", { replace: true });
+    router.replace("/user/login");
   };
 
   return (
