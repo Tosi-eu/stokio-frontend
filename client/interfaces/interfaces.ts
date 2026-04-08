@@ -81,6 +81,8 @@ export interface AuthContextType {
   user: LoggedUser | null;
   login: (login: string, password: string, tenantSlug: string) => Promise<void>;
   logout: () => void;
+  /** Atualiza o utilizador em memória e em `sessionStorage` (ex.: após migração de tenant). */
+  patchStoredUser: (partial: Partial<LoggedUser>) => void;
 }
 
 export interface Patient {

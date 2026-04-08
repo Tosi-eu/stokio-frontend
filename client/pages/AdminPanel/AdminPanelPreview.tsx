@@ -10,7 +10,6 @@ import {
   LogIn,
   Settings,
   Bell,
-  ShieldCheck,
   Edit,
 } from "lucide-react";
 import { PREVIEW_ADMIN_SUMMARY_CARDS } from "@/helpers/preview-mock-data";
@@ -62,10 +61,6 @@ export default function AdminPanelPreview() {
             <Settings className="h-4 w-4 shrink-0" />
             <span className="truncate">Config</span>
           </TabsTrigger>
-          <TabsTrigger value="qualidade" className="gap-1.5 text-xs sm:text-sm">
-            <ShieldCheck className="h-4 w-4 shrink-0" />
-            <span className="truncate">Qualidade</span>
-          </TabsTrigger>
           <TabsTrigger
             value="notificacoes"
             className="gap-1.5 text-xs sm:text-sm"
@@ -102,7 +97,6 @@ export default function AdminPanelPreview() {
             "users",
             "acessos",
             "config",
-            "qualidade",
             "notificacoes",
             "insights",
           ] as const

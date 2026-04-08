@@ -26,7 +26,7 @@ export class InvalidSessionError extends Error {
   }
 }
 
-function readBearerToken(): string | null {
+export function readBearerToken(): string | null {
   try {
     const token = sessionStorage.getItem("authToken");
     return token && token.trim() ? token.trim() : null;
@@ -160,6 +160,7 @@ const PREVIEW_MUTATION_ALLOW_PREFIXES = [
 function isMutationAllowedInPreviewMode(path: string, method: string): boolean {
   const m = method.toUpperCase();
   if (m === "GET" || m === "HEAD" || m === "OPTIONS") return true;
+  if (m === "POST" && path.includes("/verify-contract-code")) return true;
   return PREVIEW_MUTATION_ALLOW_PREFIXES.some((p) => path.startsWith(p));
 }
 

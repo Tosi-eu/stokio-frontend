@@ -29,6 +29,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<LoggedUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const patchStoredUser = useCallback((partial: Partial<LoggedUser>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const merged = { ...prev, ...partial };
+      const next = normalizeSessionUser(merged);
+      if (next) {
+        try {
+          sessionStorage.setItem("user", JSON.stringify(next));
+        } catch {
+          /* ignore */
+        }
+      }
+      return next;
+    });
+  }, []);
+
   const handleLogout = useCallback(async () => {
     try {
       await logoutRequest();
@@ -97,8 +113,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [handleLogout]);
 
   const authValue = useMemo(
-    () => ({ user, login, logout }),
-    [user, login, logout],
+    () => ({ user, login, logout, patchStoredUser }),
+    [user, login, logout, patchStoredUser],
   );
 
   if (loading) return null;

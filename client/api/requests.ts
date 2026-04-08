@@ -12,7 +12,9 @@ import type {
   TenantConfigResponse,
   UpdateTenantBrandingPayload,
 } from "@porto-sdk/sdk";
-import { api, API_BASE_URL } from "./canonical";
+import { api, API_BASE_URL, readBearerToken } from "./canonical";
+import { readPreviewModeFromStorage } from "@/helpers/preview-mode-storage";
+import { toast } from "@/hooks/use-toast.hook";
 
 export type {
   PublicTenantListItem,
@@ -49,6 +51,11 @@ function parseLogoUploadResponse(xhr: XMLHttpRequest): { logoUrl: string } {
   if (status >= 200 && status < 300 && data?.logoUrl) {
     return { logoUrl: data.logoUrl };
   }
+  if (status === 401) {
+    throw new Error(
+      "Não autorizado a enviar o logo. Conclua a configuração do abrigo ou verifique se a sessão ainda é válida.",
+    );
+  }
   const msg =
     typeof data?.error === "string" ? data.error : "Falha no upload do logo";
   throw new Error(msg);
@@ -59,10 +66,26 @@ export function uploadTenantLogoWithProgress(
   brandName: string,
   callbacks?: TenantLogoUploadCallbacks,
 ): Promise<{ logoUrl: string }> {
+  if (readPreviewModeFromStorage()) {
+    toast({
+      title: "Modo de visualização",
+      description:
+        "O logo não é enviado ao servidor neste modo. Conclua a configuração do abrigo para usar o armazenamento (R2).",
+      variant: "warning",
+      duration: 5000,
+    });
+    return Promise.reject(
+      new Error("Modo de visualização: upload de logo indisponível."),
+    );
+  }
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${API_BASE_URL}/tenant/branding/logo`);
     xhr.withCredentials = true;
+    const token = readBearerToken();
+    if (token) {
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    }
     xhr.responseType = "json";
     xhr.timeout = 120_000;
 
@@ -565,7 +588,9 @@ export const createTenantInvite = (payload: {
 export type VerifyContractCodeResponse = {
   valid: boolean;
   contractCodeRequired?: boolean;
-  reason?: "missing" | "mismatch";
+  reason?: "missing" | "mismatch" | "no_canonical_tenant";
+  /** Slug do abrigo definitivo quando o código casa com um contrato existente (tenant provisório `u-*`). */
+  canonicalSlug?: string;
 };
 
 export const verifyTenantContractCode = (
@@ -989,6 +1014,17 @@ export const setTenantContractCode = (contractCode: string) =>
     tenantId?: number;
     tenantSlug?: string;
   }>("/tenant/contract-code", {
+    contract_code: contractCode,
+  });
+
+/** Tenant provisório (`u-*`): valida código existente e migra o login para o abrigo definitivo. */
+export const claimTenantContractCode = (contractCode: string) =>
+  api.post<{
+    ok: true;
+    migrated?: boolean;
+    tenantId?: number;
+    tenantSlug?: string;
+  }>("/tenant/contract-code/claim", {
     contract_code: contractCode,
   });
 

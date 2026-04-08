@@ -32,6 +32,8 @@ import {
   updateTenantConfig,
   uploadTenantLogoWithProgress,
   setTenantContractCode,
+  claimTenantContractCode,
+  verifyTenantContractCode,
 } from "@/api/requests";
 import { setSkipTenantOnboarding } from "@/context/tenant-context";
 import {
@@ -57,6 +59,7 @@ import {
   appendLogoRevision,
   buildTenantLogoProxyUrl,
 } from "@/helpers/tenant-r2-logo-url.helper";
+import { validateImageFileDecodes } from "@/helpers/validate-image-file.helper";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
@@ -161,8 +164,9 @@ const MODULES: Array<{
 
 export default function TenantOnboarding() {
   const router = useRouter();
-  const { user, logout } = useAuth();
-  const { modules, tenant, loading, tenantId } = useTenant();
+  const { user, logout, patchStoredUser } = useAuth();
+  const { modules, tenant, loading, tenantId, previewMode, refetch } =
+    useTenant();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canManageModules =
     user?.role === "admin" || isSuperAdminUser(user ?? null);
@@ -179,6 +183,11 @@ export default function TenantOnboarding() {
   >("idle");
   const [saving, setSaving] = useState(false);
   const [contractCode, setContractCode] = useState("");
+  const [contractValidated, setContractValidated] = useState(false);
+  const [validatingContract, setValidatingContract] = useState(false);
+  const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+  const lastTenantKeyRef = useRef<string | null>(null);
 
   const confirmSkipOnboarding = () => {
     if (tenantId == null) return;
@@ -194,9 +203,28 @@ export default function TenantOnboarding() {
 
   useEffect(() => {
     if (loading) return;
+    const nextTenantKey =
+      tenantId != null && tenant?.slug?.trim()
+        ? `${tenantId}:${tenant.slug.trim()}`
+        : null;
+    const tenantChanged =
+      lastTenantKeyRef.current != null &&
+      nextTenantKey != null &&
+      lastTenantKeyRef.current !== nextTenantKey;
+    lastTenantKeyRef.current = nextTenantKey;
+
+    setLocalPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setPendingLogoFile(null);
+    // Só resetar a validação ao trocar de abrigo (não quando módulos/branding atualizam).
+    if (tenantChanged) {
+      setContractValidated(false);
+      setContractCode("");
+    }
     setEnabled(new Set(modules?.enabled ?? []));
     setBrandName(tenant?.brandName ?? tenant?.name ?? "");
-    setContractCode("");
     const serverLogo = tenant?.logoUrl?.trim() || null;
     const slug = tenant?.slug?.trim();
     const rev = tenant?.brandingUpdatedAt;
@@ -242,9 +270,130 @@ export default function TenantOnboarding() {
     });
   };
 
+  const handleVerifyContract = async () => {
+    const slug = tenant?.slug?.trim();
+    const code = contractCode.trim();
+    if (!slug) {
+      toast({
+        title: "Abrigo sem identificador",
+        description: "Não foi possível validar o código. Recarregue a página.",
+        variant: "error",
+      });
+      return;
+    }
+    if (!code) {
+      toast({
+        title: "Informe o código",
+        description: "Digite o código do contrato fornecido pela equipe Stokio.",
+        variant: "error",
+      });
+      return;
+    }
+    setValidatingContract(true);
+    try {
+      if (slug.startsWith("u-")) {
+        const claim = await claimTenantContractCode(code);
+        if (claim.migrated === true && claim.tenantId != null) {
+          patchStoredUser({
+            tenantId: claim.tenantId,
+            role: "admin",
+          });
+          await refetch();
+          setContractValidated(true);
+          toast({
+            title: "Abrigo associado",
+            description: claim.tenantSlug
+              ? `A sua conta passou a ser administradora do abrigo definitivo (${claim.tenantSlug}). Pode escolher o logo; o envio ocorre ao salvar.`
+              : "A sua conta passou a ser administradora do abrigo definitivo. Pode escolher o logo; o envio ocorre ao salvar.",
+            variant: "success",
+            duration: 7000,
+          });
+          return;
+        }
+        setContractValidated(false);
+        toast({
+          title: "Não foi possível concluir",
+          description:
+            "A resposta do servidor não indicou migração. Tente de novo ou contacte o suporte.",
+          variant: "error",
+        });
+        return;
+      }
+
+      const res = await verifyTenantContractCode(slug, code);
+      if (res.contractCodeRequired === false) {
+        setContractValidated(false);
+        toast({
+          title: "Contrato não configurado",
+          description:
+            "Este abrigo ainda não tem um contrato associado no sistema. Peça ao administrador para cadastrar o contrato e tente novamente.",
+          variant: "error",
+          duration: 6000,
+        });
+        return;
+      }
+      if (!res.valid) {
+        setContractValidated(false);
+        const desc =
+          res.reason === "mismatch"
+            ? "Este código não corresponde a nenhum contrato válido no sistema."
+            : res.reason === "no_canonical_tenant"
+              ? "O código existe, mas ainda não há um abrigo definitivo associado a ele. Aguarde a equipa Stokio concluir o cadastro do abrigo."
+              : res.reason === "missing"
+                ? "Informe o código de contrato."
+                : "Não foi possível validar o código.";
+        toast({
+          title: "Código não aceito",
+          description: desc,
+          variant: "error",
+        });
+        return;
+      }
+      setContractValidated(true);
+      toast({
+        title: "Código confirmado",
+        description: res.canonicalSlug
+          ? `Contrato válido (abrigo definitivo: ${res.canonicalSlug}). Pode escolher o logo; o envio ao armazenamento ocorre ao salvar.`
+          : "Agora você pode escolher a imagem do logo (ela só será enviada ao salvar).",
+        variant: "success",
+      });
+    } catch (err) {
+      setContractValidated(false);
+      toast({
+        title: "Erro ao validar",
+        description:
+          err instanceof Error ? err.message : "Tente novamente em instantes.",
+        variant: "error",
+      });
+    } finally {
+      setValidatingContract(false);
+    }
+  };
+
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (previewMode) {
+      toast({
+        title: "Modo de visualização",
+        description:
+          "Saia do modo demonstração para escolher e enviar o logo ao servidor.",
+        variant: "warning",
+        duration: 5000,
+      });
+      e.target.value = "";
+      return;
+    }
+    if (!contractValidated) {
+      toast({
+        title: "Valide o código do contrato",
+        description:
+          "Use «Validar código» antes de escolher a imagem do logo.",
+        variant: "warning",
+      });
+      e.target.value = "";
+      return;
+    }
     if (file.size > 2 * 1024 * 1024) {
       toast({
         title: "Imagem muito grande",
@@ -254,45 +403,44 @@ export default function TenantOnboarding() {
       e.target.value = "";
       return;
     }
-    setLogoUploadPercent(null);
-    setLogoUploadPhase("sending");
-    setUploadingLogo(true);
-    try {
-      const { logoUrl: url } = await uploadTenantLogoWithProgress(
-        file,
-        brandName,
-        {
-          onUploadProgress: (pct) => setLogoUploadPercent(pct),
-          onPhase: (phase) => setLogoUploadPhase(phase),
-        },
-      );
-      setLogoUrl(appendLogoCacheBust(url));
+    const ok = await validateImageFileDecodes(file);
+    if (!ok) {
       toast({
-        title: "Logo enviado",
-        description: "Arquivo gravado no armazenamento e URL atualizada.",
-        variant: "success",
-      });
-    } catch (err) {
-      toast({
-        title: "Não foi possível enviar o logo",
-        description:
-          err instanceof Error
-            ? err.message
-            : "Verifique se o armazenamento (R2) está configurado no servidor.",
+        title: "Arquivo inválido",
+        description: "Escolha uma imagem PNG, JPG, WebP ou GIF que o navegador consiga abrir.",
         variant: "error",
       });
-    } finally {
-      setUploadingLogo(false);
-      setLogoUploadPercent(null);
-      setLogoUploadPhase("idle");
       e.target.value = "";
+      return;
     }
+    setLocalPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+    setPendingLogoFile(file);
+    toast({
+      title: "Imagem selecionada",
+      description:
+        "Pré-visualização local. O envio ao armazenamento (R2) ocorre ao clicar em Salvar configuração.",
+      variant: "success",
+    });
+    e.target.value = "";
+  };
+
+  const clearPendingLogo = () => {
+    setLocalPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setPendingLogoFile(null);
   };
 
   const resetForm = () => {
+    clearPendingLogo();
     setEnabled(new Set(modules?.enabled ?? []));
     setBrandName(tenant?.brandName ?? tenant?.name ?? "");
     setContractCode("");
+    setContractValidated(false);
     const serverLogo = tenant?.logoUrl?.trim() || null;
     const slug = tenant?.slug?.trim();
     const rev = tenant?.brandingUpdatedAt;
@@ -314,7 +462,19 @@ export default function TenantOnboarding() {
     }
   };
 
+  const avatarDisplaySrc = localPreviewUrl || logoUrl;
+
   const save = async () => {
+    if (previewMode) {
+      toast({
+        title: "Modo de visualização",
+        description:
+          "Use «Concluir configuração» no aviso acima para salvar nome, logo e módulos no servidor.",
+        variant: "warning",
+        duration: 6000,
+      });
+      return;
+    }
     if (canManageModules && enabled.size === 0) {
       toast({
         title: "Selecione ao menos um módulo",
@@ -322,19 +482,66 @@ export default function TenantOnboarding() {
       });
       return;
     }
-    if (!logoUrl) {
+    const hasLogo = pendingLogoFile != null || Boolean(logoUrl?.trim());
+    if (!hasLogo) {
       toast({
         title: "Logo obrigatório",
-        description: "Envie um logo para concluir a configuração do abrigo.",
+        description:
+          "Valide o código do contrato, escolha uma imagem e salve — ou mantenha um logo já existente neste abrigo.",
+        variant: "error",
+      });
+      return;
+    }
+    if (pendingLogoFile != null && !contractValidated) {
+      toast({
+        title: "Valide o código do contrato",
+        description:
+          "O código precisa estar confirmado antes de enviar uma imagem nova.",
         variant: "error",
       });
       return;
     }
     setSaving(true);
+    let finalLogoUrl = logoUrl?.trim() || null;
     try {
       if (tenantId != null) setSkipTenantOnboarding(tenantId, false);
       const brandPayload = { brandName: brandName.trim() || null };
-      await updateTenantBranding({ ...brandPayload, logoUrl });
+      if (pendingLogoFile) {
+        setLogoUploadPercent(0);
+        setLogoUploadPhase("sending");
+        setUploadingLogo(true);
+        try {
+          const bn =
+            brandName.trim() ||
+            tenant?.name?.trim() ||
+            tenant?.brandName?.trim() ||
+            "logo";
+          const { logoUrl: uploaded } = await uploadTenantLogoWithProgress(
+            pendingLogoFile,
+            bn,
+            {
+              onUploadProgress: (pct) => setLogoUploadPercent(pct),
+              onPhase: (phase) => setLogoUploadPhase(phase),
+            },
+          );
+          finalLogoUrl = appendLogoCacheBust(uploaded);
+          setLogoUrl(finalLogoUrl);
+          clearPendingLogo();
+        } finally {
+          setUploadingLogo(false);
+          setLogoUploadPercent(null);
+          setLogoUploadPhase("idle");
+        }
+      }
+      if (!finalLogoUrl?.trim()) {
+        toast({
+          title: "Logo obrigatório",
+          description: "Escolha uma imagem ou mantenha o logo atual do abrigo.",
+          variant: "error",
+        });
+        return;
+      }
+      await updateTenantBranding({ ...brandPayload, logoUrl: finalLogoUrl });
       let contractRes: Awaited<
         ReturnType<typeof setTenantContractCode>
       > | null = null;
@@ -342,16 +549,7 @@ export default function TenantOnboarding() {
         contractRes = await setTenantContractCode(contractCode.trim());
       }
       if (contractRes?.migrated === true && contractRes.tenantId != null) {
-        const raw = sessionStorage.getItem("user");
-        if (raw && user?.id != null) {
-          try {
-            const parsed = JSON.parse(raw) as Record<string, unknown>;
-            const next = { ...parsed, tenantId: contractRes.tenantId };
-            sessionStorage.setItem("user", JSON.stringify(next));
-          } catch {
-            /* ignore */
-          }
-        }
+        patchStoredUser({ tenantId: contractRes.tenantId, role: "admin" });
       }
       if (canManageModules) {
         await updateTenantConfig({ enabled: Array.from(enabled) });
@@ -391,6 +589,38 @@ export default function TenantOnboarding() {
               : "Defina o nome e o logo do abrigo. Quais módulos aparecem no menu são definidos pelo administrador do painel — não é possível alterar aqui."}
           </AlertDescription>
         </Alert>
+
+        {previewMode ? (
+          <Alert className="border-amber-200/80 bg-amber-50 text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
+            <AlertTitle>Modo demonstração</AlertTitle>
+            <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span className="leading-relaxed">
+                O logo não é enviado ao servidor enquanto você explora o sistema.
+                Para escolher imagem, validar contrato e gravar no R2, conclua a
+                configuração de verdade.
+              </span>
+              {tenantId != null ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="shrink-0"
+                  onClick={() => {
+                    setSkipTenantOnboarding(tenantId, false);
+                    toast({
+                      title: "Configuração completa",
+                      description:
+                        "Agora você pode validar o código, escolher o logo e salvar.",
+                      duration: 4000,
+                    });
+                  }}
+                >
+                  Concluir configuração
+                </Button>
+              ) : null}
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
         <Card className="overflow-hidden border-border shadow-lg shadow-elevated">
           <CardHeader className="space-y-2 border-b bg-gradient-to-br from-muted/50 via-background to-primary/5 pb-6">
@@ -448,28 +678,68 @@ export default function TenantOnboarding() {
                 className="mt-6 space-y-6 outline-none"
               >
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
+                  <div className="space-y-2 sm:col-span-2">
                     <Label htmlFor="contract_code">
-                      Código do contrato (opcional)
+                      Código do contrato (para enviar o logo)
                     </Label>
-                    <Input
-                      id="contract_code"
-                      value={contractCode}
-                      onChange={(e) => setContractCode(e.target.value)}
-                      placeholder="Se tiver, cole aqui"
-                      autoComplete="off"
-                    />
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                      <Input
+                        id="contract_code"
+                        value={contractCode}
+                        onChange={(e) => {
+                          setContractCode(e.target.value);
+                          // Só “desvalida” se o texto realmente mudou (evita resets laterais).
+                          if (contractValidated) setContractValidated(false);
+                          if (pendingLogoFile || localPreviewUrl) {
+                            clearPendingLogo();
+                          }
+                        }}
+                        placeholder="Cole o código fornecido pela Stokio"
+                        autoComplete="off"
+                        disabled={previewMode}
+                        className="sm:max-w-md"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="default"
+                        className="shrink-0"
+                        disabled={
+                          previewMode ||
+                          validatingContract ||
+                          !contractCode.trim() ||
+                          !tenant?.slug?.trim()
+                        }
+                        onClick={() => void handleVerifyContract()}
+                      >
+                        {validatingContract ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Validando…
+                          </>
+                        ) : contractValidated ? (
+                          <>
+                            <Check className="h-4 w-4 mr-2" />
+                            Validado — pode escolher o logo
+                          </>
+                        ) : (
+                          "Validar código"
+                        )}
+                      </Button>
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                      Se deixar vazio, você pode usar em modo de visualização.
+                      {previewMode
+                        ? "Saia do modo demonstração para validar o código e enviar o logo."
+                        : "A escolha da imagem só é liberada após o código ser aceito. O arquivo só sobe ao R2 quando você salvar esta página."}
                     </p>
                   </div>
                 </div>
                 <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
                   <div className="flex flex-col items-center gap-3">
                     <Avatar className="h-28 w-28 rounded-2xl border-2 border-dashed border-border bg-card shadow-inner">
-                      {logoUrl ? (
+                      {avatarDisplaySrc ? (
                         <FadeInAvatarImage
-                          src={logoUrl || ""}
+                          src={avatarDisplaySrc}
                           alt="Logo do abrigo"
                           className="object-contain p-2"
                           referrerPolicy="no-referrer"
@@ -486,25 +756,45 @@ export default function TenantOnboarding() {
                       className="sr-only"
                       onChange={handleFile}
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="gap-2"
-                      disabled={uploadingLogo}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      {uploadingLogo ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Upload className="h-4 w-4" />
-                      )}
-                      {uploadingLogo
-                        ? logoUploadPhase === "storing"
-                          ? "Gravando no R2…"
-                          : "Enviando…"
-                        : "Enviar imagem"}
-                    </Button>
+                    <div className="flex flex-col items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        disabled={
+                          uploadingLogo ||
+                          saving ||
+                          previewMode ||
+                          !contractValidated ||
+                          validatingContract
+                        }
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        {uploadingLogo ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4" />
+                        )}
+                        {uploadingLogo
+                          ? logoUploadPhase === "storing"
+                            ? "Gravando no R2…"
+                            : "Enviando…"
+                          : "Escolher imagem"}
+                      </Button>
+                      {pendingLogoFile ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground h-auto py-1"
+                          disabled={saving || uploadingLogo}
+                          onClick={clearPendingLogo}
+                        >
+                          Remover imagem escolhida
+                        </Button>
+                      ) : null}
+                    </div>
                     {uploadingLogo ? (
                       <div
                         className="w-full max-w-[14rem] space-y-2 rounded-xl border border-border/80 bg-muted/50 px-3 py-2.5 text-left shadow-inner"
@@ -537,9 +827,9 @@ export default function TenantOnboarding() {
                         )}
                       </div>
                     ) : null}
-                    <p className="max-w-[12rem] text-center text-xs text-muted-foreground">
-                      PNG, JPG, WebP ou GIF, até 2 MB. Armazenado no R2 e
-                      exibido no menu e no login.
+                    <p className="max-w-[14rem] text-center text-xs text-muted-foreground">
+                      PNG, JPG, WebP ou GIF, até 2 MB. Pré-visualização local;
+                      envio ao R2 ao salvar a configuração.
                     </p>
                   </div>
 
@@ -674,7 +964,9 @@ export default function TenantOnboarding() {
                           {
                             branding: {
                               brandName: brandName.trim() || null,
-                              hasLogo: Boolean(logoUrl),
+                              hasLogo:
+                                Boolean(pendingLogoFile) || Boolean(logoUrl),
+                              logoPendingUpload: Boolean(pendingLogoFile),
                             },
                           },
                           null,

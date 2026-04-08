@@ -10,7 +10,6 @@ import {
   LogIn,
   Settings,
   Bell,
-  ShieldCheck,
   Building2,
   Edit,
 } from "lucide-react";
@@ -36,7 +35,6 @@ import {
   AdminTabConfig,
   AdminTabNotificacoes,
   AdminTabInsights,
-  AdminTabQualidade,
   AdminTabTenants,
   AdminAuditCompareDialog,
   AdminUserEditDialog,
@@ -142,13 +140,6 @@ export default function AdminPanel() {
           >
             <Settings className="h-4 w-4 shrink-0" />
             <span className="truncate">Config</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="qualidade"
-            className="gap-1.5 min-w-0 text-xs sm:text-sm"
-          >
-            <ShieldCheck className="h-4 w-4 shrink-0" />
-            <span className="truncate">Qualidade</span>
           </TabsTrigger>
           {isSuperAdmin ? (
             <TabsTrigger
@@ -322,11 +313,6 @@ export default function AdminPanel() {
           />
         </TabsContent>
 
-        <TabsContent value="qualidade" className="mt-6">
-          <AdminTabQualidade
-            enabled={isAdmin && effectiveTab === "qualidade"}
-          />
-        </TabsContent>
         {isSuperAdmin ? (
           <TabsContent value="tenants" className="mt-6">
             <AdminTabTenants
