@@ -242,7 +242,7 @@ export default function TenantOnboarding() {
         );
       }
     }
-  }, [loading, modules, tenant]);
+  }, [loading, modules, tenant, tenantId]);
 
   const jsonPreview = useMemo(
     () => JSON.stringify({ enabled: Array.from(enabled) }, null, 2),
@@ -284,7 +284,8 @@ export default function TenantOnboarding() {
     if (!code) {
       toast({
         title: "Informe o código",
-        description: "Digite o código do contrato fornecido pela equipe Stokio.",
+        description:
+          "Digite o código do contrato fornecido pela equipe Stokio.",
         variant: "error",
       });
       return;
@@ -387,8 +388,7 @@ export default function TenantOnboarding() {
     if (!contractValidated) {
       toast({
         title: "Valide o código do contrato",
-        description:
-          "Use «Validar código» antes de escolher a imagem do logo.",
+        description: "Use «Validar código» antes de escolher a imagem do logo.",
         variant: "warning",
       });
       e.target.value = "";
@@ -407,7 +407,8 @@ export default function TenantOnboarding() {
     if (!ok) {
       toast({
         title: "Arquivo inválido",
-        description: "Escolha uma imagem PNG, JPG, WebP ou GIF que o navegador consiga abrir.",
+        description:
+          "Escolha uma imagem PNG, JPG, WebP ou GIF que o navegador consiga abrir.",
         variant: "error",
       });
       e.target.value = "";
@@ -595,9 +596,9 @@ export default function TenantOnboarding() {
             <AlertTitle>Modo demonstração</AlertTitle>
             <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <span className="leading-relaxed">
-                O logo não é enviado ao servidor enquanto você explora o sistema.
-                Para escolher imagem, validar contrato e gravar no R2, conclua a
-                configuração de verdade.
+                O logo não é enviado ao servidor enquanto você explora o
+                sistema. Para escolher imagem, validar contrato e gravar no R2,
+                conclua a configuração de verdade.
               </span>
               {tenantId != null ? (
                 <Button
