@@ -602,6 +602,11 @@ export const verifyTenantContractCode = (
     { contract_code: contractCode },
   );
 
+export const verifySignupContractCode = (contractCode: string) =>
+  api.post<{ valid: boolean }>(`/contract-code/verify`, {
+    contract_code: contractCode,
+  });
+
 function superAdminApiKeyHeaders(): HeadersInit | undefined {
   const k = process.env.NEXT_PUBLIC_X_API_KEY;
   if (k == null || String(k).trim() === "") return undefined;

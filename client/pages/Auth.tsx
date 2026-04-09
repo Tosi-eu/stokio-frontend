@@ -4,10 +4,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast.hook";
 import { useAuth } from "@/hooks/use-auth.hook";
+import { setSkipTenantOnboarding } from "@/context/tenant-context";
 import {
   fetchLoginTenantsForEmail,
   joinByInviteToken,
   registerUser,
+  verifySignupContractCode,
   type LoginTenantSummary,
 } from "@/api/requests";
 import {
@@ -73,6 +75,9 @@ export default function Auth() {
 
   const [signupFlow, setSignupFlow] = useState<"user" | "join-token">("user");
   const [userContractCode, setUserContractCode] = useState("");
+  const [contractCodeStatus, setContractCodeStatus] = useState<
+    "idle" | "checking" | "valid" | "invalid"
+  >("idle");
   const [viewModeConfirmOpen, setViewModeConfirmOpen] = useState(false);
   const [pendingUserSignup, setPendingUserSignup] = useState<{
     login: string;
@@ -106,10 +111,37 @@ export default function Auth() {
       setLastName("");
       setInviteToken("");
       setUserContractCode("");
+      setContractCodeStatus("idle");
     } else {
       setSignupFlow("user");
     }
   }, [isLogin]);
+
+  useEffect(() => {
+    if (isLogin) return;
+    if (signupFlow !== "user") return;
+    const cc = userContractCode.trim();
+    if (!cc) {
+      setContractCodeStatus("idle");
+      return;
+    }
+    let cancelled = false;
+    setContractCodeStatus("checking");
+    const id = window.setTimeout(async () => {
+      try {
+        const res = await verifySignupContractCode(cc);
+        if (cancelled) return;
+        setContractCodeStatus(res.valid ? "valid" : "invalid");
+      } catch {
+        if (cancelled) return;
+        setContractCodeStatus("invalid");
+      }
+    }, 450);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
+  }, [isLogin, signupFlow, userContractCode]);
 
   useEffect(() => {
     if (!isLogin) {
@@ -275,6 +307,27 @@ export default function Auth() {
           );
           await authLogin(params.login, params.password, created.tenant.slug);
           void prefetchTenantBrandLogoBeforeInicioNavigation();
+
+          // Se entrou com código de contrato válido, leva para onboarding (setup do abrigo).
+          // Caso contrário, pode entrar em modo de visualização (preview) e configurar depois.
+          if (userContractCode.trim()) {
+            try {
+              setSkipTenantOnboarding(created.tenant.id, false);
+            } catch {
+              // ignore
+            }
+            toast({
+              title: "Vamos configurar seu abrigo",
+              description:
+                "Escolha módulos e personalize o abrigo. Você pode pular e fazer isso depois.",
+              variant: "success",
+              duration: 5000,
+            });
+            skipLoadingResetAfterSuccess = true;
+            router.push("/tenant/onboarding");
+            return;
+          }
+
           toast({
             title: "Conta criada",
             description: params.notifyViewMode
@@ -901,11 +954,25 @@ export default function Auth() {
                         }
                         maxLength={256}
                         className={inputFieldClass}
-                        placeholder="Se já tiver, associa o abrigo ao contrato"
+                        placeholder="Se você já tem, cole aqui"
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Em branco: modo visualização até completar o onboarding.
-                      </p>
+                      {contractCodeStatus === "checking" ? (
+                        <p className="text-xs text-muted-foreground">
+                          Verificando código…
+                        </p>
+                      ) : contractCodeStatus === "invalid" ? (
+                        <p className="text-xs text-destructive">
+                          Código inválido.
+                        </p>
+                      ) : contractCodeStatus === "valid" ? (
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                          Código válido.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Você pode preencher depois.
+                        </p>
+                      )}
                     </div>
                   ) : null}
 
