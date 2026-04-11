@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import type { AlertStockItem } from "../types";
+import { formatValidityDate } from "@/helpers/dates.helper";
 
 interface AdminTabAlertasProps {
   alerts: {
@@ -79,7 +80,7 @@ function AlertTable({
                   <TableCell>{row.detalhe ?? "-"}</TableCell>
                   <TableCell>{row.quantidade}</TableCell>
                   <TableCell>{row.minimo ?? "-"}</TableCell>
-                  <TableCell>{row.validade}</TableCell>
+                  <TableCell>{formatValidityDate(row.validade)}</TableCell>
                   <TableCell>{row.setor}</TableCell>
                 </TableRow>
               ))

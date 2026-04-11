@@ -34,7 +34,10 @@ import {
   setTenantContractCode,
   claimTenantContractCode,
   verifyTenantContractCode,
+  listTenantSetores,
+  type TenantSetorRow,
 } from "@/api/requests";
+import { getEnabledSectors } from "@/helpers/tenant-sectors.helper";
 import { setSkipTenantOnboarding } from "@/context/tenant-context";
 import {
   AlertDialog,
@@ -71,6 +74,7 @@ import {
   ImagePlus,
   LayoutDashboard,
   Loader2,
+  HeartPulse,
   Package,
   Pill,
   RotateCcw,
@@ -162,6 +166,26 @@ const MODULES: Array<{
   },
 ];
 
+const SECTOR_OPTIONS: Array<{
+  key: string;
+  label: string;
+  hint: string;
+  icon: LucideIcon;
+}> = [
+  {
+    key: "farmacia",
+    label: "Farmácia",
+    hint: "Estoque e movimentações no setor farmácia (gráficos e filtros).",
+    icon: Pill,
+  },
+  {
+    key: "enfermagem",
+    label: "Enfermagem",
+    hint: "Estoque no setor enfermagem, quando aplicável ao seu abrigo.",
+    icon: HeartPulse,
+  },
+];
+
 export default function TenantOnboarding() {
   const router = useRouter();
   const { user, logout, patchStoredUser } = useAuth();
@@ -172,6 +196,10 @@ export default function TenantOnboarding() {
     user?.role === "admin" || isSuperAdminUser(user ?? null);
 
   const [enabled, setEnabled] = useState<Set<string>>(new Set());
+  const [enabledSectors, setEnabledSectors] = useState<Set<string>>(
+    () => new Set(["farmacia", "enfermagem"]),
+  );
+  const [sectorCatalog, setSectorCatalog] = useState<TenantSetorRow[]>([]);
   const [brandName, setBrandName] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -224,6 +252,7 @@ export default function TenantOnboarding() {
       setContractCode("");
     }
     setEnabled(new Set(modules?.enabled ?? []));
+    setEnabledSectors(new Set(getEnabledSectors(modules ?? null)));
     setBrandName(tenant?.brandName ?? tenant?.name ?? "");
     const serverLogo = tenant?.logoUrl?.trim() || null;
     const slug = tenant?.slug?.trim();
@@ -244,9 +273,47 @@ export default function TenantOnboarding() {
     }
   }, [loading, modules, tenant, tenantId]);
 
+  useEffect(() => {
+    if (previewMode || loading) return;
+    void listTenantSetores()
+      .then((r) => setSectorCatalog(Array.isArray(r?.data) ? r.data : []))
+      .catch(() => setSectorCatalog([]));
+  }, [previewMode, loading, tenantId]);
+
+  const sectorUiRows = useMemo(() => {
+    if (sectorCatalog.length > 0) {
+      return [...sectorCatalog]
+        .filter((s) => s.active)
+        .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
+        .map((c) => ({
+          key: c.key,
+          label: c.nome,
+          hint:
+            c.proportion_profile === "enfermagem"
+              ? "Perfil enfermagem: buckets de gráfico alinhados à enfermagem (carrinhos, etc.)."
+              : "Perfil farmácia: buckets de gráfico alinhados à farmácia.",
+          icon:
+            c.key === "enfermagem"
+              ? HeartPulse
+              : c.key === "farmacia"
+                ? Pill
+                : Warehouse,
+        }));
+    }
+    return SECTOR_OPTIONS;
+  }, [sectorCatalog]);
+
   const jsonPreview = useMemo(
-    () => JSON.stringify({ enabled: Array.from(enabled) }, null, 2),
-    [enabled],
+    () =>
+      JSON.stringify(
+        {
+          enabled: Array.from(enabled),
+          enabled_sectors: Array.from(enabledSectors),
+        },
+        null,
+        2,
+      ),
+    [enabled, enabledSectors],
   );
 
   const selectedCount = enabled.size;
@@ -266,6 +333,19 @@ export default function TenantOnboarding() {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleSector = (key: string) => {
+    setEnabledSectors((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        if (next.size <= 1) return next;
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
       return next;
     });
   };
@@ -439,6 +519,7 @@ export default function TenantOnboarding() {
   const resetForm = () => {
     clearPendingLogo();
     setEnabled(new Set(modules?.enabled ?? []));
+    setEnabledSectors(new Set(getEnabledSectors(modules ?? null)));
     setBrandName(tenant?.brandName ?? tenant?.name ?? "");
     setContractCode("");
     setContractValidated(false);
@@ -553,7 +634,10 @@ export default function TenantOnboarding() {
         patchStoredUser({ tenantId: contractRes.tenantId, role: "admin" });
       }
       if (canManageModules) {
-        await updateTenantConfig({ enabled: Array.from(enabled) });
+        await updateTenantConfig({
+          enabled: Array.from(enabled),
+          enabled_sectors: Array.from(enabledSectors),
+        });
       }
       toast({
         title: "Configuração salva",
@@ -942,6 +1026,61 @@ export default function TenantOnboarding() {
                       </Tooltip>
                     );
                   })}
+                </div>
+
+                <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      Setores de estoque
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Informe em quais setores o abrigo trabalha. Isso define
+                      gráficos de proporção no painel e combina com as opções de
+                      estoque. É necessário manter{" "}
+                      <span className="font-medium text-foreground">
+                        pelo menos um setor
+                      </span>
+                      .
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {sectorUiRows.map((s) => {
+                      const Icon = s.icon;
+                      const isOn = enabledSectors.has(s.key);
+                      return (
+                        <label
+                          key={s.key}
+                          className={cn(
+                            "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
+                            isOn
+                              ? "border-primary/40 bg-primary/5"
+                              : "hover:bg-muted/40",
+                          )}
+                        >
+                          <Checkbox
+                            checked={isOn}
+                            disabled={
+                              isOn &&
+                              enabledSectors.size === 1 &&
+                              enabledSectors.has(s.key)
+                            }
+                            onCheckedChange={() => toggleSector(s.key)}
+                            aria-label={s.label}
+                          />
+                          <Icon
+                            className="h-5 w-5 shrink-0 text-muted-foreground mt-0.5"
+                            aria-hidden
+                          />
+                          <span className="text-sm">
+                            <span className="font-medium block">{s.label}</span>
+                            <span className="text-xs text-muted-foreground leading-snug">
+                              {s.hint}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
               </TabsContent>
             </Tabs>

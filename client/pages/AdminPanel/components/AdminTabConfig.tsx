@@ -8,16 +8,20 @@ import { Switch } from "@/components/ui/switch";
 import { CONFIG_KEYS, CONFIG_SELECT_KEYS } from "../hooks/useAdminConfig";
 import type { AdminHealthResponse } from "@/api/requests";
 import {
+  createTenantSetor,
   getAdminBackupStatus,
+  listTenantSetores,
   restoreBackup,
   runAdminBackupNow,
   updateTenantBranding,
   updateTenantConfig,
   uploadTenantLogoWithProgress,
+  type TenantSetorRow,
 } from "@/api/requests";
+import { getEnabledSectors } from "@/helpers/tenant-sectors.helper";
 import { toast } from "@/hooks/use-toast.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
-import { LayoutGrid, Loader2, Upload } from "lucide-react";
+import { LayoutGrid, Loader2, Plus, Upload } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { FadeInAvatarImage } from "@/components/FadeInAvatarImage";
 import { cn } from "@/lib/utils";
@@ -26,6 +30,7 @@ import {
   appendLogoRevision,
   buildTenantLogoProxyUrl,
 } from "@/helpers/tenant-r2-logo-url.helper";
+import { formatDateTimePtBr } from "@/helpers/dates.helper";
 import {
   Select,
   SelectContent,
@@ -63,12 +68,8 @@ interface AdminTabConfigProps {
 
 function formatBackupDate(s: string | null): string {
   if (!s) return "—";
-  try {
-    const d = new Date(s);
-    return d.toLocaleString("pt-BR");
-  } catch {
-    return s;
-  }
+  const out = formatDateTimePtBr(s);
+  return out || "—";
 }
 
 export function AdminTabConfig({
@@ -89,9 +90,36 @@ export function AdminTabConfig({
   const [autoPriceSearch, setAutoPriceSearch] = useState(true);
   const [autoReposicaoNotifications, setAutoReposicaoNotifications] =
     useState(true);
+  const [enabledSectors, setEnabledSectors] = useState<Set<string>>(
+    () => new Set(["farmacia", "enfermagem"]),
+  );
+  const [sectorCatalog, setSectorCatalog] = useState<TenantSetorRow[]>([]);
+  const [newSectorKey, setNewSectorKey] = useState("");
+  const [newSectorNome, setNewSectorNome] = useState("");
+  const [newSectorProfile, setNewSectorProfile] = useState<
+    "farmacia" | "enfermagem"
+  >("farmacia");
+  const [creatingSector, setCreatingSector] = useState(false);
+
+  const loadSectorCatalog = useCallback(async () => {
+    try {
+      const res = await listTenantSetores();
+      setSectorCatalog(Array.isArray(res?.data) ? res.data : []);
+    } catch {
+      setSectorCatalog([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSectorCatalog();
+  }, [loadSectorCatalog]);
 
   useEffect(() => {
     setModuleEnabled(new Set(modules?.enabled ?? []));
+  }, [modules]);
+
+  useEffect(() => {
+    setEnabledSectors(new Set(getEnabledSectors(modules ?? null)));
   }, [modules]);
 
   useEffect(() => {
@@ -206,10 +234,71 @@ export function AdminTabConfig({
     });
   }, []);
 
+  const toggleSector = useCallback((key: string) => {
+    setEnabledSectors((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        if (next.size <= 1) return next;
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleCreateSector = async () => {
+    const key = newSectorKey.trim().toLowerCase();
+    const nome = newSectorNome.trim();
+    if (!key || !nome) {
+      toast({
+        title: "Chave e nome obrigatórios",
+        description:
+          "Use uma chave curta (ex.: psicologia) e o nome visível (ex.: Psicologia).",
+        variant: "error",
+      });
+      return;
+    }
+    setCreatingSector(true);
+    try {
+      await createTenantSetor({
+        key,
+        nome,
+        proportionProfile: newSectorProfile,
+      });
+      setNewSectorKey("");
+      setNewSectorNome("");
+      await loadSectorCatalog();
+      setEnabledSectors((prev) => new Set(prev).add(key));
+      toast({
+        title: "Setor criado",
+        description: "Pode habilitá-lo abaixo e guardar os módulos.",
+        variant: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Não foi possível criar o setor",
+        description:
+          err instanceof Error ? err.message : "Tente outra chave ou nome.",
+        variant: "error",
+      });
+    } finally {
+      setCreatingSector(false);
+    }
+  };
+
   const saveModules = async () => {
     if (moduleEnabled.size === 0) {
       toast({
         title: "Selecione ao menos um módulo",
+        variant: "error",
+      });
+      return;
+    }
+    if (enabledSectors.size === 0) {
+      toast({
+        title: "Selecione ao menos um setor",
+        description: "Marque ao menos um setor do catálogo!",
         variant: "error",
       });
       return;
@@ -220,6 +309,7 @@ export function AdminTabConfig({
         enabled: Array.from(moduleEnabled),
         automatic_price_search: autoPriceSearch,
         automatic_reposicao_notifications: autoReposicaoNotifications,
+        enabled_sectors: Array.from(enabledSectors),
       });
       await refetchTenant();
       toast({
@@ -377,6 +467,125 @@ export function AdminTabConfig({
                 </label>
               );
             })}
+          </div>
+          <div className="rounded-lg border p-4 space-y-3 bg-muted/15">
+            <p className="text-sm font-medium text-foreground">
+              Setores de estoque
+            </p>
+            <p className="text-xs text-muted-foreground">
+              O catálogo vem do servidor (farmácia e enfermagem por defeito).
+              Pode criar setores adicionais; o painel mostra proporção só para
+              os marcados (mantenha pelo menos um).
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              {(sectorCatalog.length
+                ? [...sectorCatalog].sort(
+                    (a, b) => a.sort_order - b.sort_order || a.id - b.id,
+                  )
+                : [
+                    {
+                      id: 0,
+                      tenant_id: 0,
+                      key: "farmacia",
+                      nome: "Farmácia",
+                      proportion_profile: "farmacia",
+                      sort_order: 0,
+                      active: true,
+                    },
+                    {
+                      id: 0,
+                      tenant_id: 0,
+                      key: "enfermagem",
+                      nome: "Enfermagem",
+                      proportion_profile: "enfermagem",
+                      sort_order: 1,
+                      active: true,
+                    },
+                  ]
+              ).map((row) => (
+                <label
+                  key={`${row.key}-${row.id}`}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer text-sm",
+                    enabledSectors.has(row.key)
+                      ? "border-primary/40 bg-primary/5"
+                      : "border-border",
+                  )}
+                >
+                  <Checkbox
+                    checked={enabledSectors.has(row.key)}
+                    disabled={
+                      enabledSectors.has(row.key) && enabledSectors.size === 1
+                    }
+                    onCheckedChange={() => toggleSector(row.key)}
+                    aria-label={`Setor ${row.nome}`}
+                  />
+                  <span className="leading-tight">
+                    {row.nome}
+                    <span className="block text-[10px] text-muted-foreground font-normal">
+                      {row.key} · {row.proportion_profile}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="rounded-md border border-dashed p-3 space-y-2 bg-background/50">
+              <p className="text-xs font-medium text-foreground">
+                Novo setor (chave técnica + nome)
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+                <div className="space-y-1 flex-1 min-w-[140px]">
+                  <Label className="text-xs">Chave</Label>
+                  <Input
+                    value={newSectorKey}
+                    onChange={(e) => setNewSectorKey(e.target.value)}
+                    placeholder="psicologia"
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1 flex-1 min-w-[140px]">
+                  <Label className="text-xs">Nome</Label>
+                  <Input
+                    value={newSectorNome}
+                    onChange={(e) => setNewSectorNome(e.target.value)}
+                    placeholder="Psicologia"
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1 w-full sm:w-40">
+                  <Label className="text-xs">Perfil gráficos</Label>
+                  <Select
+                    value={newSectorProfile}
+                    onValueChange={(v) =>
+                      setNewSectorProfile(v as "farmacia" | "enfermagem")
+                    }
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="farmacia">Farmácia</SelectItem>
+                      <SelectItem value="enfermagem">Enfermagem</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="shrink-0"
+                  disabled={creatingSector}
+                  onClick={() => void handleCreateSector()}
+                >
+                  {creatingSector ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                  <span className="ml-1">Criar</span>
+                </Button>
+              </div>
+            </div>
           </div>
           <div className="rounded-lg border p-4 space-y-4 bg-muted/20">
             <p className="text-sm font-medium text-foreground">

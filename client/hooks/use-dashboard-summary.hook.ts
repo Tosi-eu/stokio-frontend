@@ -4,14 +4,19 @@ import type { DashboardSummaryResponse } from "@/api/types";
 import { APP_CONFIG } from "@/constants/app.constants";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { getPreviewDashboardSummary } from "@/helpers/preview-mock-data";
+import { getEnabledSectors } from "@/helpers/tenant-sectors.helper";
 import { useMemo } from "react";
 
 export function useDashboardSummary(expiringDays?: number) {
-  const { previewMode } = useTenant();
+  const { previewMode, modules, tenantId } = useTenant();
   const previewSummary = useMemo(() => getPreviewDashboardSummary(), []);
+  const sectorsKey = useMemo(
+    () => getEnabledSectors(modules).join(","),
+    [modules],
+  );
   const { data, isLoading, error, refetch } =
     useQuery<DashboardSummaryResponse>({
-      queryKey: ["dashboard-summary", expiringDays],
+      queryKey: ["dashboard-summary", expiringDays, sectorsKey, tenantId],
       queryFn: () =>
         getDashboardSummary(
           expiringDays != null ? { expiringDays } : undefined,

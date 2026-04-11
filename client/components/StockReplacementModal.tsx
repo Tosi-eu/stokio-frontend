@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Package } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { formatDateToPtBr } from "@/helpers/dates.helper";
 
 export interface StockReplacementItem {
   id: number;
@@ -96,7 +97,7 @@ const StockReplacementModal: FC<StockReplacementModalProps> = ({
 
                   <div className="text-sm text-slate-700">
                     <span className="font-semibold">Data prevista: </span>
-                    {item.data_prevista}
+                    {formatDateToPtBr(item.data_prevista)}
                   </div>
 
                   <div className="text-sm text-slate-600">

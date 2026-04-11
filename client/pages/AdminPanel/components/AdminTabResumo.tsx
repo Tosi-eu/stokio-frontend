@@ -57,6 +57,11 @@ import type {
   AdminMetricsResponse,
   StockHistoryEntry,
 } from "@/api/requests";
+import {
+  formatDateTimePtBr,
+  formatDateToPtBr,
+  formatValidityDate,
+} from "@/helpers/dates.helper";
 
 interface AdminTabResumoProps {
   metrics?: AdminMetricsResponse | null;
@@ -673,7 +678,9 @@ export function AdminTabResumo({
                         <TableRow key={idx}>
                           <TableCell>{row.nome}</TableCell>
                           <TableCell>{row.tipo_item}</TableCell>
-                          <TableCell>{row.validade}</TableCell>
+                          <TableCell>
+                            {formatValidityDate(row.validade)}
+                          </TableCell>
                           <TableCell>{row.dias_para_vencer}</TableCell>
                           <TableCell>{row.quantidade}</TableCell>
                           <TableCell>{row.setor}</TableCell>
@@ -941,7 +948,7 @@ export function AdminTabResumo({
                   <TableBody>
                     {stockHistoryData.map((row) => (
                       <TableRow key={row.id}>
-                        <TableCell>{row.data}</TableCell>
+                        <TableCell>{formatDateToPtBr(row.data)}</TableCell>
                         <TableCell>{row.tipo}</TableCell>
                         <TableCell>{row.nome}</TableCell>
                         <TableCell>{row.quantidade}</TableCell>
@@ -1064,7 +1071,7 @@ export function AdminTabResumo({
                           .join(" ")
                           .trim();
                         const last = u.last_login_at
-                          ? new Date(u.last_login_at).toLocaleString("pt-BR")
+                          ? formatDateTimePtBr(u.last_login_at)
                           : "-";
                         return (
                           <TableRow key={u.id}>
@@ -1095,7 +1102,7 @@ export function AdminTabResumo({
                     movementsRows.map((m) => (
                       <TableRow key={m.id}>
                         <TableCell className="whitespace-nowrap">
-                          {m.data}
+                          {formatDateToPtBr(m.data)}
                         </TableCell>
                         <TableCell>{m.tipo}</TableCell>
                         <TableCell>{m.nome}</TableCell>

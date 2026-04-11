@@ -4,6 +4,7 @@ import type {
   StockProportionResponse,
 } from "@/interfaces/interfaces";
 import { ItemStockType, OperationType, SectorType } from "@/utils/enums";
+import { formatDateToPtBr } from "@/helpers/dates.helper";
 
 export const PREVIEW_CABINETS = [
   { numero: 1, categoria: "Psicotrópicos" },
@@ -82,8 +83,8 @@ function baseStock(
     suspended_at: null,
     origin: partial.origin ?? "Compra/Doação",
     lot: partial.lot ?? "LT-DEMO",
-    expirationStatus: partial.expirationStatus ?? "ok",
-    quantityStatus: partial.quantityStatus ?? "ok",
+    expirationStatus: partial.expirationStatus ?? "healthy",
+    quantityStatus: partial.quantityStatus ?? "high",
     expirationMsg: partial.expirationMsg ?? "",
     quantityMsg: partial.quantityMsg ?? "",
     destino: partial.destino ?? null,
@@ -105,6 +106,8 @@ export function getPreviewStockItems(): StockItem[] {
       quantity: 24,
       stockType: ItemStockType.INDIVIDUAL,
       sector: SectorType.FARMACIA,
+      expirationStatus: "healthy",
+      quantityStatus: "high",
     }),
     baseStock(9002, {
       name: "Losartana 50mg",
@@ -156,6 +159,8 @@ export function getPreviewStockItems(): StockItem[] {
       itemType: OperationType.INPUT,
       stockType: ItemStockType.INDIVIDUAL,
       sector: SectorType.ENFERMAGEM,
+      expirationStatus: "warning",
+      quantityStatus: "low",
     }),
     baseStock(9007, {
       name: "Metformina 850mg",
@@ -304,6 +309,20 @@ export function getPreviewDashboardSummary(): DashboardSummaryResponse {
     },
     nursingProportion: stockProportionFromTotals(nursingTotals),
     pharmacyProportion: stockProportionFromTotals(pharmacyTotals),
+    sectorProportions: [
+      {
+        key: "farmacia",
+        nome: "Farmácia",
+        proportion_profile: "farmacia",
+        ...stockProportionFromTotals(pharmacyTotals),
+      },
+      {
+        key: "enfermagem",
+        nome: "Enfermagem",
+        proportion_profile: "enfermagem",
+        ...stockProportionFromTotals(nursingTotals),
+      },
+    ],
     cabinetStockData: {
       data: [
         { armario_id: 1, total_geral: 52 },
@@ -342,7 +361,8 @@ export function getPreviewMovementRows(
         additionalData: "Paracetamol",
         quantity: 20,
         ...base,
-        movementDate: new Date().toISOString(),
+        movementDate: formatDateToPtBr(new Date()),
+        _movementDateSort: Date.now(),
         cabinet: 1,
         drawerDisplay: "10 — Bloco A",
         resident: "101 — Maria Silva",
@@ -354,7 +374,8 @@ export function getPreviewMovementRows(
         additionalData: "Insumo",
         quantity: 30,
         ...base,
-        movementDate: new Date(Date.now() - 172800000).toISOString(),
+        movementDate: formatDateToPtBr(new Date(Date.now() - 172800000)),
+        _movementDateSort: Date.now() - 172800000,
         cabinet: 2,
         drawerDisplay: "11 — Bloco A",
         resident: "—",
@@ -370,7 +391,8 @@ export function getPreviewMovementRows(
         additionalData: "Paracetamol",
         quantity: 6,
         ...base,
-        movementDate: new Date(Date.now() - 7200000).toISOString(),
+        movementDate: formatDateToPtBr(new Date(Date.now() - 7200000)),
+        _movementDateSort: Date.now() - 7200000,
         cabinet: 2,
         drawerDisplay: "11 — Bloco A",
         resident: "—",
@@ -382,7 +404,8 @@ export function getPreviewMovementRows(
         additionalData: "Insumo",
         quantity: 10,
         ...base,
-        movementDate: new Date(Date.now() - 86400000 * 2).toISOString(),
+        movementDate: formatDateToPtBr(new Date(Date.now() - 86400000 * 2)),
+        _movementDateSort: Date.now() - 86400000 * 2,
         cabinet: 1,
         drawerDisplay: "10 — Bloco A",
         resident: "101 — Maria Silva",
@@ -397,7 +420,8 @@ export function getPreviewMovementRows(
       additionalData: "Losartana potássica",
       quantity: 4,
       ...base,
-      movementDate: new Date(Date.now() - 3600000).toISOString(),
+      movementDate: formatDateToPtBr(new Date(Date.now() - 3600000)),
+      _movementDateSort: Date.now() - 3600000,
       cabinet: 1,
       drawerDisplay: "10 — Bloco A",
       resident: "102 — João Santos",

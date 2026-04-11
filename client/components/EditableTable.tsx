@@ -15,7 +15,6 @@ import { useToast } from "@/hooks/use-toast.hook";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import DeletePopUp from "./DeletePopUp";
@@ -23,6 +22,7 @@ import { SkeletonTable } from "@/components/SkeletonTable";
 import DeleteStockModal from "./DeleteStockModal";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { formatDateToPtBr } from "@/helpers/dates.helper";
 
 import {
   deleteCabinet,
@@ -83,22 +83,20 @@ const StatusBadge = ({ row }: StatusBadgeProps) => {
 
   if (row.status === "suspended") {
     return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
-              Suspenso
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            {row.suspended_at instanceof Date
-              ? `Suspenso em ${row.suspended_at.toLocaleDateString()}`
-              : row.suspended_at
-                ? `Suspenso em ${new Date(row.suspended_at as string).toLocaleDateString()}`
-                : "Medicamento suspenso"}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
+            Suspenso
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          {row.suspended_at instanceof Date
+            ? `Suspenso em ${formatDateToPtBr(row.suspended_at)}`
+            : row.suspended_at
+              ? `Suspenso em ${formatDateToPtBr(row.suspended_at as string)}`
+              : "Medicamento suspenso"}
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
@@ -570,68 +568,227 @@ export default function EditableTable({
   );
 }
 
-const renderExpiryTag = (row: Record<string, unknown>) => {
-  const status =
-    typeof row.expirationStatus === "string" ? row.expirationStatus : undefined;
-  const message =
-    typeof row.expirationMsg === "string" ? row.expirationMsg : undefined;
+function readRowString(
+  row: Record<string, unknown>,
+  ...keys: string[]
+): string {
+  for (const key of keys) {
+    const v = row[key];
+    if (v == null) continue;
+    if (typeof v === "string") {
+      const t = v.trim();
+      if (t) return t;
+    }
+    if (typeof v === "number" && !Number.isNaN(v)) {
+      return String(v);
+    }
+  }
+  return "";
+}
 
-  if (!status) return "-";
+function readRowNumber(
+  row: Record<string, unknown>,
+  ...keys: string[]
+): number {
+  for (const key of keys) {
+    const v = row[key];
+    if (v == null) continue;
+    const n = typeof v === "number" ? v : Number(v);
+    if (!Number.isNaN(n)) return n;
+  }
+  return 0;
+}
+
+/** Parse DD/MM/AAAA ou prefixo ISO AAAA-MM-DD (como na célula e na API). */
+function parseDisplayDateForExpiry(s: string): Date | null {
+  const t = s.trim();
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(t);
+  if (iso) {
+    return new Date(
+      Number(iso[1]),
+      Number(iso[2]) - 1,
+      Number(iso[3]),
+      12,
+      0,
+      0,
+      0,
+    );
+  }
+  const br = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(t);
+  if (br) {
+    return new Date(
+      Number(br[3]),
+      Number(br[2]) - 1,
+      Number(br[1]),
+      12,
+      0,
+      0,
+      0,
+    );
+  }
+  return null;
+}
+
+/** Espelha `computeExpiryStatus` do backend quando `st_expiracao` não veio. */
+function fallbackExpiryStatusKeyFromLabel(expiryLabel: string): string | null {
+  const d = parseDisplayDateForExpiry(expiryLabel);
+  if (!d || Number.isNaN(d.getTime())) return null;
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const diff = Math.ceil((d.getTime() - today.getTime()) / 86400000);
+  if (diff < 0) return "expired";
+  if (diff <= 30) return "critical";
+  if (diff <= 45) return "warning";
+  return "healthy";
+}
+
+/** Espelha `computeQuantityStatus` do backend. */
+function fallbackQuantityStatusKey(
+  quantity: number,
+  minimumStock: number,
+): string {
+  const min = minimumStock;
+  const lowMax = min * 1.35;
+  const highThreshold = min * 3;
+  if (quantity >= highThreshold) return "high";
+  if (quantity >= min && quantity <= lowMax) return "low";
+  if (quantity > lowMax && quantity < highThreshold) return "medium";
+  return "critical";
+}
+
+/** Alinha chaves antigas / preview (`ok`) com o contrato da API (`healthy`, `high`, …). */
+function normalizeExpiryStatusKey(raw: string): string {
+  const k = raw.trim().toLowerCase();
+  if (k === "ok") return "healthy";
+  return k;
+}
+
+function normalizeQuantityStatusKey(raw: string): string {
+  const k = raw.trim().toLowerCase();
+  if (k === "ok" || k === "normal") return "high";
+  if (k === "zero") return "empty";
+  return k;
+}
+
+const EXPIRY_TOOLTIP_BY_STATUS: Record<string, string> = {
+  expired: "Produto fora da validade.",
+  critical: "Validade em 30 dias ou menos.",
+  warning: "Validade entre 31 e 45 dias.",
+  healthy: "Validade superior a 45 dias.",
+};
+
+const QUANTITY_TOOLTIP_BY_STATUS: Record<string, string> = {
+  empty: "Sem unidades em stock.",
+  low: "Quantidade no limite inferior (perto do mínimo).",
+  critical: "Quantidade abaixo do mínimo definido.",
+  medium: "Quantidade entre faixa média e alta.",
+  high: "Quantidade confortável em relação ao mínimo.",
+  normal: "Quantidade confortável em relação ao mínimo.",
+};
+
+const renderExpiryTag = (row: Record<string, unknown>) => {
+  const expiryText =
+    typeof row.expiry === "string" ? row.expiry : String(row.expiry ?? "-");
+
+  const rawApi = readRowString(row, "expirationStatus", "st_expiracao");
+  const message = readRowString(row, "expirationMsg", "msg_expiracao");
+
+  let status = rawApi ? normalizeExpiryStatusKey(rawApi) : "";
+  if (!status && expiryText && expiryText !== "-") {
+    status = fallbackExpiryStatusKeyFromLabel(expiryText) ?? "";
+  }
 
   const colorMap: Record<string, string> = {
-    expired: "bg-red-50 text-red-700 border border-red-200",
-    critical: "bg-orange-50 text-orange-700 border border-orange-200",
-    warning: "bg-yellow-50 text-yellow-700 border border-yellow-200",
-    healthy: "bg-sky-50 text-sky-800 border border-sky-200",
+    expired: "bg-red-50 text-red-800 border border-red-200",
+    critical: "bg-orange-50 text-orange-800 border border-orange-200",
+    warning: "bg-amber-50 text-amber-900 border border-amber-200",
+    healthy:
+      "bg-emerald-50 text-emerald-900 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-800",
   };
 
+  const badgeClass = status
+    ? (colorMap[status] ??
+      "bg-muted text-foreground border border-border font-medium")
+    : "bg-muted/80 text-muted-foreground border border-border font-medium";
+
+  const tooltipBody =
+    message ||
+    (status ? EXPIRY_TOOLTIP_BY_STATUS[status] : null) ||
+    "Validade do item.";
+
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span
-            className={`px-2 py-1 rounded-full text-[11px] font-medium ${colorMap[status] || ""}`}
-          >
-            {typeof row.expiry === "string" ? row.expiry : "-"}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>{message || "-"}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip delayDuration={200}>
+      <TooltipTrigger asChild>
+        <span
+          className={`inline-flex max-w-full justify-center px-2 py-1 rounded-full text-[11px] font-medium cursor-default ${badgeClass}`}
+        >
+          {expiryText}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs max-w-xs">
+        <p className="font-medium text-popover-foreground">{tooltipBody}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 };
 
 const renderQuantityTag = (row: Record<string, unknown>) => {
-  const status =
-    typeof row.quantityStatus === "string" ? row.quantityStatus : undefined;
-  const message =
-    typeof row.quantityMsg === "string" ? row.quantityMsg : undefined;
+  const qNum = readRowNumber(row, "quantity", "quantidade");
+  const qDisplay =
+    row.quantity !== null && row.quantity !== undefined
+      ? String(row.quantity)
+      : "-";
+
+  const minStock = readRowNumber(
+    row,
+    "minimumStock",
+    "minimo",
+    "estoque_minimo",
+  );
+
+  const rawApi = readRowString(row, "quantityStatus", "st_quantidade");
+  const message = readRowString(row, "quantityMsg", "msg_quantidade");
+
+  let status = rawApi ? normalizeQuantityStatusKey(rawApi) : "";
+  if (!status && qDisplay !== "-") {
+    status = fallbackQuantityStatusKey(qNum, minStock);
+  }
 
   const colorMap: Record<string, string> = {
-    empty: "bg-red-100 text-red-700 border border-red-300",
-    low: "bg-orange-100 text-orange-700 border border-orange-300",
-    critical: "bg-red-100 text-red-700 border border-red-300",
-    medium: "bg-yellow-100 text-yellow-700 border border-yellow-300",
-    high: "bg-sky-100 text-sky-800 border border-sky-300",
-    normal: "bg-sky-100 text-sky-800 border border-sky-300",
+    empty: "bg-red-50 text-red-800 border border-red-200",
+    low: "bg-orange-50 text-orange-800 border border-orange-200",
+    critical: "bg-red-50 text-red-900 border border-red-300",
+    medium: "bg-amber-50 text-amber-900 border border-amber-200",
+    high: "bg-emerald-50 text-emerald-900 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-800",
+    normal:
+      "bg-emerald-50 text-emerald-900 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-800",
   };
 
+  const badgeClass = status
+    ? (colorMap[status] ??
+      "bg-muted text-foreground border border-border font-medium")
+    : "bg-muted/80 text-muted-foreground border border-border font-medium";
+
+  const tooltipBody =
+    message ||
+    (status ? QUANTITY_TOOLTIP_BY_STATUS[status] : null) ||
+    `Quantidade: ${qDisplay}.`;
+
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span
-            className={`inline-flex items-center px-2 py-1 rounded-full text-[11px] font-medium cursor-default ${colorMap[status || ""] || ""}`}
-          >
-            {row.quantity !== null && row.quantity !== undefined
-              ? String(row.quantity)
-              : "-"}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="text-xs">
-          {message}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip delayDuration={200}>
+      <TooltipTrigger asChild>
+        <span
+          className={`inline-flex items-center justify-center px-2 py-1 rounded-full text-[11px] font-medium cursor-default ${badgeClass}`}
+        >
+          {qDisplay}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs max-w-xs">
+        <p className="font-medium text-popover-foreground">{tooltipBody}</p>
+        {minStock > 0 ? (
+          <p className="text-muted-foreground mt-1">Mínimo: {minStock}</p>
+        ) : null}
+      </TooltipContent>
+    </Tooltip>
   );
 };

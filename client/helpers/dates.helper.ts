@@ -1,26 +1,68 @@
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/** Date-only display: always `dd/mm/yyyy` (zero-padded). */
 export function formatDateToPtBr(
   input: string | Date | undefined | null,
 ): string {
-  if (!input) return "";
+  if (input === undefined || input === null) return "";
 
-  if (input instanceof Date && !isNaN(input.getTime())) {
-    const iso = input.toISOString().split("T")[0];
-    const [year, month, day] = iso.split("-");
-    return `${day}/${month}/${year}`;
+  if (input instanceof Date) {
+    if (isNaN(input.getTime())) return "";
+    return `${pad2(input.getDate())}/${pad2(input.getMonth() + 1)}/${input.getFullYear()}`;
   }
 
   const str = String(input).trim();
+  if (!str) return "";
 
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
-    return str;
+  const slash = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slash) {
+    return `${pad2(Number(slash[1]))}/${pad2(Number(slash[2]))}/${slash[3]}`;
   }
 
+  // Calendar date from ISO prefix (avoids TZ shifting YYYY-MM-DD from API)
   if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
     const [year, month, day] = str.split("T")[0].split("-");
     return `${day}/${month}/${year}`;
   }
 
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    return `${pad2(parsed.getDate())}/${pad2(parsed.getMonth() + 1)}/${parsed.getFullYear()}`;
+  }
+
   return str;
+}
+
+export function formatTimePtBr(d: Date): string {
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+/** Date + time: `dd/mm/yyyy HH:mm` (local). */
+export function formatDateTimePtBr(
+  input: string | Date | undefined | null,
+): string {
+  if (input === undefined || input === null) return "";
+  const d = input instanceof Date ? input : new Date(input);
+  if (isNaN(d.getTime())) return String(input);
+  return `${formatDateToPtBr(d)} ${formatTimePtBr(d)}`;
+}
+
+/**
+ * Date-only fields as `YYYY-MM-DD` vs full ISO datetimes — avoids TZ surprises on date-only strings.
+ */
+export function formatDateOrDateTimePtBr(
+  input: string | Date | undefined | null,
+): string {
+  if (input === undefined || input === null) return "";
+  if (input instanceof Date) {
+    return formatDateTimePtBr(input);
+  }
+  const s = String(input).trim();
+  if (!s) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return formatDateToPtBr(s);
+  return formatDateTimePtBr(s);
 }
 
 export const parseYearMonthToDate = (yearMonth: string) => {
@@ -28,6 +70,7 @@ export const parseYearMonthToDate = (yearMonth: string) => {
   return new Date(year, month - 1, 1);
 };
 
+/** Validade / expiry column: `dd/mm/yyyy` or "-" if missing or invalid. */
 export function formatValidityDate(
   input: string | Date | undefined | null,
 ): string {
@@ -37,17 +80,15 @@ export function formatValidityDate(
   }
   const str = String(input).trim();
   if (!str) return "-";
-  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (isoMatch) {
-    const [, y, m, d] = isoMatch;
-    const numY = Number(y);
-    const numM = Number(m);
-    const numD = Number(d);
-    if (numM >= 1 && numM <= 12 && numD >= 1 && numD <= 31) {
-      return `${String(numD).padStart(2, "0")}/${String(numM).padStart(2, "0")}/${numY}`;
-    }
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    const out = formatDateToPtBr(str);
+    return out || "-";
   }
-  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) return str;
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) {
+    return formatDateToPtBr(str) || "-";
+  }
   const parsed = new Date(str);
-  return isNaN(parsed.getTime()) ? "-" : formatDateToPtBr(parsed);
+  if (isNaN(parsed.getTime())) return "-";
+  return formatDateToPtBr(parsed);
 }

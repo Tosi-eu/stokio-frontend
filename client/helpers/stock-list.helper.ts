@@ -8,6 +8,7 @@ import {
   type UiDisplayCasela,
   type UiDisplayCaselaSetor,
 } from "@/helpers/ui-display.helper";
+import { formatValidityDate } from "@/helpers/dates.helper";
 
 export interface StockListFilters {
   nome?: string;
@@ -73,7 +74,7 @@ export function formatStockItems(raw: unknown[]): StockItem[] {
       name: name || "-",
       activeSubstance: item.principio_ativo || "-",
       description: item.descricao || "-",
-      expiry: item.validade || "-",
+      expiry: formatValidityDate(item.validade ?? ""),
       quantity: Number(item.quantidade) || 0,
       cabinet: item.armario_id ?? "-",
       drawer: item.gaveta_id ?? "-",
@@ -83,10 +84,10 @@ export function formatStockItems(raw: unknown[]): StockItem[] {
       patient: item.paciente || "-",
       origin: item.origem || "-",
       minimumStock: item.minimo || 0,
-      expirationMsg: item.msg_expiracao,
-      quantityMsg: item.msg_quantidade,
-      expirationStatus: item.st_expiracao,
-      quantityStatus: item.st_quantidade,
+      expirationMsg: item.msg_expiracao ?? "",
+      quantityMsg: item.msg_quantidade ?? "",
+      expirationStatus: item.st_expiracao ?? "",
+      quantityStatus: item.st_quantidade ?? "",
       status: item.status ?? null,
       destination: item.destino ?? null,
       suspended_at: item.suspenso_em ? new Date(item.suspenso_em) : null,

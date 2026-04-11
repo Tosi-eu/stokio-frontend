@@ -998,6 +998,7 @@ export type UpdateTenantModulesPayload = {
   enabled: string[];
   automatic_price_search?: boolean;
   automatic_reposicao_notifications?: boolean;
+  enabled_sectors?: string[];
 };
 
 export const updateTenantConfig = (modules: UpdateTenantModulesPayload) =>
@@ -1032,6 +1033,28 @@ export const claimTenantContractCode = (contractCode: string) =>
   }>("/tenant/contract-code/claim", {
     contract_code: contractCode,
   });
+
+export type TenantSetorRow = {
+  id: number;
+  tenant_id: number;
+  key: string;
+  nome: string;
+  proportion_profile: string;
+  sort_order: number;
+  active: boolean;
+};
+
+export const listTenantSetores = () =>
+  api.get<{ data: TenantSetorRow[] }>("/tenant/setores");
+
+export type CreateTenantSetorPayload = {
+  key: string;
+  nome: string;
+  proportionProfile?: "farmacia" | "enfermagem";
+};
+
+export const createTenantSetor = (payload: CreateTenantSetorPayload) =>
+  api.post<TenantSetorRow>("/tenant/setores", payload);
 
 export const getAdminUsers = (params?: { page?: number; limit?: number }) =>
   api.get("/admin/users", { params: params ?? {} });

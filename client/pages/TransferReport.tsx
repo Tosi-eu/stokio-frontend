@@ -6,6 +6,7 @@ import { getTransferReport } from "@/api/requests";
 import { Card } from "@/components/ui/card";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
+import { formatDateToPtBr } from "@/helpers/dates.helper";
 
 const columns = [
   { key: "medicamento", label: "Medicamento", editable: false },
@@ -73,7 +74,7 @@ export default function TransferReport() {
     principio_ativo: transfer.principio_ativo || "-",
     quantidade: String(transfer.quantidade),
     operador: transfer.usuario,
-    data: transfer.data,
+    data: formatDateToPtBr(transfer.data),
     armario: transfer.armario ? String(transfer.armario) : "-",
     casela: formatCaselaLabel(uiDisplay.casela, {
       caselaId: transfer.casela,

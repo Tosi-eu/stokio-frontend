@@ -21,6 +21,7 @@ import { PlusCircle, Edit, XCircle } from "lucide-react";
 import { AUDIT_OPERATION_LABEL, AUDIT_RESOURCE_LABEL } from "../constants";
 import { auditStatusLabel, auditValuePreview } from "../helpers/audit.helpers";
 import type { InsightsData, AuditEvent } from "../types";
+import { formatDateTimePtBr } from "@/helpers/dates.helper";
 
 interface AdminUserOption {
   id: number;
@@ -325,7 +326,7 @@ export function AdminTabInsights({
                     insights.events.map((e) => (
                       <TableRow key={e.id}>
                         <TableCell className="text-xs whitespace-nowrap">
-                          {new Date(e.created_at).toLocaleString("pt-BR")}
+                          {formatDateTimePtBr(e.created_at)}
                         </TableCell>
                         <TableCell className="text-xs">
                           {e.resource

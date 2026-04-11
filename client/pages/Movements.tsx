@@ -14,6 +14,7 @@ import {
   formatCaselaLabel,
   formatGavetaLabel,
 } from "@/helpers/storage-location-display.helper";
+import { formatDateToPtBr } from "@/helpers/dates.helper";
 
 const TABLE_LIMIT = 10;
 const REQUEST_LIMIT = 5;
@@ -58,6 +59,7 @@ export default function InputMovements() {
     const isMedicine = item.medicamento_id != null;
     const gavetaCat = item.DrawerModel?.DrawerCategoryModel?.nome;
 
+    const sortMs = new Date(item.data as string).getTime();
     return {
       id: item.id,
       name: isMedicine ? item.MedicineModel?.nome : item.InputModel?.nome,
@@ -66,7 +68,8 @@ export default function InputMovements() {
         : (item.InputModel?.descricao ?? "-"),
       quantity: item.quantidade,
       operator: item.LoginModel?.first_name,
-      movementDate: item.data,
+      movementDate: formatDateToPtBr(item.data as string),
+      _movementDateSort: Number.isFinite(sortMs) ? sortMs : 0,
       cabinet: item.armario_id ?? "-",
       drawerDisplay: formatGavetaLabel(uiDisplay.gaveta, {
         gavetaId: item.gaveta_id,
@@ -107,8 +110,8 @@ export default function InputMovements() {
         ...medicamentos.data.map(normalizeMovement),
       ].sort(
         (a, b) =>
-          new Date(b.movementDate).getTime() -
-          new Date(a.movementDate).getTime(),
+          (b as { _movementDateSort: number })._movementDateSort -
+          (a as { _movementDateSort: number })._movementDateSort,
       );
 
       const slice = merged.slice(0, TABLE_LIMIT);
@@ -171,8 +174,8 @@ export default function InputMovements() {
         ...medicamentos.data.map(normalizeMovement),
       ].sort(
         (a, b) =>
-          new Date(b.movementDate).getTime() -
-          new Date(a.movementDate).getTime(),
+          (b as { _movementDateSort: number })._movementDateSort -
+          (a as { _movementDateSort: number })._movementDateSort,
       );
 
       const slice = merged.slice(0, TABLE_LIMIT);
@@ -235,8 +238,8 @@ export default function InputMovements() {
         ...medicamentos.data.map(normalizeMovement),
       ].sort(
         (a, b) =>
-          new Date(b.movementDate).getTime() -
-          new Date(a.movementDate).getTime(),
+          (b as { _movementDateSort: number })._movementDateSort -
+          (a as { _movementDateSort: number })._movementDateSort,
       );
 
       const slice = merged.slice(0, TABLE_LIMIT);

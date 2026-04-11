@@ -20,6 +20,8 @@ export type TenantModules = {
   enabled: string[];
   automatic_price_search?: boolean;
   automatic_reposicao_notifications?: boolean;
+  /** Setores de estoque deste abrigo (ex.: gráficos no painel). */
+  enabled_sectors?: string[];
 };
 
 export type TenantContextType = {

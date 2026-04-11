@@ -8,6 +8,12 @@ import {
   StyleSheet,
 } from "@react-pdf/renderer";
 import { PDF_REPORT_LOGO_URL } from "@/constants/app-branding";
+import {
+  formatDateOrDateTimePtBr,
+  formatDateToPtBr,
+  formatTimePtBr,
+  formatValidityDate,
+} from "@/helpers/dates.helper";
 
 export enum MovementPeriod {
   DIARIO = "diario",
@@ -163,6 +169,20 @@ interface RowData {
   medicamentos?: RowData[];
   insumos?: RowData[];
   [key: string]: unknown;
+}
+
+function formatPdfRowDates(r: RowData): RowData {
+  const out = { ...r } as Record<string, unknown>;
+  if (out.validade != null && String(out.validade).trim() !== "") {
+    out.validade = formatValidityDate(String(out.validade));
+  }
+  for (const key of ["data", "data_movimentacao"]) {
+    const v = out[key];
+    if (v != null && String(v).trim() !== "") {
+      out[key] = formatDateOrDateTimePtBr(String(v));
+    }
+  }
+  return out as RowData;
 }
 
 const styles = StyleSheet.create({
@@ -631,7 +651,9 @@ export function createStockPDF(
                 "Quantidade",
                 "Validade",
               ],
-              (data as ResidentesResponse).detalhes,
+              ((data as ResidentesResponse).detalhes as RowData[]).map(
+                formatPdfRowDates,
+              ),
             )}
 
             <Text style={styles.sectionTitle}>Consumo Mensal</Text>
@@ -645,7 +667,9 @@ export function createStockPDF(
                 "Data",
                 "Consumo Mensal",
               ],
-              (data as ResidentesResponse).consumo_mensal,
+              ((data as ResidentesResponse).consumo_mensal as RowData[]).map(
+                formatPdfRowDates,
+              ),
             )}
           </>
         )}
@@ -661,7 +685,7 @@ export function createStockPDF(
                 "Validade",
                 "Residente",
               ],
-              data as RowData[],
+              (data as RowData[]).map(formatPdfRowDates),
             )}
           </>
         )}
@@ -671,7 +695,7 @@ export function createStockPDF(
             <Text style={styles.sectionTitle}>Insumos</Text>
             {renderTable(
               ["Insumo", "Quantidade", "Armario", "Validade"],
-              data as RowData[],
+              (data as RowData[]).map(formatPdfRowDates),
             )}
           </>
         )}
@@ -712,7 +736,9 @@ export function createStockPDF(
                     nome: item.nome || "-",
                     complemento: item.principio_ativo || item.descricao || "-",
                     quantidade: item.quantidade ?? "-",
-                    validade: item.validade || "-",
+                    validade: item.validade
+                      ? formatValidityDate(item.validade)
+                      : "-",
                     dias_para_vencer: item.dias_para_vencer ?? "-",
                     setor: item.setor || "-",
                     armario: item.armario ?? "-",
@@ -741,14 +767,18 @@ export function createStockPDF(
                 "Validade",
                 "Residente",
               ],
-              ((data as InsumosMedicamentosReport).medicamentos ??
-                []) as RowData[],
+              (
+                ((data as InsumosMedicamentosReport).medicamentos ??
+                  []) as RowData[]
+              ).map(formatPdfRowDates),
             )}
 
             <Text style={styles.sectionTitle}>Insumos</Text>
             {renderTable(
               ["Insumo", "Quantidade", "Armario"],
-              ((data as InsumosMedicamentosReport).insumos ?? []) as RowData[],
+              (
+                ((data as InsumosMedicamentosReport).insumos ?? []) as RowData[]
+              ).map(formatPdfRowDates),
             )}
           </>
         )}
@@ -764,7 +794,9 @@ export function createStockPDF(
                 "Data Movimentação",
                 "Quantidade",
               ],
-              ((data as PsicotropicosReport).psicotropico ?? []) as RowData[],
+              (
+                ((data as PsicotropicosReport).psicotropico ?? []) as RowData[]
+              ).map(formatPdfRowDates),
             )}
           </>
         )}
@@ -791,7 +823,9 @@ export function createStockPDF(
                     { header: "Observação", key: "observacao" },
                   ],
                   transferData.map((transfer) => ({
-                    data: transfer.data || "-",
+                    data: transfer.data
+                      ? formatDateOrDateTimePtBr(transfer.data)
+                      : "-",
                     nome: transfer.nome || "-",
                     complemento:
                       transfer.principio_ativo || transfer.descricao || "-",
@@ -841,7 +875,9 @@ export function createStockPDF(
                     { header: "Destino", key: "destino" },
                   ],
                   movementsData.map((movement) => ({
-                    data: movement.data || "-",
+                    data: movement.data
+                      ? formatDateOrDateTimePtBr(movement.data)
+                      : "-",
                     tipo_movimentacao: movement.tipo_movimentacao || "-",
                     nome: movement.nome || "-",
                     complemento:
@@ -902,7 +938,9 @@ export function createStockPDF(
                     medicamento: item.medicamento || "-",
                     principio_ativo: item.principio_ativo || "-",
                     quantidade: item.quantidade ?? "-",
-                    validade: item.validade || "-",
+                    validade: item.validade
+                      ? formatValidityDate(item.validade)
+                      : "-",
                   })),
                 )}
               </>
@@ -943,7 +981,9 @@ export function createStockPDF(
                     medicamento: item.medicamento || "-",
                     principio_ativo: item.principio_ativo || "-",
                     quantidade: item.quantidade ?? "-",
-                    validade: item.validade || "-",
+                    validade: item.validade
+                      ? formatValidityDate(item.validade)
+                      : "-",
                     dias_vencido: item.dias_vencido ?? "-",
                     lote: item.lote || "-",
                     setor: item.setor || "-",
@@ -960,8 +1000,8 @@ export function createStockPDF(
         )}
 
         <Text style={styles.footer}>
-          Gerado em: {new Date().toLocaleDateString("pt-BR")} às{" "}
-          {new Date().toLocaleTimeString("pt-BR")}
+          Gerado em: {formatDateToPtBr(new Date())} às{" "}
+          {formatTimePtBr(new Date())}
         </Text>
       </Page>
     </Document>

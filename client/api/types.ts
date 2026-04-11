@@ -72,6 +72,12 @@ export interface RawDrawerStockItem {
   total_geral?: number;
 }
 
+export type DashboardSectorProportion = StockProportionResponse & {
+  key: string;
+  nome: string;
+  proportion_profile: string;
+};
+
 export interface DashboardSummaryResponse {
   alerts?: {
     noStock?: number;
@@ -86,6 +92,8 @@ export interface DashboardSummaryResponse {
   medicineRankingLess?: { data?: RawMedicineRankingItem[] };
   nursingProportion?: StockProportionResponse | null;
   pharmacyProportion?: StockProportionResponse | null;
+  /** Proporção por cada setor habilitado (inclui chaves personalizadas). */
+  sectorProportions?: DashboardSectorProportion[];
   cabinetStockData?: { data?: RawCabinetStockItem[] };
   drawerStockData?: { data?: RawDrawerStockItem[] };
 }

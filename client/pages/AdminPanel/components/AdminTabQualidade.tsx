@@ -24,6 +24,7 @@ import {
   normalizeAdminMedicineUnits,
 } from "@/api/requests";
 import { toast } from "@/hooks/use-toast.hook";
+import { formatDateToPtBr, formatValidityDate } from "@/helpers/dates.helper";
 
 type InconsistencyType = "negative_stock" | "missing_lot" | "orphan_movements";
 
@@ -282,7 +283,11 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
                       <TableRow key={idx}>
                         <TableCell>{String(r.id ?? "-")}</TableCell>
                         <TableCell>{String(r.tipo ?? "-")}</TableCell>
-                        <TableCell>{String(r.data ?? "-")}</TableCell>
+                        <TableCell>
+                          {r.data != null && String(r.data).trim() !== ""
+                            ? formatDateToPtBr(String(r.data))
+                            : "-"}
+                        </TableCell>
                         <TableCell>{String(r.login_id ?? "-")}</TableCell>
                         <TableCell>{String(r.quantidade ?? "-")}</TableCell>
                         <TableCell>{String(r.setor ?? "-")}</TableCell>
@@ -295,7 +300,11 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
                         <TableCell>{String(r.item_id ?? "-")}</TableCell>
                         <TableCell>{String(r.quantidade ?? "-")}</TableCell>
                         <TableCell>{String(r.setor ?? "-")}</TableCell>
-                        <TableCell>{String(r.validade ?? "-")}</TableCell>
+                        <TableCell>
+                          {formatValidityDate(
+                            r.validade != null ? String(r.validade) : "",
+                          )}
+                        </TableCell>
                         <TableCell>{String(r.lote ?? "-")}</TableCell>
                       </TableRow>
                     ),
