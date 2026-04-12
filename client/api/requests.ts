@@ -27,6 +27,8 @@ export type {
 export type LoginTenantSummary = {
   slug: string;
   label: string;
+  tenantName: string;
+  brandName: string | null;
 };
 
 export type TenantLogoUploadPhase = "sending" | "storing";
@@ -418,8 +420,6 @@ export const login = (login: string, password: string, tenantSlug: string) =>
     { headers: { "X-Tenant": tenantSlug } },
   );
 
-export type ResolveTenantAmbiguousTenant = { slug: string; label: string };
-
 export async function fetchLoginTenantsForEmail(
   login: string,
 ): Promise<LoginTenantSummary[]> {
@@ -430,17 +430,28 @@ export async function fetchLoginTenantsForEmail(
     { credentials: "include", headers: { Accept: "application/json" } },
   );
   const data = (await res.json().catch(() => null)) as {
-    tenants?: LoginTenantSummary[];
+    tenants?: Partial<LoginTenantSummary>[];
   } | null;
   if (!res.ok) return [];
-  return Array.isArray(data?.tenants) ? data.tenants : [];
+  const raw = Array.isArray(data?.tenants) ? data.tenants : [];
+  return raw
+    .map((t) => {
+      const slug = String(t?.slug ?? "").trim();
+      if (!slug) return null;
+      const label = String(t?.label ?? "").trim() || slug;
+      const tenantName = String(t?.tenantName ?? "").trim() || label;
+      const bn = t?.brandName != null ? String(t.brandName).trim() : "";
+      const brandName = bn.length > 0 ? bn : null;
+      return { slug, label, tenantName, brandName };
+    })
+    .filter((x): x is LoginTenantSummary => x != null);
 }
 export async function resolveTenantByLogin(
   login: string,
 ): Promise<
   | { ok: true; slug: string }
   | { ok: false; reason: "not_found" }
-  | { ok: false; reason: "ambiguous"; tenants: ResolveTenantAmbiguousTenant[] }
+  | { ok: false; reason: "ambiguous"; tenants: LoginTenantSummary[] }
 > {
   const trimmed = login.trim();
   if (!trimmed) return { ok: false, reason: "not_found" };
@@ -451,7 +462,7 @@ export async function resolveTenantByLogin(
   );
   const data = (await res.json().catch(() => null)) as {
     slug?: string;
-    tenants?: ResolveTenantAmbiguousTenant[];
+    tenants?: LoginTenantSummary[];
   } | null;
 
   if (res.ok && data && typeof data.slug === "string" && data.slug.trim())
@@ -602,10 +613,16 @@ export const verifyTenantContractCode = (
     { contract_code: contractCode },
   );
 
-export const verifySignupContractCode = (contractCode: string) =>
-  api.post<{ valid: boolean }>(`/contract-code/verify`, {
+export const verifySignupContractCode = (
+  contractCode: string,
+  signupEmail?: string,
+) => {
+  const login = signupEmail?.trim();
+  return api.post<{ valid: boolean }>(`/contract-code/verify`, {
     contract_code: contractCode,
+    ...(login ? { login } : {}),
   });
+};
 
 function superAdminApiKeyHeaders(): HeadersInit | undefined {
   const k = process.env.NEXT_PUBLIC_X_API_KEY;
@@ -615,7 +632,9 @@ function superAdminApiKeyHeaders(): HeadersInit | undefined {
 
 export const adminSetTenantContractCodeBySlug = (
   slug: string,
-  payload: { contract_code: string } | { clear_contract_code: true },
+  payload:
+    | { contract_code: string; bound_login: string }
+    | { clear_contract_code: true },
 ) =>
   api.put<{ ok: boolean; slug: string; contractCodeConfigured: boolean }>(
     `/admin/tenants/by-slug/${encodeURIComponent(slug)}/contract-code`,
@@ -1013,18 +1032,25 @@ export const updateTenantBranding = (payload: UpdateTenantBrandingPayload) =>
     payload,
   );
 
-export const setTenantContractCode = (contractCode: string) =>
-  api.post<{
+export const setTenantContractCode = (
+  contractCode: string,
+  boundLogin: string,
+) =>
+  api.put<{
     ok: true;
     migrated?: boolean;
     tenantId?: number;
     tenantSlug?: string;
   }>("/tenant/contract-code", {
     contract_code: contractCode,
+    bound_login: boundLogin.trim(),
   });
 
 /** Tenant provisório (`u-*`): valida código existente e migra o login para o abrigo definitivo. */
-export const claimTenantContractCode = (contractCode: string) =>
+export const claimTenantContractCode = (
+  contractCode: string,
+  boundLogin: string,
+) =>
   api.post<{
     ok: true;
     migrated?: boolean;
@@ -1032,6 +1058,7 @@ export const claimTenantContractCode = (contractCode: string) =>
     tenantSlug?: string;
   }>("/tenant/contract-code/claim", {
     contract_code: contractCode,
+    bound_login: boundLogin.trim(),
   });
 
 export type TenantSetorRow = {

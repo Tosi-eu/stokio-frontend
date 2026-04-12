@@ -38,7 +38,7 @@ import {
 import {
   Users,
   Pill,
-  Package,
+  Bandage,
   Archive,
   Grid,
   Loader2,
@@ -354,7 +354,7 @@ export function AdminTabResumo({
                 >
                   <CardContent className="pt-4">
                     <div className="flex items-center gap-2">
-                      <Package className="h-8 w-8 text-amber-600" />
+                      <Bandage className="h-8 w-8 text-amber-600" />
                       <div>
                         <p className="text-2xl font-bold">{summary.inputs}</p>
                         <p className="text-sm text-muted-foreground">Insumos</p>

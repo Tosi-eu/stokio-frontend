@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/use-auth.hook";
 import { getDefaultHomePath } from "@/helpers/default-home-route.helper";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
-import { LayoutGrid } from "lucide-react";
+import { Blocks } from "lucide-react";
 import {
   Card,
   CardDescription,
@@ -50,7 +50,7 @@ export default function ModuleRoute({
           <Card className="max-w-md w-full border-dashed">
             <CardHeader className="text-center space-y-3 pb-2">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-                <LayoutGrid className="h-6 w-6" aria-hidden />
+                <Blocks className="h-6 w-6" aria-hidden />
               </div>
               <CardTitle className="font-display text-xl">
                 Sem módulos disponíveis

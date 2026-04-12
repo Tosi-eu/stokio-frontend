@@ -6,7 +6,7 @@ import {
   LayoutDashboard,
   ArrowLeftRight,
   Pill,
-  FlaskConical,
+  Bandage,
   Boxes,
   Users,
   Archive,
@@ -36,7 +36,7 @@ const baseNavigationTabs = [
     module: "movements",
   },
   { name: "Medicamentos", href: "/medicines", icon: Pill, module: "medicines" },
-  { name: "Insumos", href: "/inputs", icon: FlaskConical, module: "inputs" },
+  { name: "Insumos", href: "/inputs", icon: Bandage, module: "inputs" },
   { name: "Estoque", href: "/stock", icon: Boxes, module: "stock" },
   { name: "Residentes", href: "/residents", icon: Users, module: "residents" },
   {

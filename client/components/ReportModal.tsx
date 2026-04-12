@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
-  Package,
+  Bandage,
   Stethoscope,
   Check,
   X,
@@ -79,7 +79,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
   const [residentSearch, setResidentSearch] = useState("");
 
   const reportOptions = [
-    { value: "insumos", label: "Insumos", icon: Package },
+    { value: "insumos", label: "Insumos", icon: Bandage },
     { value: "medicamentos", label: "Medicamentos", icon: Stethoscope },
     { value: "residentes", label: "Residentes", icon: User },
     { value: "psicotropicos", label: "Psicotrópicos", icon: Syringe },

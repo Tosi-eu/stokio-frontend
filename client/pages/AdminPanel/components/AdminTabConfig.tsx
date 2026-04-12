@@ -21,7 +21,7 @@ import {
 import { getEnabledSectors } from "@/helpers/tenant-sectors.helper";
 import { toast } from "@/hooks/use-toast.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
-import { LayoutGrid, Loader2, Plus, Upload } from "lucide-react";
+import { Blocks, Loader2, Plus, Upload } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { FadeInAvatarImage } from "@/components/FadeInAvatarImage";
 import { cn } from "@/lib/utils";
@@ -429,7 +429,7 @@ export function AdminTabConfig({
       <Card>
         <CardHeader>
           <div className="flex items-start gap-2">
-            <LayoutGrid className="h-5 w-5 mt-0.5 text-muted-foreground shrink-0" />
+            <Blocks className="h-5 w-5 mt-0.5 text-muted-foreground shrink-0" />
             <div>
               <CardTitle>Módulos do sistema</CardTitle>
               <p className="text-sm text-muted-foreground font-normal mt-1">

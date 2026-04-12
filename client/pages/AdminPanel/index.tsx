@@ -8,7 +8,7 @@ import {
   FileText,
   Users,
   LogIn,
-  Settings,
+  Cog,
   Bell,
   Building2,
   Edit,
@@ -138,7 +138,7 @@ export default function AdminPanel() {
             value="config"
             className="gap-1.5 min-w-0 text-xs sm:text-sm"
           >
-            <Settings className="h-4 w-4 shrink-0" />
+            <Cog className="h-4 w-4 shrink-0" />
             <span className="truncate">Config</span>
           </TabsTrigger>
           {isSuperAdmin ? (

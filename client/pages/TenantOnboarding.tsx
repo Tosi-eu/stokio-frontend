@@ -74,12 +74,12 @@ import {
   ImagePlus,
   LayoutDashboard,
   Loader2,
+  Bandage,
   HeartPulse,
-  Package,
+  ListChecks,
   Pill,
   RotateCcw,
   Shield,
-  Sparkles,
   Upload,
   User,
   Users,
@@ -114,7 +114,7 @@ const MODULES: Array<{
     key: "inputs",
     label: "Insumos",
     hint: "Materiais e insumos diversos",
-    icon: Package,
+    icon: Bandage,
   },
   {
     key: "stock",
@@ -370,10 +370,19 @@ export default function TenantOnboarding() {
       });
       return;
     }
+    const sessionLogin = user?.login?.trim();
+    if (!sessionLogin) {
+      toast({
+        title: "Sessão inválida",
+        description: "Faça login de novo para associar o código ao seu e-mail.",
+        variant: "error",
+      });
+      return;
+    }
     setValidatingContract(true);
     try {
       if (slug.startsWith("u-")) {
-        const claim = await claimTenantContractCode(code);
+        const claim = await claimTenantContractCode(code, sessionLogin);
         if (claim.migrated === true && claim.tenantId != null) {
           patchStoredUser({
             tenantId: claim.tenantId,
@@ -628,7 +637,20 @@ export default function TenantOnboarding() {
         ReturnType<typeof setTenantContractCode>
       > | null = null;
       if (contractCode.trim()) {
-        contractRes = await setTenantContractCode(contractCode.trim());
+        const sessionLogin = user?.login?.trim();
+        if (!sessionLogin) {
+          toast({
+            title: "Sessão inválida",
+            description:
+              "Não foi possível gravar o código de contrato sem o e-mail da sessão. Faça login de novo.",
+            variant: "error",
+          });
+          return;
+        }
+        contractRes = await setTenantContractCode(
+          contractCode.trim(),
+          sessionLogin,
+        );
       }
       if (contractRes?.migrated === true && contractRes.tenantId != null) {
         patchStoredUser({ tenantId: contractRes.tenantId, role: "admin" });
@@ -664,7 +686,7 @@ export default function TenantOnboarding() {
     <Layout minimal>
       <div className="max-w-3xl mx-auto space-y-6">
         <Alert className="border-primary/25 bg-gradient-to-r from-primary/5 to-background shadow-sm">
-          <Sparkles className="h-4 w-4 text-primary" />
+          <ListChecks className="h-4 w-4 text-primary" />
           <AlertTitle className="text-foreground">
             Bem-vindo — configure seu abrigo
           </AlertTitle>
@@ -711,7 +733,7 @@ export default function TenantOnboarding() {
           <CardHeader className="space-y-2 border-b bg-gradient-to-br from-muted/50 via-background to-primary/5 pb-6">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25">
-                <Sparkles className="h-5 w-5" aria-hidden />
+                <ListChecks className="h-5 w-5" aria-hidden />
               </div>
               <div className="min-w-0 flex-1 space-y-1">
                 <CardTitle className="text-2xl tracking-tight">

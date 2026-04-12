@@ -12,6 +12,17 @@ import {
   verifySignupContractCode,
   type LoginTenantSummary,
 } from "@/api/requests";
+
+function formatLoginTenantChoice(t: LoginTenantSummary): string {
+  const brand = t.brandName?.trim();
+  const name = t.tenantName?.trim();
+  if (brand && name && brand !== name) {
+    return `${brand} — ${name} (${t.slug})`;
+  }
+  if (brand) return `${brand} (${t.slug})`;
+  if (name) return `${name} (${t.slug})`;
+  return `${t.label} (${t.slug})`;
+}
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,7 +53,7 @@ import {
   validateTextInput,
 } from "@/helpers/validation.helper";
 import { prefetchTenantBrandLogoBeforeInicioNavigation } from "@/helpers/tenant-brand-logo-prefetch.helper";
-import { Package, ShieldCheck, Sparkles } from "lucide-react";
+import { BarChart3, Package, ShieldCheck } from "lucide-react";
 
 export default function Auth() {
   const router = useRouter();
@@ -125,11 +136,17 @@ export default function Auth() {
       setContractCodeStatus("idle");
       return;
     }
+    const signupEmail = sanitizeInput(login).trim();
+    const emailCheck = validateEmail(signupEmail);
+    if (!emailCheck.valid) {
+      setContractCodeStatus("idle");
+      return;
+    }
     let cancelled = false;
     setContractCodeStatus("checking");
     const id = window.setTimeout(async () => {
       try {
-        const res = await verifySignupContractCode(cc);
+        const res = await verifySignupContractCode(cc, signupEmail);
         if (cancelled) return;
         setContractCodeStatus(res.valid ? "valid" : "invalid");
       } catch {
@@ -141,7 +158,7 @@ export default function Auth() {
       cancelled = true;
       window.clearTimeout(id);
     };
-  }, [isLogin, signupFlow, userContractCode]);
+  }, [isLogin, signupFlow, userContractCode, login]);
 
   useEffect(() => {
     if (!isLogin) {
@@ -710,7 +727,7 @@ export default function Auth() {
             </li>
             <li className="flex gap-3">
               <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
-                <Sparkles className="h-4 w-4" aria-hidden />
+                <BarChart3 className="h-4 w-4" aria-hidden />
               </span>
               <span>
                 <span className="font-medium text-white">
@@ -879,13 +896,6 @@ export default function Auth() {
                     </div>
                   )}
 
-                  {isLogin && (
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      Depois de um e-mail válido, mostramos em que abrigos ele
-                      está registado. Se houver mais do que um, escolha onde
-                      quer entrar.
-                    </p>
-                  )}
                   {!isLogin && (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
@@ -984,7 +994,7 @@ export default function Auth() {
                             className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border-2 border-primary/40 border-t-primary animate-spin"
                             aria-hidden
                           />
-                          A procurar abrigos para este e-mail…
+                          A procurar abrigos com este e-mail registado…
                         </p>
                       ) : loginLinkedTenants ===
                         null ? null : loginLinkedTenants.length === 0 ? (
@@ -998,10 +1008,7 @@ export default function Auth() {
                           <span className="font-medium text-foreground">
                             Abrigo:
                           </span>{" "}
-                          {loginLinkedTenants[0]!.label}{" "}
-                          <span className="text-muted-foreground/80">
-                            ({loginLinkedTenants[0]!.slug})
-                          </span>
+                          {formatLoginTenantChoice(loginLinkedTenants[0]!)}
                         </p>
                       ) : (
                         <div className="space-y-1.5">
@@ -1021,7 +1028,7 @@ export default function Auth() {
                             <option value="">Selecione o abrigo</option>
                             {loginLinkedTenants.map((t) => (
                               <option key={t.slug} value={t.slug}>
-                                {t.label} ({t.slug})
+                                {formatLoginTenantChoice(t)}
                               </option>
                             ))}
                           </select>
