@@ -36,6 +36,10 @@ import {
   verifyTenantContractCode,
   listTenantSetores,
   type TenantSetorRow,
+  downloadTenantImportTemplate,
+  importTenantXlsx,
+  tenantImportTotalForKey,
+  type TenantImportXlsxResponse,
 } from "@/api/requests";
 import { getEnabledSectors } from "@/helpers/tenant-sectors.helper";
 import { setSkipTenantOnboarding } from "@/context/tenant-context";
@@ -216,6 +220,11 @@ export default function TenantOnboarding() {
   const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
   const lastTenantKeyRef = useRef<string | null>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
+  const [importingXlsx, setImportingXlsx] = useState(false);
+  const [importResult, setImportResult] = useState<TenantImportXlsxResponse | null>(
+    null,
+  );
 
   const confirmSkipOnboarding = () => {
     if (tenantId == null) return;
@@ -227,6 +236,72 @@ export default function TenantOnboarding() {
       duration: 5000,
     });
     router.replace("/loading");
+  };
+
+  const handleDownloadImportTemplate = async () => {
+    try {
+      const blob = await downloadTenantImportTemplate();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "template-importacao.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Falha ao baixar template.";
+      toast({
+        title: "Não foi possível baixar",
+        description: message,
+        variant: "error",
+        duration: 5000,
+      });
+    }
+  };
+
+  const handleImportXlsx = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    if (!name.endsWith(".xlsx")) {
+      toast({
+        title: "Arquivo inválido",
+        description: "Use uma planilha .xlsx no template do sistema.",
+        variant: "error",
+      });
+      e.target.value = "";
+      return;
+    }
+    setImportingXlsx(true);
+    setImportResult(null);
+    try {
+      const res = await importTenantXlsx(file);
+      setImportResult(res);
+      const created = tenantImportTotalForKey(res.summary, "created");
+      const updated = tenantImportTotalForKey(res.summary, "updated");
+      toast({
+        title: "Importação concluída",
+        description:
+          res.errors.length > 0
+            ? `Importamos o que deu certo. Criados: ${created}, atualizados: ${updated}, erros: ${res.errors.length}.`
+            : `Criados: ${created}, atualizados: ${updated}.`,
+        variant: res.errors.length > 0 ? "warning" : "success",
+        duration: 6000,
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Falha ao importar planilha.";
+      toast({
+        title: "Erro na importação",
+        description: message,
+        variant: "error",
+        duration: 6000,
+      });
+    } finally {
+      setImportingXlsx(false);
+      e.target.value = "";
+    }
   };
 
   useEffect(() => {
@@ -974,6 +1049,89 @@ export default function TenantOnboarding() {
                 value="modules"
                 className="mt-6 space-y-4 outline-none"
               >
+                <Card className="border-border/70">
+                  <CardHeader className="space-y-1">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <ListChecks className="h-4 w-4 text-primary" />
+                      Importar dados por planilha
+                    </CardTitle>
+                    <CardDescription>
+                      Se você já tem uma lista de itens, dá para trazer tudo de uma vez.
+                      Linhas com erro não travam o restante.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={previewMode || importingXlsx}
+                        onClick={() => void handleDownloadImportTemplate()}
+                      >
+                        Baixar template
+                      </Button>
+                      <input
+                        ref={importFileInputRef}
+                        type="file"
+                        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        className="sr-only"
+                        onChange={handleImportXlsx}
+                      />
+                      <Button
+                        type="button"
+                        className="gap-2"
+                        disabled={previewMode || importingXlsx || saving}
+                        onClick={() => importFileInputRef.current?.click()}
+                      >
+                        {importingXlsx ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4" />
+                        )}
+                        {importingXlsx ? "Importando…" : "Enviar planilha"}
+                      </Button>
+                    </div>
+
+                    {previewMode ? (
+                      <p className="text-xs text-muted-foreground">
+                        No modo demonstração, a importação fica desabilitada.
+                      </p>
+                    ) : null}
+
+                    {importResult ? (
+                      <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                        <div className="flex flex-wrap gap-3">
+                          <span>
+                            <span className="font-medium">Criados:</span>{" "}
+                            {tenantImportTotalForKey(importResult.summary, "created")}
+                          </span>
+                          <span>
+                            <span className="font-medium">Atualizados:</span>{" "}
+                            {tenantImportTotalForKey(importResult.summary, "updated")}
+                          </span>
+                          <span>
+                            <span className="font-medium">Erros:</span>{" "}
+                            {importResult.errors.length}
+                          </span>
+                        </div>
+                        {importResult.errors.length > 0 ? (
+                          <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                            {importResult.errors.slice(0, 5).map((e, idx) => (
+                              <div key={`${e.sheet}:${e.row}:${idx}`}>
+                                {e.sheet} — linha {e.row}
+                                {e.field ? ` (${e.field})` : ""}: {e.message}
+                              </div>
+                            ))}
+                            {importResult.errors.length > 5 ? (
+                              <div>… e mais {importResult.errors.length - 5}.</div>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+
                 <p className="text-sm text-muted-foreground">
                   Marque apenas o que for usar agora — os demais podem ser
                   ativados depois em{" "}

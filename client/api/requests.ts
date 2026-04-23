@@ -38,6 +38,88 @@ export type TenantLogoUploadCallbacks = {
   onPhase?: (phase: TenantLogoUploadPhase) => void;
 };
 
+export type TenantImportRowStatus = "created" | "updated" | "skipped" | "error";
+
+export type TenantImportSheet =
+  | "Setores"
+  | "Categorias_armario"
+  | "Categorias_gaveta"
+  | "Armarios"
+  | "Gavetas"
+  | "Medicamentos"
+  | "Insumos"
+  | "Residentes"
+  | "Estoque_medicamentos"
+  | "Estoque_insumos";
+
+export type TenantImportRowError = {
+  sheet: TenantImportSheet;
+  row: number;
+  field?: string;
+  message: string;
+};
+
+export type TenantImportRowResult = {
+  sheet: TenantImportSheet;
+  row: number;
+  status: TenantImportRowStatus;
+};
+
+export type TenantImportEntitySummary = {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: number;
+};
+
+export type TenantImportXlsxResponse = {
+  ok: true;
+  summary: {
+    setores: TenantImportEntitySummary;
+    cabinetCategories: TenantImportEntitySummary;
+    drawerCategories: TenantImportEntitySummary;
+    cabinets: TenantImportEntitySummary;
+    drawers: TenantImportEntitySummary;
+    medicines: TenantImportEntitySummary;
+    inputs: TenantImportEntitySummary;
+    residents: TenantImportEntitySummary;
+    medicineStock: TenantImportEntitySummary;
+    inputStock: TenantImportEntitySummary;
+  };
+  rows: {
+    setores: TenantImportRowResult[];
+    cabinetCategories: TenantImportRowResult[];
+    drawerCategories: TenantImportRowResult[];
+    cabinets: TenantImportRowResult[];
+    drawers: TenantImportRowResult[];
+    medicines: TenantImportRowResult[];
+    inputs: TenantImportRowResult[];
+    residents: TenantImportRowResult[];
+    medicineStock: TenantImportRowResult[];
+    inputStock: TenantImportRowResult[];
+  };
+  errors: TenantImportRowError[];
+};
+
+/** Soma registros criados ou atualizados em todas as abas do relatório de importação. */
+export function tenantImportTotalForKey(
+  summary: TenantImportXlsxResponse["summary"],
+  key: "created" | "updated",
+): number {
+  return (
+    summary.setores[key] +
+    summary.cabinetCategories[key] +
+    summary.drawerCategories[key] +
+    summary.cabinets[key] +
+    summary.drawers[key] +
+    summary.medicines[key] +
+    summary.inputs[key] +
+    summary.residents[key] +
+    summary.medicineStock[key] +
+    summary.inputStock[key]
+  );
+}
+
 function parseLogoUploadResponse(xhr: XMLHttpRequest): { logoUrl: string } {
   let data: { error?: string; logoUrl?: string } | null = null;
   try {
@@ -132,6 +214,25 @@ export function uploadTenantLogo(
 ): Promise<{ logoUrl: string }> {
   return uploadTenantLogoWithProgress(file, brandName);
 }
+
+export async function downloadTenantImportTemplate(): Promise<Blob> {
+  const token = readBearerToken();
+  const res = await fetch(`${API_BASE_URL}/tenant/import/template`, {
+    method: "GET",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new Error("Falha ao baixar o template");
+  }
+  return await res.blob();
+}
+
+export const importTenantXlsx = (file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post("/tenant/import/xlsx", form) as Promise<TenantImportXlsxResponse>;
+};
 import type {
   PaginatedResponse,
   DashboardSummaryResponse,
