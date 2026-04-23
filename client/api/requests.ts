@@ -231,7 +231,10 @@ export async function downloadTenantImportTemplate(): Promise<Blob> {
 export const importTenantXlsx = (file: File) => {
   const form = new FormData();
   form.append("file", file);
-  return api.post("/tenant/import/xlsx", form) as Promise<TenantImportXlsxResponse>;
+  return api.post(
+    "/tenant/import/xlsx",
+    form,
+  ) as Promise<TenantImportXlsxResponse>;
 };
 import type {
   PaginatedResponse,

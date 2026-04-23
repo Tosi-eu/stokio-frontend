@@ -222,9 +222,8 @@ export default function TenantOnboarding() {
   const lastTenantKeyRef = useRef<string | null>(null);
   const importFileInputRef = useRef<HTMLInputElement>(null);
   const [importingXlsx, setImportingXlsx] = useState(false);
-  const [importResult, setImportResult] = useState<TenantImportXlsxResponse | null>(
-    null,
-  );
+  const [importResult, setImportResult] =
+    useState<TenantImportXlsxResponse | null>(null);
 
   const confirmSkipOnboarding = () => {
     if (tenantId == null) return;
@@ -250,7 +249,8 @@ export default function TenantOnboarding() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Falha ao baixar template.";
+      const message =
+        err instanceof Error ? err.message : "Falha ao baixar template.";
       toast({
         title: "Não foi possível baixar",
         description: message,
@@ -1056,8 +1056,8 @@ export default function TenantOnboarding() {
                       Importar dados por planilha
                     </CardTitle>
                     <CardDescription>
-                      Se você já tem uma lista de itens, dá para trazer tudo de uma vez.
-                      Linhas com erro não travam o restante.
+                      Se você já tem uma lista de itens, dá para trazer tudo de
+                      uma vez. Linhas com erro não travam o restante.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -1103,11 +1103,17 @@ export default function TenantOnboarding() {
                         <div className="flex flex-wrap gap-3">
                           <span>
                             <span className="font-medium">Criados:</span>{" "}
-                            {tenantImportTotalForKey(importResult.summary, "created")}
+                            {tenantImportTotalForKey(
+                              importResult.summary,
+                              "created",
+                            )}
                           </span>
                           <span>
                             <span className="font-medium">Atualizados:</span>{" "}
-                            {tenantImportTotalForKey(importResult.summary, "updated")}
+                            {tenantImportTotalForKey(
+                              importResult.summary,
+                              "updated",
+                            )}
                           </span>
                           <span>
                             <span className="font-medium">Erros:</span>{" "}
@@ -1123,7 +1129,9 @@ export default function TenantOnboarding() {
                               </div>
                             ))}
                             {importResult.errors.length > 5 ? (
-                              <div>… e mais {importResult.errors.length - 5}.</div>
+                              <div>
+                                … e mais {importResult.errors.length - 5}.
+                              </div>
                             ) : null}
                           </div>
                         ) : null}

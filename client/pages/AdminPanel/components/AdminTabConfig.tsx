@@ -89,9 +89,8 @@ export function AdminTabConfig({
   const { modules, tenant, refetch: refetchTenant } = useTenant();
   const importFileInputRef = useRef<HTMLInputElement>(null);
   const [importingXlsx, setImportingXlsx] = useState(false);
-  const [importResult, setImportResult] = useState<TenantImportXlsxResponse | null>(
-    null,
-  );
+  const [importResult, setImportResult] =
+    useState<TenantImportXlsxResponse | null>(null);
   const [moduleEnabled, setModuleEnabled] = useState<Set<string>>(
     () => new Set(),
   );
@@ -246,7 +245,8 @@ export function AdminTabConfig({
       a.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Falha ao baixar template.";
+      const message =
+        err instanceof Error ? err.message : "Falha ao baixar template.";
       toast({
         title: "Não foi possível baixar",
         description: message,
