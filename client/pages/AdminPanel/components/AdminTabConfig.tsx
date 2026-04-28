@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,7 @@ import {
   buildTenantLogoProxyUrl,
 } from "@/helpers/tenant-r2-logo-url.helper";
 import { formatDateTimePtBr } from "@/helpers/dates.helper";
+import { inferSetorKeyFromNome } from "@/helpers/setor-key.helper";
 import {
   Select,
   SelectContent,
@@ -102,12 +103,16 @@ export function AdminTabConfig({
     () => new Set(["farmacia", "enfermagem"]),
   );
   const [sectorCatalog, setSectorCatalog] = useState<TenantSetorRow[]>([]);
-  const [newSectorKey, setNewSectorKey] = useState("");
   const [newSectorNome, setNewSectorNome] = useState("");
   const [newSectorProfile, setNewSectorProfile] = useState<
     "farmacia" | "enfermagem"
   >("farmacia");
   const [creatingSector, setCreatingSector] = useState(false);
+
+  const previewSectorKey = useMemo(
+    () => inferSetorKeyFromNome(newSectorNome),
+    [newSectorNome],
+  );
 
   const loadSectorCatalog = useCallback(async () => {
     try {
@@ -323,25 +328,22 @@ export function AdminTabConfig({
   }, []);
 
   const handleCreateSector = async () => {
-    const key = newSectorKey.trim().toLowerCase();
     const nome = newSectorNome.trim();
-    if (!key || !nome) {
+    if (!nome) {
       toast({
-        title: "Chave e nome obrigatórios",
-        description:
-          "Use uma chave curta (ex.: psicologia) e o nome visível (ex.: Psicologia).",
+        title: "Nome obrigatório",
+        description: "Informe o nome do setor (ex.: Psicologia).",
         variant: "error",
       });
       return;
     }
+    const key = inferSetorKeyFromNome(nome);
     setCreatingSector(true);
     try {
       await createTenantSetor({
-        key,
         nome,
         proportionProfile: newSectorProfile,
       });
-      setNewSectorKey("");
       setNewSectorNome("");
       await loadSectorCatalog();
       setEnabledSectors((prev) => new Set(prev).add(key));
@@ -606,26 +608,29 @@ export function AdminTabConfig({
             </div>
             <div className="rounded-md border border-dashed p-3 space-y-2 bg-background/50">
               <p className="text-xs font-medium text-foreground">
-                Novo setor (chave técnica + nome)
+                Novo setor (só o nome)
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                A chave técnica é gerada automaticamente: minúsculas, snake_case,
+                sem acentos (ex.: «Farmácia» →{" "}
+                <span className="font-mono">farmacia</span>; «Carrinho de
+                emergência» →{" "}
+                <span className="font-mono">carrinho_de_emergencia</span>).
               </p>
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
-                <div className="space-y-1 flex-1 min-w-[140px]">
-                  <Label className="text-xs">Chave</Label>
-                  <Input
-                    value={newSectorKey}
-                    onChange={(e) => setNewSectorKey(e.target.value)}
-                    placeholder="psicologia"
-                    className="h-9"
-                  />
-                </div>
-                <div className="space-y-1 flex-1 min-w-[140px]">
+                <div className="space-y-1 flex-1 min-w-[200px]">
                   <Label className="text-xs">Nome</Label>
                   <Input
                     value={newSectorNome}
                     onChange={(e) => setNewSectorNome(e.target.value)}
-                    placeholder="Psicologia"
+                    placeholder="Ex.: Psicologia ou Carrinho de emergência"
                     className="h-9"
                   />
+                  {newSectorNome.trim() ? (
+                    <p className="text-[11px] text-muted-foreground font-mono">
+                      Chave: {previewSectorKey}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="space-y-1 w-full sm:w-40">
                   <Label className="text-xs">Perfil gráficos</Label>
@@ -649,7 +654,7 @@ export function AdminTabConfig({
                   size="sm"
                   variant="secondary"
                   className="shrink-0"
-                  disabled={creatingSector}
+                  disabled={creatingSector || !newSectorNome.trim()}
                   onClick={() => void handleCreateSector()}
                 >
                   {creatingSector ? (

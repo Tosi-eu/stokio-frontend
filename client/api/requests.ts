@@ -1210,7 +1210,8 @@ export const listTenantSetores = () =>
   api.get<{ data: TenantSetorRow[] }>("/tenant/setores");
 
 export type CreateTenantSetorPayload = {
-  key: string;
+  /** Opcional; o servidor infere a partir de `nome` se omitido. */
+  key?: string;
   nome: string;
   proportionProfile?: "farmacia" | "enfermagem";
 };
