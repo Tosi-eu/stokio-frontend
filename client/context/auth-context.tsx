@@ -7,7 +7,11 @@ import {
   ReactNode,
 } from "react";
 import { AuthContextType, LoggedUser } from "@/interfaces/interfaces";
-import { login as apiLogin, logoutRequest } from "@/api/requests";
+import {
+  getCurrentUser,
+  login as apiLogin,
+  logoutRequest,
+} from "@/api/requests";
 import { cleanupSessionTimeout } from "@/helpers/session-timeout.helper";
 import { isSuperAdminUser } from "@/helpers/auth-roles.helper";
 import { authStorage } from "@/helpers/auth.helper";
@@ -19,8 +23,14 @@ export const AuthContext = createContext<AuthContextType | undefined>(
 
 function normalizeSessionUser(raw: LoggedUser | null): LoggedUser | null {
   if (!raw || typeof raw.id !== "number") return null;
+  const first = raw.firstName ?? raw.first_name;
+  const last = raw.lastName ?? raw.last_name;
   return {
     ...raw,
+    first_name: first,
+    last_name: last,
+    firstName: raw.firstName ?? first,
+    lastName: raw.lastName ?? last,
     isSuperAdmin: isSuperAdminUser(raw),
   };
 }
@@ -60,32 +70,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    const storedUser = sessionStorage.getItem("user");
+    let cancelled = false;
 
-    if (storedUser) {
-      try {
-        const parsed = JSON.parse(storedUser) as
-          | LoggedUser
-          | { user?: LoggedUser };
-        const raw =
-          parsed && typeof parsed === "object" && "user" in parsed
-            ? (parsed.user ?? null)
-            : (parsed as LoggedUser);
-        setUser(
-          normalizeSessionUser(raw && raw.id ? (raw as LoggedUser) : null),
-        );
-      } catch (error) {
-        console.error("Erro ao restaurar sessão:", error);
-        sessionStorage.removeItem("user");
+    async function hydrateSession() {
+      const token = authStorage.getToken();
+      if (token) {
+        try {
+          const fresh = await getCurrentUser();
+          if (cancelled) return;
+          if (fresh && typeof fresh.id === "number") {
+            const next = normalizeSessionUser(fresh as LoggedUser);
+            setUser(next);
+            if (next) {
+              try {
+                sessionStorage.setItem("user", JSON.stringify(next));
+              } catch {
+                /* ignore */
+              }
+            }
+            return;
+          }
+        } catch {
+          if (cancelled) return;
+        }
+      }
+
+      const storedUser = sessionStorage.getItem("user");
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser) as
+            | LoggedUser
+            | { user?: LoggedUser };
+          const raw =
+            parsed && typeof parsed === "object" && "user" in parsed
+              ? (parsed.user ?? null)
+              : (parsed as LoggedUser);
+          setUser(
+            normalizeSessionUser(raw && raw.id ? (raw as LoggedUser) : null),
+          );
+        } catch (error) {
+          console.error("Erro ao restaurar sessão:", error);
+          sessionStorage.removeItem("user");
+          setUser(null);
+        }
+      } else {
         setUser(null);
       }
-    } else {
-      setUser(null);
     }
 
-    setLoading(false);
+    void hydrateSession().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
 
     return () => {
+      cancelled = true;
       cleanupSessionTimeout();
     };
   }, [handleLogout]);

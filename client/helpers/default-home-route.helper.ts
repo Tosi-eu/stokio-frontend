@@ -19,13 +19,21 @@ type UserContext = {
 export function getDefaultHomePath(
   isEnabled: (key: string) => boolean,
   user: UserContext | null,
+  canReadModule?: (moduleKey: string) => boolean,
+  previewMode?: boolean,
 ): string | null {
+  const readable = (moduleKey: string) =>
+    canReadModule ? canReadModule(moduleKey) : true;
+
   for (const { module, path } of HOME_ROUTE_CANDIDATES) {
     if (module === "admin") {
-      if (user?.role === "admin" && isEnabled("admin")) return path;
+      if (!isEnabled("admin")) continue;
+      if (previewMode) return path;
+      if (user?.role === "admin") return path;
+      if (readable("admin")) return path;
       continue;
     }
-    if (isEnabled(module)) return path;
+    if (isEnabled(module) && readable(module)) return path;
   }
   return null;
 }

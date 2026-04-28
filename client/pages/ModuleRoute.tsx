@@ -2,6 +2,8 @@
 
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { useAuth } from "@/hooks/use-auth.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
+import type { PermissionResourceKey } from "@/domain/permission-matrix.types";
 import { getDefaultHomePath } from "@/helpers/default-home-route.helper";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
@@ -20,19 +22,32 @@ export default function ModuleRoute({
   moduleKey: string;
   children: JSX.Element;
 }) {
-  const { loading, isEnabled } = useTenant();
+  const { loading, isEnabled, previewMode } = useTenant();
   const { user } = useAuth();
+  const { can } = usePermissionMatrix();
   const pathname = usePathname();
   const router = useRouter();
 
   const moduleOk = useMemo(
-    () => (loading ? true : isEnabled(moduleKey)),
-    [loading, isEnabled, moduleKey],
+    () =>
+      loading
+        ? true
+        : isEnabled(moduleKey) &&
+          can(moduleKey as PermissionResourceKey, "read"),
+    [loading, isEnabled, moduleKey, can],
   );
 
   const fallback = useMemo(
-    () => (!loading ? getDefaultHomePath(isEnabled, user) : null),
-    [loading, isEnabled, user],
+    () =>
+      !loading
+        ? getDefaultHomePath(
+            isEnabled,
+            user,
+            (m) => can(m as PermissionResourceKey, "read"),
+            previewMode,
+          )
+        : null,
+    [loading, isEnabled, user, can, previewMode],
   );
 
   useEffect(() => {

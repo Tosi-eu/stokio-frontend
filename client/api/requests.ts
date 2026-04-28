@@ -101,7 +101,6 @@ export type TenantImportXlsxResponse = {
   errors: TenantImportRowError[];
 };
 
-/** Soma registros criados ou atualizados em todas as abas do relatório de importação. */
 export function tenantImportTotalForKey(
   summary: TenantImportXlsxResponse["summary"],
   key: "created" | "updated",
@@ -334,10 +333,20 @@ export const getInputs = (
 
 export const deleteInput = (id: number) => api.delete(`/insumos/${id}`);
 
+export type ResidentListItem = {
+  casela: number;
+  name: string;
+  data_nascimento: string | null;
+  idade: number | null;
+};
+
 export const getResidents = (page = 1, limit = 20) =>
-  api.get<PaginatedResponse<{ casela: number; name: string }>>("/residentes", {
+  api.get<PaginatedResponse<ResidentListItem>>("/residentes", {
     params: { page, limit },
   });
+
+export const getResidentByCasela = (casela: string | number) =>
+  api.get<ResidentListItem>(`/residentes/${casela}`);
 
 export const getResidentsCount = () => api.get("/residentes/count");
 export const getCabinetsCount = () => api.get("/armarios/count");
@@ -578,6 +587,13 @@ export async function resolveTenantByLogin(
   return { ok: false, reason: "not_found" };
 }
 
+export type UserPermissions = {
+  read: boolean;
+  create: boolean;
+  update: boolean;
+  delete: boolean;
+};
+
 export type CurrentUserResponse = {
   id?: number;
   login?: string;
@@ -586,6 +602,11 @@ export type CurrentUserResponse = {
   lastName?: string;
   first_name?: string;
   last_name?: string;
+  tenantId?: number | null;
+  isTenantOwner?: boolean;
+  isSuperAdmin?: boolean;
+  permissions?: UserPermissions;
+  permissionMatrix?: import("@/domain/permission-matrix.types").EffectivePermissionMatrixSerialized;
 };
 
 export const getCurrentUser = (): Promise<CurrentUserResponse> =>
@@ -798,8 +819,18 @@ export const createMedicine = (
     estoque_minimo: estoque_minimo != null ? Number(estoque_minimo) : null,
   });
 
-export const createResident = (nome: string, casela: string) =>
-  api.post("/residentes", { nome, casela: parseInt(casela) });
+export const createResident = (
+  nome: string,
+  casela: string,
+  data_nascimento?: string | null,
+) =>
+  api.post("/residentes", {
+    nome,
+    casela: parseInt(casela),
+    ...(data_nascimento != null && String(data_nascimento).trim() !== ""
+      ? { data_nascimento: String(data_nascimento).trim() }
+      : {}),
+  });
 
 export const createStockOut = (payload: {
   estoqueId: number;
@@ -1190,20 +1221,16 @@ export const createTenantSetor = (payload: CreateTenantSetorPayload) =>
 export const getAdminUsers = (params?: { page?: number; limit?: number }) =>
   api.get("/admin/users", { params: params ?? {} });
 
-export type UserPermissions = {
-  read: boolean;
-  create: boolean;
-  update: boolean;
-  delete: boolean;
-};
-
 export type CreateAdminUserPayload = {
   login: string;
   password: string;
   firstName?: string;
   lastName?: string;
   role?: "admin" | "user";
-  permissions?: UserPermissions;
+  /** Legado (4 flags) ou matriz `{ version: 2, resources, movement_tipos }`. */
+  permissions?:
+    | UserPermissions
+    | import("@/domain/permission-matrix.types").PermissionMatrixV2Stored;
 };
 
 export const createAdminUser = (data: CreateAdminUserPayload) =>
@@ -1217,7 +1244,9 @@ export const updateAdminUser = (
     login?: string;
     password?: string;
     role?: "admin" | "user";
-    permissions?: UserPermissions;
+    permissions?:
+      | UserPermissions
+      | import("@/domain/permission-matrix.types").PermissionMatrixV2Stored;
   },
 ) => api.put(`/admin/users/${id}`, data);
 
@@ -1361,6 +1390,8 @@ export type AdminTenant = {
   brandName?: string | null;
   logoUrl?: string | null;
   contractPortfolioId?: number | null;
+  contractConfigured?: boolean;
+  contractBoundLogin?: string | null;
 };
 export type AdminTenantsResponse = {
   data: AdminTenant[];

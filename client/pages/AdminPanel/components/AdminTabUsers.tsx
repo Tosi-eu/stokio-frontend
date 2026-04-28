@@ -15,7 +15,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Pencil, Trash2, UserPlus } from "lucide-react";
 import type { AdminUser } from "../types";
 import { Input } from "@/components/ui/input";
@@ -54,12 +53,6 @@ export function AdminTabUsers({
   const { toast } = useToast();
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"user" | "admin">("user");
-  const [invitePermissions, setInvitePermissions] = useState({
-    read: true,
-    create: false,
-    update: false,
-    delete: false,
-  });
   const [sendingInvite, setSendingInvite] = useState(false);
   const [lastInviteToken, setLastInviteToken] = useState<string | null>(null);
   const [lastInviteLink, setLastInviteLink] = useState<string | null>(null);
@@ -88,7 +81,9 @@ export function AdminTabUsers({
           <div>
             <CardTitle>Usuários do sistema</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Gerencie usuários e convites.
+              Gerencie usuários e convites. O convite usa só e-mail e função;
+              permissões detalhadas depois de o utilizador aceitar (editar
+              utilizador).
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -102,20 +97,9 @@ export function AdminTabUsers({
               />
               <Select
                 value={inviteRole}
-                onValueChange={(v) => {
-                  const next = v === "admin" ? "admin" : "user";
-                  setInviteRole(next);
-                  if (next === "admin") {
-                    setInvitePermissions({
-                      read: true,
-                      create: true,
-                      update: true,
-                      delete: true,
-                    });
-                  } else {
-                    setInvitePermissions((p) => ({ ...p, read: true }));
-                  }
-                }}
+                onValueChange={(v) =>
+                  setInviteRole(v === "admin" ? "admin" : "user")
+                }
               >
                 <SelectTrigger className="h-9 w-[140px]">
                   <SelectValue />
@@ -125,54 +109,6 @@ export function AdminTabUsers({
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="hidden lg:flex items-center gap-3 rounded-lg border border-border/60 bg-background/60 px-2 py-1">
-                <span className="text-xs text-muted-foreground">
-                  Permissões
-                </span>
-                <label className="flex items-center gap-2 cursor-not-allowed opacity-70">
-                  <Checkbox checked disabled />
-                  <span className="text-xs">Ler</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={invitePermissions.create}
-                    disabled={inviteRole === "admin"}
-                    onCheckedChange={(checked) =>
-                      setInvitePermissions((p) => ({
-                        ...p,
-                        create: Boolean(checked),
-                      }))
-                    }
-                  />
-                  <span className="text-xs">Criar</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={invitePermissions.update}
-                    disabled={inviteRole === "admin"}
-                    onCheckedChange={(checked) =>
-                      setInvitePermissions((p) => ({
-                        ...p,
-                        update: Boolean(checked),
-                      }))
-                    }
-                  />
-                  <span className="text-xs">Editar</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={invitePermissions.delete}
-                    disabled={inviteRole === "admin"}
-                    onCheckedChange={(checked) =>
-                      setInvitePermissions((p) => ({
-                        ...p,
-                        delete: Boolean(checked),
-                      }))
-                    }
-                  />
-                  <span className="text-xs">Remover</span>
-                </label>
-              </div>
               <Button
                 size="sm"
                 className="gap-2"
@@ -189,19 +125,9 @@ export function AdminTabUsers({
                   }
                   setSendingInvite(true);
                   try {
-                    const permissionsToSend =
-                      inviteRole === "admin"
-                        ? {
-                            read: true,
-                            create: true,
-                            update: true,
-                            delete: true,
-                          }
-                        : { ...invitePermissions, read: true };
                     const res = await createTenantInvite({
                       email,
                       role: inviteRole,
-                      permissions: permissionsToSend,
                       expires_in_days: 7,
                     });
                     if ("emailSent" in res && res.emailSent === false) {

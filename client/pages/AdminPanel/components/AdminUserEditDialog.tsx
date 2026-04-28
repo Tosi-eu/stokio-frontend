@@ -15,29 +15,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import type { AdminUser, UserPermissions } from "../types";
+import type { EffectivePermissionMatrixSerialized } from "@/domain/permission-matrix.types";
+import type { AdminUser } from "../types";
+import { defaultEffectiveMatrixFromFlat } from "@/helpers/permission-matrix.helpers";
+import { PermissionMatrixFields } from "./PermissionMatrixFields";
+
+const defaultFlat = {
+  read: true,
+  create: false,
+  update: false,
+  delete: false,
+} as const;
+
+export type AdminUserEditForm = {
+  firstName: string;
+  lastName: string;
+  login: string;
+  password: string;
+  role: "admin" | "user";
+  permissionMatrix: EffectivePermissionMatrixSerialized;
+};
 
 interface AdminUserEditDialogProps {
   user: AdminUser | null;
-  form: {
-    firstName: string;
-    lastName: string;
-    login: string;
-    password: string;
-    role: "admin" | "user";
-    permissions: UserPermissions;
-  };
-  setForm: React.Dispatch<
-    React.SetStateAction<{
-      firstName: string;
-      lastName: string;
-      login: string;
-      password: string;
-      role: "admin" | "user";
-      permissions: UserPermissions;
-    }>
-  >;
+  form: AdminUserEditForm;
+  setForm: React.Dispatch<React.SetStateAction<AdminUserEditForm>>;
   saving: boolean;
   onClose: () => void;
   onSave: () => void;
@@ -55,7 +57,7 @@ export function AdminUserEditDialog({
 
   return (
     <Dialog open={!!user} onOpenChange={() => onClose()}>
-      <DialogContent>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar usuário</DialogTitle>
         </DialogHeader>
@@ -108,15 +110,10 @@ export function AdminUserEditDialog({
                 setForm((p) => ({
                   ...p,
                   role: v,
-                  permissions:
-                    v === "admin"
-                      ? {
-                          read: true,
-                          create: true,
-                          update: true,
-                          delete: true,
-                        }
-                      : p.permissions,
+                  permissionMatrix:
+                    v === "user"
+                      ? defaultEffectiveMatrixFromFlat({ ...defaultFlat })
+                      : p.permissionMatrix,
                 }))
               }
             >
@@ -129,64 +126,22 @@ export function AdminUserEditDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="grid gap-3 border-t pt-4">
-            <Label>Permissões</Label>
-            <p className="text-xs text-muted-foreground">
-              Leitura é obrigatória para todos. Marque as permissões de escrita
-              para este usuário.
-            </p>
-            <div className="flex flex-wrap gap-6">
-              <label className="flex items-center gap-2 cursor-not-allowed opacity-70">
-                <Checkbox checked disabled />
-                <span className="text-sm">Leitura</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <Checkbox
-                  checked={form.permissions.create}
-                  onCheckedChange={(checked) =>
-                    setForm((p) => ({
-                      ...p,
-                      permissions: {
-                        ...p.permissions,
-                        create: Boolean(checked),
-                      },
-                    }))
-                  }
-                />
-                <span className="text-sm">Criar</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <Checkbox
-                  checked={form.permissions.update}
-                  onCheckedChange={(checked) =>
-                    setForm((p) => ({
-                      ...p,
-                      permissions: {
-                        ...p.permissions,
-                        update: Boolean(checked),
-                      },
-                    }))
-                  }
-                />
-                <span className="text-sm">Editar</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <Checkbox
-                  checked={form.permissions.delete}
-                  onCheckedChange={(checked) =>
-                    setForm((p) => ({
-                      ...p,
-                      permissions: {
-                        ...p.permissions,
-                        delete: Boolean(checked),
-                      },
-                    }))
-                  }
-                />
-                <span className="text-sm">Remover</span>
-              </label>
+          {form.role === "user" ? (
+            <div className="grid gap-3 border-t pt-4">
+              <Label>Permissões por recurso</Label>
+              <PermissionMatrixFields
+                value={form.permissionMatrix}
+                onChange={(permissionMatrix) =>
+                  setForm((p) => ({ ...p, permissionMatrix }))
+                }
+              />
             </div>
-          </div>
+          ) : (
+            <p className="text-sm text-muted-foreground border-t pt-4">
+              Administradores têm acesso total a todos os recursos e tipos de
+              movimentação.
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>

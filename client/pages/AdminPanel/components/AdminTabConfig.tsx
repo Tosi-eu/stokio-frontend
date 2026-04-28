@@ -717,8 +717,12 @@ export function AdminTabConfig({
           <CardTitle>Importar dados por planilha</CardTitle>
           <p className="text-sm text-muted-foreground font-normal mt-1">
             Envie uma planilha `.xlsx` com abas de Medicamentos, Insumos e
-            Residentes. O sistema importa as linhas válidas e devolve um resumo
-            com os erros.
+            Residentes (opcional: coluna{" "}
+            <code className="text-xs bg-muted px-1 rounded">
+              data_nascimento
+            </code>
+            ). O sistema importa as linhas válidas e devolve um resumo com os
+            erros.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">

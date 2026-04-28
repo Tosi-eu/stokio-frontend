@@ -6,6 +6,7 @@ import EditableTable from "@/components/EditableTable";
 import { SkeletonTable } from "@/components/SkeletonTable";
 import { toast } from "@/hooks/use-toast.hook";
 import { getResidents } from "@/api/requests";
+import { formatDateToPtBr } from "@/helpers/dates.helper";
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import {
@@ -21,7 +22,12 @@ import { cn } from "@/lib/utils";
 import { OperationType, StockTypeLabels } from "@/utils/enums";
 import { ClipboardList, Pencil, UserRound } from "lucide-react";
 
-type ResidentRow = { name: string; casela: number };
+type ResidentRow = {
+  name: string;
+  casela: number;
+  data_nascimento: string | null;
+  idade: number | null;
+};
 
 const PRONTUARIO_COLUMNS = [
   { key: "kind", label: "Categoria", editable: false },
@@ -96,6 +102,12 @@ export default function Resident() {
       const mapped = (Array.isArray(res.data) ? res.data : []).map((r) => ({
         name: String(r.name ?? ""),
         casela: Number(r.casela),
+        data_nascimento:
+          r.data_nascimento != null ? String(r.data_nascimento) : null,
+        idade:
+          typeof r.idade === "number" && Number.isFinite(r.idade)
+            ? r.idade
+            : null,
       }));
       setResidents(mapped);
       setHasNext(Boolean(res.hasNext));
@@ -251,6 +263,12 @@ export default function Resident() {
                         </p>
                         <p className="text-sm text-muted-foreground">
                           Casela {r.casela}
+                          {r.idade != null ? (
+                            <span className="text-foreground/90">
+                              {" "}
+                              · {r.idade} anos
+                            </span>
+                          ) : null}
                         </p>
                       </div>
                     </button>
@@ -329,6 +347,24 @@ export default function Resident() {
                       <dt className="text-muted-foreground">Casela</dt>
                       <dd className="font-medium mt-1">{selected.casela}</dd>
                     </div>
+                    <div>
+                      <dt className="text-muted-foreground">
+                        Data de nascimento
+                      </dt>
+                      <dd className="font-medium mt-1">
+                        {selected.data_nascimento
+                          ? formatDateToPtBr(selected.data_nascimento)
+                          : "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">Idade</dt>
+                      <dd className="font-medium mt-1">
+                        {selected.idade != null
+                          ? `${selected.idade} anos`
+                          : "—"}
+                      </dd>
+                    </div>
                   </dl>
 
                   <div className="border-t border-border/60 pt-6 space-y-4">
@@ -372,6 +408,8 @@ export default function Resident() {
                             item: {
                               name: selected.name,
                               casela: selected.casela,
+                              data_nascimento: selected.data_nascimento,
+                              idade: selected.idade,
                             },
                           });
                           router.push("/residents/edit");

@@ -28,12 +28,18 @@ export default function RegisterResident() {
     defaultValues: {
       name: "",
       casela: "",
+      data_nascimento: "",
     },
   });
 
   const onSubmit = async (data: ResidentFormData) => {
     try {
-      await createResident(data.name.trim(), data.casela);
+      const dn = data.data_nascimento?.trim();
+      await createResident(
+        data.name.trim(),
+        data.casela,
+        dn && dn !== "" ? dn : undefined,
+      );
 
       toast({
         title: "Residente cadastrado",
@@ -99,6 +105,26 @@ export default function RegisterResident() {
               {errors.casela && (
                 <p className="text-sm text-red-600 mt-1">
                   {errors.casela.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="data_nascimento">Data de nascimento</Label>
+              <Input
+                id="data_nascimento"
+                type="date"
+                {...register("data_nascimento")}
+                disabled={isSubmitting}
+                aria-invalid={errors.data_nascimento ? "true" : "false"}
+              />
+              <p className="text-xs text-muted-foreground">
+                Opcional. A idade é calculada automaticamente a partir desta
+                data.
+              </p>
+              {errors.data_nascimento && (
+                <p className="text-sm text-red-600 mt-1">
+                  {errors.data_nascimento.message}
                 </p>
               )}
             </div>

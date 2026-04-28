@@ -24,12 +24,42 @@ export const PREVIEW_DRAWERS = [
 ];
 
 export const PREVIEW_RESIDENTS = [
-  { name: "Maria Silva", casela: 101 },
-  { name: "João Santos", casela: 102 },
-  { name: "Ana Costa", casela: 103 },
-  { name: "Carlos Mendes", casela: 104 },
-  { name: "Rosa Ferreira", casela: 105 },
-  { name: "Pedro Alves", casela: 106 },
+  {
+    name: "Maria Silva",
+    casela: 101,
+    data_nascimento: "1948-03-12",
+    idade: 78,
+  },
+  {
+    name: "João Santos",
+    casela: 102,
+    data_nascimento: "1955-11-02",
+    idade: 70,
+  },
+  {
+    name: "Ana Costa",
+    casela: 103,
+    data_nascimento: null,
+    idade: null,
+  },
+  {
+    name: "Carlos Mendes",
+    casela: 104,
+    data_nascimento: "1960-07-20",
+    idade: 65,
+  },
+  {
+    name: "Rosa Ferreira",
+    casela: 105,
+    data_nascimento: "1952-01-30",
+    idade: 74,
+  },
+  {
+    name: "Pedro Alves",
+    casela: 106,
+    data_nascimento: null,
+    idade: null,
+  },
 ];
 
 function stockProportionFromTotals(

@@ -6,8 +6,11 @@ import Layout from "@/components/Layout";
 import { toast } from "@/hooks/use-toast.hook";
 import { getErrorMessage } from "@/helpers/validation.helper";
 import { useFormWithZod } from "@/hooks/use-form-with-zod";
-import { residentSchema } from "@/schemas/resident.schema";
-import { updateResident } from "@/api/requests";
+import {
+  residentSchema,
+  type ResidentFormData,
+} from "@/schemas/resident.schema";
+import { getResidentByCasela, updateResident } from "@/api/requests";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,8 +21,13 @@ export default function EditResident() {
   const router = useRouter();
   const [item] = useState(
     () =>
-      consumeSpaNavigationState<{ item?: { name?: string; casela?: number } }>()
-        ?.item,
+      consumeSpaNavigationState<{
+        item?: {
+          name?: string;
+          casela?: number;
+          data_nascimento?: string | null;
+        };
+      }>()?.item,
   );
 
   const {
@@ -32,16 +40,12 @@ export default function EditResident() {
     defaultValues: {
       name: "",
       casela: "",
+      data_nascimento: "",
     },
   });
 
   useEffect(() => {
-    if (item) {
-      reset({
-        name: item.name || "",
-        casela: item.casela?.toString() || "",
-      });
-    } else {
+    if (!item?.casela) {
       toast({
         title: "Nenhum residente selecionado",
         description: "Volte à lista e escolha um residente para editar.",
@@ -49,10 +53,30 @@ export default function EditResident() {
         duration: 3000,
       });
       router.push("/residents");
+      return;
     }
+
+    void getResidentByCasela(item.casela)
+      .then((r) => {
+        reset({
+          name: r.name ?? "",
+          casela: String(r.casela),
+          data_nascimento: r.data_nascimento ?? "",
+        });
+      })
+      .catch(() => {
+        reset({
+          name: item.name || "",
+          casela: String(item.casela),
+          data_nascimento:
+            typeof item.data_nascimento === "string"
+              ? item.data_nascimento
+              : "",
+        });
+      });
   }, [item, router, reset]);
 
-  const onSubmit = async (data: { name: string; casela: string }) => {
+  const onSubmit = async (data: ResidentFormData) => {
     if (!data.casela) {
       toast({
         title: "Erro",
@@ -64,8 +88,10 @@ export default function EditResident() {
     }
 
     try {
+      const dn = data.data_nascimento?.trim() ?? "";
       await updateResident(data.casela, {
         nome: data.name.trim(),
+        data_nascimento: dn === "" ? null : dn,
       });
 
       toast({
@@ -134,6 +160,26 @@ export default function EditResident() {
               {errors.casela && (
                 <p className="text-sm text-red-600 mt-1">
                   {errors.casela.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="data_nascimento">Data de nascimento</Label>
+              <Input
+                id="data_nascimento"
+                type="date"
+                {...register("data_nascimento")}
+                disabled={isSubmitting}
+                aria-invalid={errors.data_nascimento ? "true" : "false"}
+              />
+              <p className="text-xs text-muted-foreground">
+                Deixe em branco para remover. A idade é calculada
+                automaticamente.
+              </p>
+              {errors.data_nascimento && (
+                <p className="text-sm text-red-600 mt-1">
+                  {errors.data_nascimento.message}
                 </p>
               )}
             </div>

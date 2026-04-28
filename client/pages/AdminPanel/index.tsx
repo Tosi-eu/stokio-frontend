@@ -14,6 +14,8 @@ import {
   Edit,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
+import type { PermissionResourceKey } from "@/domain/permission-matrix.types";
 import {
   useAdminSummary,
   useAdminAlerts,
@@ -50,8 +52,10 @@ import AdminPanelPreview from "./AdminPanelPreview";
 export default function AdminPanel() {
   const router = useRouter();
   const { user } = useAuth();
+  const { can } = usePermissionMatrix();
   const { isEnabled, previewMode } = useTenant();
-  const isAdmin = user?.role === "admin";
+  const canFullAdminUi = user?.role === "admin" || can("admin", "read");
+  const adminTabEnabled = previewMode || canFullAdminUi;
   const isSuperAdmin = isSuperAdminUser(user);
 
   const [activeTab, setActiveTab] = useState("resumo");
@@ -60,36 +64,46 @@ export default function AdminPanel() {
     !isSuperAdmin && activeTab === "tenants" ? "resumo" : activeTab;
 
   useEffect(() => {
-    if (!isAdmin && !previewMode) {
-      const path = getDefaultHomePath(isEnabled, user) ?? "/loading";
+    if (!adminTabEnabled) {
+      const path =
+        getDefaultHomePath(
+          isEnabled,
+          user,
+          (m) => can(m as PermissionResourceKey, "read"),
+          previewMode,
+        ) ?? "/loading";
       router.replace(path);
     }
-  }, [isAdmin, previewMode, router, isEnabled, user]);
+  }, [adminTabEnabled, previewMode, router, isEnabled, user, can]);
 
-  const summary = useAdminSummary(isAdmin, effectiveTab === "resumo");
-  const alerts = useAdminAlerts(isAdmin, effectiveTab === "alertas");
+  const summary = useAdminSummary(canFullAdminUi, effectiveTab === "resumo");
+  const alerts = useAdminAlerts(canFullAdminUi, effectiveTab === "alertas");
   const users = useAdminUsers(
-    isAdmin,
+    canFullAdminUi,
     effectiveTab === "users" || effectiveTab === "insights",
   );
-  const loginLog = useAdminLoginLog(isAdmin, effectiveTab === "acessos");
-  const config = useAdminConfig(isAdmin, effectiveTab === "config");
-  const metrics = useAdminMetrics(isAdmin, effectiveTab === "resumo");
+  const loginLog = useAdminLoginLog(canFullAdminUi, effectiveTab === "acessos");
+  const config = useAdminConfig(canFullAdminUi, effectiveTab === "config");
+  const metrics = useAdminMetrics(canFullAdminUi, effectiveTab === "resumo");
   const notifications = useAdminNotifications(
-    isAdmin,
+    canFullAdminUi,
     effectiveTab === "notificacoes",
   );
-  const insights = useAdminInsights(isAdmin, effectiveTab === "insights");
+  const insights = useAdminInsights(
+    canFullAdminUi,
+    effectiveTab === "insights",
+  );
   const reports = useAdminReports(effectiveTab === "relatorios");
-  const resumoExtras = useAdminResumoExtras(isAdmin, effectiveTab === "resumo");
+  const resumoExtras = useAdminResumoExtras(
+    canFullAdminUi,
+    effectiveTab === "resumo",
+  );
 
-  if (!isAdmin && !previewMode) return null;
+  if (!adminTabEnabled) return null;
 
-  if (!isAdmin && previewMode) {
+  if (!canFullAdminUi && previewMode) {
     return <AdminPanelPreview />;
   }
-
-  if (!isAdmin) return null;
 
   return (
     <Layout title="Painel administrativo">
@@ -316,7 +330,9 @@ export default function AdminPanel() {
         {isSuperAdmin ? (
           <TabsContent value="tenants" className="mt-6">
             <AdminTabTenants
-              enabled={isSuperAdmin && isAdmin && effectiveTab === "tenants"}
+              enabled={
+                isSuperAdmin && canFullAdminUi && effectiveTab === "tenants"
+              }
             />
           </TabsContent>
         ) : null}

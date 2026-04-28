@@ -6,8 +6,14 @@ import {
   updateAdminUser,
   deleteAdminUser,
 } from "@/api/requests";
-import type { AdminUser, UserPermissions } from "../types";
+import type { AdminUser } from "../types";
 import type { CreateUserForm } from "../components/AdminUserCreateDialog";
+import {
+  cloneMatrixSerialized,
+  defaultEffectiveMatrixFromFlat,
+  effectiveMatrixToV2Stored,
+} from "@/helpers/permission-matrix.helpers";
+import type { UserPermissions } from "../types";
 
 const defaultPermissions: UserPermissions = {
   read: true,
@@ -31,7 +37,7 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
     login: "",
     password: "",
     role: "user" as "admin" | "user",
-    permissions: defaultPermissions as UserPermissions,
+    permissionMatrix: defaultEffectiveMatrixFromFlat(defaultPermissions),
   });
   const [formCreate, setFormCreate] = useState<CreateUserForm>({
     firstName: "",
@@ -39,7 +45,7 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
     login: "",
     password: "",
     role: "user",
-    permissions: { ...defaultPermissions },
+    permissionMatrix: defaultEffectiveMatrixFromFlat(defaultPermissions),
   });
   const [saving, setSaving] = useState(false);
 
@@ -65,19 +71,23 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
 
   function openEdit(u: AdminUser) {
     setEditModal(u);
-    const perms =
+    const flatPerms: UserPermissions =
       u.role === "admin"
         ? { read: true, create: true, update: true, delete: true }
         : u.permissions
           ? { ...defaultPermissions, ...u.permissions }
           : defaultPermissions;
+    const matrix =
+      u.permissionMatrix != null
+        ? cloneMatrixSerialized(u.permissionMatrix)
+        : defaultEffectiveMatrixFromFlat(flatPerms);
     setFormEdit({
       firstName: u.firstName ?? "",
       lastName: u.lastName ?? "",
       login: u.login,
       password: "",
       role: u.role,
-      permissions: perms,
+      permissionMatrix: matrix,
     });
   }
 
@@ -88,7 +98,7 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
       const permissionsToSend =
         formEdit.role === "admin"
           ? { read: true, create: true, update: true, delete: true }
-          : formEdit.permissions;
+          : effectiveMatrixToV2Stored(formEdit.permissionMatrix);
       await updateAdminUser(editModal.id, {
         firstName: formEdit.firstName,
         lastName: formEdit.lastName,
@@ -116,7 +126,7 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
       const permissionsToSend =
         formCreate.role === "admin"
           ? { read: true, create: true, update: true, delete: true }
-          : formCreate.permissions;
+          : effectiveMatrixToV2Stored(formCreate.permissionMatrix);
       await createAdminUser({
         login: formCreate.login.trim(),
         password: formCreate.password,
@@ -133,7 +143,7 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
         login: "",
         password: "",
         role: "user",
-        permissions: { ...defaultPermissions },
+        permissionMatrix: defaultEffectiveMatrixFromFlat(defaultPermissions),
       });
       loadUsers();
     } catch (err) {
@@ -177,10 +187,10 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
     setEditModal,
     createModalOpen,
     setCreateModalOpen,
-    formCreate,
-    setFormCreate,
     deleteTarget,
     setDeleteTarget,
+    formCreate,
+    setFormCreate,
     formEdit,
     setFormEdit,
     saving,

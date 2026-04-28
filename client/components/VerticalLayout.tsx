@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
+import type { PermissionResourceKey } from "@/domain/permission-matrix.types";
 import { APP_PUBLIC_NAME } from "@/constants/app-branding";
 import { getDefaultHomePath } from "@/helpers/default-home-route.helper";
 import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
@@ -62,6 +64,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
+  const { can } = usePermissionMatrix();
   const {
     tenant,
     isEnabled,
@@ -80,17 +83,24 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
   const sidebarLogoReady = isViewerTenant ? true : isLogoResolved;
 
   const navigationTabs = [
-    ...((previewMode || user?.role === "admin") && isEnabled("admin")
+    ...((previewMode || can("admin", "read")) && isEnabled("admin")
       ? [{ name: "Painel administrativo", href: "/admin", icon: ShieldCheck }]
       : []),
-    ...baseNavigationTabs.filter((t) =>
-      typeof (t as { module?: string }).module === "string"
-        ? isEnabled((t as { module: string }).module)
-        : true,
-    ),
+    ...baseNavigationTabs.filter((t) => {
+      const mod = (t as { module?: string }).module;
+      if (typeof mod !== "string") return true;
+      if (!isEnabled(mod)) return false;
+      return can(mod as PermissionResourceKey, "read");
+    }),
   ];
 
-  const homeHref = getDefaultHomePath(isEnabled, user) ?? "/loading";
+  const homeHref =
+    getDefaultHomePath(
+      isEnabled,
+      user,
+      (m) => can(m as PermissionResourceKey, "read"),
+      previewMode,
+    ) ?? "/loading";
 
   return (
     <aside

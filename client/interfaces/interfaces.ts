@@ -6,6 +6,7 @@ import {
 } from "@/utils/enums";
 import { ReactNode } from "react";
 import { StockExpiryStatus, StockQuantityStatus } from "./types";
+import type { EffectivePermissionMatrixSerialized } from "@/domain/permission-matrix.types";
 
 export interface RawStockMedicine {
   id?: number;
@@ -71,8 +72,20 @@ export interface LoggedUser {
   login: string;
   first_name?: string;
   last_name?: string;
+  firstName?: string;
+  lastName?: string;
   role?: "admin" | "user";
   tenantId?: number;
+  /** Resumo global (compat): OR sobre todos os recursos. */
+  permissions?: {
+    read: boolean;
+    create: boolean;
+    update: boolean;
+    delete: boolean;
+  };
+  permissionMatrix?: EffectivePermissionMatrixSerialized;
+  isTenantOwner?: boolean;
+  is_tenant_owner?: boolean;
   isSuperAdmin?: boolean;
   is_super_admin?: boolean;
 }

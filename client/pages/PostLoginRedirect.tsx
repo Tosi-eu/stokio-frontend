@@ -3,6 +3,8 @@ import { useRouter } from "next/navigation";
 import { Building2 } from "lucide-react";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { useAuth } from "@/hooks/use-auth.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
+import type { PermissionResourceKey } from "@/domain/permission-matrix.types";
 import { getDefaultHomePath } from "@/helpers/default-home-route.helper";
 import { APP_PUBLIC_NAME } from "@/constants/app-branding";
 import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
@@ -13,6 +15,7 @@ const POST_LOGIN_MIN_VISIBLE_MS = 6000;
 export default function PostLoginRedirect() {
   const { loading, tenant, isEnabled, previewMode } = useTenant();
   const { user } = useAuth();
+  const { can } = usePermissionMatrix();
   const router = useRouter();
 
   const userId = user?.id;
@@ -35,9 +38,14 @@ export default function PostLoginRedirect() {
     if (loading || doneRef.current || screenStartRef.current === null) return;
 
     const path =
-      getDefaultHomePath(isEnabled, {
-        role: userRole,
-      }) ?? "/user/profile";
+      getDefaultHomePath(
+        isEnabled,
+        {
+          role: userRole,
+        },
+        (m) => can(m as PermissionResourceKey, "read"),
+        previewMode,
+      ) ?? "/user/profile";
 
     const elapsed = Date.now() - screenStartRef.current;
     const remaining = Math.max(0, POST_LOGIN_MIN_VISIBLE_MS - elapsed);
@@ -49,7 +57,7 @@ export default function PostLoginRedirect() {
     }, remaining);
 
     return () => window.clearTimeout(timer);
-  }, [loading, userId, userRole, router, isEnabled]);
+  }, [loading, userId, userRole, router, isEnabled, can, previewMode]);
 
   const title = tenant?.brandName || tenant?.name || APP_PUBLIC_NAME;
 
