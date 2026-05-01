@@ -166,10 +166,17 @@ function isMutationAllowedInPreviewMode(path: string, method: string): boolean {
 
 async function request(
   path: string,
-  options: RequestInit & { body?: unknown } = {},
+  options: RequestInit & {
+    body?: unknown;
+    silentInsufficientPrivileges?: boolean;
+  } = {},
 ) {
   const isFormData = options.body instanceof FormData;
-  const { headers: optionHeaders, ...restOptions } = options;
+  const {
+    headers: optionHeaders,
+    silentInsufficientPrivileges,
+    ...restOptions
+  } = options;
   const method = (restOptions.method || "GET").toUpperCase();
   if (
     readPreviewModeFromStorage() &&
@@ -233,13 +240,15 @@ async function request(
     }
 
     if (res?.status === 403) {
-      window.dispatchEvent(
-        new CustomEvent("insufficient-privileges", {
-          detail: {
-            message: data?.error || rawMsg || INSUFFICIENT_PRIVILEGES_MESSAGE,
-          },
-        }),
-      );
+      if (!silentInsufficientPrivileges) {
+        window.dispatchEvent(
+          new CustomEvent("insufficient-privileges", {
+            detail: {
+              message: data?.error || rawMsg || INSUFFICIENT_PRIVILEGES_MESSAGE,
+            },
+          }),
+        );
+      }
       throw new Error(data?.error || rawMsg || INSUFFICIENT_PRIVILEGES_MESSAGE);
     }
 
@@ -256,11 +265,13 @@ export const api = {
     options?: {
       params?: Record<string, unknown>;
       headers?: HeadersInit;
+      silentInsufficientPrivileges?: boolean;
     },
   ) =>
     request(`${path}${buildQueryString(options?.params)}`, {
       method: "GET",
       headers: options?.headers,
+      silentInsufficientPrivileges: options?.silentInsufficientPrivileges,
     }) as Promise<T>,
 
   post: <T = unknown>(path: string, body?: unknown, options?: RequestInit) =>

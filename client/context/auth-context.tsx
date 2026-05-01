@@ -109,7 +109,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             normalizeSessionUser(raw && raw.id ? (raw as LoggedUser) : null),
           );
         } catch (error) {
-          console.error("Erro ao restaurar sessão:", error);
+          console.error("Failed to restore session:", error);
           sessionStorage.removeItem("user");
           setUser(null);
         }

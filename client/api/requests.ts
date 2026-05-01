@@ -955,6 +955,9 @@ export const getNotifications = async ({
 
     const res = await api.get<NotificationsResponse>("/notificacao", {
       params,
+      // Esta chamada pode acontecer sem ação explícita do usuário (ex.: bootstrap de UI).
+      // Não deve disparar toast global de "sem privilégios"; o UI controla isso.
+      silentInsufficientPrivileges: true,
     });
 
     return {
