@@ -23,6 +23,10 @@ import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
 import { APP_PUBLIC_NAME } from "@/constants/app-branding";
 import { VALIDATION_LIMITS } from "@/constants/app.constants";
 import { authStorage } from "@/helpers/auth.helper";
+import {
+  getErrorMessage,
+  USER_FACING_RETRY_SHORT,
+} from "@/helpers/validation.helper";
 
 export default function Profile() {
   const router = useRouter();
@@ -110,8 +114,12 @@ export default function Profile() {
       });
     } catch (err: unknown) {
       toast({
-        title: "Erro",
-        description: err instanceof Error ? err.message : "Erro inesperado",
+        title: "Não foi possível atualizar o perfil",
+        description: getErrorMessage(
+          err,
+          USER_FACING_RETRY_SHORT,
+          "Profile:update",
+        ),
         variant: "error",
         duration: 3000,
       });

@@ -43,18 +43,7 @@ import {
 } from "@/api/requests";
 import { getEnabledSectors } from "@/helpers/tenant-sectors.helper";
 import { setSkipTenantOnboarding } from "@/context/tenant-context";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast.hook";
 import { useAuth } from "@/hooks/use-auth.hook";
@@ -67,6 +56,12 @@ import {
   buildTenantLogoProxyUrl,
 } from "@/helpers/tenant-r2-logo-url.helper";
 import { validateImageFileDecodes } from "@/helpers/validate-image-file.helper";
+import {
+  getErrorMessage,
+  USER_FACING_RETRY_SHORT,
+} from "@/helpers/validation.helper";
+import { sanitizeUserFacingMessage } from "@/helpers/user-facing-error.helper";
+import { SIGNUP_CONTRACT_VERIFIED_SESSION_KEY } from "@/helpers/signup-contract-session.helper";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
@@ -217,6 +212,8 @@ export default function TenantOnboarding() {
   const [contractCode, setContractCode] = useState("");
   const [contractValidated, setContractValidated] = useState(false);
   const [validatingContract, setValidatingContract] = useState(false);
+  /** One-shot auto-verify after signup when silent verification succeeded on Auth */
+  const signupContractAutoVerifyStartedRef = useRef(false);
   const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
   const lastTenantKeyRef = useRef<string | null>(null);
@@ -228,12 +225,6 @@ export default function TenantOnboarding() {
   const confirmSkipOnboarding = () => {
     if (tenantId == null) return;
     setSkipTenantOnboarding(tenantId, true);
-    toast({
-      title: "Modo de visualização",
-      description:
-        "Complete a configuração do abrigo quando quiser, em Administração ou ao voltar a esta página.",
-      duration: 5000,
-    });
     router.replace("/loading");
   };
 
@@ -249,8 +240,11 @@ export default function TenantOnboarding() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Falha ao baixar template.";
+      const message = getErrorMessage(
+        err,
+        "Não foi possível baixar o modelo.",
+        "TenantOnboarding:templateDownload",
+      );
       toast({
         title: "Não foi possível baixar",
         description: message,
@@ -290,8 +284,11 @@ export default function TenantOnboarding() {
         duration: 6000,
       });
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Falha ao importar planilha.";
+      const message = getErrorMessage(
+        err,
+        "Não foi possível importar a planilha.",
+        "TenantOnboarding:xlsxImport",
+      );
       toast({
         title: "Erro na importação",
         description: message,
@@ -323,6 +320,7 @@ export default function TenantOnboarding() {
     setPendingLogoFile(null);
     // Só resetar a validação ao trocar de abrigo (não quando módulos/branding atualizam).
     if (tenantChanged) {
+      signupContractAutoVerifyStartedRef.current = false;
       // Não apagar o código após migração para abrigo definitivo.
       // Mantém o valor digitado e evita pedir para inserir de novo.
       if (!contractValidated) {
@@ -429,105 +427,192 @@ export default function TenantOnboarding() {
     });
   };
 
-  const handleVerifyContract = async () => {
-    const slug = tenant?.slug?.trim();
-    const code = contractCode.trim();
-    if (!slug) {
-      toast({
-        title: "Abrigo sem identificador",
-        description: "Não foi possível validar o código. Recarregue a página.",
-        variant: "error",
-      });
-      return;
-    }
-    if (!code) {
-      toast({
-        title: "Informe o código",
-        description:
-          "Digite o código do contrato fornecido pela equipe Stokio.",
-        variant: "error",
-      });
-      return;
-    }
-    const sessionLogin = user?.login?.trim();
-    if (!sessionLogin) {
-      toast({
-        title: "Sessão inválida",
-        description: "Faça login de novo para associar o código ao seu e-mail.",
-        variant: "error",
-      });
-      return;
-    }
-    setValidatingContract(true);
-    try {
-      if (slug.startsWith("u-")) {
-        const claim = await claimTenantContractCode(code, sessionLogin);
-        if (claim.migrated === true && claim.tenantId != null) {
-          setContractCode(code);
-          patchStoredUser({
-            tenantId: claim.tenantId,
-            role: "admin",
-          });
-          await refetch();
-          setContractValidated(true);
+  const verifyContractCodeFlow = useCallback(
+    async (
+      rawCode: string,
+      opts?: { silent?: boolean },
+    ): Promise<boolean> => {
+      const silent = Boolean(opts?.silent);
+      const slug = tenant?.slug?.trim();
+      const code = rawCode.trim();
+      const sessionLogin = user?.login?.trim();
+
+      if (!slug) {
+        if (!silent) {
           toast({
-            title: "Abrigo associado",
+            title: "Abrigo sem identificador",
             description:
-              "Código confirmado. Você já pode escolher o logo e salvar.",
-            variant: "success",
-            duration: 7000,
+              "Não foi possível validar o código. Recarregue a página.",
+            variant: "error",
           });
-          return;
         }
-        setContractValidated(false);
-        toast({
-          title: "Não foi possível concluir",
-          description:
-            "A resposta do servidor não indicou migração. Tente de novo ou contacte o suporte.",
-          variant: "error",
-        });
-        return;
+        return false;
+      }
+      if (!code) {
+        if (!silent) {
+          toast({
+            title: "Informe o código",
+            description:
+              "Digite o código do contrato fornecido pela equipe Stokio.",
+            variant: "error",
+          });
+        }
+        return false;
+      }
+      if (!sessionLogin) {
+        if (!silent) {
+          toast({
+            title: "Sessão inválida",
+            description:
+              "Faça login de novo para associar o código ao seu e-mail.",
+            variant: "error",
+          });
+        }
+        return false;
       }
 
-      const res = await verifyTenantContractCode(slug, code);
-      if (res.contractCodeRequired === false) {
-        setContractValidated(false);
-        toast({
-          title: "Não foi possível validar",
-          description: "Algo deu errado. Tente novamente.",
-          variant: "error",
-          duration: 6000,
-        });
-        return;
-      }
-      if (!res.valid) {
-        setContractValidated(false);
-        toast({
-          title: "Não foi possível validar",
-          description: "Algo deu errado. Tente novamente.",
-          variant: "error",
-        });
-        return;
-      }
-      setContractValidated(true);
       setContractCode(code);
-      toast({
-        title: "Código confirmado",
-        description: "Você já pode escolher o logo e salvar.",
-        variant: "success",
-      });
-    } catch (err) {
-      setContractValidated(false);
-      console.error(err);
-      toast({
-        title: "Não foi possível validar",
-        description: "Algo deu errado. Tente novamente.",
-        variant: "error",
-      });
-    } finally {
-      setValidatingContract(false);
-    }
+      setValidatingContract(true);
+      try {
+        if (slug.startsWith("u-")) {
+          const claim = await claimTenantContractCode(code, sessionLogin);
+          if (claim.migrated === true && claim.tenantId != null) {
+            patchStoredUser({
+              tenantId: claim.tenantId,
+              role: "admin",
+            });
+            await refetch();
+            setContractValidated(true);
+            if (!silent) {
+              toast({
+                title: "Abrigo associado",
+                description:
+                  "Código confirmado. Você já pode escolher o logo e salvar.",
+                variant: "success",
+                duration: 7000,
+              });
+            }
+            return true;
+          }
+          setContractValidated(false);
+          if (!silent) {
+            toast({
+              title: "Não foi possível associar o código",
+              description:
+                "Não conseguimos ligar este código à sua conta neste momento. Confira o código ou fale com o suporte Stokio.",
+              variant: "error",
+            });
+          }
+          return false;
+        }
+
+        const res = await verifyTenantContractCode(slug, code);
+        if (res.contractCodeRequired === false) {
+          setContractValidated(false);
+          if (!silent) {
+            toast({
+              title: "Não foi possível validar",
+              description:
+                "Confira o código do contrato e tente de novo.",
+              variant: "error",
+              duration: 6000,
+            });
+          }
+          return false;
+        }
+        if (!res.valid) {
+          setContractValidated(false);
+          if (!silent) {
+            toast({
+              title: "Não foi possível validar",
+              description: "Código não aceito. Verifique e tente de novo.",
+              variant: "error",
+            });
+          }
+          return false;
+        }
+        setContractValidated(true);
+        if (!silent) {
+          toast({
+            title: "Código confirmado",
+            description: "Você já pode escolher o logo e salvar.",
+            variant: "success",
+          });
+        }
+        return true;
+      } catch (err: unknown) {
+        setContractValidated(false);
+        console.error(err);
+        if (!silent) {
+          toast({
+            title: "Não foi possível validar",
+            description: getErrorMessage(
+              err,
+              USER_FACING_RETRY_SHORT,
+              "TenantOnboarding:verifyContract",
+            ),
+            variant: "error",
+          });
+        }
+        return false;
+      } finally {
+        setValidatingContract(false);
+      }
+    },
+    [tenant?.slug, user?.login, patchStoredUser, refetch],
+  );
+
+  const handleVerifyContract = async () => {
+    await verifyContractCodeFlow(contractCode, { silent: false });
   };
+
+  useEffect(() => {
+    if (loading) return;
+    const slug = tenant?.slug?.trim();
+    const sessionLogin = user?.login?.trim();
+    if (!slug || !sessionLogin) return;
+    if (signupContractAutoVerifyStartedRef.current) return;
+
+    let raw: string | null = null;
+    try {
+      raw = sessionStorage.getItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+    } catch {
+      raw = null;
+    }
+    if (!raw) return;
+
+    let parsed: { code?: string; email?: string };
+    try {
+      parsed = JSON.parse(raw) as { code?: string; email?: string };
+    } catch {
+      sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+      return;
+    }
+
+    const pc = String(parsed.code ?? "").trim();
+    const pe = String(parsed.email ?? "").trim();
+    if (!pc || pe !== sessionLogin) {
+      sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+      return;
+    }
+
+    signupContractAutoVerifyStartedRef.current = true;
+    void (async () => {
+      const ok = await verifyContractCodeFlow(pc, { silent: true });
+      sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+      if (!ok) {
+        signupContractAutoVerifyStartedRef.current = false;
+      } else if (tenantId != null) {
+        setSkipTenantOnboarding(tenantId, false);
+      }
+    })();
+  }, [
+    loading,
+    tenantId,
+    tenant?.slug,
+    user?.login,
+    verifyContractCodeFlow,
+  ]);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -536,7 +621,7 @@ export default function TenantOnboarding() {
       toast({
         title: "Modo de visualização",
         description:
-          "Saia do modo demonstração para escolher e enviar o logo ao servidor.",
+          "Saia do modo demonstração para escolher e enviar o logo.",
         variant: "warning",
         duration: 5000,
       });
@@ -580,7 +665,7 @@ export default function TenantOnboarding() {
     toast({
       title: "Imagem selecionada",
       description:
-        "Pré-visualização local. O envio ao armazenamento (R2) ocorre ao clicar em Salvar configuração.",
+        "Pré-visualização.",
       variant: "success",
     });
     e.target.value = "";
@@ -629,7 +714,7 @@ export default function TenantOnboarding() {
       toast({
         title: "Modo de visualização",
         description:
-          "Use «Concluir configuração» no aviso acima para salvar nome, logo e módulos no servidor.",
+          "Use «Concluir configuração» no aviso acima para guardar nome, logo e módulos.",
         variant: "warning",
         duration: 6000,
       });
@@ -740,10 +825,14 @@ export default function TenantOnboarding() {
       });
       await logout();
       router.replace("/user/login");
-    } catch {
+    } catch (err: unknown) {
       toast({
         title: "Erro ao salvar",
-        description: "Tente novamente em instantes.",
+        description: getErrorMessage(
+          err,
+          "Não foi possível guardar a configuração. " + USER_FACING_RETRY_SHORT,
+          "TenantOnboarding:save",
+        ),
         variant: "error",
       });
     } finally {
@@ -771,9 +860,9 @@ export default function TenantOnboarding() {
             <AlertTitle>Modo demonstração</AlertTitle>
             <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <span className="leading-relaxed">
-                O logo não é enviado ao servidor enquanto você explora o
-                sistema. Para escolher imagem, validar contrato e gravar no R2,
-                conclua a configuração de verdade.
+                Enquanto estiver em modo demonstração, o logo não é enviado.
+                Para escolher imagem, validar o contrato e guardar o logo,
+                conclua a configuração por completo.
               </span>
               {tenantId != null ? (
                 <Button
@@ -864,7 +953,6 @@ export default function TenantOnboarding() {
                         value={contractCode}
                         onChange={(e) => {
                           setContractCode(e.target.value);
-                          // Só “desvalida” se o texto realmente mudou (evita resets laterais).
                           if (contractValidated) setContractValidated(false);
                           if (pendingLogoFile || localPreviewUrl) {
                             clearPendingLogo();
@@ -908,7 +996,7 @@ export default function TenantOnboarding() {
                     <p className="text-xs text-muted-foreground">
                       {previewMode
                         ? "Saia do modo demonstração para validar o código e enviar o logo."
-                        : "A escolha da imagem só é liberada após o código ser aceito. O arquivo só sobe ao R2 quando você salvar esta página."}
+                        : "A escolha da imagem só é liberada após o código ser aceito. O envio da imagem só é feito quando você guardar esta página."}
                     </p>
                   </div>
                 </div>
@@ -956,8 +1044,8 @@ export default function TenantOnboarding() {
                         )}
                         {uploadingLogo
                           ? logoUploadPhase === "storing"
-                            ? "Gravando no R2…"
-                            : "Enviando…"
+                            ? "A guardar o logo…"
+                            : "A enviar…"
                           : "Escolher imagem"}
                       </Button>
                       {pendingLogoFile ? (
@@ -981,10 +1069,10 @@ export default function TenantOnboarding() {
                       >
                         <p className="text-xs font-medium text-foreground leading-snug">
                           {logoUploadPhase === "storing"
-                            ? "Gravando no armazenamento (Cloudflare R2)…"
+                            ? "A finalizar o envio do logo…"
                             : logoUploadPercent != null
-                              ? `Enviando para o servidor… ${logoUploadPercent}%`
-                              : "Enviando para o servidor…"}
+                              ? `A enviar o logo… ${logoUploadPercent}%`
+                              : "A enviar o logo…"}
                         </p>
                         {logoUploadPhase === "sending" &&
                         logoUploadPercent != null ? (
@@ -1006,8 +1094,9 @@ export default function TenantOnboarding() {
                       </div>
                     ) : null}
                     <p className="max-w-[14rem] text-center text-xs text-muted-foreground">
-                      PNG, JPG, WebP ou GIF, até 2 MB. Pré-visualização local;
-                      envio ao R2 ao salvar a configuração.
+                      PNG, JPG, WebP ou GIF, até 2 MB. A pré-visualização é só no
+                      seu dispositivo; o logo só é enviado quando guardar a
+                      configuração.
                     </p>
                   </div>
 
@@ -1121,7 +1210,8 @@ export default function TenantOnboarding() {
                             {importResult.errors.slice(0, 5).map((e, idx) => (
                               <div key={`${e.sheet}:${e.row}:${idx}`}>
                                 {e.sheet} — linha {e.row}
-                                {e.field ? ` (${e.field})` : ""}: {e.message}
+                                {e.field ? ` (${e.field})` : ""}:{" "}
+                                {sanitizeUserFacingMessage(e.message)}
                               </div>
                             ))}
                             {importResult.errors.length > 5 ? (
@@ -1278,7 +1368,7 @@ export default function TenantOnboarding() {
             >
               <AccordionItem value="json" className="border-0 px-4">
                 <AccordionTrigger className="text-sm font-medium text-muted-foreground hover:no-underline py-4">
-                  Prévia técnica (JSON enviado ao servidor)
+                  Prévia técnica (JSON — suporte)
                 </AccordionTrigger>
                 <AccordionContent>
                   <pre className="max-h-48 overflow-auto rounded-lg border bg-background p-3 text-xs leading-relaxed">
@@ -1298,7 +1388,8 @@ export default function TenantOnboarding() {
                         )}
                   </pre>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Informativo para suporte; a validação final é no backend.
+                    Informativo para suporte; ao guardar, o sistema aplica a
+                    validação definitiva automaticamente.
                   </p>
                 </AccordionContent>
               </AccordionItem>
@@ -1326,42 +1417,15 @@ export default function TenantOnboarding() {
                 ) : null}
               </div>
               <div className="flex flex-wrap justify-end gap-2">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      disabled={saving}
-                      className="text-muted-foreground"
-                    >
-                      Cadastrar depois
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>
-                        Continuar sem configurar o abrigo?
-                      </AlertDialogTitle>
-                      <AlertDialogDescription className="text-left leading-relaxed">
-                        Você pode continuar em{" "}
-                        <strong>modo de visualização</strong> e concluir a
-                        configuração mais tarde em Administração.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Voltar</AlertDialogCancel>
-                      <AlertDialogAction
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          confirmSkipOnboarding();
-                        }}
-                      >
-                        Entendi, continuar
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={saving}
+                  className="text-muted-foreground"
+                  onClick={() => confirmSkipOnboarding()}
+                >
+                  Cadastrar depois
+                </Button>
                 <Button
                   type="button"
                   variant="outline"

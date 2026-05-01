@@ -6,6 +6,10 @@ import EditableTable from "@/components/EditableTable";
 import { SkeletonTable } from "@/components/SkeletonTable";
 import { deleteDrawer, getDrawers } from "@/api/requests";
 import { toast } from "@/hooks/use-toast.hook";
+import {
+  getErrorMessage,
+  USER_FACING_RETRY_SHORT,
+} from "@/helpers/validation.helper";
 import type { Drawer } from "@/interfaces/interfaces";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import {
@@ -103,7 +107,11 @@ export default function Drawers() {
       setDrawers(mapped);
       setHasNext(Boolean(res.hasNext));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro inesperado";
+      const msg = getErrorMessage(
+        err,
+        "Não foi possível carregar as gavetas.",
+        "Drawers:load",
+      );
       toast({
         title: "Erro ao carregar gavetas",
         description: msg,
@@ -252,7 +260,11 @@ export default function Drawers() {
     } catch (err: unknown) {
       toast({
         title: "Não foi possível remover",
-        description: err instanceof Error ? err.message : "Tente novamente.",
+        description: getErrorMessage(
+          err,
+          USER_FACING_RETRY_SHORT,
+          "Drawers:delete",
+        ),
         variant: "error",
         duration: 3500,
       });

@@ -174,7 +174,7 @@ export function uploadTenantLogoWithProgress(
     toast({
       title: "Modo de visualização",
       description:
-        "O logo não é enviado ao servidor neste modo. Conclua a configuração do abrigo para usar o armazenamento (R2).",
+        "O logo não é enviado ao servidor neste modo. Conclua a configuração do abrigo para poder enviar o logo.",
       variant: "warning",
       duration: 5000,
     });
@@ -1213,6 +1213,8 @@ export const updateTenantConfig = (modules: UpdateTenantModulesPayload) =>
 export type ForceTenantPriceBackfillResponse = {
   accepted?: boolean;
   acceptedAtMs?: number;
+  workflowId?: string;
+  requestId?: string;
   message?: string;
 };
 
@@ -1225,6 +1227,9 @@ export type TenantPriceBackfillStatusResponse = {
     ok: boolean;
     error?: string;
   } | null;
+  queueLength?: number;
+  currentRequestId?: string | null;
+  workflowId?: string;
 };
 
 /** [Admin] Inicia busca retroativa em segundo plano (202). Estado em GET status. */

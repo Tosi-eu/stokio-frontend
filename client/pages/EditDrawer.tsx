@@ -57,7 +57,7 @@ export default function EditDrawer() {
       .catch(() =>
         toast({
           title: "Erro ao carregar gavetas",
-          description: "Não foi possível buscar as gavetas do servidor.",
+          description: "Não foi possível carregar a lista de gavetas.",
           variant: "error",
           duration: 3000,
         }),

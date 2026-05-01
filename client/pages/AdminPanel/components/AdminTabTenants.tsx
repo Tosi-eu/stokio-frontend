@@ -25,6 +25,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast.hook";
+import {
+  getErrorMessage,
+  USER_FACING_RETRY_SHORT,
+} from "@/helpers/validation.helper";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const MODULES: Array<{ key: string; label: string }> = [
@@ -69,12 +73,16 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
       const res = await getAdminTenants({ page, limit });
       setRows(res.data ?? []);
       setTotal(Number(res.total) || 0);
-    } catch (e) {
-      const msg =
-        e instanceof Error && e.message?.trim()
-          ? e.message
-          : "Erro ao carregar tenants";
-      toast({ title: msg, variant: "error" });
+    } catch (e: unknown) {
+      toast({
+        title: "Não foi possível carregar os abrigos",
+        description: getErrorMessage(
+          e,
+          USER_FACING_RETRY_SHORT,
+          "AdminTabTenants:list",
+        ),
+        variant: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -90,8 +98,16 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
       const res = await getAdminTenantConfig(id);
       setSelectedId(id);
       setModules(new Set(res.modules?.enabled ?? []));
-    } catch {
-      toast({ title: "Erro ao carregar config do tenant", variant: "error" });
+    } catch (e: unknown) {
+      toast({
+        title: "Não foi possível carregar a configuração",
+        description: getErrorMessage(
+          e,
+          USER_FACING_RETRY_SHORT,
+          "AdminTabTenants:loadConfig",
+        ),
+        variant: "error",
+      });
     } finally {
       setConfigLoading(false);
     }
@@ -115,7 +131,7 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Tenants</CardTitle>
+          <CardTitle>Abrigos</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-end gap-2">
@@ -150,10 +166,18 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
                   await createAdminTenant({ slug, name });
                   setNewSlug("");
                   setNewName("");
-                  toast({ title: "Tenant criado" });
+                  toast({ title: "Abrigo criado", variant: "success" });
                   void load();
-                } catch {
-                  toast({ title: "Erro ao criar tenant", variant: "error" });
+                } catch (e: unknown) {
+                  toast({
+                    title: "Não foi possível criar o abrigo",
+                    description: getErrorMessage(
+                      e,
+                      USER_FACING_RETRY_SHORT,
+                      "AdminTabTenants:create",
+                    ),
+                    variant: "error",
+                  });
                 }
               }}
               disabled={loading}
@@ -204,7 +228,7 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
                     colSpan={5}
                     className="text-center text-muted-foreground"
                   >
-                    {loading ? "Carregando..." : "Sem tenants"}
+                    {loading ? "Carregando..." : "Nenhum abrigo"}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -230,11 +254,16 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
                           if (t.id === 1) return;
                           try {
                             await deleteAdminTenant(t.id);
-                            toast({ title: "Tenant removido" });
+                            toast({ title: "Abrigo removido", variant: "success" });
                             void load();
-                          } catch {
+                          } catch (e: unknown) {
                             toast({
-                              title: "Erro ao remover tenant",
+                              title: "Não foi possível remover o abrigo",
+                              description: getErrorMessage(
+                                e,
+                                USER_FACING_RETRY_SHORT,
+                                "AdminTabTenants:delete",
+                              ),
                               variant: "error",
                             });
                           }
@@ -272,12 +301,12 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Módulos do tenant {selectedId ?? "-"}</CardTitle>
+          <CardTitle>Módulos do abrigo {selectedId ?? "-"}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {selectedId == null ? (
             <div className="text-sm text-muted-foreground">
-              Selecione um tenant e clique em “Configurar módulos”.
+              Selecione um abrigo na lista e clique em “Configurar módulos”.
             </div>
           ) : (
             <>

@@ -33,6 +33,7 @@ import {
   actionMessages,
   actionTitles,
 } from "@/helpers/toaster.helper";
+import { getErrorMessage } from "@/helpers/validation.helper";
 import { toast } from "@/hooks/use-toast.hook";
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
@@ -170,10 +171,11 @@ export default function Stock() {
         setItems(getPreviewStockItems());
         setHasNext(false);
       } else {
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Não foi possível carregar os itens do estoque.";
+        const errorMessage = getErrorMessage(
+          err,
+          "Não foi possível carregar os itens do estoque.",
+          "Stock:loadItems",
+        );
         toast({
           title: "Erro ao carregar estoque",
           description: errorMessage,
@@ -198,10 +200,11 @@ export default function Stock() {
           lots: ["LT-DEMO"],
         });
       } else {
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Não foi possível carregar as opções de filtro.";
+        const errorMessage = getErrorMessage(
+          err,
+          "Não foi possível carregar as opções de filtro.",
+          "Stock:filterOptions",
+        );
         toast({
           title: "Erro ao carregar opções",
           description: errorMessage,
@@ -230,10 +233,11 @@ export default function Stock() {
           PREVIEW_RESIDENTS.map((r) => ({ casela: r.casela, name: r.name })),
         );
       } else {
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Não foi possível carregar os residentes.";
+        const errorMessage = getErrorMessage(
+          err,
+          "Não foi possível carregar os residentes.",
+          "Stock:residents",
+        );
         toast({
           title: "Erro ao carregar residentes",
           description: errorMessage,
@@ -498,10 +502,11 @@ export default function Stock() {
         duration: 3000,
       });
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Ocorreu um erro ao executar a ação.";
+      const errorMessage = getErrorMessage(
+        err,
+        "Não foi possível concluir a ação. Tente novamente.",
+        "Stock:rowAction",
+      );
 
       const messages =
         typeof actionMessages[type] === "function"
@@ -553,10 +558,11 @@ export default function Stock() {
       const messages = actionMessages.transfer(row);
       toast({ title: messages.success, variant: "success", duration: 3000 });
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Ocorreu um erro ao transferir o item.";
+      const errorMessage = getErrorMessage(
+        err,
+        "Não foi possível transferir o item. Tente novamente.",
+        "Stock:transfer",
+      );
 
       const messages = actionMessages.transfer(row);
       toast({

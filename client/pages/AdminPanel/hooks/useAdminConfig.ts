@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast.hook";
 import { getAdminConfig, updateAdminConfig } from "@/api/requests";
+import {
+  getErrorMessage,
+  USER_FACING_RETRY_SHORT,
+} from "@/helpers/validation.helper";
 import type { AdminSystemConfig } from "@/api/requests";
 
 export const CONFIG_KEYS = {
@@ -91,9 +95,14 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
       setForm(updated);
       window.dispatchEvent(new Event("ui-display-updated"));
       toast({ title: "Configurações salvas", variant: "success" });
-    } catch (e) {
+    } catch (e: unknown) {
       toast({
-        title: e instanceof Error ? e.message : "Erro ao salvar",
+        title: "Não foi possível guardar as configurações",
+        description: getErrorMessage(
+          e,
+          USER_FACING_RETRY_SHORT,
+          "useAdminConfig:save",
+        ),
         variant: "error",
       });
     } finally {

@@ -15,6 +15,7 @@ import {
 } from "@/helpers/stock-list.helper";
 import { useFormWithZod } from "@/hooks/use-form-with-zod";
 import { stockOutQuantitySchema } from "@/schemas/stock-out.schema";
+import { getErrorMessage } from "@/helpers/validation.helper";
 
 import { AnimatePresence, motion } from "framer-motion";
 import Pagination from "@/components/Pagination";
@@ -341,7 +342,11 @@ export default function StockOut() {
     } catch (err: unknown) {
       toast({
         title: "Erro ao registrar saída",
-        description: err instanceof Error ? err.message : "Erro inesperado.",
+        description: getErrorMessage(
+          err,
+          "Não foi possível registar a saída. Tente novamente.",
+          "StockOut:submit",
+        ),
         variant: "error",
         duration: 3000,
       });

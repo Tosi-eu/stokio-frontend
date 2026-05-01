@@ -20,6 +20,7 @@ import type { AdminUser } from "../types";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast.hook";
 import { createTenantInvite } from "@/api/requests";
+import { getErrorMessage } from "@/helpers/validation.helper";
 import { useState } from "react";
 
 interface AdminTabUsersProps {
@@ -148,10 +149,14 @@ export function AdminTabUsers({
                       });
                     }
                     setInviteEmail("");
-                  } catch (e) {
+                  } catch (e: unknown) {
                     toast({
                       title: "Falha ao convidar",
-                      description: e instanceof Error ? e.message : String(e),
+                      description: getErrorMessage(
+                        e,
+                        "Não foi possível enviar o convite. Tente novamente.",
+                        "AdminTabUsers:invite",
+                      ),
                       variant: "error",
                       duration: 3500,
                     });

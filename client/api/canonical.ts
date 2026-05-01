@@ -1,4 +1,5 @@
 import { readPreviewModeFromStorage } from "@/helpers/preview-mode-storage";
+import { sanitizeUserFacingMessage } from "@/helpers/user-facing-error.helper";
 import { toast } from "@/hooks/use-toast.hook";
 
 export const API_BASE_URL =
@@ -62,89 +63,6 @@ function buildQueryString(params?: Record<string, any>): string {
     console.error("Error building query string:", error);
     return "";
   }
-}
-
-function sanitizeErrorMessage(message: string): string {
-  if (!message || typeof message !== "string") {
-    return "Ocorreu um erro. Por favor, tente novamente.";
-  }
-
-  const safeBusinessMessages = [
-    /já existe.*medicamento/i,
-    /já existe.*insumo/i,
-    /combinação.*nome.*princípio/i,
-    /campos obrigatórios/i,
-    /quantidade.*inválida/i,
-    /casela.*obrigatória/i,
-    /usuário não autenticado/i,
-    /não encontrado/i,
-    /credenciais inválidas/i,
-  ];
-
-  if (safeBusinessMessages.some((pattern) => pattern.test(message))) {
-    return message.trim();
-  }
-
-  const sensitivePatterns = [
-    /database/i,
-    /sql/i,
-    /query/i,
-    /connection/i,
-    /postgres/i,
-    /mysql/i,
-    /mongodb/i,
-    /sequelize/i,
-    /prisma/i,
-    /orm/i,
-    /password/i,
-    /token/i,
-    /secret/i,
-    /api[_-]?key/i,
-    /credential/i,
-    /bearer/i,
-    /jwt/i,
-    /session/i,
-    /file[_-]?path/i,
-    /directory/i,
-    /\.env/i,
-    /config/i,
-    /stack[_-]?trace/i,
-    /error[_-]?code/i,
-    /exception/i,
-    /at\s+\w+\.\w+/i,
-    /line\s+\d+/i,
-    /column\s+\d+/i,
-    /host/i,
-    /port/i,
-    /endpoint/i,
-    /url/i,
-    /uri/i,
-    /process\.env/i,
-    /environment/i,
-    /os/i,
-    /platform/i,
-  ];
-
-  if (sensitivePatterns.some((pattern) => pattern.test(message))) {
-    return "Ocorreu um erro. Por favor, tente novamente.";
-  }
-
-  const cleanedMessage = message
-    .split("\n")[0]
-    .replace(/at\s+.*/gi, "")
-    .replace(/\(.*\)/g, "")
-    .trim();
-
-  const maxLength = 150;
-  if (cleanedMessage.length > maxLength) {
-    return cleanedMessage.substring(0, maxLength) + "...";
-  }
-
-  if (cleanedMessage.length < 3) {
-    return "Ocorreu um erro. Por favor, tente novamente.";
-  }
-
-  return cleanedMessage;
 }
 
 const PREVIEW_MUTATION_ALLOW_PREFIXES = [
@@ -252,7 +170,7 @@ async function request(
       throw new Error(data?.error || rawMsg || INSUFFICIENT_PRIVILEGES_MESSAGE);
     }
 
-    const sanitizedMsg = sanitizeErrorMessage(String(rawMsg));
+    const sanitizedMsg = sanitizeUserFacingMessage(String(rawMsg));
     throw new Error(sanitizedMsg);
   }
 

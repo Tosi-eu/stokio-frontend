@@ -16,6 +16,10 @@ import {
 } from "@/helpers/permission-matrix.helpers";
 import type { UserPermissions } from "../types";
 import { useAuth } from "@/hooks/use-auth.hook";
+import {
+  getErrorMessage,
+  USER_FACING_RETRY_SHORT,
+} from "@/helpers/validation.helper";
 
 const defaultPermissions: UserPermissions = {
   read: true,
@@ -171,9 +175,14 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
       toast({ title: "Usuário atualizado", variant: "success" });
       setEditModal(null);
       void loadUsers();
-    } catch (err) {
+    } catch (err: unknown) {
       toast({
-        title: err instanceof Error ? err.message : "Erro ao atualizar",
+        title: "Não foi possível atualizar o utilizador",
+        description: getErrorMessage(
+          err,
+          USER_FACING_RETRY_SHORT,
+          "useAdminUsers:update",
+        ),
         variant: "error",
       });
     } finally {
@@ -207,9 +216,14 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
         permissionMatrix: defaultEffectiveMatrixFromFlat(defaultPermissions),
       });
       loadUsers();
-    } catch (err) {
+    } catch (err: unknown) {
       toast({
-        title: err instanceof Error ? err.message : "Erro ao criar usuário",
+        title: "Não foi possível criar o utilizador",
+        description: getErrorMessage(
+          err,
+          USER_FACING_RETRY_SHORT,
+          "useAdminUsers:create",
+        ),
         variant: "error",
       });
     } finally {
@@ -225,9 +239,14 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
       toast({ title: "Usuário removido", variant: "success" });
       setDeleteTarget(null);
       loadUsers();
-    } catch (err) {
+    } catch (err: unknown) {
       toast({
-        title: err instanceof Error ? err.message : "Erro ao remover",
+        title: "Não foi possível remover o utilizador",
+        description: getErrorMessage(
+          err,
+          USER_FACING_RETRY_SHORT,
+          "useAdminUsers:delete",
+        ),
         variant: "error",
       });
     } finally {

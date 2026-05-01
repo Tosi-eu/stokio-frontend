@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
+import { getErrorMessage } from "@/helpers/validation.helper";
 
 const columns = [
   { key: "medicamento", label: "Medicamento", editable: false },
@@ -48,10 +49,11 @@ export default function TransferReport() {
       setTransfers(data);
       setTotal(data.length);
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Não foi possível carregar as transferências.";
+      const errorMessage = getErrorMessage(
+        err,
+        "Não foi possível carregar as transferências.",
+        "TransferReport:load",
+      );
       toast({
         title: "Erro ao carregar transferências",
         description: errorMessage,

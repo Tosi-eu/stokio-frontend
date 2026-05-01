@@ -9,6 +9,7 @@ import {
   forgotPasswordSchema,
   type ForgotPasswordFormData,
 } from "@/schemas/password.schema";
+import { getErrorMessage } from "@/helpers/validation.helper";
 
 export default function ForgotPassword() {
   const router = useRouter();
@@ -45,8 +46,9 @@ export default function ForgotPassword() {
 
       router.push("/user/login");
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "";
-      const rawMessage = errorMessage.toLowerCase();
+      const rawMessage = (
+        err instanceof Error ? err.message : String(err)
+      ).toLowerCase();
       let errorTitle: string;
       let errorDescription: string;
       if (
@@ -57,10 +59,12 @@ export default function ForgotPassword() {
         errorDescription =
           "O login informado não existe no sistema. Verifique o login e tente novamente.";
       } else {
-        errorTitle = "Erro";
-        errorDescription =
-          errorMessage ||
-          "Erro ao redefinir senha. Verifique os dados e tente novamente.";
+        errorTitle = "Não foi possível redefinir a senha";
+        errorDescription = getErrorMessage(
+          err,
+          "Verifique os dados e tente novamente.",
+          "ForgotPassword:submit",
+        );
       }
 
       toast({

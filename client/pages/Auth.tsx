@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,14 @@ import {
   verifySignupContractCode,
   type LoginTenantSummary,
 } from "@/api/requests";
+import {
+  SIGNUP_CONTRACT_VERIFIED_SESSION_KEY,
+  type SignupContractVerifiedPayload,
+} from "@/helpers/signup-contract-session.helper";
+import {
+  getErrorMessage,
+  USER_FACING_RETRY_SHORT,
+} from "@/helpers/validation.helper";
 
 function formatLoginTenantChoice(t: LoginTenantSummary): string {
   const brand = t.brandName?.trim();
@@ -86,9 +94,8 @@ export default function Auth() {
 
   const [signupFlow, setSignupFlow] = useState<"user" | "join-token">("user");
   const [userContractCode, setUserContractCode] = useState("");
-  const [contractCodeStatus, setContractCodeStatus] = useState<
-    "idle" | "checking" | "valid" | "invalid"
-  >("idle");
+  /** Throttle generic "try later" toast on background verify network errors */
+  const contractVerifyBackgroundErrorAtRef = useRef(0);
   const [viewModeConfirmOpen, setViewModeConfirmOpen] = useState(false);
   const [pendingUserSignup, setPendingUserSignup] = useState<{
     login: string;
@@ -122,7 +129,6 @@ export default function Auth() {
       setLastName("");
       setInviteToken("");
       setUserContractCode("");
-      setContractCodeStatus("idle");
     } else {
       setSignupFlow("user");
     }
@@ -132,26 +138,56 @@ export default function Auth() {
     if (isLogin) return;
     if (signupFlow !== "user") return;
     const cc = userContractCode.trim();
-    if (!cc) {
-      setContractCodeStatus("idle");
-      return;
-    }
     const signupEmail = sanitizeInput(login).trim();
     const emailCheck = validateEmail(signupEmail);
-    if (!emailCheck.valid) {
-      setContractCodeStatus("idle");
+
+    try {
+      const raw = sessionStorage.getItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+      if (raw) {
+        const o = JSON.parse(raw) as { code?: string; email?: string };
+        if (o.code !== cc || o.email !== signupEmail) {
+          sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+        }
+      }
+    } catch {
+      sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+    }
+
+    if (!cc || !emailCheck.valid) {
       return;
     }
+
     let cancelled = false;
-    setContractCodeStatus("checking");
     const id = window.setTimeout(async () => {
       try {
         const res = await verifySignupContractCode(cc, signupEmail);
         if (cancelled) return;
-        setContractCodeStatus(res.valid ? "valid" : "invalid");
+        if (res.valid) {
+          const payload: SignupContractVerifiedPayload = {
+            code: cc,
+            email: signupEmail,
+            verifiedAt: Date.now(),
+          };
+          sessionStorage.setItem(
+            SIGNUP_CONTRACT_VERIFIED_SESSION_KEY,
+            JSON.stringify(payload),
+          );
+        } else {
+          sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+        }
       } catch {
         if (cancelled) return;
-        setContractCodeStatus("invalid");
+        sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+        const now = Date.now();
+        if (now - contractVerifyBackgroundErrorAtRef.current > 60_000) {
+          contractVerifyBackgroundErrorAtRef.current = now;
+          toast({
+            title: "Não foi possível verificar agora",
+            description: "Ocorreu um problema. Tente mais tarde.",
+            variant: "error",
+            duration: 4500,
+          });
+        }
       }
     }, 450);
     return () => {
@@ -508,9 +544,11 @@ export default function Auth() {
           errorDescription = "Aguarde um pouco e tente de novo.";
         } else {
           errorTitle = "Não foi possível entrar";
-          errorDescription =
-            (err instanceof Error ? err.message : null) ||
-            "Tente novamente em instantes.";
+          errorDescription = getErrorMessage(
+            err,
+            USER_FACING_RETRY_SHORT,
+            "Auth:loginGeneric",
+          );
         }
       } else {
         if (
@@ -520,10 +558,11 @@ export default function Auth() {
             rawMessage.includes("expirado"))
         ) {
           errorTitle = "Convite inválido";
-          errorDescription =
-            err instanceof Error
-              ? err.message
-              : "Esse convite não é mais válido. Peça um novo ao responsável.";
+          errorDescription = getErrorMessage(
+            err,
+            "Esse convite não é mais válido. Peça um novo ao responsável.",
+            "Auth:inviteInvalid",
+          );
         } else if (rawMessage.includes("abrigo não encontrado")) {
           errorTitle = "Abrigo não encontrado";
           errorDescription =
@@ -553,9 +592,11 @@ export default function Auth() {
             "A senha não atende aos requisitos. Ajuste e tente de novo.";
         } else {
           errorTitle = "Não foi possível criar a conta";
-          errorDescription =
-            (err instanceof Error ? err.message : null) ||
-            "Tente novamente em instantes.";
+          errorDescription = getErrorMessage(
+            err,
+            USER_FACING_RETRY_SHORT,
+            "Auth:signupGeneric",
+          );
         }
       }
 
@@ -633,13 +674,14 @@ export default function Auth() {
                     duration: 4500,
                   });
                   router.push("/loading");
-                } catch (err) {
+                } catch (err: unknown) {
                   toast({
                     title: "Não foi possível criar a conta",
-                    description:
-                      err instanceof Error
-                        ? err.message
-                        : "Tente novamente em instantes.",
+                    description: getErrorMessage(
+                      err,
+                      USER_FACING_RETRY_SHORT,
+                      "Auth:signupPreviewMode",
+                    ),
                     variant: "error",
                     duration: 3500,
                   });
@@ -939,23 +981,10 @@ export default function Auth() {
                         className={inputFieldClass}
                         placeholder="Se você já tem, cole aqui"
                       />
-                      {contractCodeStatus === "checking" ? (
-                        <p className="text-xs text-muted-foreground">
-                          Verificando código…
-                        </p>
-                      ) : contractCodeStatus === "invalid" ? (
-                        <p className="text-xs text-destructive">
-                          Algo deu errado. Tente novamente.
-                        </p>
-                      ) : contractCodeStatus === "valid" ? (
-                        <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                          Código confirmado.
-                        </p>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">
-                          Você pode preencher depois.
-                        </p>
-                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Opcional. Se informar, usamos apenas para configurar o abrigo
+                        depois — não mostramos aqui se o código está correto.
+                      </p>
                     </div>
                   ) : null}
 

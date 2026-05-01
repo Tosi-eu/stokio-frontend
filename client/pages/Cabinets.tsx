@@ -10,6 +10,10 @@ import {
   updateCabinet,
 } from "@/api/requests";
 import { toast } from "@/hooks/use-toast.hook";
+import {
+  getErrorMessage,
+  USER_FACING_RETRY_SHORT,
+} from "@/helpers/validation.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import {
   PREVIEW_CABINETS,
@@ -116,7 +120,11 @@ export default function Cabinets() {
       setCabinets(mapped);
       setHasNext(Boolean(res.hasNext));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro inesperado";
+      const msg = getErrorMessage(
+        err,
+        "Não foi possível carregar os armários.",
+        "Cabinets:load",
+      );
       toast({
         title: "Erro ao carregar armários",
         description: msg,
@@ -289,8 +297,11 @@ export default function Cabinets() {
     } catch (err: unknown) {
       toast({
         title: "Erro ao salvar",
-        description:
-          err instanceof Error ? err.message : "Não foi possível salvar.",
+        description: getErrorMessage(
+          err,
+          "Não foi possível guardar as alterações.",
+          "Cabinets:update",
+        ),
         variant: "error",
         duration: 3500,
       });
@@ -317,7 +328,11 @@ export default function Cabinets() {
     } catch (err: unknown) {
       toast({
         title: "Não foi possível remover",
-        description: err instanceof Error ? err.message : "Tente novamente.",
+        description: getErrorMessage(
+          err,
+          USER_FACING_RETRY_SHORT,
+          "Cabinets:delete",
+        ),
         variant: "error",
         duration: 3500,
       });

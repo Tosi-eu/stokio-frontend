@@ -23,6 +23,7 @@ import DeleteStockModal from "./DeleteStockModal";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
+import { getErrorMessage } from "@/helpers/validation.helper";
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 
 import {
@@ -375,10 +376,11 @@ export default function EditableTable({
     } catch (err: unknown) {
       toast({
         title: "Erro ao remover item",
-        description:
-          err instanceof Error
-            ? err.message
-            : "Não foi possível remover o item.",
+        description: getErrorMessage(
+          err,
+          "Não foi possível remover o item.",
+          "EditableTable:delete",
+        ),
         variant: "error",
         duration: 3000,
       });

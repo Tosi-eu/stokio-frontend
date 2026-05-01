@@ -30,6 +30,10 @@ import {
 } from "@/helpers/tenant-r2-logo-url.helper";
 import { inferSetorKeyFromNome } from "@/helpers/setor-key.helper";
 import {
+  getErrorMessage,
+  USER_FACING_RETRY_SHORT,
+} from "@/helpers/validation.helper";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -86,6 +90,7 @@ export function AdminTabConfig({
   const [forcePriceBackfillLoading, setForcePriceBackfillLoading] =
     useState(false);
   const [priceBackfillRunning, setPriceBackfillRunning] = useState(false);
+  const [priceBackfillQueueLength, setPriceBackfillQueueLength] = useState(0);
   const priceBackfillPollRef = useRef<ReturnType<typeof setInterval> | null>(
     null,
   );
@@ -126,53 +131,63 @@ export function AdminTabConfig({
       try {
         const s = await getTenantPriceBackfillStatus();
         setPriceBackfillRunning(s.running);
+        setPriceBackfillQueueLength(Number(s.queueLength ?? 0));
       } catch {
         /* ignore */
       }
     })();
   }, []);
 
+  const pollPriceBackfillOnce = useCallback(
+    async (acceptedAtMs: number): Promise<boolean> => {
+      try {
+        const s = await getTenantPriceBackfillStatus();
+        setPriceBackfillRunning(s.running);
+        setPriceBackfillQueueLength(Number(s.queueLength ?? 0));
+        const last = s.last;
+        if (!s.running && last && last.finishedAtMs >= acceptedAtMs) {
+          stopPriceBackfillPolling();
+          setPriceBackfillRunning(false);
+          const n = last.processed ?? 0;
+          if (last.ok) {
+            toast({
+              title: "Busca de preços concluída",
+              description:
+                n > 0
+                  ? `Foram analisados ${n} item(ns) sem preço nesta rodada (até o limite do servidor).`
+                  : "Nada para processar nesta rodada ou limite já atingido.",
+              variant: "success",
+              duration: 7000,
+            });
+          } else {
+            toast({
+              title: "Busca de preços terminou com erro",
+              description:
+                last.error ??
+                "Não foi possível concluir. Pode tentar novamente após o período de espera.",
+              variant: "error",
+              duration: 8000,
+            });
+          }
+          return true;
+        }
+      } catch {
+        /* polling falhou — tenta no próximo intervalo */
+      }
+      return false;
+    },
+    [stopPriceBackfillPolling],
+  );
+
   const startPriceBackfillPolling = useCallback(
     (acceptedAtMs: number) => {
       stopPriceBackfillPolling();
+      void pollPriceBackfillOnce(acceptedAtMs);
       priceBackfillPollRef.current = setInterval(() => {
-        void (async () => {
-          try {
-            const s = await getTenantPriceBackfillStatus();
-            setPriceBackfillRunning(s.running);
-            const last = s.last;
-            if (!s.running && last && last.finishedAtMs >= acceptedAtMs) {
-              stopPriceBackfillPolling();
-              setPriceBackfillRunning(false);
-              const n = last.processed ?? 0;
-              if (last.ok) {
-                toast({
-                  title: "Busca de preços concluída",
-                  description:
-                    n > 0
-                      ? `Foram analisados ${n} item(ns) sem preço nesta rodada (até o limite do servidor).`
-                      : "Nada para processar nesta rodada ou limite já atingido.",
-                  variant: "success",
-                  duration: 7000,
-                });
-              } else {
-                toast({
-                  title: "Busca de preços terminou com erro",
-                  description:
-                    last.error ??
-                    "Não foi possível concluir. Pode tentar novamente após o período de espera.",
-                  variant: "error",
-                  duration: 8000,
-                });
-              }
-            }
-          } catch {
-            /* polling falhou — tenta no próximo intervalo */
-          }
-        })();
+        void pollPriceBackfillOnce(acceptedAtMs);
       }, 3000);
     },
-    [stopPriceBackfillPolling],
+    [stopPriceBackfillPolling, pollPriceBackfillOnce],
   );
 
   useEffect(() => {
@@ -269,11 +284,14 @@ export function AdminTabConfig({
         description: "Pode habilitá-lo abaixo e guardar os módulos.",
         variant: "success",
       });
-    } catch (err) {
+    } catch (err: unknown) {
       toast({
         title: "Não foi possível criar o setor",
-        description:
-          err instanceof Error ? err.message : "Tente outra chave ou nome.",
+        description: getErrorMessage(
+          err,
+          "Tente outro nome ou contacte o suporte.",
+          "AdminTabConfig:createSector",
+        ),
         variant: "error",
       });
     } finally {
@@ -287,21 +305,24 @@ export function AdminTabConfig({
       const res = await forceTenantPriceBackfill();
       if (res?.accepted && typeof res.acceptedAtMs === "number") {
         toast({
-          title: "Busca iniciada em segundo plano",
+          title: "Busca adicionada à fila",
           description:
             res.message ??
-            "Pode continuar a usar o sistema. Avisamos aqui quando terminar.",
+            "Pedido colocado na fila. Pode continuar a usar o sistema — avisamos aqui quando terminar.",
           variant: "success",
           duration: 7000,
         });
         setPriceBackfillRunning(true);
         startPriceBackfillPolling(res.acceptedAtMs);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       toast({
         title: "Não foi possível iniciar",
-        description:
-          err instanceof Error ? err.message : "Tente novamente em instantes.",
+        description: getErrorMessage(
+          err,
+          USER_FACING_RETRY_SHORT,
+          "AdminTabConfig:priceBackfill",
+        ),
         variant: "error",
         duration: 6000,
       });
@@ -340,12 +361,15 @@ export function AdminTabConfig({
         description: "O menu e os atalhos já refletem as áreas ativadas.",
         variant: "success",
       });
-    } catch (err) {
+    } catch (err: unknown) {
       await refetchTenant();
       toast({
         title: "Não foi possível salvar os módulos",
-        description:
-          err instanceof Error ? err.message : "Tente novamente em instantes.",
+        description: getErrorMessage(
+          err,
+          USER_FACING_RETRY_SHORT,
+          "AdminTabConfig:saveModules",
+        ),
         variant: "error",
       });
     } finally {
@@ -404,17 +428,17 @@ export function AdminTabConfig({
       await refetchTenant();
       toast({
         title: "Logo atualizado",
-        description:
-          "Arquivo substituído no armazenamento (R2) e vinculado a este abrigo.",
+        description: "O novo logo foi guardado e já aparece para a sua equipe.",
         variant: "success",
       });
-    } catch (err) {
+    } catch (err: unknown) {
       toast({
-        title: "Não foi possível atualizar o logo",
-        description:
-          err instanceof Error
-            ? err.message
-            : "Confira se o R2 está configurado no servidor.",
+        title: "Não foi possível enviar o logo",
+        description: getErrorMessage(
+          err,
+          "Verifique a sua ligação à internet e tente novamente. Se o problema continuar, contacte o suporte.",
+          "AdminTabConfig:logoUpload",
+        ),
         variant: "error",
       });
     } finally {
@@ -435,11 +459,14 @@ export function AdminTabConfig({
         description: "O nome exibido para a equipe foi salvo.",
         variant: "success",
       });
-    } catch (err) {
+    } catch (err: unknown) {
       toast({
         title: "Não foi possível salvar",
-        description:
-          err instanceof Error ? err.message : "Tente novamente em instantes.",
+        description: getErrorMessage(
+          err,
+          USER_FACING_RETRY_SHORT,
+          "AdminTabConfig:brandingName",
+        ),
         variant: "error",
       });
     } finally {
@@ -640,12 +667,11 @@ export function AdminTabConfig({
                   Forçar busca retroativa agora
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Procura medicamentos e insumos sem preço e tenta preencher
-                  pela API de referência (mesma lógica do agendamento em segundo
-                  plano). Exige a API de preços configurada no servidor. Entre
-                  uma execução e outra há um período de espera por abrigo para
-                  não sobrecarregar a API. Os pedidos são espaçados
-                  automaticamente.
+                  Procura medicamentos e insumos sem preço e tenta preencher a
+                  referência em segundo plano (como a busca automática). Só
+                  funciona se o serviço de preços estiver ativo para o seu
+                  ambiente. Entre uma execução e outra há um tempo de espera por
+                  abrigo para não sobrecarregar o sistema.
                 </p>
               </div>
               <Button
@@ -653,7 +679,7 @@ export function AdminTabConfig({
                 variant="outline"
                 size="sm"
                 className="shrink-0"
-                disabled={forcePriceBackfillLoading || priceBackfillRunning}
+                disabled={forcePriceBackfillLoading}
                 onClick={() => void handleForcePriceBackfill()}
               >
                 {forcePriceBackfillLoading ? (
@@ -663,13 +689,19 @@ export function AdminTabConfig({
                 ) : priceBackfillRunning ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Em segundo plano…
+                    Em fila/execução…
                   </>
                 ) : (
                   "Forçar busca de preços"
                 )}
               </Button>
             </div>
+            {priceBackfillRunning || priceBackfillQueueLength > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {priceBackfillRunning ? "Em execução" : "Aguardando execução"} •{" "}
+                {priceBackfillQueueLength} na fila
+              </p>
+            ) : null}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1 flex-1">
                 <Label htmlFor="auto-reposicao" className="text-sm">
@@ -704,12 +736,8 @@ export function AdminTabConfig({
           <CardTitle>Logo e nome da marca</CardTitle>
           <p className="text-sm text-muted-foreground font-normal mt-1">
             Altere o que aparece no menu, no login e nas telas de carregamento.
-            Ao enviar um arquivo novo, o servidor{" "}
-            <span className="font-medium text-foreground">
-              remove as versões anteriores no R2
-            </span>{" "}
-            (mesmo nome de arquivo ou outra extensão) e grava o novo objeto —
-            não é necessário apagar manualmente.
+            Ao enviar um ficheiro novo, as versões antigas do logo deixam de ser
+            usadas automaticamente — não precisa de apagar manualmente.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">

@@ -4,6 +4,10 @@ import Layout from "@/components/Layout";
 import EditableTable from "@/components/EditableTable";
 import { SkeletonTable } from "@/components/SkeletonTable";
 import { toast } from "@/hooks/use-toast.hook";
+import {
+  getErrorMessage,
+  USER_FACING_RETRY_SHORT,
+} from "@/helpers/validation.helper";
 import { getResidents, updateResident } from "@/api/requests";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
@@ -129,10 +133,11 @@ export default function Resident() {
       setResidents(mapped);
       setHasNext(Boolean(res.hasNext));
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Não foi possível carregar a lista de residentes.";
+      const errorMessage = getErrorMessage(
+        err,
+        "Não foi possível carregar a lista de residentes.",
+        "Residents:load",
+      );
       toast({
         title: "Erro ao carregar residentes",
         description: errorMessage,
@@ -359,8 +364,11 @@ export default function Resident() {
     } catch (err: unknown) {
       toast({
         title: "Erro ao salvar",
-        description:
-          err instanceof Error ? err.message : "Não foi possível salvar.",
+        description: getErrorMessage(
+          err,
+          "Não foi possível guardar as alterações.",
+          "Residents:update",
+        ),
         variant: "error",
         duration: 3500,
       });
@@ -393,7 +401,11 @@ export default function Resident() {
     } catch (err: unknown) {
       toast({
         title: "Não foi possível remover",
-        description: err instanceof Error ? err.message : "Tente novamente.",
+        description: getErrorMessage(
+          err,
+          USER_FACING_RETRY_SHORT,
+          "Residents:delete",
+        ),
         variant: "error",
         duration: 3500,
       });

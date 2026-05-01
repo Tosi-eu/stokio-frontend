@@ -61,7 +61,7 @@ export default function EditCabinet() {
       .catch(() =>
         toast({
           title: "Erro ao carregar armários",
-          description: "Não foi possível buscar os armários do servidor.",
+          description: "Não foi possível carregar a lista de armários.",
           variant: "error",
           duration: 3000,
         }),

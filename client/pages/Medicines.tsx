@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast.hook";
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { PREVIEW_MEDICINES } from "@/helpers/preview-mock-data";
+import { getErrorMessage } from "@/helpers/validation.helper";
 
 const columns = [
   { key: "nome", label: "Nome" },
@@ -51,8 +52,11 @@ export default function Medicines() {
         setHasNext(false);
         setTotal(PREVIEW_MEDICINES.length);
       } else {
-        const errorMessage =
-          err instanceof Error ? err.message : "Erro inesperado";
+        const errorMessage = getErrorMessage(
+          err,
+          "Não foi possível carregar os medicamentos.",
+          "Medicines:load",
+        );
         toast({
           title: "Erro ao carregar medicamentos",
           description: errorMessage,

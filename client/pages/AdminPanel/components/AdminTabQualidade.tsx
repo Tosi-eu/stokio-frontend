@@ -25,6 +25,7 @@ import {
 } from "@/api/requests";
 import { toast } from "@/hooks/use-toast.hook";
 import { formatDateToPtBr, formatValidityDate } from "@/helpers/dates.helper";
+import { getErrorMessage } from "@/helpers/validation.helper";
 
 type InconsistencyType = "negative_stock" | "missing_lot" | "orphan_movements";
 
@@ -359,11 +360,14 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
                     description: `${res.updated ?? 0} medicamento(s) seriam atualizados (mostrando até 50).`,
                     variant: "success",
                   });
-                } catch (err) {
+                } catch (err: unknown) {
                   toast({
                     title: "Erro na prévia",
-                    description:
-                      err instanceof Error ? err.message : "Falha inesperada.",
+                    description: getErrorMessage(
+                      err,
+                      "Não foi possível gerar a prévia.",
+                      "AdminTabQualidade:normalizePreview",
+                    ),
                     variant: "error",
                   });
                 }
@@ -383,11 +387,14 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
                     variant: "success",
                   });
                   loadDuplicates();
-                } catch (err) {
+                } catch (err: unknown) {
                   toast({
                     title: "Erro ao padronizar",
-                    description:
-                      err instanceof Error ? err.message : "Falha inesperada.",
+                    description: getErrorMessage(
+                      err,
+                      "Não foi possível padronizar as unidades.",
+                      "AdminTabQualidade:normalizeApply",
+                    ),
                     variant: "error",
                   });
                 }
@@ -479,13 +486,14 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
                                     variant: "success",
                                   });
                                   loadDuplicates();
-                                } catch (err) {
+                                } catch (err: unknown) {
                                   toast({
                                     title: "Erro ao mesclar",
-                                    description:
-                                      err instanceof Error
-                                        ? err.message
-                                        : "Falha inesperada.",
+                                    description: getErrorMessage(
+                                      err,
+                                      "Não foi possível mesclar os registos.",
+                                      "AdminTabQualidade:merge",
+                                    ),
                                     variant: "error",
                                   });
                                 }

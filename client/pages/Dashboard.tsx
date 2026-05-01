@@ -28,6 +28,7 @@ import {
 } from "@/helpers/ui-display.helper";
 
 import EditableTable from "@/components/EditableTable";
+import { getErrorMessage } from "@/helpers/validation.helper";
 import { DashboardStatsCard } from "@/components/DashboardStatsCard";
 
 const DashboardChartCard = lazy(() =>
@@ -191,10 +192,11 @@ export default function Dashboard() {
     if (summaryError && !previewMode) {
       toast({
         title: "Erro ao carregar dados",
-        description:
-          summaryError instanceof Error
-            ? summaryError.message
-            : "Não foi possível carregar os dados do dashboard.",
+        description: getErrorMessage(
+          summaryError,
+          "Não foi possível carregar os dados do painel.",
+          "Dashboard:summary",
+        ),
         variant: "error",
         duration: 3000,
       });

@@ -15,6 +15,7 @@ import {
   formatGavetaLabel,
 } from "@/helpers/storage-location-display.helper";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
+import { getErrorMessage } from "@/helpers/validation.helper";
 
 const TABLE_LIMIT = 10;
 const REQUEST_LIMIT = 5;
@@ -131,10 +132,11 @@ export default function InputMovements() {
         setEntries(getPreviewMovementRows("entrada"));
         setEntriesHasNext(false);
       } else {
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Não foi possível carregar as movimentações de entrada.";
+        const errorMessage = getErrorMessage(
+          err,
+          "Não foi possível carregar as movimentações de entrada.",
+          "Movements:entries",
+        );
         toast({
           title: "Erro ao carregar entradas",
           description: errorMessage,
@@ -195,10 +197,11 @@ export default function InputMovements() {
         setExits(getPreviewMovementRows("saida"));
         setExitsHasNext(false);
       } else {
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Não foi possível carregar as movimentações de saída.";
+        const errorMessage = getErrorMessage(
+          err,
+          "Não foi possível carregar as movimentações de saída.",
+          "Movements:exits",
+        );
         toast({
           title: "Erro ao carregar saídas",
           description: errorMessage,
@@ -259,10 +262,11 @@ export default function InputMovements() {
         setTransfers(getPreviewMovementRows("transferencia"));
         setTransfersHasNext(false);
       } else {
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Não foi possível carregar as movimentações de transferência.";
+        const errorMessage = getErrorMessage(
+          err,
+          "Não foi possível carregar as movimentações de transferência.",
+          "Movements:transfers",
+        );
         toast({
           title: "Erro ao carregar transferências",
           description: errorMessage,

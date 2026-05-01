@@ -128,8 +128,8 @@ export function AdminUserCreateDialog({
             <div className="grid gap-3 border-t pt-4">
               <Label>Permissões por recurso</Label>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Ajuste leitura e operações por módulo. A matriz é guardada em
-                formato versão 2 no servidor.
+                Ajuste leitura e operações por módulo. As permissões são
+                guardadas com a conta deste utilizador.
               </p>
               <PermissionMatrixFields
                 value={form.permissionMatrix}

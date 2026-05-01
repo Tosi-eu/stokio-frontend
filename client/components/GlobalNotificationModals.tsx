@@ -10,6 +10,7 @@ import {
 } from "@/api/requests";
 import type { NotificationListItem } from "@/api/types";
 import type { StockReplacementItem } from "@/components/StockReplacementModal";
+import { getErrorMessage } from "@/helpers/validation.helper";
 
 const NotificationReminderModal = lazy(() =>
   import("@/components/NotificationModal").then((m) => ({
@@ -51,10 +52,11 @@ export function GlobalNotificationModals() {
           setNotifOpen(true);
         }
       } catch (err: unknown) {
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Não foi possível carregar as notificações do dia.";
+        const errorMessage = getErrorMessage(
+          err,
+          "Não foi possível carregar as notificações do dia.",
+          "GlobalNotificationModals:today",
+        );
         toast({
           title: "Erro ao carregar notificações",
           description: errorMessage,

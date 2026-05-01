@@ -8,6 +8,7 @@ import { getInputs } from "@/api/requests";
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { PREVIEW_INPUTS } from "@/helpers/preview-mock-data";
+import { getErrorMessage } from "@/helpers/validation.helper";
 
 const columns = [
   { key: "nome", label: "Nome", editable: true },
@@ -46,8 +47,11 @@ export default function Inputs() {
         setInputs(PREVIEW_INPUTS);
         setHasNext(false);
       } else {
-        const errorMessage =
-          err instanceof Error ? err.message : "Erro inesperado";
+        const errorMessage = getErrorMessage(
+          err,
+          "Não foi possível carregar os insumos.",
+          "Inputs:load",
+        );
         toast({
           title: "Erro ao carregar insumos",
           description: errorMessage,
