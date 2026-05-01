@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Layout from "@/components/Layout";
 
 export function LoadingFallback({
-  title = "Carregando...",
+  title = "Só um instante…",
 }: {
   title?: string;
 }) {

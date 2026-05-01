@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast.hook";
-import {
-  getAdminConfig,
-  updateAdminConfig,
-  getAdminHealth,
-} from "@/api/requests";
-import type { AdminHealthResponse, AdminSystemConfig } from "@/api/requests";
+import { getAdminConfig, updateAdminConfig } from "@/api/requests";
+import type { AdminSystemConfig } from "@/api/requests";
 
 export const CONFIG_KEYS = {
   expiring_days: "Dias para considerar “próximo ao vencimento”",
@@ -65,7 +61,6 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<AdminSystemConfig>({});
-  const [health, setHealth] = useState<AdminHealthResponse | null>(null);
 
   const load = useCallback(async () => {
     if (!isAdmin) return;
@@ -87,21 +82,6 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
   useEffect(() => {
     if (isAdmin && enabled) load();
   }, [isAdmin, enabled, load]);
-
-  const refetchHealth = useCallback(async () => {
-    if (!isAdmin) return;
-    try {
-      const h = await getAdminHealth();
-      setHealth(h);
-    } catch {
-      setHealth(null);
-    }
-  }, [isAdmin]);
-
-  useEffect(() => {
-    if (!isAdmin || !enabled) return;
-    void refetchHealth();
-  }, [isAdmin, enabled, refetchHealth]);
 
   async function save() {
     setSaving(true);
@@ -127,9 +107,7 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
     setForm,
     loading,
     saving,
-    health,
     load,
     save,
-    refetchHealth,
   };
 }

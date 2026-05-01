@@ -1,7 +1,6 @@
 const HOME_ROUTE_CANDIDATES: { module: string; path: string }[] = [
   { module: "dashboard", path: "/dashboard" },
   { module: "admin", path: "/admin" },
-  { module: "movements", path: "/movements" },
   { module: "medicines", path: "/medicines" },
   { module: "inputs", path: "/inputs" },
   { module: "stock", path: "/stock" },
@@ -30,7 +29,6 @@ export function getDefaultHomePath(
       if (!isEnabled("admin")) continue;
       if (previewMode) return path;
       if (user?.role === "admin") return path;
-      if (readable("admin")) return path;
       continue;
     }
     if (isEnabled(module) && readable(module)) return path;

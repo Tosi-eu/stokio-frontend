@@ -13,6 +13,7 @@ const columns = [
   { key: "nome", label: "Nome", editable: true },
   { key: "descricao", label: "Descrição", editable: true },
   { key: "estoque_minimo", label: "Estoque Mínimo", editable: true },
+  { key: "preco", label: "Preço (R$)", editable: true },
 ];
 
 export default function Inputs() {
@@ -75,7 +76,7 @@ export default function Inputs() {
   return (
     <Layout title="Insumos">
       <div className="pt-12">
-        <div className="max-w-3xl mx-auto mt-10 bg-white border border-slate-200 rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow">
+        <div className="max-w-6xl mx-auto mt-10 bg-white border border-slate-200 rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow">
           <div className="mb-4">
             <TableFilter
               placeholder="Buscar por nome"

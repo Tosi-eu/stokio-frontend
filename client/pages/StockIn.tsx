@@ -35,8 +35,11 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { OperationType } from "@/utils/enums";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 
 export default function StockIn() {
+  const { canMovementTipo } = usePermissionMatrix();
+  const canEntrada = canMovementTipo("entrada");
   const {
     control,
     watch,
@@ -95,6 +98,15 @@ export default function StockIn() {
 
   const handleMedicineSubmit = async (data) => {
     if (isSubmitting) return;
+    if (!canEntrada) {
+      toast({
+        title: "Sem permissão",
+        description: "Você não tem permissão para dar entrada no estoque.",
+        variant: "error",
+        duration: 3000,
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -142,6 +154,15 @@ export default function StockIn() {
 
   const handleInputSubmit = async (data) => {
     if (isSubmitting) return;
+    if (!canEntrada) {
+      toast({
+        title: "Sem permissão",
+        description: "Você não tem permissão para dar entrada no estoque.",
+        variant: "error",
+        duration: 3000,
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     try {

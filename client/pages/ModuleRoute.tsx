@@ -68,11 +68,11 @@ export default function ModuleRoute({
                 <Blocks className="h-6 w-6" aria-hidden />
               </div>
               <CardTitle className="font-display text-xl">
-                Sem módulos disponíveis
+                Seu acesso ainda não está pronto
               </CardTitle>
               <CardDescription className="text-base leading-relaxed">
-                Nenhum módulo está ativo para a sua conta. Peça ao administrador
-                do abrigo para rever os módulos habilitados.
+                Parece que este abrigo ainda não liberou nenhuma área para a sua
+                conta. Fale com o responsável pelo abrigo para liberar o acesso.
               </CardDescription>
             </CardHeader>
           </Card>

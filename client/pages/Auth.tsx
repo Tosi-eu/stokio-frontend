@@ -484,7 +484,7 @@ export default function Auth() {
         } else if (rawMessage.includes("credenciais")) {
           errorTitle = "Login ou senha incorretos";
           errorDescription =
-            "Verifique seu e-mail e senha. Se esqueceu sua senha, use a opção 'Esqueci minha senha'.";
+            "Confira seu e-mail e senha. Se precisar, use “Esqueci minha senha”.";
         } else if (
           rawMessage.includes("login e senha obrigatórios") ||
           rawMessage.includes("e-mail e senha obrigatórios") ||
@@ -498,21 +498,19 @@ export default function Auth() {
           rawMessage.includes("sessão inválida")
         ) {
           errorTitle = "Sessão expirada";
-          errorDescription =
-            "Sua sessão expirou. Por favor, faça login novamente.";
+          errorDescription = "Por segurança, entre novamente para continuar.";
         } else if (
           rawMessage.includes("too many") ||
           rawMessage.includes("muitas tentativas") ||
           rawMessage.includes("rate limit")
         ) {
           errorTitle = "Muitas tentativas";
-          errorDescription =
-            "Aguarde alguns minutos e tente novamente. Se o problema continuar, atualize a página.";
+          errorDescription = "Aguarde um pouco e tente de novo.";
         } else {
-          errorTitle = "Erro ao fazer login";
+          errorTitle = "Não foi possível entrar";
           errorDescription =
             (err instanceof Error ? err.message : null) ||
-            "Não foi possível fazer login. Verifique suas credenciais e tente novamente.";
+            "Tente novamente em instantes.";
         }
       } else {
         if (
@@ -521,11 +519,11 @@ export default function Auth() {
             rawMessage.includes("invalid") ||
             rawMessage.includes("expirado"))
         ) {
-          errorTitle = "Token de entrada";
+          errorTitle = "Convite inválido";
           errorDescription =
             err instanceof Error
               ? err.message
-              : "Token inválido ou expirado. Peça um novo convite ao administrador.";
+              : "Esse convite não é mais válido. Peça um novo ao responsável.";
         } else if (rawMessage.includes("abrigo não encontrado")) {
           errorTitle = "Abrigo não encontrado";
           errorDescription =
@@ -538,7 +536,7 @@ export default function Auth() {
         ) {
           errorTitle = "E-mail já cadastrado";
           errorDescription =
-            "Este e-mail já está em uso. Tente fazer login ou use outro e-mail.";
+            "Esse e-mail já tem conta. Faça login ou use outro e-mail.";
         } else if (
           rawMessage.includes("login e senha obrigatórios") ||
           rawMessage.includes("e-mail e senha obrigatórios") ||
@@ -552,12 +550,12 @@ export default function Auth() {
         ) {
           errorTitle = "Senha inválida";
           errorDescription =
-            "A senha não atende aos requisitos de segurança. Verifique as regras de senha.";
+            "A senha não atende aos requisitos. Ajuste e tente de novo.";
         } else {
-          errorTitle = "Erro ao cadastrar";
+          errorTitle = "Não foi possível criar a conta";
           errorDescription =
             (err instanceof Error ? err.message : null) ||
-            "Não foi possível criar a conta. Verifique os dados e tente novamente.";
+            "Tente novamente em instantes.";
         }
       }
 
@@ -687,13 +685,10 @@ export default function Auth() {
           </div>
           <div className="space-y-3">
             <p className="font-display text-2xl font-semibold leading-tight tracking-tight xl:text-3xl">
-              Medicamentos e estoque organizados — do jeito que o abrigo
-              precisa.
+              Estoque do abrigo, simples e organizado.
             </p>
             <p className="max-w-sm text-sm leading-relaxed text-primary-foreground/85">
-              Cadastre itens, registre entradas e saídas e acompanhe tudo em um
-              só lugar. Menos planilhas, menos falhas: mais tempo para quem
-              importa.
+              Menos planilhas. Mais controle.
             </p>
           </div>
           <ul className="space-y-4 text-sm text-primary-foreground/90">
@@ -701,42 +696,20 @@ export default function Auth() {
               <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
                 <Package className="h-4 w-4" aria-hidden />
               </span>
-              <span>
-                <span className="font-medium text-white">
-                  Vários abrigos, uma conta
-                </span>
-                <span className="mt-0.5 block text-xs text-primary-foreground/75">
-                  Trabalha em mais de um lugar? Alterna entre eles sem misturar
-                  dados nem estoque.
-                </span>
-              </span>
+              <span className="font-medium text-white">Entradas e saídas</span>
             </li>
             <li className="flex gap-3">
               <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
                 <ShieldCheck className="h-4 w-4" aria-hidden />
               </span>
-              <span>
-                <span className="font-medium text-white">
-                  Só quem deve ver, vê
-                </span>
-                <span className="mt-0.5 block text-xs text-primary-foreground/75">
-                  Convites e permissões por função: sua equipe acessa só o que
-                  precisa para trabalhar.
-                </span>
-              </span>
+              <span className="font-medium text-white">Acesso por perfil</span>
             </li>
             <li className="flex gap-3">
               <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
                 <BarChart3 className="h-4 w-4" aria-hidden />
               </span>
-              <span>
-                <span className="font-medium text-white">
-                  Números prontos para mostrar
-                </span>
-                <span className="mt-0.5 block text-xs text-primary-foreground/75">
-                  Indicadores e relatórios para reuniões, diretoria ou parceiros
-                  — sem montar tudo na mão.
-                </span>
+              <span className="font-medium text-white">
+                Relatórios em segundos
               </span>
             </li>
           </ul>
@@ -783,8 +756,8 @@ export default function Auth() {
                 </CardTitle>
                 <CardDescription>
                   {isLogin
-                    ? "Entre com o e-mail e a senha da sua organização."
-                    : "Crie sua conta em poucos passos ou use o convite que você recebeu."}
+                    ? "Acesse com seu e-mail e senha."
+                    : "Crie sua conta rápido ou use um convite."}
                 </CardDescription>
               </CardHeader>
 
@@ -972,11 +945,11 @@ export default function Auth() {
                         </p>
                       ) : contractCodeStatus === "invalid" ? (
                         <p className="text-xs text-destructive">
-                          Código inválido.
+                          Algo deu errado. Tente novamente.
                         </p>
                       ) : contractCodeStatus === "valid" ? (
                         <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                          Código válido.
+                          Código confirmado.
                         </p>
                       ) : (
                         <p className="text-xs text-muted-foreground">

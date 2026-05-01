@@ -1,6 +1,8 @@
-import { useEffect, useState, lazy, Suspense } from "react";
-import { useAuth } from "@/hooks/use-auth.hook";
+import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { toast } from "@/hooks/use-toast.hook";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { useNotifications } from "@/hooks/use-notification.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import {
   getTodayMedicineNotifications,
   getTomorrowReplacementNotifications,
@@ -21,8 +23,15 @@ const StockReplacementModal = lazy(() =>
 );
 
 export function GlobalNotificationModals() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const { previewMode, isEnabled } = useTenant();
+  const { open: notificationsDrawerOpen } = useNotifications();
+  const { can } = usePermissionMatrix();
+
+  const canFetch = useMemo(() => {
+    if (previewMode) return false;
+    if (!isEnabled("notifications")) return false;
+    return can("notifications", "read");
+  }, [can, isEnabled, previewMode]);
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifList, setNotifList] = useState<NotificationListItem[]>([]);
@@ -32,7 +41,8 @@ export function GlobalNotificationModals() {
   >([]);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!canFetch) return;
+    if (!notificationsDrawerOpen) return;
     async function fetchReminders() {
       try {
         const res = await getTodayMedicineNotifications();
@@ -54,10 +64,11 @@ export function GlobalNotificationModals() {
       }
     }
     fetchReminders();
-  }, [isAdmin]);
+  }, [canFetch, notificationsDrawerOpen]);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!canFetch) return;
+    if (!notificationsDrawerOpen) return;
     async function fetchReplacementReminders() {
       try {
         const res = await getTomorrowReplacementNotifications();
@@ -70,7 +81,7 @@ export function GlobalNotificationModals() {
       }
     }
     fetchReplacementReminders();
-  }, [isAdmin]);
+  }, [canFetch, notificationsDrawerOpen]);
 
   return (
     <Suspense fallback={null}>

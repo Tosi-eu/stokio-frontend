@@ -6,21 +6,15 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { CONFIG_KEYS, CONFIG_SELECT_KEYS } from "../hooks/useAdminConfig";
-import type { AdminHealthResponse } from "@/api/requests";
 import {
   createTenantSetor,
-  downloadTenantImportTemplate,
-  getAdminBackupStatus,
-  importTenantXlsx,
-  tenantImportTotalForKey,
   listTenantSetores,
-  restoreBackup,
-  runAdminBackupNow,
   updateTenantBranding,
   updateTenantConfig,
+  forceTenantPriceBackfill,
+  getTenantPriceBackfillStatus,
   uploadTenantLogoWithProgress,
   type TenantSetorRow,
-  type TenantImportXlsxResponse,
 } from "@/api/requests";
 import { getEnabledSectors } from "@/helpers/tenant-sectors.helper";
 import { toast } from "@/hooks/use-toast.hook";
@@ -34,7 +28,6 @@ import {
   appendLogoRevision,
   buildTenantLogoProxyUrl,
 } from "@/helpers/tenant-r2-logo-url.helper";
-import { formatDateTimePtBr } from "@/helpers/dates.helper";
 import { inferSetorKeyFromNome } from "@/helpers/setor-key.helper";
 import {
   Select,
@@ -52,7 +45,6 @@ const MODULE_OPTIONS: Array<{ key: string; label: string }> = [
   { key: "stock", label: "Estoque" },
   { key: "cabinets", label: "Armários" },
   { key: "drawers", label: "Gavetas" },
-  { key: "movements", label: "Movimentações" },
   { key: "reports", label: "Relatórios" },
   { key: "notifications", label: "Notificações" },
   { key: "profile", label: "Perfil (conta e senha)" },
@@ -64,17 +56,7 @@ interface AdminTabConfigProps {
   setForm: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   loading: boolean;
   saving: boolean;
-  health: AdminHealthResponse | null;
   onSave: () => void;
-  refetchHealth?: () => Promise<void>;
-  /** Backup/restore e execução manual de backup: só super-admin. */
-  isSuperAdmin?: boolean;
-}
-
-function formatBackupDate(s: string | null): string {
-  if (!s) return "—";
-  const out = formatDateTimePtBr(s);
-  return out || "—";
 }
 
 export function AdminTabConfig({
@@ -82,16 +64,9 @@ export function AdminTabConfig({
   setForm,
   loading,
   saving,
-  health,
   onSave,
-  refetchHealth,
-  isSuperAdmin = false,
 }: AdminTabConfigProps) {
   const { modules, tenant, refetch: refetchTenant } = useTenant();
-  const importFileInputRef = useRef<HTMLInputElement>(null);
-  const [importingXlsx, setImportingXlsx] = useState(false);
-  const [importResult, setImportResult] =
-    useState<TenantImportXlsxResponse | null>(null);
   const [moduleEnabled, setModuleEnabled] = useState<Set<string>>(
     () => new Set(),
   );
@@ -108,6 +83,12 @@ export function AdminTabConfig({
     "farmacia" | "enfermagem"
   >("farmacia");
   const [creatingSector, setCreatingSector] = useState(false);
+  const [forcePriceBackfillLoading, setForcePriceBackfillLoading] =
+    useState(false);
+  const [priceBackfillRunning, setPriceBackfillRunning] = useState(false);
+  const priceBackfillPollRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
 
   const previewSectorKey = useMemo(
     () => inferSetorKeyFromNome(newSectorNome),
@@ -127,6 +108,73 @@ export function AdminTabConfig({
     void loadSectorCatalog();
   }, [loadSectorCatalog]);
 
+  const stopPriceBackfillPolling = useCallback(() => {
+    if (priceBackfillPollRef.current) {
+      clearInterval(priceBackfillPollRef.current);
+      priceBackfillPollRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopPriceBackfillPolling();
+    };
+  }, [stopPriceBackfillPolling]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const s = await getTenantPriceBackfillStatus();
+        setPriceBackfillRunning(s.running);
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
+
+  const startPriceBackfillPolling = useCallback(
+    (acceptedAtMs: number) => {
+      stopPriceBackfillPolling();
+      priceBackfillPollRef.current = setInterval(() => {
+        void (async () => {
+          try {
+            const s = await getTenantPriceBackfillStatus();
+            setPriceBackfillRunning(s.running);
+            const last = s.last;
+            if (!s.running && last && last.finishedAtMs >= acceptedAtMs) {
+              stopPriceBackfillPolling();
+              setPriceBackfillRunning(false);
+              const n = last.processed ?? 0;
+              if (last.ok) {
+                toast({
+                  title: "Busca de preços concluída",
+                  description:
+                    n > 0
+                      ? `Foram analisados ${n} item(ns) sem preço nesta rodada (até o limite do servidor).`
+                      : "Nada para processar nesta rodada ou limite já atingido.",
+                  variant: "success",
+                  duration: 7000,
+                });
+              } else {
+                toast({
+                  title: "Busca de preços terminou com erro",
+                  description:
+                    last.error ??
+                    "Não foi possível concluir. Pode tentar novamente após o período de espera.",
+                  variant: "error",
+                  duration: 8000,
+                });
+              }
+            }
+          } catch {
+            /* polling falhou — tenta no próximo intervalo */
+          }
+        })();
+      }, 3000);
+    },
+    [stopPriceBackfillPolling],
+  );
+
   useEffect(() => {
     setModuleEnabled(new Set(modules?.enabled ?? []));
   }, [modules]);
@@ -142,8 +190,6 @@ export function AdminTabConfig({
     );
   }, [modules]);
 
-  const [restoreLoading, setRestoreLoading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const [brandVisualName, setBrandVisualName] = useState("");
   const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
@@ -175,135 +221,6 @@ export function AdminTabConfig({
       );
     }
   }, [tenant?.logoUrl, tenant?.slug, tenant?.brandingUpdatedAt]);
-  const [backupStatusLoading, setBackupStatusLoading] = useState(false);
-  const [backupRunLoading, setBackupRunLoading] = useState(false);
-  const [backupStatus, setBackupStatus] = useState<{
-    lastBackupAt: string | null;
-    lastBackupStatus: string | null;
-    lastBackupDurationMs: number | null;
-    lastBackupSizeBytes: number | null;
-    lastBackupError: string | null;
-    retentionCount: number | null;
-  } | null>(null);
-
-  const refetchBackupStatus = async () => {
-    setBackupStatusLoading(true);
-    try {
-      const res = await getAdminBackupStatus();
-      setBackupStatus(res);
-    } catch {
-      setBackupStatus(null);
-    } finally {
-      setBackupStatusLoading(false);
-    }
-  };
-
-  const handleRestoreBackup = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const name = file.name.toLowerCase();
-    if (!name.endsWith(".sql") && !name.endsWith(".sql.gz")) {
-      toast({
-        title: "Arquivo inválido",
-        description: "Use o dump gerado pelo backup (arquivo .sql ou .sql.gz).",
-        variant: "error",
-      });
-      e.target.value = "";
-      return;
-    }
-    setRestoreLoading(true);
-    try {
-      await restoreBackup(file);
-      toast({
-        title: "Backup restaurado",
-        description: "O banco foi alimentado com o dump enviado.",
-        variant: "success",
-        duration: 5000,
-      });
-      await refetchHealth?.();
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Erro ao restaurar backup.";
-      toast({
-        title: "Erro ao restaurar backup",
-        description: message,
-        variant: "error",
-        duration: 5000,
-      });
-    } finally {
-      setRestoreLoading(false);
-      e.target.value = "";
-    }
-  };
-
-  const handleDownloadImportTemplate = async () => {
-    try {
-      const blob = await downloadTenantImportTemplate();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "template-importacao.xlsx";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Falha ao baixar template.";
-      toast({
-        title: "Não foi possível baixar",
-        description: message,
-        variant: "error",
-        duration: 5000,
-      });
-    }
-  };
-
-  const handleImportXlsx = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const name = file.name.toLowerCase();
-    if (!name.endsWith(".xlsx")) {
-      toast({
-        title: "Arquivo inválido",
-        description: "Use uma planilha .xlsx no template do sistema.",
-        variant: "error",
-      });
-      e.target.value = "";
-      return;
-    }
-    setImportingXlsx(true);
-    setImportResult(null);
-    try {
-      const res = await importTenantXlsx(file);
-      setImportResult(res);
-      const created = tenantImportTotalForKey(res.summary, "created");
-      const updated = tenantImportTotalForKey(res.summary, "updated");
-      toast({
-        title: "Importação concluída",
-        description:
-          res.errors.length > 0
-            ? `Importamos o que deu certo. Criados: ${created}, atualizados: ${updated}, erros: ${res.errors.length}.`
-            : `Criados: ${created}, atualizados: ${updated}.`,
-        variant: res.errors.length > 0 ? "warning" : "success",
-        duration: 6000,
-      });
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Falha ao importar planilha.";
-      toast({
-        title: "Erro na importação",
-        description: message,
-        variant: "error",
-        duration: 6000,
-      });
-    } finally {
-      setImportingXlsx(false);
-      e.target.value = "";
-    }
-  };
 
   const toggleModule = useCallback((key: string) => {
     setModuleEnabled((prev) => {
@@ -361,6 +278,35 @@ export function AdminTabConfig({
       });
     } finally {
       setCreatingSector(false);
+    }
+  };
+
+  const handleForcePriceBackfill = async () => {
+    setForcePriceBackfillLoading(true);
+    try {
+      const res = await forceTenantPriceBackfill();
+      if (res?.accepted && typeof res.acceptedAtMs === "number") {
+        toast({
+          title: "Busca iniciada em segundo plano",
+          description:
+            res.message ??
+            "Pode continuar a usar o sistema. Avisamos aqui quando terminar.",
+          variant: "success",
+          duration: 7000,
+        });
+        setPriceBackfillRunning(true);
+        startPriceBackfillPolling(res.acceptedAtMs);
+      }
+    } catch (err) {
+      toast({
+        title: "Não foi possível iniciar",
+        description:
+          err instanceof Error ? err.message : "Tente novamente em instantes.",
+        variant: "error",
+        duration: 6000,
+      });
+    } finally {
+      setForcePriceBackfillLoading(false);
     }
   };
 
@@ -611,8 +557,8 @@ export function AdminTabConfig({
                 Novo setor (só o nome)
               </p>
               <p className="text-[11px] text-muted-foreground leading-snug">
-                A chave técnica é gerada automaticamente: minúsculas, snake_case,
-                sem acentos (ex.: «Farmácia» →{" "}
+                A chave técnica é gerada automaticamente: minúsculas,
+                snake_case, sem acentos (ex.: «Farmácia» →{" "}
                 <span className="font-mono">farmacia</span>; «Carrinho de
                 emergência» →{" "}
                 <span className="font-mono">carrinho_de_emergencia</span>).
@@ -688,6 +634,42 @@ export function AdminTabConfig({
                 aria-label="Busca automática de preços"
               />
             </div>
+            <div className="rounded-md border border-dashed border-border/80 bg-background/50 p-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1 flex-1">
+                <p className="text-sm font-medium text-foreground">
+                  Forçar busca retroativa agora
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Procura medicamentos e insumos sem preço e tenta preencher
+                  pela API de referência (mesma lógica do agendamento em segundo
+                  plano). Exige a API de preços configurada no servidor. Entre
+                  uma execução e outra há um período de espera por abrigo para
+                  não sobrecarregar a API. Os pedidos são espaçados
+                  automaticamente.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                disabled={forcePriceBackfillLoading || priceBackfillRunning}
+                onClick={() => void handleForcePriceBackfill()}
+              >
+                {forcePriceBackfillLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />A iniciar…
+                  </>
+                ) : priceBackfillRunning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Em segundo plano…
+                  </>
+                ) : (
+                  "Forçar busca de preços"
+                )}
+              </Button>
+            </div>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1 flex-1">
                 <Label htmlFor="auto-reposicao" className="text-sm">
@@ -714,85 +696,6 @@ export function AdminTabConfig({
           >
             {savingModules ? "Salvando módulos..." : "Salvar módulos"}
           </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Importar dados por planilha</CardTitle>
-          <p className="text-sm text-muted-foreground font-normal mt-1">
-            Envie uma planilha `.xlsx` com abas de Medicamentos, Insumos e
-            Residentes (opcional: coluna{" "}
-            <code className="text-xs bg-muted px-1 rounded">
-              data_nascimento
-            </code>
-            ). O sistema importa as linhas válidas e devolve um resumo com os
-            erros.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={importingXlsx}
-              onClick={() => void handleDownloadImportTemplate()}
-            >
-              Baixar template
-            </Button>
-            <input
-              ref={importFileInputRef}
-              type="file"
-              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              className="sr-only"
-              onChange={handleImportXlsx}
-            />
-            <Button
-              type="button"
-              className="gap-2"
-              disabled={importingXlsx || saving}
-              onClick={() => importFileInputRef.current?.click()}
-            >
-              {importingXlsx ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="h-4 w-4" />
-              )}
-              {importingXlsx ? "Importando…" : "Enviar planilha"}
-            </Button>
-          </div>
-
-          {importResult ? (
-            <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
-              <div className="flex flex-wrap gap-3">
-                <span>
-                  <span className="font-medium">Criados:</span>{" "}
-                  {tenantImportTotalForKey(importResult.summary, "created")}
-                </span>
-                <span>
-                  <span className="font-medium">Atualizados:</span>{" "}
-                  {tenantImportTotalForKey(importResult.summary, "updated")}
-                </span>
-                <span>
-                  <span className="font-medium">Erros:</span>{" "}
-                  {importResult.errors.length}
-                </span>
-              </div>
-              {importResult.errors.length > 0 ? (
-                <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                  {importResult.errors.slice(0, 5).map((e, idx) => (
-                    <div key={`${e.sheet}:${e.row}:${idx}`}>
-                      {e.sheet} — linha {e.row}
-                      {e.field ? ` (${e.field})` : ""}: {e.message}
-                    </div>
-                  ))}
-                  {importResult.errors.length > 5 ? (
-                    <div>… e mais {importResult.errors.length - 5}.</div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
         </CardContent>
       </Card>
 
@@ -956,199 +859,6 @@ export function AdminTabConfig({
           )}
         </CardContent>
       </Card>
-
-      {isSuperAdmin ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Restaurar backup (dump)</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Envie o arquivo de dump gerado pelo job de backup (
-              <code className="text-xs bg-muted px-1 rounded">
-                backup_*.sql.gz
-              </code>
-              ou <code className="text-xs bg-muted px-1 rounded">.sql</code>). O
-              banco será restaurado com o conteúdo do dump.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".sql,.sql.gz,application/gzip"
-              className="hidden"
-              onChange={handleRestoreBackup}
-            />
-            <Button
-              variant="outline"
-              disabled={restoreLoading}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              {restoreLoading
-                ? "Restaurando..."
-                : "Selecionar dump e restaurar"}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Saúde do sistema</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Status do banco, Redis e último backup (atualizado pelo job de
-            backup ou após importação).
-          </p>
-        </CardHeader>
-        <CardContent>
-          {health ? (
-            <dl className="grid gap-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Banco de dados</dt>
-                <dd>
-                  <span
-                    className={
-                      health.database === "connected"
-                        ? "text-primary font-medium"
-                        : "text-red-600 font-medium"
-                    }
-                  >
-                    {health.database === "connected"
-                      ? "Conectado"
-                      : health.database}
-                  </span>
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Redis</dt>
-                <dd>
-                  <span
-                    className={
-                      health.redis === "connected"
-                        ? "text-primary font-medium"
-                        : "text-amber-600 font-medium"
-                    }
-                  >
-                    {health.redis === "connected" ? "Conectado" : health.redis}
-                  </span>
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-muted-foreground">Último backup</dt>
-                <dd>{formatBackupDate(health.lastBackupAt)}</dd>
-              </div>
-            </dl>
-          ) : (
-            <p className="text-muted-foreground">
-              Não foi possível carregar o status.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {isSuperAdmin ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Backup (status e execução)</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Veja o status do último backup e rode um backup manual (gera um
-              dump e atualiza os metadados).
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={refetchBackupStatus}
-                disabled={backupStatusLoading}
-              >
-                {backupStatusLoading ? "Atualizando..." : "Atualizar status"}
-              </Button>
-              <Button
-                onClick={async () => {
-                  setBackupRunLoading(true);
-                  try {
-                    await runAdminBackupNow();
-                    toast({
-                      title: "Backup iniciado",
-                      description: "Backup gerado com sucesso.",
-                      variant: "success",
-                    });
-                    await refetchBackupStatus();
-                    await refetchHealth?.();
-                  } catch (err) {
-                    toast({
-                      title: "Erro ao gerar backup",
-                      description:
-                        err instanceof Error
-                          ? err.message
-                          : "Falha inesperada.",
-                      variant: "error",
-                    });
-                  } finally {
-                    setBackupRunLoading(false);
-                  }
-                }}
-                disabled={backupRunLoading}
-              >
-                {backupRunLoading ? "Gerando..." : "Rodar backup agora"}
-              </Button>
-            </div>
-
-            {backupStatus ? (
-              <dl className="grid gap-2 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Último backup (at)</dt>
-                  <dd>{formatBackupDate(backupStatus.lastBackupAt)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Status</dt>
-                  <dd
-                    className={
-                      backupStatus.lastBackupStatus === "ok"
-                        ? "text-primary font-medium"
-                        : backupStatus.lastBackupStatus === "error"
-                          ? "text-red-600 font-medium"
-                          : "text-muted-foreground"
-                    }
-                  >
-                    {backupStatus.lastBackupStatus ?? "—"}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Duração</dt>
-                  <dd>
-                    {backupStatus.lastBackupDurationMs != null
-                      ? `${backupStatus.lastBackupDurationMs}ms`
-                      : "—"}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Tamanho</dt>
-                  <dd>
-                    {backupStatus.lastBackupSizeBytes != null
-                      ? `${backupStatus.lastBackupSizeBytes} bytes`
-                      : "—"}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Retenção (R2)</dt>
-                  <dd>{backupStatus.retentionCount ?? "—"}</dd>
-                </div>
-                {backupStatus.lastBackupError && (
-                  <div className="text-sm text-red-600">
-                    {backupStatus.lastBackupError}
-                  </div>
-                )}
-              </dl>
-            ) : (
-              <p className="text-muted-foreground">
-                Clique em “Atualizar status” para carregar.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      ) : null}
     </div>
   );
 }

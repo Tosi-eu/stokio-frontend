@@ -20,6 +20,12 @@ interface AdminTabAlertasProps {
     expired: AlertStockItem[];
     expiringSoon: AlertStockItem[];
   };
+  counts: {
+    noStock: number;
+    belowMin: number;
+    expired: number;
+    expiringSoon: number;
+  };
   loadingAlerts: boolean;
 }
 
@@ -118,6 +124,7 @@ function AlertTable({
 
 export function AdminTabAlertas({
   alerts,
+  counts,
   loadingAlerts,
 }: AdminTabAlertasProps) {
   return (
@@ -135,25 +142,25 @@ export function AdminTabAlertas({
           <>
             <AlertTable
               title="Sem estoque"
-              count={alerts.noStock.length}
+              count={counts.noStock}
               rows={alerts.noStock}
               titleClassName="text-red-600"
             />
             <AlertTable
               title="Abaixo do mínimo"
-              count={alerts.belowMin.length}
+              count={counts.belowMin}
               rows={alerts.belowMin}
               titleClassName="text-amber-600"
             />
             <AlertTable
               title="Vencidos"
-              count={alerts.expired.length}
+              count={counts.expired}
               rows={alerts.expired}
               titleClassName="text-red-700"
             />
             <AlertTable
               title="Próximos ao vencimento"
-              count={alerts.expiringSoon.length}
+              count={counts.expiringSoon}
               rows={alerts.expiringSoon}
               titleClassName="text-orange-600"
             />

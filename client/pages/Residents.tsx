@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import EditableTable from "@/components/EditableTable";
 import { SkeletonTable } from "@/components/SkeletonTable";
 import { toast } from "@/hooks/use-toast.hook";
-import { getResidents } from "@/api/requests";
+import { getResidents, updateResident } from "@/api/requests";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
@@ -14,13 +13,29 @@ import {
   filterPreviewStockByCasela,
 } from "@/helpers/preview-mock-data";
 import { fetchStockPage, formatStockItems } from "@/helpers/stock-list.helper";
-import { setSpaNavigationState } from "@/helpers/spa-navigation-state.helper";
 import type { StockItem } from "@/interfaces/interfaces";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { OperationType, StockTypeLabels } from "@/utils/enums";
-import { ClipboardList, Pencil, UserRound } from "lucide-react";
+import { OperationType } from "@/utils/enums";
+import { ClipboardList, Pencil, Trash2, UserRound } from "lucide-react";
+import DeletePopUp from "@/components/DeletePopUp";
+import { deleteResident } from "@/api/requests";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type ResidentRow = {
   name: string;
@@ -31,7 +46,6 @@ type ResidentRow = {
 
 const PRONTUARIO_COLUMNS = [
   { key: "kind", label: "Categoria", editable: false },
-  { key: "stockType", label: "Tipo estoque", editable: false },
   { key: "name", label: "Nome", editable: false },
   { key: "quantity", label: "Qtd.", editable: false },
   { key: "expiry", label: "Validade", editable: false },
@@ -45,19 +59,9 @@ function itemKindLabel(item: StockItem): string {
   return item.itemType === OperationType.MEDICINE ? "Medicamento" : "Insumo";
 }
 
-function stockTypeDisplay(raw: unknown): string {
-  if (raw == null || raw === "") return "—";
-  const s = String(raw);
-  if (s in StockTypeLabels) {
-    return StockTypeLabels[s as keyof typeof StockTypeLabels];
-  }
-  return s;
-}
-
 function stockToProntuarioRows(items: StockItem[]): Record<string, unknown>[] {
   return items.map((i) => ({
     kind: itemKindLabel(i),
-    stockType: stockTypeDisplay(i.stockType),
     name: i.name,
     quantity: i.quantity,
     expiry: i.expiry,
@@ -77,7 +81,6 @@ function initials(name: string): string {
 
 export default function Resident() {
   const { previewMode } = useTenant();
-  const router = useRouter();
   const [residents, setResidents] = useState<ResidentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -86,6 +89,20 @@ export default function Resident() {
   const [hasNext, setHasNext] = useState(false);
   const [prontuarioItems, setProntuarioItems] = useState<StockItem[]>([]);
   const [prontuarioLoading, setProntuarioLoading] = useState(false);
+  const [prontuarioPage, setProntuarioPage] = useState(1);
+  const PRONTUARIO_PAGE_SIZE = 10;
+  const [prontuarioHasNext, setProntuarioHasNext] = useState(false);
+  const [prontuarioTotal, setProntuarioTotal] = useState(0);
+  const [prontuarioNome, setProntuarioNome] = useState("");
+  const [prontuarioSetor, setProntuarioSetor] = useState("__all");
+  const [prontuarioLote, setProntuarioLote] = useState("");
+  const [prontuarioArmario, setProntuarioArmario] = useState("__all");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editNome, setEditNome] = useState("");
+  const [editDataNascimento, setEditDataNascimento] = useState("");
 
   const loadResidents = useCallback(async () => {
     setLoading(true);
@@ -160,46 +177,230 @@ export default function Resident() {
     async (casela: number) => {
       setProntuarioLoading(true);
       try {
-        const { data } = await fetchStockPage(1, 100, {
-          casela: String(casela),
-        });
-        let formatted = formatStockItems(data);
-        if (previewMode && formatted.length === 0) {
-          formatted = filterPreviewStockByCasela(casela);
-        }
-        setProntuarioItems(formatted);
-      } catch {
         if (previewMode) {
-          setProntuarioItems(filterPreviewStockByCasela(casela));
-        } else {
-          toast({
-            title: "Erro ao carregar prontuário",
-            description:
-              "Não foi possível listar medicamentos e insumos desta casela.",
-            variant: "error",
-            duration: 3000,
+          const all = filterPreviewStockByCasela(casela);
+          const nome = prontuarioNome.trim().toLowerCase();
+          const lote = prontuarioLote.trim().toLowerCase();
+          const setor =
+            prontuarioSetor === "__all"
+              ? ""
+              : prontuarioSetor.trim().toLowerCase();
+          const armario =
+            prontuarioArmario === "__all" ? "" : prontuarioArmario.trim();
+
+          const filtered = all.filter((i) => {
+            const okNome =
+              !nome ||
+              String(i.name ?? "")
+                .toLowerCase()
+                .includes(nome);
+            const okLote =
+              !lote ||
+              String(i.lot ?? "")
+                .toLowerCase()
+                .includes(lote);
+            const okSetor =
+              !setor || String(i.sector ?? "").toLowerCase() === setor;
+            const okArmario =
+              !armario || String(i.cabinet ?? "").trim() === armario;
+            return okNome && okLote && okSetor && okArmario;
           });
-          setProntuarioItems([]);
+
+          const start = (prontuarioPage - 1) * PRONTUARIO_PAGE_SIZE;
+          const pageItems = filtered.slice(start, start + PRONTUARIO_PAGE_SIZE);
+          setProntuarioItems(pageItems);
+          setProntuarioTotal(filtered.length);
+          setProntuarioHasNext(start + PRONTUARIO_PAGE_SIZE < filtered.length);
+          return;
         }
+
+        const { data, hasNext, total } = await fetchStockPage(
+          prontuarioPage,
+          PRONTUARIO_PAGE_SIZE,
+          {
+            casela: String(casela),
+            nome: prontuarioNome.trim() ? prontuarioNome.trim() : undefined,
+            setor:
+              prontuarioSetor !== "__all" && prontuarioSetor.trim()
+                ? prontuarioSetor.trim()
+                : undefined,
+            lote: prontuarioLote.trim() ? prontuarioLote.trim() : undefined,
+            armario:
+              prontuarioArmario !== "__all" && prontuarioArmario.trim()
+                ? prontuarioArmario.trim()
+                : undefined,
+          },
+        );
+        setProntuarioItems(formatStockItems(data));
+        setProntuarioHasNext(Boolean(hasNext));
+        setProntuarioTotal(Number.isFinite(total) ? total : 0);
+      } catch {
+        toast({
+          title: "Erro ao carregar prontuário",
+          description:
+            "Não foi possível listar medicamentos e insumos desta casela.",
+          variant: "error",
+          duration: 3000,
+        });
+        setProntuarioItems([]);
+        setProntuarioHasNext(false);
+        setProntuarioTotal(0);
       } finally {
         setProntuarioLoading(false);
       }
     },
-    [previewMode],
+    [
+      previewMode,
+      prontuarioNome,
+      prontuarioSetor,
+      prontuarioLote,
+      prontuarioArmario,
+      prontuarioPage,
+    ],
   );
 
   useEffect(() => {
     if (selected == null) {
       setProntuarioItems([]);
+      setProntuarioPage(1);
+      setProntuarioHasNext(false);
+      setProntuarioTotal(0);
       return;
     }
+    setProntuarioPage(1);
+  }, [selected]);
+
+  useEffect(() => {
+    if (selected == null) return;
+    setProntuarioPage(1);
+  }, [
+    selected,
+    selected?.casela,
+    prontuarioNome,
+    prontuarioSetor,
+    prontuarioLote,
+    prontuarioArmario,
+  ]);
+
+  useEffect(() => {
+    if (selected == null) return;
     void loadProntuario(selected.casela);
-  }, [selected, loadProntuario]);
+  }, [
+    selected,
+    selected?.casela,
+    prontuarioPage,
+    prontuarioNome,
+    prontuarioSetor,
+    prontuarioLote,
+    prontuarioArmario,
+    loadProntuario,
+  ]);
 
   const prontuarioRows = useMemo(
     () => stockToProntuarioRows(prontuarioItems),
     [prontuarioItems],
   );
+
+  const prontuarioTotalPages = useMemo(() => {
+    if (previewMode) {
+      return Math.max(1, Math.ceil(prontuarioTotal / PRONTUARIO_PAGE_SIZE));
+    }
+    return Math.max(1, Math.ceil(prontuarioTotal / PRONTUARIO_PAGE_SIZE));
+  }, [prontuarioTotal, previewMode]);
+
+  const prontuarioArmarioOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const i of prontuarioItems) {
+      const v = i.cabinet == null ? "" : String(i.cabinet);
+      if (v.trim()) set.add(v);
+    }
+    return Array.from(set).sort((a, b) => Number(a) - Number(b));
+  }, [prontuarioItems]);
+
+  const handleEditResident = useCallback(() => {
+    if (!selected || previewMode) return;
+    setEditNome(selected.name ?? "");
+    setEditDataNascimento(
+      typeof selected.data_nascimento === "string"
+        ? selected.data_nascimento
+        : "",
+    );
+    setEditOpen(true);
+  }, [selected, previewMode]);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!selected || previewMode) return;
+    const nomeTrim = editNome.trim();
+    if (!nomeTrim) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Informe o nome completo do residente.",
+        variant: "warning",
+        duration: 3000,
+      });
+      return;
+    }
+
+    setEditSaving(true);
+    try {
+      const dn = editDataNascimento.trim();
+      await updateResident(selected.casela, {
+        nome: nomeTrim,
+        data_nascimento: dn === "" ? null : dn,
+      });
+      toast({
+        title: "Residente atualizado",
+        description: "Dados salvos com sucesso.",
+        variant: "success",
+        duration: 3000,
+      });
+      setEditOpen(false);
+      await loadResidents();
+    } catch (err: unknown) {
+      toast({
+        title: "Erro ao salvar",
+        description:
+          err instanceof Error ? err.message : "Não foi possível salvar.",
+        variant: "error",
+        duration: 3500,
+      });
+    } finally {
+      setEditSaving(false);
+    }
+  }, [
+    selected,
+    previewMode,
+    editNome,
+    editDataNascimento,
+    loadResidents,
+    setEditOpen,
+  ]);
+
+  const handleDeleteResident = useCallback(async () => {
+    if (!selected || previewMode) return;
+    setDeleteLoading(true);
+    try {
+      await deleteResident(selected.casela);
+      toast({
+        title: "Residente removido",
+        description: "A casela foi removida com sucesso.",
+        variant: "success",
+        duration: 3000,
+      });
+      setDeleteOpen(false);
+      setSelectedCasela(null);
+      await loadResidents();
+    } catch (err: unknown) {
+      toast({
+        title: "Não foi possível remover",
+        description: err instanceof Error ? err.message : "Tente novamente.",
+        variant: "error",
+        duration: 3500,
+      });
+    } finally {
+      setDeleteLoading(false);
+    }
+  }, [selected, previewMode, loadResidents]);
 
   return (
     <Layout title="Residentes">
@@ -217,7 +418,7 @@ export default function Resident() {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-          <div className="xl:col-span-5 space-y-4">
+          <div className="xl:col-span-4 space-y-4">
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -240,7 +441,7 @@ export default function Resident() {
                         )
                       }
                       className={cn(
-                        "flex items-center gap-4 rounded-2xl border-2 p-4 text-left transition-all",
+                        "flex items-center gap-3 rounded-2xl border-2 p-3 text-left transition-all",
                         "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                         active
                           ? "border-primary bg-primary/8 shadow-md"
@@ -249,7 +450,7 @@ export default function Resident() {
                     >
                       <div
                         className={cn(
-                          "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-lg font-bold",
+                          "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-base font-bold",
                           active
                             ? "bg-primary text-primary-foreground"
                             : "bg-violet-100 text-violet-900 dark:bg-violet-950/50 dark:text-violet-100",
@@ -311,7 +512,7 @@ export default function Resident() {
             ) : null}
           </div>
 
-          <div className="xl:col-span-7">
+          <div className="xl:col-span-8">
             {selected ? (
               <section className="rounded-2xl border border-border/70 bg-card shadow-elevated overflow-hidden ring-1 ring-black/[0.02] dark:ring-white/[0.04] h-full min-h-[280px]">
                 <div className="p-6 sm:p-8 space-y-6">
@@ -320,9 +521,37 @@ export default function Resident() {
                       <UserRound className="h-12 w-12" strokeWidth={1.5} />
                     </div>
                     <div className="min-w-0 flex-1 space-y-1">
-                      <h2 className="font-display text-2xl font-semibold tracking-tight">
-                        {selected.name}
-                      </h2>
+                      <div className="flex items-start justify-between gap-3">
+                        <h2 className="font-display text-2xl font-semibold tracking-tight">
+                          {selected.name}
+                        </h2>
+                        {!previewMode ? (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-10 w-10 rounded-xl"
+                              onClick={handleEditResident}
+                              aria-label="Editar residente"
+                              disabled={deleteLoading || editSaving}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              className="h-10 w-10 rounded-xl"
+                              onClick={() => setDeleteOpen(true)}
+                              aria-label="Remover residente"
+                              disabled={deleteLoading || editSaving}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
                       <p className="text-muted-foreground">
                         Casela{" "}
                         <span className="font-medium text-foreground">
@@ -381,6 +610,79 @@ export default function Resident() {
                       Medicamentos e insumos em estoque vinculados a esta casela
                       (origem: estoque).
                     </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="pront-nome" className="text-xs">
+                          Nome
+                        </Label>
+                        <Input
+                          id="pront-nome"
+                          value={prontuarioNome}
+                          onChange={(e) => setProntuarioNome(e.target.value)}
+                          placeholder="Ex.: Dipirona"
+                          className="rounded-xl"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="pront-setor" className="text-xs">
+                          Setor
+                        </Label>
+                        <Select
+                          value={prontuarioSetor}
+                          onValueChange={setProntuarioSetor}
+                        >
+                          <SelectTrigger
+                            id="pront-setor"
+                            className="rounded-xl"
+                          >
+                            <SelectValue placeholder="Todos" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__all">Todos</SelectItem>
+                            <SelectItem value="farmacia">Farmácia</SelectItem>
+                            <SelectItem value="enfermagem">
+                              Enfermagem
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="pront-lote" className="text-xs">
+                          Lote
+                        </Label>
+                        <Input
+                          id="pront-lote"
+                          value={prontuarioLote}
+                          onChange={(e) => setProntuarioLote(e.target.value)}
+                          placeholder="Ex.: LT-123"
+                          className="rounded-xl"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="pront-armario" className="text-xs">
+                          Armário
+                        </Label>
+                        <Select
+                          value={prontuarioArmario}
+                          onValueChange={setProntuarioArmario}
+                        >
+                          <SelectTrigger
+                            id="pront-armario"
+                            className="rounded-xl"
+                          >
+                            <SelectValue placeholder="Todos" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__all">Todos</SelectItem>
+                            {prontuarioArmarioOptions.map((a) => (
+                              <SelectItem key={a} value={a}>
+                                {a}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                     {prontuarioLoading ? (
                       <SkeletonTable rows={4} cols={4} />
                     ) : prontuarioRows.length === 0 ? (
@@ -388,38 +690,173 @@ export default function Resident() {
                         Nenhum item vinculado a esta casela no estoque.
                       </p>
                     ) : (
-                      <EditableTable
-                        columns={PRONTUARIO_COLUMNS}
-                        data={prontuarioRows}
-                        readOnly
-                        showAddons={false}
-                      />
+                      <div className="space-y-3">
+                        <EditableTable
+                          columns={PRONTUARIO_COLUMNS}
+                          data={prontuarioRows}
+                          readOnly
+                          showAddons={false}
+                        />
+
+                        <div className="flex flex-col items-center justify-center gap-2 pt-1">
+                          <p className="text-xs text-muted-foreground">
+                            Mostrando{" "}
+                            <span className="font-medium text-foreground">
+                              {prontuarioTotal === 0
+                                ? 0
+                                : (prontuarioPage - 1) * PRONTUARIO_PAGE_SIZE +
+                                  1}
+                              –
+                              {(prontuarioPage - 1) * PRONTUARIO_PAGE_SIZE +
+                                prontuarioRows.length}
+                            </span>{" "}
+                            de{" "}
+                            <span className="font-medium text-foreground">
+                              {prontuarioTotal}
+                            </span>
+                          </p>
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="rounded-xl min-w-[7rem]"
+                              onClick={() =>
+                                setProntuarioPage((p) => Math.max(1, p - 1))
+                              }
+                              disabled={prontuarioPage <= 1}
+                            >
+                              Anterior
+                            </Button>
+                            <span className="text-xs text-muted-foreground">
+                              Página {prontuarioPage} de {prontuarioTotalPages}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="rounded-xl min-w-[7rem]"
+                              onClick={() =>
+                                setProntuarioPage((p) =>
+                                  Math.min(prontuarioTotalPages, p + 1),
+                                )
+                              }
+                              disabled={
+                                previewMode
+                                  ? prontuarioPage >= prontuarioTotalPages
+                                  : !prontuarioHasNext
+                              }
+                            >
+                              Próximo
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
 
-                  {!previewMode ? (
-                    <div className="flex flex-wrap gap-3 pt-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-xl gap-2"
-                        onClick={() => {
-                          setSpaNavigationState({
-                            item: {
-                              name: selected.name,
-                              casela: selected.casela,
-                              data_nascimento: selected.data_nascimento,
-                              idade: selected.idade,
-                            },
-                          });
-                          router.push("/residents/edit");
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                        Editar residente
-                      </Button>
-                    </div>
-                  ) : null}
+                  <DeletePopUp
+                    open={deleteOpen}
+                    onCancel={() => {
+                      if (deleteLoading) return;
+                      setDeleteOpen(false);
+                    }}
+                    onConfirm={handleDeleteResident}
+                    message={`Remover ${selected.name} (casela ${selected.casela})?`}
+                  />
+
+                  <Dialog
+                    open={editOpen}
+                    onOpenChange={(open) => {
+                      if (editSaving) return;
+                      setEditOpen(open);
+                    }}
+                  >
+                    <DialogContent className="max-w-lg rounded-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Editar residente</DialogTitle>
+                      </DialogHeader>
+
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <Label htmlFor="resident-nome">Nome completo</Label>
+                          <Input
+                            id="resident-nome"
+                            value={editNome}
+                            onChange={(e) => setEditNome(e.target.value)}
+                            disabled={editSaving}
+                            className="rounded-xl"
+                            maxLength={80}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <Label htmlFor="resident-casela">Casela</Label>
+                            <Input
+                              id="resident-casela"
+                              value={String(selected.casela)}
+                              disabled
+                              className="rounded-xl bg-muted"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="resident-idade">Idade</Label>
+                            <Input
+                              id="resident-idade"
+                              value={
+                                selected.idade != null
+                                  ? `${selected.idade} anos`
+                                  : "—"
+                              }
+                              disabled
+                              className="rounded-xl bg-muted"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="resident-dn">
+                            Data de nascimento
+                          </Label>
+                          <Input
+                            id="resident-dn"
+                            type="date"
+                            value={editDataNascimento}
+                            onChange={(e) =>
+                              setEditDataNascimento(e.target.value)
+                            }
+                            disabled={editSaving}
+                            className="rounded-xl"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Deixe em branco para remover. A idade é calculada
+                            automaticamente.
+                          </p>
+                        </div>
+                      </div>
+
+                      <DialogFooter className="gap-2 sm:gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-xl"
+                          onClick={() => setEditOpen(false)}
+                          disabled={editSaving}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          type="button"
+                          className="rounded-xl"
+                          onClick={handleSaveEdit}
+                          disabled={editSaving}
+                        >
+                          {editSaving ? "Salvando..." : "Salvar"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </section>
             ) : (

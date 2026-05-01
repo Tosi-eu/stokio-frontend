@@ -45,6 +45,7 @@ import { prepareStockDistributionData } from "@/helpers/estoque.helper";
 import { SectorType } from "@/utils/enums";
 import { useMaxSectionRows } from "@/hooks/use-max-selection-rows";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
 import { PREVIEW_CABINETS, PREVIEW_DRAWERS } from "@/helpers/preview-mock-data";
 import { Button } from "@/components/ui/button";
@@ -69,12 +70,23 @@ import { formatDateToPtBr } from "@/helpers/dates.helper";
 
 export default function Dashboard() {
   const { uiDisplay, previewMode, modules, tenantId } = useTenant();
+  const { can } = usePermissionMatrix();
+  const canEditDashboard =
+    can("dashboard", "create") ||
+    can("dashboard", "update") ||
+    can("dashboard", "delete");
   const router = useRouter();
   const enabledSectors = useMemo(() => getEnabledSectors(modules), [modules]);
   const showPharmacySector = enabledSectors.includes("farmacia");
   const showNursingSector = enabledSectors.includes("enfermagem");
   const dashLayout = useDashboardLayout(tenantId);
   const [addWidgetsOpen, setAddWidgetsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!canEditDashboard && dashLayout.editMode) {
+      dashLayout.setEditMode(false);
+    }
+  }, [canEditDashboard, dashLayout]);
 
   const widgetVisible = useCallback(
     (id: DashboardWidgetId) => dashLayout.isVisible(id),
@@ -407,23 +419,29 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">
-            <Button
-              type="button"
-              variant={dashLayout.editMode ? "default" : "outline"}
-              size="sm"
-              onClick={() => dashLayout.setEditMode(!dashLayout.editMode)}
-            >
-              {dashLayout.editMode ? "Concluir edição" : "Personalizar painel"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={dashLayout.hiddenForPicker.length === 0}
-              onClick={() => setAddWidgetsOpen(true)}
-            >
-              Adicionar componentes
-            </Button>
+            {canEditDashboard ? (
+              <>
+                <Button
+                  type="button"
+                  variant={dashLayout.editMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => dashLayout.setEditMode(!dashLayout.editMode)}
+                >
+                  {dashLayout.editMode
+                    ? "Concluir edição"
+                    : "Personalizar painel"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={dashLayout.hiddenForPicker.length === 0}
+                  onClick={() => setAddWidgetsOpen(true)}
+                >
+                  Adicionar componentes
+                </Button>
+              </>
+            ) : null}
           </div>
         </div>
 

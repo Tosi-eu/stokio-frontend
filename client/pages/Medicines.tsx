@@ -15,6 +15,7 @@ const columns = [
   { key: "dosagem", label: "Dosagem" },
   { key: "unidade_medida", label: "Unidade" },
   { key: "estoque_minimo", label: "Estoque Mínimo" },
+  { key: "preco", label: "Preço (R$)" },
 ];
 
 export default function Medicines() {
@@ -80,7 +81,7 @@ export default function Medicines() {
   return (
     <Layout title="Medicamentos">
       <div className="pt-12">
-        <div className="max-w-4xl mx-auto mt-10 bg-white border border-slate-200 rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow">
+        <div className="max-w-6xl mx-auto mt-10 bg-white border border-slate-200 rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow">
           <div className="mb-4">
             <TableFilter
               placeholder="Buscar por nome"

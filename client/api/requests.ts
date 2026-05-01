@@ -72,6 +72,27 @@ export type TenantImportEntitySummary = {
   errors: number;
 };
 
+export type TenantPgDumpImportSummary = {
+  categoriaArmario: number;
+  categoriaGaveta: number;
+  armarios: number;
+  gavetas: number;
+  medicamentos: number;
+  insumos: number;
+  residentes: number;
+  logins: number;
+  estoqueMedicamentos: number;
+  estoqueInsumos: number;
+  movimentacoes: number;
+  notificacoes: number;
+};
+
+export type TenantPgDumpImportResponse = {
+  ok: true;
+  warnings: string[];
+  summary: TenantPgDumpImportSummary;
+};
+
 export type TenantImportXlsxResponse = {
   ok: true;
   summary: {
@@ -235,6 +256,31 @@ export const importTenantXlsx = (file: File) => {
     form,
   ) as Promise<TenantImportXlsxResponse>;
 };
+
+export function importTenantPgDump(
+  file: File,
+  options?: {
+    replaceTenantData?: boolean;
+    birthDateFallback?: string;
+    sourceTenantId?: number;
+  },
+): Promise<TenantPgDumpImportResponse> {
+  const params = new URLSearchParams();
+  if (options?.replaceTenantData) {
+    params.set("replaceTenantData", "1");
+  }
+  if (options?.birthDateFallback?.trim()) {
+    params.set("birthDateFallback", options.birthDateFallback.trim());
+  }
+  if (options?.sourceTenantId != null) {
+    params.set("sourceTenantId", String(options.sourceTenantId));
+  }
+  const qs = params.toString();
+  const path = qs ? `/tenant/import/pg-dump?${qs}` : "/tenant/import/pg-dump";
+  const form = new FormData();
+  form.append("file", file);
+  return api.post(path, form) as Promise<TenantPgDumpImportResponse>;
+}
 import type {
   PaginatedResponse,
   DashboardSummaryResponse,
@@ -1160,6 +1206,31 @@ export const updateTenantConfig = (modules: UpdateTenantModulesPayload) =>
     "/tenant/config",
     { modules },
   );
+
+export type ForceTenantPriceBackfillResponse = {
+  accepted?: boolean;
+  acceptedAtMs?: number;
+  message?: string;
+};
+
+export type TenantPriceBackfillStatusResponse = {
+  running: boolean;
+  cooldownSeconds: number | null;
+  last: {
+    finishedAtMs: number;
+    processed: number;
+    ok: boolean;
+    error?: string;
+  } | null;
+};
+
+/** [Admin] Inicia busca retroativa em segundo plano (202). Estado em GET status. */
+export const forceTenantPriceBackfill = () =>
+  api.post<ForceTenantPriceBackfillResponse>("/tenant/price-backfill/run");
+
+/** [Admin] Polling: processo em curso, cooldown e último resultado. */
+export const getTenantPriceBackfillStatus = () =>
+  api.get<TenantPriceBackfillStatusResponse>("/tenant/price-backfill/status");
 
 export const updateTenantBranding = (payload: UpdateTenantBrandingPayload) =>
   api.put<{ tenantId: number; tenant: TenantConfigResponse["tenant"] }>(

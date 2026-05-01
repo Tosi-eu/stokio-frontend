@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import EditableTable from "@/components/EditableTable";
 import { SkeletonTable } from "@/components/SkeletonTable";
-import { getDrawers } from "@/api/requests";
+import { deleteDrawer, getDrawers } from "@/api/requests";
 import { toast } from "@/hooks/use-toast.hook";
 import type { Drawer } from "@/interfaces/interfaces";
 import { useTenant } from "@/hooks/use-tenant.hook";
@@ -19,6 +20,19 @@ import { fetchStockPage, formatStockItems } from "@/helpers/stock-list.helper";
 import type { StockItem } from "@/interfaces/interfaces";
 import { Button } from "@/components/ui/button";
 import { TableFilter } from "@/components/TableFilter";
+import { Pencil, Trash2 } from "lucide-react";
+import DeletePopUp from "@/components/DeletePopUp";
+import { setSpaNavigationState } from "@/helpers/spa-navigation-state.helper";
+import { ROUTES } from "@/constants/app.constants";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const STOCK_DETAIL_COLUMNS = [
   { key: "stockType", label: "Tipo", editable: false },
@@ -46,17 +60,27 @@ function stockItemsToDetailRows(items: StockItem[]): Record<string, unknown>[] {
 
 export default function Drawers() {
   const { previewMode } = useTenant();
+  const router = useRouter();
   const [drawers, setDrawers] = useState<StorageFolderItem[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [selectedNumero, setSelectedNumero] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("__all");
   const [tableFilter, setTableFilter] = useState("");
+  const [filterCasela, setFilterCasela] = useState("__all");
+  const [filterSetor, setFilterSetor] = useState("__all");
+  const [filterLote, setFilterLote] = useState("");
   const [stockRows, setStockRows] = useState<StockItem[]>([]);
   const [loadingStock, setLoadingStock] = useState(false);
+  const [stockPage, setStockPage] = useState(1);
+  const [stockHasNext, setStockHasNext] = useState(false);
+  const [stockTotal, setStockTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const PAGE_SIZE = 10;
+  const STOCK_PAGE_SIZE = 10;
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const loadDrawers = useCallback(async () => {
     setLoadingList(true);
@@ -105,58 +129,151 @@ export default function Drawers() {
   }, [drawers]);
 
   const loadStockForDrawer = useCallback(
-    async (numero: number) => {
+    async (numero: number, p: number, q: string) => {
       setLoadingStock(true);
       try {
-        const { data } = await fetchStockPage(1, 80, {
-          gaveta: String(numero),
-        });
-        let formatted = formatStockItems(data);
-        if (previewMode && formatted.length === 0) {
-          formatted = filterPreviewStockByDrawer(numero);
-        }
-        setStockRows(formatted);
-      } catch {
         if (previewMode) {
-          setStockRows(filterPreviewStockByDrawer(numero));
-        } else {
-          toast({
-            title: "Erro ao carregar estoque da gaveta",
-            variant: "error",
-            duration: 3000,
+          const all = filterPreviewStockByDrawer(numero);
+          const nome = q.trim().toLowerCase();
+          const lote = filterLote.trim().toLowerCase();
+          const setor =
+            filterSetor === "__all" ? "" : filterSetor.trim().toLowerCase();
+          const casela = filterCasela === "__all" ? "" : filterCasela.trim();
+
+          const filtered = all.filter((i) => {
+            const okNome =
+              !nome ||
+              String(i.name ?? "")
+                .toLowerCase()
+                .includes(nome);
+            const okLote =
+              !lote ||
+              String(i.lot ?? "")
+                .toLowerCase()
+                .includes(lote);
+            const okSetor =
+              !setor || String(i.sector ?? "").toLowerCase() === setor;
+            const okCasela =
+              !casela || String(i.casela ?? "").trim() === casela;
+            return okNome && okLote && okSetor && okCasela;
           });
-          setStockRows([]);
+          const start = (p - 1) * STOCK_PAGE_SIZE;
+          const pageItems = filtered.slice(start, start + STOCK_PAGE_SIZE);
+          setStockRows(pageItems);
+          setStockTotal(filtered.length);
+          setStockHasNext(start + STOCK_PAGE_SIZE < filtered.length);
+          return;
         }
+
+        const { data, hasNext, total } = await fetchStockPage(
+          p,
+          STOCK_PAGE_SIZE,
+          {
+            gaveta: String(numero),
+            nome: q.trim() ? q.trim() : undefined,
+            casela:
+              filterCasela !== "__all" && filterCasela.trim()
+                ? filterCasela.trim()
+                : undefined,
+            setor:
+              filterSetor !== "__all" && filterSetor.trim()
+                ? filterSetor.trim()
+                : undefined,
+            lote: filterLote.trim() ? filterLote.trim() : undefined,
+          },
+        );
+        const formatted = formatStockItems(data);
+        setStockRows(formatted);
+        setStockHasNext(Boolean(hasNext));
+        setStockTotal(Number.isFinite(total) ? total : 0);
+      } catch {
+        toast({
+          title: "Erro ao carregar estoque da gaveta",
+          variant: "error",
+          duration: 3000,
+        });
+        setStockRows([]);
+        setStockHasNext(false);
+        setStockTotal(0);
       } finally {
         setLoadingStock(false);
       }
     },
-    [previewMode],
+    [previewMode, STOCK_PAGE_SIZE, filterCasela, filterSetor, filterLote],
   );
 
   useEffect(() => {
     if (selectedNumero == null) {
       setStockRows([]);
+      setStockPage(1);
+      setStockHasNext(false);
+      setStockTotal(0);
       return;
     }
-    void loadStockForDrawer(selectedNumero);
-  }, [selectedNumero, loadStockForDrawer]);
+    void loadStockForDrawer(selectedNumero, stockPage, tableFilter);
+  }, [selectedNumero, loadStockForDrawer, stockPage, tableFilter]);
+
+  useEffect(() => {
+    setStockPage(1);
+  }, [selectedNumero, tableFilter, filterCasela, filterSetor, filterLote]);
 
   const selectedDrawer = useMemo(
     () => drawers.find((d) => d.numero === selectedNumero) ?? null,
     [drawers, selectedNumero],
   );
 
-  const filteredDetailRows = useMemo(() => {
-    const base = stockItemsToDetailRows(stockRows);
-    const q = tableFilter.trim().toLowerCase();
-    if (!q) return base;
-    return base.filter((row) => {
-      const name = String(row.name ?? "").toLowerCase();
-      const lot = String(row.lot ?? "").toLowerCase();
-      return name.includes(q) || lot.includes(q);
+  const handleEdit = useCallback(() => {
+    if (previewMode) return;
+    if (!selectedDrawer || selectedNumero == null) return;
+    setSpaNavigationState({
+      item: {
+        numero: selectedNumero,
+        categoria: selectedDrawer.categoria ?? "",
+      },
     });
-  }, [stockRows, tableFilter]);
+    router.push(ROUTES.DRAWERS_EDIT);
+  }, [previewMode, selectedDrawer, selectedNumero, router]);
+
+  const handleDelete = useCallback(async () => {
+    if (previewMode) return;
+    if (selectedNumero == null) return;
+    setDeleteLoading(true);
+    try {
+      await deleteDrawer(selectedNumero);
+      toast({
+        title: "Gaveta removida",
+        description: "A gaveta foi removida com sucesso.",
+        variant: "success",
+        duration: 3000,
+      });
+      setDeleteOpen(false);
+      setSelectedNumero(null);
+      await loadDrawers();
+    } catch (err: unknown) {
+      toast({
+        title: "Não foi possível remover",
+        description: err instanceof Error ? err.message : "Tente novamente.",
+        variant: "error",
+        duration: 3500,
+      });
+    } finally {
+      setDeleteLoading(false);
+    }
+  }, [previewMode, selectedNumero, loadDrawers]);
+
+  const filteredDetailRows = useMemo(() => {
+    // Observação: com paginação, o filtro atua no servidor (por nome).
+    return stockItemsToDetailRows(stockRows);
+  }, [stockRows]);
+
+  const caselaOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const i of stockRows) {
+      const v = i.casela == null ? "" : String(i.casela);
+      if (v.trim()) set.add(v);
+    }
+    return Array.from(set).sort((a, b) => Number(a) - Number(b));
+  }, [stockRows]);
 
   return (
     <Layout title="Gavetas">
@@ -230,25 +347,151 @@ export default function Drawers() {
                   {selectedDrawer.categoria || "Sem categoria"}
                 </p>
               </div>
+              {!previewMode ? (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10 rounded-xl"
+                    onClick={handleEdit}
+                    aria-label="Editar gaveta"
+                    disabled={deleteLoading}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="h-10 w-10 rounded-xl"
+                    onClick={() => setDeleteOpen(true)}
+                    aria-label="Remover gaveta"
+                    disabled={deleteLoading}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : null}
             </div>
             <div className="p-4 sm:p-6 space-y-4">
               <div className="max-w-md">
                 <TableFilter
-                  placeholder="Filtrar itens na tabela (nome ou lote)"
+                  placeholder="Buscar por nome"
                   onFilterChange={setTableFilter}
                 />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="drawer-filter-casela" className="text-xs">
+                    Casela
+                  </Label>
+                  <Select value={filterCasela} onValueChange={setFilterCasela}>
+                    <SelectTrigger
+                      id="drawer-filter-casela"
+                      className="rounded-xl"
+                    >
+                      <SelectValue placeholder="Todas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all">Todas</SelectItem>
+                      {caselaOptions.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="drawer-filter-setor" className="text-xs">
+                    Setor
+                  </Label>
+                  <Select value={filterSetor} onValueChange={setFilterSetor}>
+                    <SelectTrigger
+                      id="drawer-filter-setor"
+                      className="rounded-xl"
+                    >
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all">Todos</SelectItem>
+                      <SelectItem value="farmacia">Farmácia</SelectItem>
+                      <SelectItem value="enfermagem">Enfermagem</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="drawer-filter-lote" className="text-xs">
+                    Lote
+                  </Label>
+                  <Input
+                    id="drawer-filter-lote"
+                    value={filterLote}
+                    onChange={(e) => setFilterLote(e.target.value)}
+                    placeholder="Ex.: LT-123"
+                    className="rounded-xl"
+                  />
+                </div>
               </div>
               {loadingStock ? (
                 <SkeletonTable rows={5} cols={STOCK_DETAIL_COLUMNS.length} />
               ) : (
-                <EditableTable
-                  data={filteredDetailRows}
-                  columns={STOCK_DETAIL_COLUMNS}
-                  showAddons={false}
-                  readOnly
-                />
+                <div className="space-y-4">
+                  <EditableTable
+                    data={filteredDetailRows}
+                    columns={STOCK_DETAIL_COLUMNS}
+                    showAddons={false}
+                    readOnly
+                  />
+
+                  <div className="flex flex-col items-center justify-center gap-2 pt-1">
+                    <p className="text-xs text-muted-foreground">
+                      Total:{" "}
+                      <span className="font-medium text-foreground">
+                        {previewMode ? stockRows.length : stockTotal}
+                      </span>
+                    </p>
+                    <div className="flex items-center justify-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl min-w-[7rem]"
+                        onClick={() => setStockPage((p) => Math.max(1, p - 1))}
+                        disabled={loadingStock || stockPage <= 1}
+                      >
+                        Anterior
+                      </Button>
+                      <span className="text-xs text-muted-foreground">
+                        Página {stockPage}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl min-w-[7rem]"
+                        onClick={() => setStockPage((p) => p + 1)}
+                        disabled={
+                          loadingStock || (!previewMode && !stockHasNext)
+                        }
+                      >
+                        Próximo
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
+            <DeletePopUp
+              open={deleteOpen}
+              onCancel={() => {
+                if (deleteLoading) return;
+                setDeleteOpen(false);
+              }}
+              onConfirm={handleDelete}
+              message={`Remover a gaveta nº ${selectedNumero}?`}
+            />
           </section>
         ) : null}
       </div>

@@ -5,6 +5,7 @@ import {
   createAdminUser,
   updateAdminUser,
   deleteAdminUser,
+  getCurrentUser,
 } from "@/api/requests";
 import type { AdminUser } from "../types";
 import type { CreateUserForm } from "../components/AdminUserCreateDialog";
@@ -14,6 +15,7 @@ import {
   effectiveMatrixToV2Stored,
 } from "@/helpers/permission-matrix.helpers";
 import type { UserPermissions } from "../types";
+import { useAuth } from "@/hooks/use-auth.hook";
 
 const defaultPermissions: UserPermissions = {
   read: true,
@@ -23,6 +25,7 @@ const defaultPermissions: UserPermissions = {
 };
 
 export function useAdminUsers(isAdmin: boolean, enabled = true) {
+  const { user: currentUser, patchStoredUser } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [page, setPage] = useState(1);
@@ -107,9 +110,67 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
         role: formEdit.role,
         permissions: permissionsToSend,
       });
+
+      // Update otimista: garante que reabrir "Editar" mostra o que foi salvo,
+      // mesmo se o refetch ainda não terminou (ou estiver cacheado).
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id !== editModal.id) return u;
+          const next: AdminUser = {
+            ...u,
+            firstName: formEdit.firstName,
+            lastName: formEdit.lastName,
+            login: formEdit.login,
+            role: formEdit.role,
+          };
+          // Para "user", a UI usa `permissions` (4 flags) e o editor usa `permissionMatrix`.
+          if (formEdit.role === "admin") {
+            next.permissions = {
+              read: true,
+              create: true,
+              update: true,
+              delete: true,
+            };
+            next.permissionMatrix = undefined;
+          } else {
+            next.permissions =
+              permissionsToSend && "version" in permissionsToSend
+                ? undefined
+                : (permissionsToSend as UserPermissions);
+            next.permissionMatrix = cloneMatrixSerialized(
+              formEdit.permissionMatrix,
+            );
+          }
+          return next;
+        }),
+      );
+
+      // Se o admin editou as próprias permissões, a sessão atual (AuthContext)
+      // continua com a matriz antiga até refetch. Isso faz o UI não refletir.
+      if (currentUser?.id === editModal.id) {
+        try {
+          const fresh = await getCurrentUser();
+          patchStoredUser({
+            role: fresh?.role,
+            permissions: fresh?.permissions,
+            permissionMatrix: fresh?.permissionMatrix,
+            firstName: fresh?.firstName,
+            lastName: fresh?.lastName,
+            first_name: fresh?.first_name,
+            last_name: fresh?.last_name,
+            login: fresh?.login,
+            tenantId: fresh?.tenantId,
+            isTenantOwner: fresh?.isTenantOwner,
+            isSuperAdmin: fresh?.isSuperAdmin,
+          });
+        } catch {
+          // ignore: fallback é o reload/log out-in do utilizador
+        }
+      }
+
       toast({ title: "Usuário atualizado", variant: "success" });
       setEditModal(null);
-      loadUsers();
+      void loadUsers();
     } catch (err) {
       toast({
         title: err instanceof Error ? err.message : "Erro ao atualizar",

@@ -54,7 +54,7 @@ export default function AdminPanel() {
   const { user } = useAuth();
   const { can } = usePermissionMatrix();
   const { isEnabled, previewMode } = useTenant();
-  const canFullAdminUi = user?.role === "admin" || can("admin", "read");
+  const canFullAdminUi = user?.role === "admin" || isSuperAdminUser(user);
   const adminTabEnabled = previewMode || canFullAdminUi;
   const isSuperAdmin = isSuperAdminUser(user);
 
@@ -234,6 +234,7 @@ export default function AdminPanel() {
         <TabsContent value="alertas" className="mt-6">
           <AdminTabAlertas
             alerts={alerts.alerts}
+            counts={alerts.counts}
             loadingAlerts={alerts.loadingAlerts}
           />
         </TabsContent>
@@ -320,10 +321,7 @@ export default function AdminPanel() {
             setForm={config.setForm}
             loading={config.loading}
             saving={config.saving}
-            health={config.health}
             onSave={config.save}
-            refetchHealth={config.refetchHealth}
-            isSuperAdmin={isSuperAdmin}
           />
         </TabsContent>
 

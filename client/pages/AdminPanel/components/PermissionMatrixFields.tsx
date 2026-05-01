@@ -50,7 +50,7 @@ export function PermissionMatrixFields({ value, onChange, disabled }: Props) {
       ...value,
       resources: { ...value.resources, [key]: nextResource },
     };
-    if (key === "movements" && nextResource.create === false) {
+    if (key === "stock" && nextResource.create === false) {
       next = {
         ...next,
         movement_tipos: {
@@ -73,7 +73,7 @@ export function PermissionMatrixFields({ value, onChange, disabled }: Props) {
     });
   }
 
-  const movementsCreate = value.resources.movements?.create ?? false;
+  const stockCreate = value.resources.stock?.create ?? false;
 
   return (
     <div className="grid gap-6">
@@ -99,12 +99,28 @@ export function PermissionMatrixFields({ value, onChange, disabled }: Props) {
                   {CRUD_ORDER.map((action) => (
                     <td key={action} className="p-2 text-center align-middle">
                       <Checkbox
-                        checked={Boolean(value.resources[rk]?.[action])}
-                        disabled={disabled}
+                        checked={
+                          rk === "reports" && action !== "read"
+                            ? Boolean(value.resources[rk]?.read)
+                            : Boolean(value.resources[rk]?.[action])
+                        }
+                        disabled={
+                          disabled || (rk === "reports" && action !== "read")
+                        }
                         onCheckedChange={(c) =>
-                          patchResource(rk, {
-                            [action]: Boolean(c),
-                          } as Partial<ResourceCrud>)
+                          patchResource(
+                            rk,
+                            rk === "reports" && action === "read"
+                              ? ({
+                                  read: Boolean(c),
+                                  create: Boolean(c),
+                                  update: Boolean(c),
+                                  delete: Boolean(c),
+                                } as Partial<ResourceCrud>)
+                              : ({
+                                  [action]: Boolean(c),
+                                } as Partial<ResourceCrud>),
+                          )
                         }
                         aria-label={`${PERMISSION_RESOURCE_LABELS[rk]} — ${CRUD_LABELS[action]}`}
                       />
@@ -119,7 +135,7 @@ export function PermissionMatrixFields({ value, onChange, disabled }: Props) {
 
       <div className="grid gap-3 border-t pt-4">
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Tipos de movimentação aplicam-se quando o recurso «Movimentações»
+          Entrada/saída/transferência só ficam disponíveis quando «Estoque»
           permite criar registos.
         </p>
         <div className="flex flex-wrap gap-6">
@@ -127,14 +143,14 @@ export function PermissionMatrixFields({ value, onChange, disabled }: Props) {
             <label
               key={tipo}
               className={
-                movementsCreate && !disabled
+                stockCreate && !disabled
                   ? "flex items-center gap-2 cursor-pointer"
                   : "flex items-center gap-2 cursor-not-allowed opacity-60"
               }
             >
               <Checkbox
                 checked={Boolean(value.movement_tipos?.[tipo])}
-                disabled={disabled || !movementsCreate}
+                disabled={disabled || !stockCreate}
                 onCheckedChange={(c) => patchMovement(tipo, Boolean(c))}
               />
               <span className="text-sm">{MOVEMENT_TIPO_LABELS[tipo]}</span>

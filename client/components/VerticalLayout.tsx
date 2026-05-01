@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
-  ArrowLeftRight,
   Pill,
   Bandage,
   Boxes,
@@ -30,12 +29,6 @@ const baseNavigationTabs = [
     href: "/dashboard",
     icon: LayoutDashboard,
     module: "dashboard",
-  },
-  {
-    name: "Movimentações",
-    href: "/movements",
-    icon: ArrowLeftRight,
-    module: "movements",
   },
   { name: "Medicamentos", href: "/medicines", icon: Pill, module: "medicines" },
   { name: "Insumos", href: "/inputs", icon: Bandage, module: "inputs" },
@@ -83,7 +76,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
   const sidebarLogoReady = isViewerTenant ? true : isLogoResolved;
 
   const navigationTabs = [
-    ...((previewMode || can("admin", "read")) && isEnabled("admin")
+    ...((previewMode || user?.role === "admin") && isEnabled("admin")
       ? [{ name: "Painel administrativo", href: "/admin", icon: ShieldCheck }]
       : []),
     ...baseNavigationTabs.filter((t) => {

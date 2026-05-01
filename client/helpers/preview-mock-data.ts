@@ -528,12 +528,14 @@ export const PREVIEW_INPUTS: Record<string, unknown>[] = [
     nome: "Luvas descartáveis",
     descricao: "Procedimento",
     estoque_minimo: 100,
+    preco: 39.9,
   },
   {
     id: 7002,
     nome: "Soro fisiológico 0,9%",
     descricao: "Frasco 500ml",
     estoque_minimo: 20,
+    preco: 8.5,
   },
 ];
 

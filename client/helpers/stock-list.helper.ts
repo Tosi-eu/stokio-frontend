@@ -17,6 +17,8 @@ export interface StockListFilters {
   gaveta?: string;
   setor?: string;
   lote?: string;
+  /** Lista apenas medicamentos ou apenas insumos (saída de estoque). */
+  itemType?: "medicamento" | "insumo";
 }
 
 export interface StockFilterOption {
@@ -36,7 +38,7 @@ export async function fetchStockPage(
   limit: number,
   filters: StockListFilters,
   urlFilter?: string | null,
-): Promise<{ data: unknown[]; hasNext: boolean }> {
+): Promise<{ data: unknown[]; hasNext: boolean; total: number }> {
   const filterParams: Record<string, string> = {};
   if (filters.nome?.trim()) filterParams.name = filters.nome.trim();
   if (filters.casela?.trim()) filterParams.casela = filters.casela.trim();
@@ -44,11 +46,13 @@ export async function fetchStockPage(
   if (filters.gaveta?.trim()) filterParams.drawer = filters.gaveta.trim();
   if (filters.setor?.trim()) filterParams.sector = filters.setor.trim();
   if (filters.lote?.trim()) filterParams.lot = filters.lote.trim();
+  if (filters.itemType) filterParams.itemType = filters.itemType;
 
   const res = await getStock(page, limit, filterParams, urlFilter ?? undefined);
   return {
     data: Array.isArray(res?.data) ? res.data : [],
     hasNext: Boolean(res?.hasNext),
+    total: Number(res?.total ?? 0),
   };
 }
 

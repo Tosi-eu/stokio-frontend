@@ -323,8 +323,12 @@ export default function TenantOnboarding() {
     setPendingLogoFile(null);
     // Só resetar a validação ao trocar de abrigo (não quando módulos/branding atualizam).
     if (tenantChanged) {
-      setContractValidated(false);
-      setContractCode("");
+      // Não apagar o código após migração para abrigo definitivo.
+      // Mantém o valor digitado e evita pedir para inserir de novo.
+      if (!contractValidated) {
+        setContractCode("");
+        setContractValidated(false);
+      }
     }
     setEnabled(new Set(modules?.enabled ?? []));
     setEnabledSectors(new Set(getEnabledSectors(modules ?? null)));
@@ -346,7 +350,7 @@ export default function TenantOnboarding() {
         );
       }
     }
-  }, [loading, modules, tenant, tenantId]);
+  }, [loading, modules, tenant, tenantId, contractValidated]);
 
   useEffect(() => {
     if (previewMode || loading) return;
@@ -459,6 +463,7 @@ export default function TenantOnboarding() {
       if (slug.startsWith("u-")) {
         const claim = await claimTenantContractCode(code, sessionLogin);
         if (claim.migrated === true && claim.tenantId != null) {
+          setContractCode(code);
           patchStoredUser({
             tenantId: claim.tenantId,
             role: "admin",
@@ -467,9 +472,8 @@ export default function TenantOnboarding() {
           setContractValidated(true);
           toast({
             title: "Abrigo associado",
-            description: claim.tenantSlug
-              ? `A sua conta passou a ser administradora do abrigo definitivo (${claim.tenantSlug}). Pode escolher o logo; o envio ocorre ao salvar.`
-              : "A sua conta passou a ser administradora do abrigo definitivo. Pode escolher o logo; o envio ocorre ao salvar.",
+            description:
+              "Código confirmado. Você já pode escolher o logo e salvar.",
             variant: "success",
             duration: 7000,
           });
@@ -489,9 +493,8 @@ export default function TenantOnboarding() {
       if (res.contractCodeRequired === false) {
         setContractValidated(false);
         toast({
-          title: "Contrato não configurado",
-          description:
-            "Este abrigo ainda não tem um contrato associado no sistema. Peça ao administrador para cadastrar o contrato e tente novamente.",
+          title: "Não foi possível validar",
+          description: "Algo deu errado. Tente novamente.",
           variant: "error",
           duration: 6000,
         });
@@ -499,35 +502,26 @@ export default function TenantOnboarding() {
       }
       if (!res.valid) {
         setContractValidated(false);
-        const desc =
-          res.reason === "mismatch"
-            ? "Este código não corresponde a nenhum contrato válido no sistema."
-            : res.reason === "no_canonical_tenant"
-              ? "O código existe, mas ainda não há um abrigo definitivo associado a ele. Aguarde a equipa Stokio concluir o cadastro do abrigo."
-              : res.reason === "missing"
-                ? "Informe o código de contrato."
-                : "Não foi possível validar o código.";
         toast({
-          title: "Código não aceito",
-          description: desc,
+          title: "Não foi possível validar",
+          description: "Algo deu errado. Tente novamente.",
           variant: "error",
         });
         return;
       }
       setContractValidated(true);
+      setContractCode(code);
       toast({
         title: "Código confirmado",
-        description: res.canonicalSlug
-          ? `Contrato válido (abrigo definitivo: ${res.canonicalSlug}). Pode escolher o logo; o envio ao armazenamento ocorre ao salvar.`
-          : "Agora você pode escolher a imagem do logo (ela só será enviada ao salvar).",
+        description: "Você já pode escolher o logo e salvar.",
         variant: "success",
       });
     } catch (err) {
       setContractValidated(false);
+      console.error(err);
       toast({
-        title: "Erro ao validar",
-        description:
-          err instanceof Error ? err.message : "Tente novamente em instantes.",
+        title: "Não foi possível validar",
+        description: "Algo deu errado. Tente novamente.",
         variant: "error",
       });
     } finally {
@@ -878,7 +872,9 @@ export default function TenantOnboarding() {
                         }}
                         placeholder="Cole o código fornecido pela Stokio"
                         autoComplete="off"
-                        disabled={previewMode}
+                        disabled={
+                          previewMode || contractValidated || validatingContract
+                        }
                         className="sm:max-w-md"
                       />
                       <Button

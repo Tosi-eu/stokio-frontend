@@ -23,6 +23,7 @@ import DeleteStockModal from "./DeleteStockModal";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 
 import {
   deleteCabinet,
@@ -149,6 +150,7 @@ export default function EditableTable({
   const instanceId = useId();
   const { toast } = useToast();
   const router = useRouter();
+  const { can, canMovementTipo } = usePermissionMatrix();
 
   useEffect(() => {
     setRows(data);
@@ -174,7 +176,38 @@ export default function EditableTable({
   const disabledActionClass =
     "opacity-40 cursor-not-allowed pointer-events-none";
 
+  const resourceKey = useMemo(() => {
+    // Entidades alinhadas aos PermissionResourceKey no frontend
+    const key =
+      entityType === "entries" || entityType === "exits" ? "stock" : entityType;
+    return key ?? null;
+  }, [entityType]);
+
+  const requirePermission = (
+    ok: boolean,
+    message: string = "Você não tem permissão para realizar esta ação.",
+  ): boolean => {
+    if (ok) return true;
+    toast({
+      title: "Sem permissão",
+      description: message,
+      variant: "error",
+      duration: 3000,
+    });
+    return false;
+  };
+
   const handleAddRow = () => {
+    if (
+      resourceKey &&
+      !requirePermission(
+        can(resourceKey as any, "create"),
+        "Você não tem permissão para criar novos registros.",
+      )
+    ) {
+      return;
+    }
+
     const routes: Record<string, string> = {
       entries: "/stock/in",
       exits: "/stock/out",
@@ -210,6 +243,15 @@ export default function EditableTable({
 
     if (!type) return;
 
+    if (
+      !requirePermission(
+        can(type as any, "update"),
+        "Você não tem permissão para editar este item.",
+      )
+    ) {
+      return;
+    }
+
     if (entityType === "stock") {
       setSpaNavigationState({ item: row });
       router.push("/stock/edit");
@@ -229,6 +271,14 @@ export default function EditableTable({
     switch (colKey) {
       case "status":
         return <StatusBadge row={row} />;
+
+      case "preco": {
+        const v = row[colKey];
+        if (v === null || v === undefined || v === "") return "-";
+        const num = typeof v === "number" ? v : Number(v);
+        if (Number.isNaN(num)) return "-";
+        return `R$ ${num.toFixed(2)}`;
+      }
 
       case "expiry":
         return renderExpiryTag(row);
@@ -256,6 +306,18 @@ export default function EditableTable({
     if (deleteIndex === null) return;
     const row = rows[deleteIndex];
     if (!row) return;
+
+    if (resourceKey && !can(resourceKey as any, "delete")) {
+      toast({
+        title: "Sem permissão",
+        description: "Você não tem permissão para excluir este item.",
+        variant: "error",
+        duration: 3000,
+      });
+      setDeleteIndex(null);
+      setShowStockDeleteModal(false);
+      return;
+    }
 
     setIsDeleting(true);
     try {
@@ -387,7 +449,7 @@ export default function EditableTable({
                       className={`border-b border-border/50 group transition-colors ${
                         row
                           ? row.status === "suspended"
-                            ? "bg-muted/70 opacity-80"
+                            ? "bg-muted/70"
                             : "hover:bg-accent/50"
                           : "bg-card/50 hover:bg-accent/30"
                       }`}
@@ -409,7 +471,7 @@ export default function EditableTable({
                         <td
                           className={`px-4 py-3 flex justify-center gap-4 sticky right-0 z-10 min-w-[120px] border-l border-border/30 shadow-[-8px_0_16px_-8px_rgba(0,0,0,0.05)] ${
                             row?.status === "suspended"
-                              ? "bg-muted/70 opacity-80"
+                              ? "bg-muted/70"
                               : row
                                 ? "bg-card group-hover:bg-accent/50"
                                 : "bg-card/80 group-hover:bg-accent/30"
@@ -429,6 +491,15 @@ export default function EditableTable({
                               <button
                                 type="button"
                                 onClick={() => {
+                                  if (
+                                    resourceKey &&
+                                    !requirePermission(
+                                      can(resourceKey as any, "delete"),
+                                      "Você não tem permissão para excluir itens.",
+                                    )
+                                  ) {
+                                    return;
+                                  }
                                   if (entityType === "stock") {
                                     setDeleteIndex(i);
                                     setShowStockDeleteModal(true);
@@ -444,7 +515,17 @@ export default function EditableTable({
 
                               <button
                                 type="button"
-                                onClick={() => onRemoveIndividual?.(row)}
+                                onClick={() => {
+                                  if (
+                                    !requirePermission(
+                                      can("stock" as any, "update"),
+                                      "Você não tem permissão para alterar associações no estoque.",
+                                    )
+                                  ) {
+                                    return;
+                                  }
+                                  onRemoveIndividual?.(row);
+                                }}
                                 disabled={!isIndividualMedicine(row)}
                                 className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-orange-600 hover:bg-orange-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${
                                   !isIndividualMedicine(row) &&
@@ -458,9 +539,18 @@ export default function EditableTable({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  isActive(row)
-                                    ? onSuspend?.(row)
-                                    : onResume?.(row)
+                                  (() => {
+                                    if (
+                                      !requirePermission(
+                                        can("stock" as any, "update"),
+                                        "Você não tem permissão para alterar este item.",
+                                      )
+                                    ) {
+                                      return;
+                                    }
+                                    if (isActive(row)) onSuspend?.(row);
+                                    else onResume?.(row);
+                                  })()
                                 }
                                 disabled={!isIndividualMedicine(row)}
                                 className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded focus:outline-none focus-visible:ring-2 ${
@@ -486,6 +576,14 @@ export default function EditableTable({
                                   type="button"
                                   onClick={() => {
                                     if (!canTransfer(row)) return;
+                                    if (
+                                      !requirePermission(
+                                        canMovementTipo("transferencia"),
+                                        "Você não tem permissão para transferir itens (transferência de estoque).",
+                                      )
+                                    ) {
+                                      return;
+                                    }
                                     onTransferSector(row);
                                   }}
                                   disabled={!canTransfer(row)}

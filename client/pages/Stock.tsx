@@ -34,6 +34,7 @@ import {
   actionTitles,
 } from "@/helpers/toaster.helper";
 import { toast } from "@/hooks/use-toast.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import {
   Popover,
@@ -70,6 +71,9 @@ const FILTER_LABELS: Record<string, string> = {
 export default function Stock() {
   const { uiDisplay, previewMode } = useTenant();
   const router = useRouter();
+  const { can, canMovementTipo } = usePermissionMatrix();
+  const canSaida = canMovementTipo("saida");
+  const canReports = can("reports", "read");
   const searchParams = useSearchParams();
   const filter = searchParams.get("filter"); // "noStock" | "belowMin" | "expired" | "expiringSoon"
 
@@ -578,7 +582,19 @@ export default function Stock() {
       <div className="space-y-6 max-w-7xl mx-auto">
         <div className="flex flex-wrap gap-3 justify-end mt-8">
           <button
-            onClick={() => router.push("/stock/out")}
+            onClick={() => {
+              if (!canSaida) {
+                toast({
+                  title: "Sem permissão",
+                  description:
+                    "Você não tem permissão para dar saída no estoque.",
+                  variant: "error",
+                  duration: 3000,
+                });
+                return;
+              }
+              router.push("/stock/out");
+            }}
             disabled={previewMode}
             className="
                 h-12 px-6 rounded-lg font-semibold
@@ -592,7 +608,18 @@ export default function Stock() {
           </button>
 
           <button
-            onClick={() => setReportModalOpen(true)}
+            onClick={() => {
+              if (!canReports) {
+                toast({
+                  title: "Sem permissão",
+                  description: "Você não tem permissão para gerar relatórios.",
+                  variant: "error",
+                  duration: 3000,
+                });
+                return;
+              }
+              setReportModalOpen(true);
+            }}
             disabled={previewMode}
             className="
                 h-12 px-6 rounded-lg font-semibold

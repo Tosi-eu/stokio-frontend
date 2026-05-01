@@ -98,11 +98,11 @@ export function StockCard({
         if (!isDisabled) onSelect();
       }}
       className={`
-        relative w-full h-[200px] rounded-xl p-5 border shadow-sm transition-all flex flex-col
+        relative w-full min-h-[200px] rounded-xl border p-5 shadow-sm transition-all flex flex-col
         ${
           selected
-            ? "bg-accent/50 border-primary shadow-md"
-            : "bg-white border-slate-300 hover:bg-slate-50"
+            ? "bg-accent/60 border-primary ring-1 ring-primary/20"
+            : "bg-card border-border hover:bg-muted/40"
         }
         ${isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
       `}
@@ -113,15 +113,15 @@ export function StockCard({
         </div>
       )}
 
-      <div className="font-semibold text-slate-800 text-base mb-3">
+      <div className="font-semibold text-foreground text-base mb-3 line-clamp-2">
         {item.nome}
       </div>
 
-      <div className="flex justify-between gap-6 text-sm text-slate-600">
+      <div className="flex justify-between gap-6 text-sm text-muted-foreground">
         <div className="space-y-1">
           {left.map((f, i) => (
             <div key={i}>
-              <span className="font-medium text-slate-700">{f.label}:</span>{" "}
+              <span className="font-medium text-foreground">{f.label}:</span>{" "}
               {f.value}
             </div>
           ))}
@@ -130,7 +130,7 @@ export function StockCard({
         <div className="space-y-1">
           {right.map((f, i) => (
             <div key={i}>
-              <span className="font-medium text-slate-700">{f.label}:</span>{" "}
+              <span className="font-medium text-foreground">{f.label}:</span>{" "}
               {f.value}
             </div>
           ))}
