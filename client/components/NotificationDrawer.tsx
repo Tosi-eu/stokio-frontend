@@ -19,18 +19,36 @@ import {
   getPreviewNotificationsReceita,
   getPreviewNotificationsReposicao,
 } from "@/helpers/preview-mock-data";
+import type { NotificationListItem } from "@stokio/sdk";
+import type { PreviewNotificationRow } from "@/helpers/preview-mock-data";
 
 export function NotificationDrawer() {
   const { open, setOpen, triggerReload, setCount } = useNotifications();
   const { previewMode } = useTenant();
 
-  const [items, setItems] = useState<any[]>([]);
+  type NotificationUiRow = NotificationListItem &
+    Partial<{
+      usuario: { id: number };
+      medicamento_id: number;
+      residente_id: number;
+      status: string;
+      quantidade: number;
+      dias_para_repor: number;
+    }>;
+
+  const [items, setItems] = useState<NotificationUiRow[]>([]);
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const [mode, setMode] = useState<"list" | "create">("list");
-  const [editingNotification, setEditingNotification] = useState<any | null>(
-    null,
-  );
+  const [editingNotification, setEditingNotification] = useState<Partial<{
+    medicamento_id: number;
+    residente_id: number;
+    destino: string;
+    data_prevista: string;
+    criado_por: number | undefined;
+    status: string | undefined;
+    id: number;
+  }> | null>(null);
   const [activeTab, setActiveTab] = useState<"receita" | "reposicao">(
     "receita",
   );
@@ -59,7 +77,11 @@ export function NotificationDrawer() {
                   .includes(term),
               )
             : raw;
-          setItems((prev) => (append ? [...prev, ...filtered] : filtered));
+          setItems((prev) =>
+            append
+              ? [...prev, ...(filtered as PreviewNotificationRow[])]
+              : (filtered as PreviewNotificationRow[]),
+          );
           setCount(filtered.length);
           setHasNext(false);
           return;
@@ -247,7 +269,7 @@ export function NotificationDrawer() {
                           medicineName={n.medicamento_nome}
                           dateToGo={n.data_prevista}
                           destiny={n.destino}
-                          createdBy={n.usuario}
+                          createdBy={String((n.usuario as { id?: number } | undefined)?.id ?? "-")}
                           onComplete={() =>
                             handleRemove(n.id, "sent", "Notificação concluída")
                           }

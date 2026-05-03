@@ -823,7 +823,7 @@ export const getStockFilterOptions = () =>
 export const getStock = (
   page = 1,
   limit = 6,
-  filters?: Record<string, any>,
+  filters?: Record<string, unknown>,
   extraFilter?: string | null,
 ) => {
   const params = new URLSearchParams({
@@ -832,18 +832,18 @@ export const getStock = (
   });
 
   if (filters) {
-    if (filters.type) params.append("type", filters.type);
-    if (filters.name) params.append("name", filters.name);
+    if (filters.type != null) params.append("type", String(filters.type));
+    if (filters.name != null) params.append("name", String(filters.name));
     if (filters.activeSubstance)
-      params.append("activeSubstance", filters.activeSubstance);
-    if (filters.cabinet) params.append("cabinet", filters.cabinet);
-    if (filters.drawer) params.append("drawer", filters.drawer);
-    if (filters.casela) params.append("casela", filters.casela);
-    if (filters.origin) params.append("origin", filters.origin);
-    if (filters.sector) params.append("sector", filters.sector);
-    if (filters.lot) params.append("lot", filters.lot);
-    if (filters.itemType) params.append("itemType", filters.itemType);
-    if (filters.stockType) params.append("stockType", filters.stockType);
+      params.append("activeSubstance", String(filters.activeSubstance));
+    if (filters.cabinet != null) params.append("cabinet", String(filters.cabinet));
+    if (filters.drawer != null) params.append("drawer", String(filters.drawer));
+    if (filters.casela != null) params.append("casela", String(filters.casela));
+    if (filters.origin != null) params.append("origin", String(filters.origin));
+    if (filters.sector != null) params.append("sector", String(filters.sector));
+    if (filters.lot != null) params.append("lot", String(filters.lot));
+    if (filters.itemType != null) params.append("itemType", String(filters.itemType));
+    if (filters.stockType != null) params.append("stockType", String(filters.stockType));
   }
 
   if (extraFilter) {

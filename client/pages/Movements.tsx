@@ -20,26 +20,42 @@ import { getErrorMessage } from "@/helpers/validation.helper";
 const TABLE_LIMIT = 10;
 const REQUEST_LIMIT = 5;
 
+type MovementRow = {
+  id: number | undefined;
+  name: string | undefined;
+  additionalData: string | null | undefined;
+  quantity: number | undefined;
+  operator: string | undefined;
+  movementDate: string;
+  _movementDateSort: number;
+  cabinet: number | string;
+  drawerDisplay: string;
+  resident: string;
+  type: string | undefined;
+  sector: string;
+  lot: string;
+};
+
 export default function InputMovements() {
   const { uiDisplay, previewMode } = useTenant();
   const [entriesInputPage, setEntriesInputPage] = useState(1);
   const [entriesMedicinePage, setEntriesMedicinePage] = useState(1);
   const [entriesHasNext, setEntriesHasNext] = useState(false);
-  const [entries, setEntries] = useState<any[]>([]);
+  const [entries, setEntries] = useState<MovementRow[]>([]);
   const [loadingEntries, setLoadingEntries] = useState(true);
   const entriesRequestId = useRef(0);
 
   const [exitsInputPage, setExitsInputPage] = useState(1);
   const [exitsMedicinePage, setExitsMedicinePage] = useState(1);
   const [exitsHasNext, setExitsHasNext] = useState(false);
-  const [exits, setExits] = useState<any[]>([]);
+  const [exits, setExits] = useState<MovementRow[]>([]);
   const [loadingExits, setLoadingExits] = useState(true);
   const exitsRequestId = useRef(0);
 
   const [transfersInputPage, setTransfersInputPage] = useState(1);
   const [transfersMedicinePage, setTransfersMedicinePage] = useState(1);
   const [transfersHasNext, setTransfersHasNext] = useState(false);
-  const [transfers, setTransfers] = useState<any[]>([]);
+  const [transfers, setTransfers] = useState<MovementRow[]>([]);
   const [loadingTransfers, setLoadingTransfers] = useState(true);
   const transfersRequestId = useRef(0);
 
@@ -56,7 +72,7 @@ export default function InputMovements() {
     { key: "lot", label: "Lote", editable: false },
   ];
 
-  function normalizeMovement(item: RawMovement) {
+  function normalizeMovement(item: RawMovement): MovementRow {
     const isMedicine = item.medicamento_id != null;
     const gavetaCat = item.DrawerModel?.DrawerCategoryModel?.nome;
 
@@ -111,13 +127,12 @@ export default function InputMovements() {
         ...medicamentos.data.map(normalizeMovement),
       ].sort(
         (a, b) =>
-          (b as { _movementDateSort: number })._movementDateSort -
-          (a as { _movementDateSort: number })._movementDateSort,
+          b._movementDateSort - a._movementDateSort,
       );
 
       const slice = merged.slice(0, TABLE_LIMIT);
       if (previewMode && slice.length === 0) {
-        setEntries(getPreviewMovementRows("entrada"));
+        setEntries(getPreviewMovementRows("entrada") as MovementRow[]);
         setEntriesHasNext(false);
       } else {
         setEntries(slice);
@@ -129,7 +144,7 @@ export default function InputMovements() {
       }
     } catch (err: unknown) {
       if (previewMode) {
-        setEntries(getPreviewMovementRows("entrada"));
+        setEntries(getPreviewMovementRows("entrada") as MovementRow[]);
         setEntriesHasNext(false);
       } else {
         const errorMessage = getErrorMessage(
@@ -176,13 +191,12 @@ export default function InputMovements() {
         ...medicamentos.data.map(normalizeMovement),
       ].sort(
         (a, b) =>
-          (b as { _movementDateSort: number })._movementDateSort -
-          (a as { _movementDateSort: number })._movementDateSort,
+          b._movementDateSort - a._movementDateSort,
       );
 
       const slice = merged.slice(0, TABLE_LIMIT);
       if (previewMode && slice.length === 0) {
-        setExits(getPreviewMovementRows("saida"));
+        setExits(getPreviewMovementRows("saida") as MovementRow[]);
         setExitsHasNext(false);
       } else {
         setExits(slice);
@@ -194,7 +208,7 @@ export default function InputMovements() {
       }
     } catch (err: unknown) {
       if (previewMode) {
-        setExits(getPreviewMovementRows("saida"));
+        setExits(getPreviewMovementRows("saida") as MovementRow[]);
         setExitsHasNext(false);
       } else {
         const errorMessage = getErrorMessage(
@@ -241,13 +255,12 @@ export default function InputMovements() {
         ...medicamentos.data.map(normalizeMovement),
       ].sort(
         (a, b) =>
-          (b as { _movementDateSort: number })._movementDateSort -
-          (a as { _movementDateSort: number })._movementDateSort,
+          b._movementDateSort - a._movementDateSort,
       );
 
       const slice = merged.slice(0, TABLE_LIMIT);
       if (previewMode && slice.length === 0) {
-        setTransfers(getPreviewMovementRows("transferencia"));
+        setTransfers(getPreviewMovementRows("transferencia") as MovementRow[]);
         setTransfersHasNext(false);
       } else {
         setTransfers(slice);
@@ -259,7 +272,7 @@ export default function InputMovements() {
       }
     } catch (err: unknown) {
       if (previewMode) {
-        setTransfers(getPreviewMovementRows("transferencia"));
+        setTransfers(getPreviewMovementRows("transferencia") as MovementRow[]);
         setTransfersHasNext(false);
       } else {
         const errorMessage = getErrorMessage(
