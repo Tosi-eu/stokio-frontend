@@ -9,9 +9,6 @@ type Props = {
   priority?: boolean;
 } & Pick<ComponentProps<typeof Image>, "sizes">;
 
-/**
- * Logo padrão em `/public` — usa `next/image` (otimização + LCP quando `priority`).
- */
 export function LocalBrandLogoImage({
   alt,
   className,

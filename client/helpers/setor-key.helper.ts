@@ -1,7 +1,3 @@
-/**
- * Espelha `backend/src/helpers/setor-key.helper.ts`: chave derivada do nome
- * (minúsculas, snake_case, sem acentos).
- */
 export function inferSetorKeyFromNome(nome: string): string {
   const stripped = nome
     .normalize("NFD")

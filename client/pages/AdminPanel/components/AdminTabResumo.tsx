@@ -201,7 +201,6 @@ export function AdminTabResumo({
   }, [metricsDialog]);
 
   useEffect(() => {
-    // Reset pagination when switching the expanded summary list
     const id = setTimeout(() => setSummaryListPage(1), 0);
     return () => clearTimeout(id);
   }, [expandedSummary]);

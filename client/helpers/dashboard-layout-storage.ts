@@ -5,9 +5,9 @@ const STORAGE_VERSION = 1 as const;
 
 export type DashboardLayoutV1 = {
   version: typeof STORAGE_VERSION;
-  /** Widgets removidos do painel (podem ser readicionados). */
+
   hidden: DashboardWidgetId[];
-  /** Largura em telas grandes: true = ocupa as duas colunas do grid. */
+
   wide: Partial<Record<DashboardWidgetId, boolean>>;
 };
 

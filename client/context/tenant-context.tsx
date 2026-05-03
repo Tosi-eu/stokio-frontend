@@ -20,7 +20,7 @@ export type TenantModules = {
   enabled: string[];
   automatic_price_search?: boolean;
   automatic_reposicao_notifications?: boolean;
-  /** Setores de estoque deste abrigo (ex.: gráficos no painel). */
+
   enabled_sectors?: string[];
 };
 
@@ -130,9 +130,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         String(res.tenant.slug).startsWith("u-") &&
         !hasSkipTenantOnboardingPreference(tid)
       ) {
-        // Tenant provisório (linha A): por padrão, libera navegação em modo visualização.
         setSkipTenantOnboarding(tid, true);
-        // Evita corrida com o redirect do App: ativa o estado local imediatamente.
+
         setSkipOnboarding(true);
       }
       setUiDisplay(

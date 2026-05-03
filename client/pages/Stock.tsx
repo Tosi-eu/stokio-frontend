@@ -76,7 +76,7 @@ export default function Stock() {
   const canSaida = canMovementTipo("saida");
   const canReports = can("reports", "read");
   const searchParams = useSearchParams();
-  const filter = searchParams.get("filter"); // "noStock" | "belowMin" | "expired" | "expiringSoon"
+  const filter = searchParams.get("filter");
 
   const stockBreadcrumb = useMemo(
     () =>

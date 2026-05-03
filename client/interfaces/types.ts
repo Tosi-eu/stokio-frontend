@@ -5,10 +5,8 @@ export type StockActionType =
   | "transfer"
   | null;
 
-/** Alinhado com `computeExpiryStatus` no backend. */
 export type StockExpiryStatus = "expired" | "critical" | "warning" | "healthy";
 
-/** Alinhado com `computeQuantityStatus` no backend. */
 export type StockQuantityStatus =
   | "empty"
   | "low"

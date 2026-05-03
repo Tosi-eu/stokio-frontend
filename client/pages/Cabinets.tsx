@@ -343,8 +343,7 @@ export default function Cabinets() {
 
   const filteredDetailRows = useMemo(() => {
     const base = stockItemsToDetailRows(stockRows);
-    // Observação: com paginação, o filtro atua no servidor (por nome).
-    // O filtro local aqui fica neutro para evitar “duplo filtro”.
+
     return base;
   }, [stockRows]);
 

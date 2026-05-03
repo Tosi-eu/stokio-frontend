@@ -94,7 +94,7 @@ export default function Auth() {
 
   const [signupFlow, setSignupFlow] = useState<"user" | "join-token">("user");
   const [userContractCode, setUserContractCode] = useState("");
-  /** Throttle generic "try later" toast on background verify network errors */
+
   const contractVerifyBackgroundErrorAtRef = useRef(0);
   const [viewModeConfirmOpen, setViewModeConfirmOpen] = useState(false);
   const [pendingUserSignup, setPendingUserSignup] = useState<{
@@ -194,7 +194,7 @@ export default function Auth() {
       cancelled = true;
       window.clearTimeout(id);
     };
-  }, [isLogin, signupFlow, userContractCode, login]);
+  }, [isLogin, signupFlow, userContractCode, login, toast]);
 
   useEffect(() => {
     if (!isLogin) {
@@ -361,8 +361,6 @@ export default function Auth() {
           await authLogin(params.login, params.password, created.tenant.slug);
           void prefetchTenantBrandLogoBeforeInicioNavigation();
 
-          // Se entrou com código de contrato válido, leva para onboarding (setup do abrigo).
-          // Caso contrário, pode entrar em modo de visualização (preview) e configurar depois.
           if (userContractCode.trim()) {
             try {
               setSkipTenantOnboarding(created.tenant.id, false);
@@ -982,8 +980,9 @@ export default function Auth() {
                         placeholder="Se você já tem, cole aqui"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Opcional. Se informar, usamos apenas para configurar o abrigo
-                        depois — não mostramos aqui se o código está correto.
+                        Opcional. Se informar, usamos apenas para configurar o
+                        abrigo depois — não mostramos aqui se o código está
+                        correto.
                       </p>
                     </div>
                   ) : null}

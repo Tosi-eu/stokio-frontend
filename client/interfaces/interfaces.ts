@@ -76,7 +76,7 @@ export interface LoggedUser {
   lastName?: string;
   role?: "admin" | "user";
   tenantId?: number;
-  /** Resumo global (compat): OR sobre todos os recursos. */
+
   permissions?: {
     read: boolean;
     create: boolean;
@@ -94,7 +94,7 @@ export interface AuthContextType {
   user: LoggedUser | null;
   login: (login: string, password: string, tenantSlug: string) => Promise<void>;
   logout: () => void;
-  /** Atualiza o utilizador em memória e em `sessionStorage` (ex.: após migração de tenant). */
+
   patchStoredUser: (partial: Partial<LoggedUser>) => void;
 }
 

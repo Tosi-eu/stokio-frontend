@@ -17,7 +17,7 @@ export interface StockListFilters {
   gaveta?: string;
   setor?: string;
   lote?: string;
-  /** Lista apenas medicamentos ou apenas insumos (saída de estoque). */
+
   itemType?: "medicamento" | "insumo";
 }
 

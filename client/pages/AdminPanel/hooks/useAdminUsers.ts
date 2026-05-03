@@ -115,8 +115,6 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
         permissions: permissionsToSend,
       });
 
-      // Update otimista: garante que reabrir "Editar" mostra o que foi salvo,
-      // mesmo se o refetch ainda não terminou (ou estiver cacheado).
       setUsers((prev) =>
         prev.map((u) => {
           if (u.id !== editModal.id) return u;
@@ -127,7 +125,7 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
             login: formEdit.login,
             role: formEdit.role,
           };
-          // Para "user", a UI usa `permissions` (4 flags) e o editor usa `permissionMatrix`.
+
           if (formEdit.role === "admin") {
             next.permissions = {
               read: true,
@@ -149,8 +147,6 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
         }),
       );
 
-      // Se o admin editou as próprias permissões, a sessão atual (AuthContext)
-      // continua com a matriz antiga até refetch. Isso faz o UI não refletir.
       if (currentUser?.id === editModal.id) {
         try {
           const fresh = await getCurrentUser();

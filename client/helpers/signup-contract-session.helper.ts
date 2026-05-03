@@ -1,4 +1,3 @@
-/** Session flag set after silent signup-time contract verification succeeds (Auth page). */
 export const SIGNUP_CONTRACT_VERIFIED_SESSION_KEY =
   "stokio.signupContractVerified";
 

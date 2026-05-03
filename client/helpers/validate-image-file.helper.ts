@@ -1,6 +1,3 @@
-/**
- * Garante que o arquivo é uma imagem decodificável pelo browser (antes de enviar ao servidor).
- */
 export function validateImageFileDecodes(file: File): Promise<boolean> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);

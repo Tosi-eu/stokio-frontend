@@ -1,7 +1,3 @@
-/**
- * Substitui o `location.state` do React Router no fluxo Next.js (App Router).
- * Grava no sessionStorage imediatamente antes de `router.push`.
- */
 const KEY = "__spa_nav_state_v1";
 
 export function setSpaNavigationState(state: unknown): void {

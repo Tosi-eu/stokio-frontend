@@ -21,7 +21,6 @@ export function getEnabledSectors(
   return out.length ? out : [...DEFAULT];
 }
 
-/** Rótulo curto para UI (lista de setores ativos no painel). */
 export function formatTenantSectorKeyLabel(key: string): string {
   const k = key.trim().toLowerCase();
   if (k === "farmacia") return "Farmácia";

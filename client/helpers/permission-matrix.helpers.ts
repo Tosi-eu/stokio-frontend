@@ -33,13 +33,10 @@ export function canMovementTipoFromMatrix(
   matrix: EffectivePermissionMatrixSerialized | null | undefined,
   tipo: MovementTipoKey,
 ): boolean {
-  // Movimentações são derivadas de operações de estoque; o controle fino por tipo
-  // (entrada/saída/transferência) depende da permissão de criar no módulo de estoque.
   if (!matrix?.resources?.stock?.create) return false;
   return Boolean(matrix.movement_tipos?.[tipo]);
 }
 
-/** Utilizador sem matriz após migração: só leitura conservadora (evita mostrar UI que a API bloquearia). */
 export function canReadModuleFromUser(
   user: LoggedUser | null,
   moduleKey: string,
@@ -71,7 +68,6 @@ export function expandFlatPermissionsToV2(
   };
 }
 
-/** Converte a matriz efetiva serializada para payload v2 completo (persistência). */
 export function effectiveMatrixToV2Stored(
   matrix: EffectivePermissionMatrixSerialized,
 ): PermissionMatrixV2Stored {
@@ -82,7 +78,6 @@ export function effectiveMatrixToV2Stored(
   };
 }
 
-/** Matriz inicial para novo utilizador `user` (espelha o legado de 4 flags). */
 export function defaultEffectiveMatrixFromFlat(
   flat: ResourceCrud,
 ): EffectivePermissionMatrixSerialized {

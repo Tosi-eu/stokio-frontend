@@ -45,7 +45,6 @@ import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import { TableFilter } from "@/components/TableFilter";
 
-/** Itens por página — alinhado à API; evita carregar milhares de linhas na memória. */
 const PAGE_SIZE = 24;
 
 export default function StockOut() {

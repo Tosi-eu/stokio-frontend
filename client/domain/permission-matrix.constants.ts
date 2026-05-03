@@ -1,6 +1,5 @@
 import type { PermissionResourceKey } from "./permission-matrix.types";
 
-/** Ordem estável para a UI (alinhado ao resolver do backend). */
 export const PERMISSION_RESOURCE_KEYS = [
   "dashboard",
   "residents",
@@ -23,8 +22,7 @@ export const PERMISSION_RESOURCE_LABELS: Record<PermissionResourceKey, string> =
     medicines: "Medicamentos",
     inputs: "Insumos",
     stock: "Estoque",
-    // Recursos legacy/ocultos: mantidos no tipo por compatibilidade com dados gravados,
-    // mas não devem aparecer como “itens de permissão” na UI.
+
     movements: "Movimentações (oculto)",
     reports: "Relatórios",
     notifications: "Notificações",

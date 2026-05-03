@@ -1,5 +1,3 @@
-/** Espelho de `permission-matrix.types.ts` do backend — só tipos serializáveis JSON. */
-
 export type PermissionResourceKey =
   | "dashboard"
   | "residents"

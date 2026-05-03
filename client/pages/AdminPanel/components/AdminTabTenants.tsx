@@ -254,7 +254,10 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
                           if (t.id === 1) return;
                           try {
                             await deleteAdminTenant(t.id);
-                            toast({ title: "Abrigo removido", variant: "success" });
+                            toast({
+                              title: "Abrigo removido",
+                              variant: "success",
+                            });
                             void load();
                           } catch (e: unknown) {
                             toast({

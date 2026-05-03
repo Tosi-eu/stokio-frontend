@@ -274,7 +274,6 @@ export default function Drawers() {
   }, [previewMode, selectedNumero, loadDrawers]);
 
   const filteredDetailRows = useMemo(() => {
-    // Observação: com paginação, o filtro atua no servidor (por nome).
     return stockItemsToDetailRows(stockRows);
   }, [stockRows]);
 

@@ -156,8 +156,6 @@ export default function Resident() {
   }, [loadResidents]);
 
   useEffect(() => {
-    // Não auto-seleciona: permite que a lista fique sem seleção.
-    // Só limpa a seleção quando o item selecionado deixa de existir após filtragens/updates.
     setSelectedCasela((prev) => {
       if (prev == null) return null;
       return residents.some((r) => r.casela === prev) ? prev : null;

@@ -178,7 +178,6 @@ export default function EditableTable({
     "opacity-40 cursor-not-allowed pointer-events-none";
 
   const resourceKey = useMemo(() => {
-    // Entidades alinhadas aos PermissionResourceKey no frontend
     const key =
       entityType === "entries" || entityType === "exits" ? "stock" : entityType;
     return key ?? null;
@@ -699,7 +698,6 @@ function readRowNumber(
   return 0;
 }
 
-/** Parse DD/MM/AAAA ou prefixo ISO AAAA-MM-DD (como na célula e na API). */
 function parseDisplayDateForExpiry(s: string): Date | null {
   const t = s.trim();
   const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(t);
@@ -729,7 +727,6 @@ function parseDisplayDateForExpiry(s: string): Date | null {
   return null;
 }
 
-/** Espelha `computeExpiryStatus` do backend quando `st_expiracao` não veio. */
 function fallbackExpiryStatusKeyFromLabel(expiryLabel: string): string | null {
   const d = parseDisplayDateForExpiry(expiryLabel);
   if (!d || Number.isNaN(d.getTime())) return null;
@@ -742,7 +739,6 @@ function fallbackExpiryStatusKeyFromLabel(expiryLabel: string): string | null {
   return "healthy";
 }
 
-/** Espelha `computeQuantityStatus` do backend. */
 function fallbackQuantityStatusKey(
   quantity: number,
   minimumStock: number,
@@ -756,7 +752,6 @@ function fallbackQuantityStatusKey(
   return "critical";
 }
 
-/** Alinha chaves antigas / preview (`ok`) com o contrato da API (`healthy`, `high`, …). */
 function normalizeExpiryStatusKey(raw: string): string {
   const k = raw.trim().toLowerCase();
   if (k === "ok") return "healthy";

@@ -12,7 +12,7 @@ type Props = {
   wide: boolean;
   onHide: () => void;
   onToggleWide: () => void;
-  /** Permite esconder o botão de largura (ex.: KPIs). */
+
   allowWide?: boolean;
   children: ReactNode;
   className?: string;

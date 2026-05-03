@@ -1,4 +1,3 @@
-/** Módulos exibidos no shell quando `previewMode` está ativo (UI apenas). */
 export const PREVIEW_UI_MODULE_KEYS = new Set([
   "dashboard",
   "movements",

@@ -212,7 +212,7 @@ export default function TenantOnboarding() {
   const [contractCode, setContractCode] = useState("");
   const [contractValidated, setContractValidated] = useState(false);
   const [validatingContract, setValidatingContract] = useState(false);
-  /** One-shot auto-verify after signup when silent verification succeeded on Auth */
+
   const signupContractAutoVerifyStartedRef = useRef(false);
   const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
@@ -318,11 +318,10 @@ export default function TenantOnboarding() {
       return null;
     });
     setPendingLogoFile(null);
-    // Só resetar a validação ao trocar de abrigo (não quando módulos/branding atualizam).
+
     if (tenantChanged) {
       signupContractAutoVerifyStartedRef.current = false;
-      // Não apagar o código após migração para abrigo definitivo.
-      // Mantém o valor digitado e evita pedir para inserir de novo.
+
       if (!contractValidated) {
         setContractCode("");
         setContractValidated(false);
@@ -428,10 +427,7 @@ export default function TenantOnboarding() {
   };
 
   const verifyContractCodeFlow = useCallback(
-    async (
-      rawCode: string,
-      opts?: { silent?: boolean },
-    ): Promise<boolean> => {
+    async (rawCode: string, opts?: { silent?: boolean }): Promise<boolean> => {
       const silent = Boolean(opts?.silent);
       const slug = tenant?.slug?.trim();
       const code = rawCode.trim();
@@ -512,8 +508,7 @@ export default function TenantOnboarding() {
           if (!silent) {
             toast({
               title: "Não foi possível validar",
-              description:
-                "Confira o código do contrato e tente de novo.",
+              description: "Confira o código do contrato e tente de novo.",
               variant: "error",
               duration: 6000,
             });
@@ -577,7 +572,7 @@ export default function TenantOnboarding() {
     try {
       raw = sessionStorage.getItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
     } catch {
-      raw = null;
+      // ignore
     }
     if (!raw) return;
 
@@ -606,13 +601,7 @@ export default function TenantOnboarding() {
         setSkipTenantOnboarding(tenantId, false);
       }
     })();
-  }, [
-    loading,
-    tenantId,
-    tenant?.slug,
-    user?.login,
-    verifyContractCodeFlow,
-  ]);
+  }, [loading, tenantId, tenant?.slug, user?.login, verifyContractCodeFlow]);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -620,8 +609,7 @@ export default function TenantOnboarding() {
     if (previewMode) {
       toast({
         title: "Modo de visualização",
-        description:
-          "Saia do modo demonstração para escolher e enviar o logo.",
+        description: "Saia do modo demonstração para escolher e enviar o logo.",
         variant: "warning",
         duration: 5000,
       });
@@ -664,8 +652,7 @@ export default function TenantOnboarding() {
     setPendingLogoFile(file);
     toast({
       title: "Imagem selecionada",
-      description:
-        "Pré-visualização.",
+      description: "Pré-visualização.",
       variant: "success",
     });
     e.target.value = "";
@@ -1094,8 +1081,8 @@ export default function TenantOnboarding() {
                       </div>
                     ) : null}
                     <p className="max-w-[14rem] text-center text-xs text-muted-foreground">
-                      PNG, JPG, WebP ou GIF, até 2 MB. A pré-visualização é só no
-                      seu dispositivo; o logo só é enviado quando guardar a
+                      PNG, JPG, WebP ou GIF, até 2 MB. A pré-visualização é só
+                      no seu dispositivo; o logo só é enviado quando guardar a
                       configuração.
                     </p>
                   </div>

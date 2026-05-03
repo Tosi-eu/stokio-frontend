@@ -2,7 +2,6 @@ function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-/** Date-only display: always `dd/mm/yyyy` (zero-padded). */
 export function formatDateToPtBr(
   input: string | Date | undefined | null,
 ): string {
@@ -21,7 +20,6 @@ export function formatDateToPtBr(
     return `${pad2(Number(slash[1]))}/${pad2(Number(slash[2]))}/${slash[3]}`;
   }
 
-  // Calendar date from ISO prefix (avoids TZ shifting YYYY-MM-DD from API)
   if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
     const [year, month, day] = str.split("T")[0].split("-");
     return `${day}/${month}/${year}`;
@@ -39,7 +37,6 @@ export function formatTimePtBr(d: Date): string {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
-/** Date + time: `dd/mm/yyyy HH:mm` (local). */
 export function formatDateTimePtBr(
   input: string | Date | undefined | null,
 ): string {
@@ -49,9 +46,6 @@ export function formatDateTimePtBr(
   return `${formatDateToPtBr(d)} ${formatTimePtBr(d)}`;
 }
 
-/**
- * Date-only fields as `YYYY-MM-DD` vs full ISO datetimes — avoids TZ surprises on date-only strings.
- */
 export function formatDateOrDateTimePtBr(
   input: string | Date | undefined | null,
 ): string {
@@ -70,7 +64,6 @@ export const parseYearMonthToDate = (yearMonth: string) => {
   return new Date(year, month - 1, 1);
 };
 
-/** Validade / expiry column: `dd/mm/yyyy` or "-" if missing or invalid. */
 export function formatValidityDate(
   input: string | Date | undefined | null,
 ): string {

@@ -771,7 +771,7 @@ export type VerifyContractCodeResponse = {
   valid: boolean;
   contractCodeRequired?: boolean;
   reason?: "missing" | "mismatch" | "no_canonical_tenant";
-  /** Slug do abrigo definitivo quando o código casa com um contrato existente (tenant provisório `u-*`). */
+
   canonicalSlug?: string;
 };
 
@@ -955,8 +955,7 @@ export const getNotifications = async ({
 
     const res = await api.get<NotificationsResponse>("/notificacao", {
       params,
-      // Esta chamada pode acontecer sem ação explícita do usuário (ex.: bootstrap de UI).
-      // Não deve disparar toast global de "sem privilégios"; o UI controla isso.
+
       silentInsufficientPrivileges: true,
     });
 
@@ -1232,11 +1231,9 @@ export type TenantPriceBackfillStatusResponse = {
   workflowId?: string;
 };
 
-/** [Admin] Inicia busca retroativa em segundo plano (202). Estado em GET status. */
 export const forceTenantPriceBackfill = () =>
   api.post<ForceTenantPriceBackfillResponse>("/tenant/price-backfill/run");
 
-/** [Admin] Polling: processo em curso, cooldown e último resultado. */
 export const getTenantPriceBackfillStatus = () =>
   api.get<TenantPriceBackfillStatusResponse>("/tenant/price-backfill/status");
 
@@ -1260,7 +1257,6 @@ export const setTenantContractCode = (
     bound_login: boundLogin.trim(),
   });
 
-/** Tenant provisório (`u-*`): valida código existente e migra o login para o abrigo definitivo. */
 export const claimTenantContractCode = (
   contractCode: string,
   boundLogin: string,
@@ -1289,7 +1285,6 @@ export const listTenantSetores = () =>
   api.get<{ data: TenantSetorRow[] }>("/tenant/setores");
 
 export type CreateTenantSetorPayload = {
-  /** Opcional; o servidor infere a partir de `nome` se omitido. */
   key?: string;
   nome: string;
   proportionProfile?: "farmacia" | "enfermagem";
@@ -1307,7 +1302,7 @@ export type CreateAdminUserPayload = {
   firstName?: string;
   lastName?: string;
   role?: "admin" | "user";
-  /** Legado (4 flags) ou matriz `{ version: 2, resources, movement_tipos }`. */
+
   permissions?:
     | UserPermissions
     | import("@/domain/permission-matrix.types").PermissionMatrixV2Stored;

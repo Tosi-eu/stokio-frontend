@@ -1,16 +1,6 @@
-/**
- * Sanitiza mensagens de erro vindas da API ou de exceções para não expor
- * detalhes técnicos (infra, stack, credenciais). Detalhes completos devem ser
- * registados com `logClientError` / `logSanitizedError`.
- */
-/** Mensagem quando o sistema substitui detalhe técnico (tom neutro, produto Abrigo/Stokio). */
 const GENERIC_ERROR_PT =
   "Não foi possível concluir esta ação. Tente de novo em instantes.";
 
-/**
- * Texto curto para descrições de toast quando o título já diz qual foi a ação.
- * Alinhado ao mesmo tom da mensagem genérica completa.
- */
 export const USER_FACING_RETRY_SHORT = "Tente de novo em instantes.";
 
 export function logClientError(context: string, err: unknown): void {
@@ -25,7 +15,6 @@ function shouldLogSanitization(raw: string, result: string): boolean {
   );
 }
 
-/** Se a mensagem for simplificada, regista o erro original para suporte. */
 export function logSanitizedError(
   context: string,
   err: unknown,
