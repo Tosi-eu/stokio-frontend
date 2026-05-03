@@ -1,4 +1,5 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { formatDateToPtBr } from "@/helpers/dates.helper";
 import { Pencil } from "lucide-react";
 
 interface NotificationCardProps {
@@ -44,7 +45,7 @@ export function NotificationCard({
             <b>Medicamento:</b> {medicineName}
           </li>
           <li>
-            <b>Data prevista:</b> {dateToGo}
+            <b>Data prevista:</b> {formatDateToPtBr(dateToGo)}
           </li>
           <li>
             <b>Destino:</b> {destiny}
@@ -58,7 +59,7 @@ export function NotificationCard({
           {onComplete && (
             <button
               onClick={onComplete}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg"
             >
               Concluir
             </button>

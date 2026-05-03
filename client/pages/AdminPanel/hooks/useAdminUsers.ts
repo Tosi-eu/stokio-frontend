@@ -5,9 +5,21 @@ import {
   createAdminUser,
   updateAdminUser,
   deleteAdminUser,
+  getCurrentUser,
 } from "@/api/requests";
-import type { AdminUser, UserPermissions } from "../types";
+import type { AdminUser } from "../types";
 import type { CreateUserForm } from "../components/AdminUserCreateDialog";
+import {
+  cloneMatrixSerialized,
+  defaultEffectiveMatrixFromFlat,
+  effectiveMatrixToV2Stored,
+} from "@/helpers/permission-matrix.helpers";
+import type { UserPermissions } from "../types";
+import { useAuth } from "@/hooks/use-auth.hook";
+import {
+  getErrorMessage,
+  USER_FACING_RETRY_SHORT,
+} from "@/helpers/validation.helper";
 
 const defaultPermissions: UserPermissions = {
   read: true,
@@ -17,6 +29,7 @@ const defaultPermissions: UserPermissions = {
 };
 
 export function useAdminUsers(isAdmin: boolean, enabled = true) {
+  const { user: currentUser, patchStoredUser } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [page, setPage] = useState(1);
@@ -31,7 +44,7 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
     login: "",
     password: "",
     role: "user" as "admin" | "user",
-    permissions: defaultPermissions as UserPermissions,
+    permissionMatrix: defaultEffectiveMatrixFromFlat(defaultPermissions),
   });
   const [formCreate, setFormCreate] = useState<CreateUserForm>({
     firstName: "",
@@ -39,7 +52,7 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
     login: "",
     password: "",
     role: "user",
-    permissions: { ...defaultPermissions },
+    permissionMatrix: defaultEffectiveMatrixFromFlat(defaultPermissions),
   });
   const [saving, setSaving] = useState(false);
 
@@ -65,19 +78,23 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
 
   function openEdit(u: AdminUser) {
     setEditModal(u);
-    const perms =
+    const flatPerms: UserPermissions =
       u.role === "admin"
         ? { read: true, create: true, update: true, delete: true }
         : u.permissions
           ? { ...defaultPermissions, ...u.permissions }
           : defaultPermissions;
+    const matrix =
+      u.permissionMatrix != null
+        ? cloneMatrixSerialized(u.permissionMatrix)
+        : defaultEffectiveMatrixFromFlat(flatPerms);
     setFormEdit({
       firstName: u.firstName ?? "",
       lastName: u.lastName ?? "",
       login: u.login,
       password: "",
       role: u.role,
-      permissions: perms,
+      permissionMatrix: matrix,
     });
   }
 
@@ -88,7 +105,7 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
       const permissionsToSend =
         formEdit.role === "admin"
           ? { read: true, create: true, update: true, delete: true }
-          : formEdit.permissions;
+          : effectiveMatrixToV2Stored(formEdit.permissionMatrix);
       await updateAdminUser(editModal.id, {
         firstName: formEdit.firstName,
         lastName: formEdit.lastName,
@@ -97,12 +114,71 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
         role: formEdit.role,
         permissions: permissionsToSend,
       });
+
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id !== editModal.id) return u;
+          const next: AdminUser = {
+            ...u,
+            firstName: formEdit.firstName,
+            lastName: formEdit.lastName,
+            login: formEdit.login,
+            role: formEdit.role,
+          };
+
+          if (formEdit.role === "admin") {
+            next.permissions = {
+              read: true,
+              create: true,
+              update: true,
+              delete: true,
+            };
+            next.permissionMatrix = undefined;
+          } else {
+            next.permissions =
+              permissionsToSend && "version" in permissionsToSend
+                ? undefined
+                : (permissionsToSend as UserPermissions);
+            next.permissionMatrix = cloneMatrixSerialized(
+              formEdit.permissionMatrix,
+            );
+          }
+          return next;
+        }),
+      );
+
+      if (currentUser?.id === editModal.id) {
+        try {
+          const fresh = await getCurrentUser();
+          patchStoredUser({
+            role: fresh?.role,
+            permissions: fresh?.permissions,
+            permissionMatrix: fresh?.permissionMatrix,
+            firstName: fresh?.firstName,
+            lastName: fresh?.lastName,
+            first_name: fresh?.first_name,
+            last_name: fresh?.last_name,
+            login: fresh?.login,
+            tenantId: fresh?.tenantId,
+            isTenantOwner: fresh?.isTenantOwner,
+            isSuperAdmin: fresh?.isSuperAdmin,
+          });
+        } catch {
+          // ignore: fallback é o reload/log out-in do utilizador
+        }
+      }
+
       toast({ title: "Usuário atualizado", variant: "success" });
       setEditModal(null);
-      loadUsers();
-    } catch (err) {
+      void loadUsers();
+    } catch (err: unknown) {
       toast({
-        title: err instanceof Error ? err.message : "Erro ao atualizar",
+        title: "Não foi possível atualizar o utilizador",
+        description: getErrorMessage(
+          err,
+          USER_FACING_RETRY_SHORT,
+          "useAdminUsers:update",
+        ),
         variant: "error",
       });
     } finally {
@@ -116,7 +192,7 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
       const permissionsToSend =
         formCreate.role === "admin"
           ? { read: true, create: true, update: true, delete: true }
-          : formCreate.permissions;
+          : effectiveMatrixToV2Stored(formCreate.permissionMatrix);
       await createAdminUser({
         login: formCreate.login.trim(),
         password: formCreate.password,
@@ -133,12 +209,17 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
         login: "",
         password: "",
         role: "user",
-        permissions: { ...defaultPermissions },
+        permissionMatrix: defaultEffectiveMatrixFromFlat(defaultPermissions),
       });
       loadUsers();
-    } catch (err) {
+    } catch (err: unknown) {
       toast({
-        title: err instanceof Error ? err.message : "Erro ao criar usuário",
+        title: "Não foi possível criar o utilizador",
+        description: getErrorMessage(
+          err,
+          USER_FACING_RETRY_SHORT,
+          "useAdminUsers:create",
+        ),
         variant: "error",
       });
     } finally {
@@ -154,9 +235,14 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
       toast({ title: "Usuário removido", variant: "success" });
       setDeleteTarget(null);
       loadUsers();
-    } catch (err) {
+    } catch (err: unknown) {
       toast({
-        title: err instanceof Error ? err.message : "Erro ao remover",
+        title: "Não foi possível remover o utilizador",
+        description: getErrorMessage(
+          err,
+          USER_FACING_RETRY_SHORT,
+          "useAdminUsers:delete",
+        ),
         variant: "error",
       });
     } finally {
@@ -177,10 +263,10 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
     setEditModal,
     createModalOpen,
     setCreateModalOpen,
-    formCreate,
-    setFormCreate,
     deleteTarget,
     setDeleteTarget,
+    formCreate,
+    setFormCreate,
     formEdit,
     setFormEdit,
     saving,

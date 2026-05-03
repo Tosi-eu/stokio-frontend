@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Layout from "@/components/Layout";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast.hook";
 import { createResident } from "@/api/requests";
 import {
@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 export default function RegisterResident() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toast } = useToast();
 
   const {
@@ -28,12 +28,18 @@ export default function RegisterResident() {
     defaultValues: {
       name: "",
       casela: "",
+      data_nascimento: "",
     },
   });
 
   const onSubmit = async (data: ResidentFormData) => {
     try {
-      await createResident(data.name.trim(), data.casela);
+      const dn = data.data_nascimento?.trim();
+      await createResident(
+        data.name.trim(),
+        data.casela,
+        dn && dn !== "" ? dn : undefined,
+      );
 
       toast({
         title: "Residente cadastrado",
@@ -42,7 +48,7 @@ export default function RegisterResident() {
         duration: 3000,
       });
 
-      navigate("/residents");
+      router.push("/residents");
     } catch (err: unknown) {
       toast({
         title: "Erro ao cadastrar",
@@ -103,11 +109,31 @@ export default function RegisterResident() {
               )}
             </div>
 
+            <div className="space-y-1">
+              <Label htmlFor="data_nascimento">Data de nascimento</Label>
+              <Input
+                id="data_nascimento"
+                type="date"
+                {...register("data_nascimento")}
+                disabled={isSubmitting}
+                aria-invalid={errors.data_nascimento ? "true" : "false"}
+              />
+              <p className="text-xs text-muted-foreground">
+                Opcional. A idade é calculada automaticamente a partir desta
+                data.
+              </p>
+              {errors.data_nascimento && (
+                <p className="text-sm text-red-600 mt-1">
+                  {errors.data_nascimento.message}
+                </p>
+              )}
+            </div>
+
             <div className="flex justify-end pt-4 gap-2">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate("/residents")}
+                onClick={() => router.push("/residents")}
                 disabled={isSubmitting}
               >
                 Cancelar
@@ -116,7 +142,7 @@ export default function RegisterResident() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-sky-600 hover:bg-sky-700 text-white"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
               >
                 {isSubmitting ? "Cadastrando..." : "Cadastrar Residente"}
               </Button>

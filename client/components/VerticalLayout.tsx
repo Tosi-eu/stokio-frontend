@@ -1,10 +1,13 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
-  ArrowLeftRight,
   Pill,
-  FlaskConical,
+  Bandage,
   Boxes,
+  ArrowLeftRight,
   Users,
   Archive,
   Grid,
@@ -13,17 +16,44 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth.hook";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
+import type { PermissionResourceKey } from "@/domain/permission-matrix.types";
+import { APP_PUBLIC_NAME } from "@/constants/app-branding";
+import { getDefaultHomePath } from "@/helpers/default-home-route.helper";
+import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
+import { LocalBrandLogoImage } from "@/components/LocalBrandLogoImage";
 
 const baseNavigationTabs = [
-  { name: "Painel", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Movimentações", href: "/movements", icon: ArrowLeftRight },
-  { name: "Medicamentos", href: "/medicines", icon: Pill },
-  { name: "Insumos", href: "/inputs", icon: FlaskConical },
-  { name: "Estoque", href: "/stock", icon: Boxes },
-  { name: "Residentes", href: "/residents", icon: Users },
-  { name: "Armários", href: "/cabinets", icon: Archive },
-  { name: "Gavetas", href: "/drawers", icon: Grid },
-  { name: "Perfil", href: "/user/profile", icon: User },
+  {
+    name: "Painel",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+    module: "dashboard",
+  },
+  { name: "Medicamentos", href: "/medicines", icon: Pill, module: "medicines" },
+  { name: "Insumos", href: "/inputs", icon: Bandage, module: "inputs" },
+  { name: "Estoque", href: "/stock", icon: Boxes, module: "stock" },
+  {
+    name: "Movimentações",
+    href: "/movements",
+    icon: ArrowLeftRight,
+    module: "movements",
+  },
+  { name: "Residentes", href: "/residents", icon: Users, module: "residents" },
+  {
+    name: "Armários",
+    href: "/cabinets",
+    icon: Archive,
+    module: "cabinets",
+  },
+  {
+    name: "Gavetas",
+    href: "/drawers",
+    icon: Grid,
+    module: "drawers",
+  },
+  { name: "Perfil", href: "/user/profile", icon: User, module: "profile" },
 ];
 
 interface SidebarProps {
@@ -31,33 +61,82 @@ interface SidebarProps {
 }
 
 export function VerticalLayout({ onLogout }: SidebarProps) {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const pathname = usePathname();
+  const router = useRouter();
   const { user } = useAuth();
+  const { can } = usePermissionMatrix();
+  const {
+    tenant,
+    isEnabled,
+    loading: tenantLoading,
+    previewMode,
+  } = useTenant();
+  const { displaySrc: sidebarLogoSrc, isLogoResolved } = useTenantBrandLogoSrc(
+    tenant,
+    { tenantConfigLoading: tenantLoading },
+  );
+  const isViewerTenant =
+    (tenant?.slug ?? "").toLowerCase() === "viewer" || previewMode;
+  const sidebarLogoToShow = isViewerTenant
+    ? "/default_logo.png"
+    : sidebarLogoSrc;
+  const sidebarLogoReady = isViewerTenant ? true : isLogoResolved;
 
   const navigationTabs = [
-    ...(user?.role === "admin"
+    ...((previewMode || user?.role === "admin") && isEnabled("admin")
       ? [{ name: "Painel administrativo", href: "/admin", icon: ShieldCheck }]
       : []),
-    ...baseNavigationTabs,
+    ...baseNavigationTabs.filter((t) => {
+      const mod = (t as { module?: string }).module;
+      if (typeof mod !== "string") return true;
+      if (!isEnabled(mod)) return false;
+      return can(mod as PermissionResourceKey, "read");
+    }),
   ];
+
+  const homeHref =
+    getDefaultHomePath(
+      isEnabled,
+      user,
+      (m) => can(m as PermissionResourceKey, "read"),
+      previewMode,
+    ) ?? "/loading";
 
   return (
     <aside
-      className="h-screen w-64 flex flex-col border-r border-sky-200 bg-sky-50"
+      className="h-screen w-64 flex flex-col shrink-0 rounded-r-2xl border border-border/50 border-l-0 shadow-elevated bg-sidebar bg-gradient-to-b from-sidebar via-sidebar to-background/25 overflow-hidden"
       aria-label="Navegação principal"
     >
-      <div className="h-24 shrink-0 flex items-center justify-center px-4 border-b border-sky-200 bg-sky-100">
+      <div className="h-36 shrink-0 flex items-center justify-center px-4 border-b border-border/50 bg-brand-hero shadow-[inset_0_-1px_0_0_hsl(214_22%_88%/0.5)]">
         <button
-          onClick={() => navigate("/dashboard")}
-          className="cursor-pointer hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 rounded"
-          aria-label="Ir para o painel principal"
+          type="button"
+          onClick={() => router.push(homeHref)}
+          className="cursor-pointer rounded-xl p-2 transition-all hover:opacity-95 hover:shadow-elevated focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          aria-label="Ir para o início"
         >
-          <img
-            src="/logo.png"
-            alt="Logo Abrigo Helena Dornfeld"
-            className="h-24 w-auto"
-          />
+          {sidebarLogoReady && sidebarLogoToShow ? (
+            sidebarLogoToShow === "/default_logo.png" ? (
+              <LocalBrandLogoImage
+                key={sidebarLogoToShow}
+                alt={tenant?.brandName || tenant?.name || APP_PUBLIC_NAME}
+              />
+            ) : (
+              <img
+                key={sidebarLogoToShow}
+                src={sidebarLogoToShow}
+                alt={tenant?.brandName || tenant?.name || APP_PUBLIC_NAME}
+                className="h-32 w-auto max-w-[200px] object-contain drop-shadow-sm"
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (target.src.endsWith("/default_logo.png")) return;
+                  target.src = "/default_logo.png";
+                }}
+              />
+            )
+          ) : (
+            <div className="h-32 w-[200px] shrink-0" aria-busy={true} />
+          )}
         </button>
       </div>
 
@@ -67,21 +146,20 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
       >
         {navigationTabs.map((item) => {
           const isActive =
-            location.pathname === item.href ||
-            (item.href !== "/dashboard" &&
-              location.pathname.startsWith(item.href));
+            pathname === item.href ||
+            (item.href !== homeHref && pathname.startsWith(item.href));
 
           const Icon = item.icon;
 
           return (
             <Link
               key={item.name}
-              to={item.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2
+              href={item.href}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
                 ${
                   isActive
-                    ? "bg-sky-200 text-sky-900 shadow-sm"
-                    : "text-slate-700 hover:bg-sky-100 hover:text-sky-900"
+                    ? "bg-primary/12 text-primary shadow-sm border border-primary/15"
+                    : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
                 }`}
               aria-current={isActive ? "page" : undefined}
             >
@@ -93,9 +171,9 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
       </nav>
 
       {user && (
-        <div className="p-3 border-t border-sky-200 space-y-2">
+        <div className="p-3 border-t border-border/50 bg-background/50 backdrop-blur-sm space-y-2">
           <p
-            className="px-3 py-1 text-xs text-slate-500 truncate"
+            className="px-3 py-1 text-xs text-muted-foreground truncate"
             title={user.login}
           >
             {user.first_name && user.last_name
@@ -104,7 +182,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
           </p>
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40 focus-visible:ring-offset-2"
             aria-label="Sair da conta"
           >
             <LogOut className="h-4 w-4" aria-hidden="true" />

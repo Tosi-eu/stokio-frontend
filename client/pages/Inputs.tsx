@@ -6,14 +6,19 @@ import { TableFilter } from "@/components/TableFilter";
 import { useToast } from "@/hooks/use-toast.hook";
 import { getInputs } from "@/api/requests";
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { PREVIEW_INPUTS } from "@/helpers/preview-mock-data";
+import { getErrorMessage } from "@/helpers/validation.helper";
 
 const columns = [
   { key: "nome", label: "Nome", editable: true },
   { key: "descricao", label: "Descrição", editable: true },
   { key: "estoque_minimo", label: "Estoque Mínimo", editable: true },
+  { key: "preco", label: "Preço (R$)", editable: true },
 ];
 
 export default function Inputs() {
+  const { previewMode } = useTenant();
   const [inputs, setInputs] = useState<Record<string, unknown>[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -29,17 +34,31 @@ export default function Inputs() {
         DEFAULT_PAGE_SIZE,
         searchFilter || undefined,
       );
-      setInputs(res.data as unknown as Record<string, unknown>[]);
-      setHasNext(res.hasNext);
+      const rows = res.data as unknown as Record<string, unknown>[];
+      if (previewMode && rows.length === 0) {
+        setInputs(PREVIEW_INPUTS);
+        setHasNext(false);
+      } else {
+        setInputs(rows);
+        setHasNext(res.hasNext);
+      }
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Erro inesperado";
-      toast({
-        title: "Erro ao carregar insumos",
-        description: errorMessage,
-        variant: "error",
-        duration: 3000,
-      });
+      if (previewMode) {
+        setInputs(PREVIEW_INPUTS);
+        setHasNext(false);
+      } else {
+        const errorMessage = getErrorMessage(
+          err,
+          "Não foi possível carregar os insumos.",
+          "Inputs:load",
+        );
+        toast({
+          title: "Erro ao carregar insumos",
+          description: errorMessage,
+          variant: "error",
+          duration: 3000,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -61,7 +80,7 @@ export default function Inputs() {
   return (
     <Layout title="Insumos">
       <div className="pt-12">
-        <div className="max-w-3xl mx-auto mt-10 bg-white border border-slate-200 rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow">
+        <div className="max-w-6xl mx-auto mt-10 bg-white border border-slate-200 rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow">
           <div className="mb-4">
             <TableFilter
               placeholder="Buscar por nome"
@@ -75,6 +94,7 @@ export default function Inputs() {
               data={inputs}
               columns={columns}
               entityType="inputs"
+              readOnly={previewMode}
               currentPage={page}
               hasNextPage={hasNextPage}
               onNextPage={() => {

@@ -1,4 +1,14 @@
 import { VALIDATION_LIMITS } from "@/constants/app.constants";
+import {
+  getGenericUserErrorMessage,
+  logSanitizedError,
+  sanitizeUserFacingMessage,
+} from "@/helpers/user-facing-error.helper";
+
+export {
+  getGenericUserErrorMessage,
+  USER_FACING_RETRY_SHORT,
+} from "@/helpers/user-facing-error.helper";
 
 export function sanitizeInput(input: string): string {
   if (typeof input !== "string") {
@@ -180,20 +190,27 @@ export function validateNumberInput(
 
 export function getErrorMessage(
   error: unknown,
-  defaultMessage = "Ocorreu um erro inesperado",
+  defaultMessage = getGenericUserErrorMessage(),
+  logContext?: string,
 ): string {
   if (error instanceof Error && error.name === "InvalidSessionError") {
     return "";
   }
 
+  let raw = "";
   if (error instanceof Error) {
-    return error.message || defaultMessage;
+    raw = error.message || "";
+  } else if (typeof error === "string") {
+    raw = error;
+  } else if (error && typeof error === "object" && "message" in error) {
+    raw = String((error as { message: unknown }).message);
   }
-  if (typeof error === "string") {
-    return error;
+
+  if (!raw.trim()) {
+    return defaultMessage;
   }
-  if (error && typeof error === "object" && "message" in error) {
-    return String((error as { message: unknown }).message);
-  }
-  return defaultMessage;
+
+  const sanitized = sanitizeUserFacingMessage(raw);
+  logSanitizedError(logContext ?? "client", error, raw, sanitized);
+  return sanitized || defaultMessage;
 }

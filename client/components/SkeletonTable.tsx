@@ -7,17 +7,17 @@ interface SkeletonTableProps {
 
 export function SkeletonTable({ rows = 5, cols = 4 }: SkeletonTableProps) {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <div className="rounded-2xl border border-border/70 bg-card shadow-elevated overflow-hidden ring-1 ring-black/[0.02] dark:ring-white/[0.04]">
       <div className="overflow-hidden">
         <table className="w-full min-w-max">
           <thead>
-            <tr className="bg-sky-100 border-b">
+            <tr className="bg-muted border-b">
               {Array.from({ length: cols }).map((_, i) => (
                 <th key={i} className="px-4 py-3 text-xs font-semibold">
                   <Skeleton className="h-4 w-24" />
                 </th>
               ))}
-              <th className="px-4 py-3 text-xs font-semibold sticky right-0 bg-sky-100 z-10 min-w-[120px]">
+              <th className="px-4 py-3 text-xs font-semibold sticky right-0 bg-muted/95 backdrop-blur-sm z-10 min-w-[120px] border-l border-border/40">
                 <Skeleton className="h-4 w-16" />
               </th>
             </tr>

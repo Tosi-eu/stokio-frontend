@@ -1,4 +1,5 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { formatDateToPtBr } from "@/helpers/dates.helper";
 
 interface RepositionCardProps {
   medicineName: string;
@@ -38,7 +39,7 @@ export function NotificationRepositionCard({
             {daysToReposition != null ? daysToReposition : "-"}
           </li>
           <li>
-            <b>Próxima reposição:</b> {nextRepositionDate}
+            <b>Próxima reposição:</b> {formatDateToPtBr(nextRepositionDate)}
           </li>
         </ul>
 
@@ -46,7 +47,7 @@ export function NotificationRepositionCard({
           {onComplete && (
             <button
               onClick={onComplete}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg"
             >
               Concluir
             </button>

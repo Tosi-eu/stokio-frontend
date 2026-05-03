@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Check, Archive } from "lucide-react";
 import type { AdminNotificationItem } from "@/api/requests";
+import { formatDateToPtBr } from "@/helpers/dates.helper";
 
 interface AdminTabNotificacoesProps {
   items: AdminNotificationItem[];
@@ -178,7 +179,7 @@ export function AdminTabNotificacoes({
                     items.map((row) => (
                       <TableRow key={row.id}>
                         <TableCell className="whitespace-nowrap">
-                          {row.data_prevista}
+                          {formatDateToPtBr(row.data_prevista)}
                         </TableCell>
                         <TableCell>{row.tipo_evento}</TableCell>
                         <TableCell>{row.destino}</TableCell>

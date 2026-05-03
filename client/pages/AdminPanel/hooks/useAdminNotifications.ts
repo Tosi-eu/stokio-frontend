@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast.hook";
 import { getAdminNotifications, patchAdminNotification } from "@/api/requests";
+import {
+  getErrorMessage,
+  USER_FACING_RETRY_SHORT,
+} from "@/helpers/validation.helper";
 import type { AdminNotificationItem } from "@/api/requests";
 
 export function useAdminNotifications(isAdmin: boolean, enabled = true) {
@@ -46,9 +50,14 @@ export function useAdminNotifications(isAdmin: boolean, enabled = true) {
       await patchAdminNotification(id, { visto: true });
       toast({ title: "Marcada como lida", variant: "success" });
       load();
-    } catch (e) {
+    } catch (e: unknown) {
       toast({
-        title: e instanceof Error ? e.message : "Erro ao atualizar",
+        title: "Não foi possível atualizar",
+        description: getErrorMessage(
+          e,
+          USER_FACING_RETRY_SHORT,
+          "useAdminNotifications:markRead",
+        ),
         variant: "error",
       });
     }
@@ -59,9 +68,14 @@ export function useAdminNotifications(isAdmin: boolean, enabled = true) {
       await patchAdminNotification(id, { status: "cancelled" });
       toast({ title: "Notificação arquivada", variant: "success" });
       load();
-    } catch (e) {
+    } catch (e: unknown) {
       toast({
-        title: e instanceof Error ? e.message : "Erro ao arquivar",
+        title: "Não foi possível arquivar",
+        description: getErrorMessage(
+          e,
+          USER_FACING_RETRY_SHORT,
+          "useAdminNotifications:archive",
+        ),
         variant: "error",
       });
     }

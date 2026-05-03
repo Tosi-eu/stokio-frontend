@@ -15,15 +15,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import type { UserPermissions } from "../types";
+import type { EffectivePermissionMatrixSerialized } from "@/domain/permission-matrix.types";
+import { defaultEffectiveMatrixFromFlat } from "@/helpers/permission-matrix.helpers";
+import { PermissionMatrixFields } from "./PermissionMatrixFields";
 
-const defaultPermissions: UserPermissions = {
+const defaultFlat = {
   read: true,
   create: false,
   update: false,
   delete: false,
-};
+} as const;
 
 export interface CreateUserForm {
   firstName: string;
@@ -31,7 +32,7 @@ export interface CreateUserForm {
   login: string;
   password: string;
   role: "admin" | "user";
-  permissions: UserPermissions;
+  permissionMatrix: EffectivePermissionMatrixSerialized;
 }
 
 interface AdminUserCreateDialogProps {
@@ -53,7 +54,7 @@ export function AdminUserCreateDialog({
 }: AdminUserCreateDialogProps) {
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
-      <DialogContent>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Novo usuário</DialogTitle>
         </DialogHeader>
@@ -107,15 +108,10 @@ export function AdminUserCreateDialog({
                 setForm((p) => ({
                   ...p,
                   role: v,
-                  permissions:
+                  permissionMatrix:
                     v === "admin"
-                      ? {
-                          read: true,
-                          create: true,
-                          update: true,
-                          delete: true,
-                        }
-                      : p.permissions,
+                      ? p.permissionMatrix
+                      : defaultEffectiveMatrixFromFlat({ ...defaultFlat }),
                 }))
               }
             >
@@ -128,67 +124,26 @@ export function AdminUserCreateDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="grid gap-3 border-t pt-4">
-            <Label>Permissões</Label>
-            <p className="text-xs text-muted-foreground">
-              Leitura é obrigatória. Marque as permissões de escrita para este
-              usuário.
-            </p>
-            <div className="flex flex-wrap gap-6">
-              <label className="flex items-center gap-2 cursor-not-allowed opacity-70">
-                <Checkbox checked disabled />
-                <span className="text-sm">Leitura</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <Checkbox
-                  checked={form.permissions.create}
-                  disabled={form.role === "admin"}
-                  onCheckedChange={(checked) =>
-                    setForm((p) => ({
-                      ...p,
-                      permissions: {
-                        ...p.permissions,
-                        create: Boolean(checked),
-                      },
-                    }))
-                  }
-                />
-                <span className="text-sm">Criar</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <Checkbox
-                  checked={form.permissions.update}
-                  disabled={form.role === "admin"}
-                  onCheckedChange={(checked) =>
-                    setForm((p) => ({
-                      ...p,
-                      permissions: {
-                        ...p.permissions,
-                        update: Boolean(checked),
-                      },
-                    }))
-                  }
-                />
-                <span className="text-sm">Editar</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <Checkbox
-                  checked={form.permissions.delete}
-                  disabled={form.role === "admin"}
-                  onCheckedChange={(checked) =>
-                    setForm((p) => ({
-                      ...p,
-                      permissions: {
-                        ...p.permissions,
-                        delete: Boolean(checked),
-                      },
-                    }))
-                  }
-                />
-                <span className="text-sm">Remover</span>
-              </label>
+          {form.role === "user" ? (
+            <div className="grid gap-3 border-t pt-4">
+              <Label>Permissões por recurso</Label>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Ajuste leitura e operações por módulo. As permissões são
+                guardadas com a conta deste utilizador.
+              </p>
+              <PermissionMatrixFields
+                value={form.permissionMatrix}
+                onChange={(permissionMatrix) =>
+                  setForm((p) => ({ ...p, permissionMatrix }))
+                }
+              />
             </div>
-          </div>
+          ) : (
+            <p className="text-sm text-muted-foreground border-t pt-4">
+              Administradores têm acesso total a todos os recursos e tipos de
+              movimentação.
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
@@ -217,5 +172,5 @@ export const defaultCreateUserForm: CreateUserForm = {
   login: "",
   password: "",
   role: "user",
-  permissions: { ...defaultPermissions },
+  permissionMatrix: defaultEffectiveMatrixFromFlat({ ...defaultFlat }),
 };

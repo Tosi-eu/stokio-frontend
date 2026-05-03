@@ -5,16 +5,20 @@ import {
   armarioFilterLabel,
   caselaFilterLabel,
   caselaModeForContext,
-  DEFAULT_UI_DISPLAY,
-  type UiDisplayConfig,
+  type UiDisplayCasela,
+  type UiDisplayCaselaSetor,
 } from "@/helpers/ui-display.helper";
+import { formatValidityDate } from "@/helpers/dates.helper";
 
 export interface StockListFilters {
   nome?: string;
   casela?: string;
   armario?: string;
+  gaveta?: string;
   setor?: string;
   lote?: string;
+
+  itemType?: "medicamento" | "insumo";
 }
 
 export interface StockFilterOption {
@@ -34,18 +38,21 @@ export async function fetchStockPage(
   limit: number,
   filters: StockListFilters,
   urlFilter?: string | null,
-): Promise<{ data: unknown[]; hasNext: boolean }> {
+): Promise<{ data: unknown[]; hasNext: boolean; total: number }> {
   const filterParams: Record<string, string> = {};
   if (filters.nome?.trim()) filterParams.name = filters.nome.trim();
   if (filters.casela?.trim()) filterParams.casela = filters.casela.trim();
   if (filters.armario?.trim()) filterParams.cabinet = filters.armario.trim();
+  if (filters.gaveta?.trim()) filterParams.drawer = filters.gaveta.trim();
   if (filters.setor?.trim()) filterParams.sector = filters.setor.trim();
   if (filters.lote?.trim()) filterParams.lot = filters.lote.trim();
+  if (filters.itemType) filterParams.itemType = filters.itemType;
 
   const res = await getStock(page, limit, filterParams, urlFilter ?? undefined);
   return {
     data: Array.isArray(res?.data) ? res.data : [],
     hasNext: Boolean(res?.hasNext),
+    total: Number(res?.total ?? 0),
   };
 }
 
@@ -71,7 +78,7 @@ export function formatStockItems(raw: unknown[]): StockItem[] {
       name: name || "-",
       activeSubstance: item.principio_ativo || "-",
       description: item.descricao || "-",
-      expiry: item.validade || "-",
+      expiry: formatValidityDate(item.validade ?? ""),
       quantity: Number(item.quantidade) || 0,
       cabinet: item.armario_id ?? "-",
       drawer: item.gaveta_id ?? "-",
@@ -81,10 +88,10 @@ export function formatStockItems(raw: unknown[]): StockItem[] {
       patient: item.paciente || "-",
       origin: item.origem || "-",
       minimumStock: item.minimo || 0,
-      expirationMsg: item.msg_expiracao,
-      quantityMsg: item.msg_quantidade,
-      expirationStatus: item.st_expiracao,
-      quantityStatus: item.st_quantidade,
+      expirationMsg: item.msg_expiracao ?? "",
+      quantityMsg: item.msg_quantidade ?? "",
+      expirationStatus: item.st_expiracao ?? "",
+      quantityStatus: item.st_quantidade ?? "",
       status: item.status ?? null,
       destination: item.destino ?? null,
       suspended_at: item.suspenso_em ? new Date(item.suspenso_em) : null,
@@ -102,8 +109,20 @@ export function formatStockItems(raw: unknown[]): StockItem[] {
 export interface BuildFilterOptionsParams {
   residents?: Array<{ casela: number; name: string }>;
   setor?: string;
-  uiDisplay?: UiDisplayConfig;
+  displayCasela?: UiDisplayCasela;
+  caselaSetor?: UiDisplayCaselaSetor;
+  armarioMode?: "numero" | "categoria";
   cabinets?: Array<{ numero: number; categoria: string }>;
+}
+
+function caselaUiPick(options?: BuildFilterOptionsParams): {
+  casela: UiDisplayCasela;
+  caselaSetor: UiDisplayCaselaSetor;
+} {
+  return {
+    casela: options?.displayCasela ?? "numero",
+    caselaSetor: options?.caselaSetor ?? "todos",
+  };
 }
 
 export function buildFilterOptions(
@@ -120,7 +139,7 @@ export function buildFilterOptions(
   const cabByNum = new Map(
     (options?.cabinets ?? []).map((c) => [c.numero, c.categoria]),
   );
-  const armMode = options?.uiDisplay?.armario ?? "numero";
+  const armMode = options?.armarioMode ?? "numero";
   const cabinetIds = Array.from(
     new Set(
       raw
@@ -134,19 +153,21 @@ export function buildFilterOptions(
       label: armarioFilterLabel(id, cabByNum.get(id) ?? null, armMode),
     }));
 
-  const ui: UiDisplayConfig = {
-    ...DEFAULT_UI_DISPLAY,
-    ...options?.uiDisplay,
-  };
+  const uiCasela = caselaUiPick(options);
   const isEnfermagem =
     options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
-  const effEnf = caselaModeForContext(ui.casela, ui.caselaSetor, "enfermagem");
+  const effEnf = caselaModeForContext(
+    uiCasela.casela,
+    uiCasela.caselaSetor,
+    "enfermagem",
+  );
   const sectorForFarmaciaList = options?.setor === "farmacia" ? "farmacia" : "";
   const effFarm = caselaModeForContext(
-    ui.casela,
-    ui.caselaSetor,
+    uiCasela.casela,
+    uiCasela.caselaSetor,
     sectorForFarmaciaList,
   );
+
   const caselaIds: StockFilterOption[] = isEnfermagem
     ? [...options!.residents!]
         .sort((a, b) =>
@@ -159,7 +180,7 @@ export function buildFilterOptions(
           label:
             effEnf === "nome"
               ? r.name
-              : caselaFilterLabel(r.casela, r.name, ui, "enfermagem"),
+              : caselaFilterLabel(r.casela, r.name, uiCasela, "enfermagem"),
         }))
     : Array.from(
         new Set(
@@ -187,7 +208,7 @@ export function buildFilterOptions(
             label: caselaFilterLabel(
               id,
               r?.name ?? null,
-              ui,
+              uiCasela,
               sectorForFarmaciaList,
             ),
           };
@@ -229,7 +250,7 @@ export function buildFilterOptionsFromApi(
   const cabByNum = new Map(
     (options?.cabinets ?? []).map((c) => [c.numero, c.categoria]),
   );
-  const armMode = options?.uiDisplay?.armario ?? "numero";
+  const armMode = options?.armarioMode ?? "numero";
   const cabinets: StockFilterOption[] = (apiOptions?.cabinets ?? [])
     .sort((a, b) => a - b)
     .map((id) => ({
@@ -237,19 +258,21 @@ export function buildFilterOptionsFromApi(
       label: armarioFilterLabel(id, cabByNum.get(id) ?? null, armMode),
     }));
 
-  const ui: UiDisplayConfig = {
-    ...DEFAULT_UI_DISPLAY,
-    ...options?.uiDisplay,
-  };
+  const uiCasela = caselaUiPick(options);
   const isEnfermagem =
     options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
-  const effEnf = caselaModeForContext(ui.casela, ui.caselaSetor, "enfermagem");
+  const effEnf = caselaModeForContext(
+    uiCasela.casela,
+    uiCasela.caselaSetor,
+    "enfermagem",
+  );
   const sectorForFarmaciaList = options?.setor === "farmacia" ? "farmacia" : "";
   const effFarm = caselaModeForContext(
-    ui.casela,
-    ui.caselaSetor,
+    uiCasela.casela,
+    uiCasela.caselaSetor,
     sectorForFarmaciaList,
   );
+
   const caselas: StockFilterOption[] = isEnfermagem
     ? [...options!.residents!]
         .sort((a, b) =>
@@ -262,7 +285,7 @@ export function buildFilterOptionsFromApi(
           label:
             effEnf === "nome"
               ? r.name
-              : caselaFilterLabel(r.casela, r.name, ui, "enfermagem"),
+              : caselaFilterLabel(r.casela, r.name, uiCasela, "enfermagem"),
         }))
     : (apiOptions?.caselas ?? [])
         .sort((a, b) => {
@@ -282,7 +305,7 @@ export function buildFilterOptionsFromApi(
             label: caselaFilterLabel(
               id,
               r?.name ?? null,
-              ui,
+              uiCasela,
               sectorForFarmaciaList,
             ),
           };

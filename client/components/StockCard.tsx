@@ -6,6 +6,12 @@ import {
 } from "@radix-ui/react-tooltip";
 import { AlertTriangle } from "lucide-react";
 import type { StockItemRaw } from "@/interfaces/interfaces";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { useDrawerCategoryMap } from "@/hooks/use-drawer-category-map.hook";
+import {
+  formatCaselaLabel,
+  formatGavetaLabel,
+} from "@/helpers/storage-location-display.helper";
 
 interface StockCardProps {
   item: StockItemRaw;
@@ -21,6 +27,9 @@ export function StockCard({
   onSelect,
   disabled = false,
 }: StockCardProps) {
+  const { uiDisplay } = useTenant();
+  const drawerCategoryByNum = useDrawerCategoryMap();
+
   const display = (v: unknown): string | number =>
     v !== null && v !== undefined && v !== ""
       ? typeof v === "number"
@@ -56,9 +65,22 @@ export function StockCard({
 
   fields.push({ label: "Armário", value: display(item.armario_id) });
   if (item.casela_id) {
-    fields.push({ label: "Casela", value: display(item.casela_id) });
+    fields.push({
+      label: "Casela",
+      value: formatCaselaLabel(uiDisplay.casela, {
+        caselaId: item.casela_id,
+        residentName: item.paciente,
+      }),
+    });
   } else {
-    fields.push({ label: "Gaveta", value: display(item.gaveta_id) });
+    const gid = item.gaveta_id;
+    fields.push({
+      label: "Gaveta",
+      value: formatGavetaLabel(uiDisplay.gaveta, {
+        gavetaId: gid ?? undefined,
+        categoriaNome: gid != null ? drawerCategoryByNum.get(gid) : undefined,
+      }),
+    });
   }
   fields.push({ label: "Paciente", value: display(item.paciente) });
   fields.push({ label: "Setor", value: display(item.setor) });
@@ -76,11 +98,11 @@ export function StockCard({
         if (!isDisabled) onSelect();
       }}
       className={`
-        relative w-full h-[200px] rounded-xl p-5 border shadow-sm transition-all flex flex-col
+        relative w-full min-h-[200px] rounded-xl border p-5 shadow-sm transition-all flex flex-col
         ${
           selected
-            ? "bg-sky-50 border-sky-600 shadow-md"
-            : "bg-white border-slate-300 hover:bg-slate-50"
+            ? "bg-accent/60 border-primary ring-1 ring-primary/20"
+            : "bg-card border-border hover:bg-muted/40"
         }
         ${isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
       `}
@@ -91,15 +113,15 @@ export function StockCard({
         </div>
       )}
 
-      <div className="font-semibold text-slate-800 text-base mb-3">
+      <div className="font-semibold text-foreground text-base mb-3 line-clamp-2">
         {item.nome}
       </div>
 
-      <div className="flex justify-between gap-6 text-sm text-slate-600">
+      <div className="flex justify-between gap-6 text-sm text-muted-foreground">
         <div className="space-y-1">
           {left.map((f, i) => (
             <div key={i}>
-              <span className="font-medium text-slate-700">{f.label}:</span>{" "}
+              <span className="font-medium text-foreground">{f.label}:</span>{" "}
               {f.value}
             </div>
           ))}
@@ -108,7 +130,7 @@ export function StockCard({
         <div className="space-y-1">
           {right.map((f, i) => (
             <div key={i}>
-              <span className="font-medium text-slate-700">{f.label}:</span>{" "}
+              <span className="font-medium text-foreground">{f.label}:</span>{" "}
               {f.value}
             </div>
           ))}

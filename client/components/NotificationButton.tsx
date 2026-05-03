@@ -1,5 +1,6 @@
 import { useNotifications } from "@/hooks/use-notification.hook";
 import { useAuth } from "@/hooks/use-auth.hook";
+import { useTenant } from "@/hooks/use-tenant.hook";
 import { useToast } from "@/hooks/use-toast.hook";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell } from "lucide-react";
@@ -13,9 +14,12 @@ import {
 export function NotificationButton() {
   const { count, setOpen } = useNotifications();
   const { user } = useAuth();
+  const { isEnabled, previewMode } = useTenant();
   const { toast } = useToast();
   const hasNotifications = count > 0;
-  const canAccessNotifications = user?.role === "admin";
+  const moduleOn = isEnabled("notifications");
+  const canAccessNotifications =
+    previewMode || (moduleOn && user?.role === "admin");
 
   const handleClick = () => {
     if (!canAccessNotifications) {
@@ -34,10 +38,12 @@ export function NotificationButton() {
   const button = (
     <motion.button
       onClick={handleClick}
-      className="fixed bottom-6 right-6 bg-sky-600 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg hover:bg-sky-700 transition-colors z-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+      className="fixed bottom-6 right-6 bg-primary text-primary-foreground rounded-full w-14 h-14 flex items-center justify-center shadow-brand-glow hover:bg-primary/90 transition-colors z-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       aria-label={
         canAccessNotifications
-          ? "Notificações e reposições"
+          ? previewMode
+            ? "Notificações (visualização)"
+            : "Notificações e reposições"
           : "Sem permissão para acessar notificações"
       }
       animate={
@@ -79,7 +85,9 @@ export function NotificationButton() {
         <TooltipTrigger asChild>{button}</TooltipTrigger>
         <TooltipContent side="left" className="max-w-[220px]">
           {canAccessNotifications
-            ? "Notificações e reposições"
+            ? previewMode
+              ? "Visualização: exemplos de notificações e reposição"
+              : "Notificações e reposições"
             : "Você não tem permissão para acessar notificações e reposições."}
         </TooltipContent>
       </Tooltip>

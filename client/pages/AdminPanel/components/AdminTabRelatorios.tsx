@@ -25,6 +25,8 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { MovementPeriod } from "@/components/StockReporter";
 import { REPORT_OPTIONS } from "../constants";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
 
 interface AdminTabRelatoriosProps {
   selectedReportType: string;
@@ -99,6 +101,8 @@ export function AdminTabRelatorios({
   handlePreviewReport,
   handleExportCSV,
 }: AdminTabRelatoriosProps) {
+  const { uiDisplay } = useTenant();
+
   return (
     <Card>
       <CardHeader>
@@ -145,11 +149,12 @@ export function AdminTabRelatorios({
                     className="w-full max-w-md justify-between"
                   >
                     {selectedReportResident != null
-                      ? `Casela ${selectedReportResident} - ${
-                          reportResidents.find(
+                      ? formatCaselaLabel(uiDisplay.casela, {
+                          caselaId: selectedReportResident,
+                          residentName: reportResidents.find(
                             (r) => r.casela === selectedReportResident,
-                          )?.name ?? ""
-                        }`
+                          )?.name,
+                        })
                       : "Selecione o residente"}
                   </Button>
                 </PopoverTrigger>
@@ -167,7 +172,9 @@ export function AdminTabRelatorios({
                           key={r.casela}
                           onSelect={() => setSelectedReportResident(r.casela)}
                         >
-                          Casela {r.casela} - {r.name}
+                          {uiDisplay.casela === "nome"
+                            ? r.name
+                            : `Casela ${r.casela} — ${r.name}`}
                         </CommandItem>
                       ))}
                     </CommandGroup>

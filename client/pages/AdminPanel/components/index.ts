@@ -6,7 +6,7 @@ export { AdminTabAcessos } from "./AdminTabAcessos";
 export { AdminTabConfig } from "./AdminTabConfig";
 export { AdminTabNotificacoes } from "./AdminTabNotificacoes";
 export { AdminTabInsights } from "./AdminTabInsights";
-export { AdminTabQualidade } from "./AdminTabQualidade";
+export { AdminTabTenants } from "./AdminTabTenants";
 export { AdminAuditCompareDialog } from "./AdminAuditCompareDialog";
 export { AdminUserEditDialog } from "./AdminUserEditDialog";
 export {

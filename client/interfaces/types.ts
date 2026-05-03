@@ -5,9 +5,14 @@ export type StockActionType =
   | "transfer"
   | null;
 
-export type StockExpiryStatus = "expired" | "warning" | "critical" | "ok";
+export type StockExpiryStatus = "expired" | "critical" | "warning" | "healthy";
 
-export type StockQuantityStatus = "low" | "ok" | "zero";
+export type StockQuantityStatus =
+  | "empty"
+  | "low"
+  | "medium"
+  | "high"
+  | "critical";
 
 export type StockItemType = "medicamento" | "insumo";
 

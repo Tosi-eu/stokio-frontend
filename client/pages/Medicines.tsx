@@ -6,6 +6,9 @@ import { TableFilter } from "@/components/TableFilter";
 import { getMedicines } from "@/api/requests";
 import { toast } from "@/hooks/use-toast.hook";
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { PREVIEW_MEDICINES } from "@/helpers/preview-mock-data";
+import { getErrorMessage } from "@/helpers/validation.helper";
 
 const columns = [
   { key: "nome", label: "Nome" },
@@ -13,9 +16,11 @@ const columns = [
   { key: "dosagem", label: "Dosagem" },
   { key: "unidade_medida", label: "Unidade" },
   { key: "estoque_minimo", label: "Estoque Mínimo" },
+  { key: "preco", label: "Preço (R$)" },
 ];
 
 export default function Medicines() {
+  const { previewMode } = useTenant();
   const [medicines, setMedicines] = useState<Record<string, unknown>[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -31,18 +36,34 @@ export default function Medicines() {
         DEFAULT_PAGE_SIZE,
         searchFilter || undefined,
       );
-      setMedicines(res.data as unknown as Record<string, unknown>[]);
-      setHasNext(res.hasNext);
-      setTotal(res.total);
+      const rows = res.data as unknown as Record<string, unknown>[];
+      if (previewMode && rows.length === 0) {
+        setMedicines(PREVIEW_MEDICINES);
+        setHasNext(false);
+        setTotal(PREVIEW_MEDICINES.length);
+      } else {
+        setMedicines(rows);
+        setHasNext(res.hasNext);
+        setTotal(res.total);
+      }
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Erro inesperado";
-      toast({
-        title: "Erro ao carregar medicamentos",
-        description: errorMessage,
-        variant: "error",
-        duration: 3000,
-      });
+      if (previewMode) {
+        setMedicines(PREVIEW_MEDICINES);
+        setHasNext(false);
+        setTotal(PREVIEW_MEDICINES.length);
+      } else {
+        const errorMessage = getErrorMessage(
+          err,
+          "Não foi possível carregar os medicamentos.",
+          "Medicines:load",
+        );
+        toast({
+          title: "Erro ao carregar medicamentos",
+          description: errorMessage,
+          variant: "error",
+          duration: 3000,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -64,7 +85,7 @@ export default function Medicines() {
   return (
     <Layout title="Medicamentos">
       <div className="pt-12">
-        <div className="max-w-4xl mx-auto mt-10 bg-white border border-slate-200 rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow">
+        <div className="max-w-6xl mx-auto mt-10 bg-white border border-slate-200 rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow">
           <div className="mb-4">
             <TableFilter
               placeholder="Buscar por nome"
@@ -78,6 +99,7 @@ export default function Medicines() {
               data={medicines}
               columns={columns}
               entityType="medicines"
+              readOnly={previewMode}
               currentPage={page}
               hasNextPage={hasNextPage}
               onNextPage={() => {

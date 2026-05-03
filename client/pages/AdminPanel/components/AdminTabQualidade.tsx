@@ -24,6 +24,8 @@ import {
   normalizeAdminMedicineUnits,
 } from "@/api/requests";
 import { toast } from "@/hooks/use-toast.hook";
+import { formatDateToPtBr, formatValidityDate } from "@/helpers/dates.helper";
+import { getErrorMessage } from "@/helpers/validation.helper";
 
 type InconsistencyType = "negative_stock" | "missing_lot" | "orphan_movements";
 
@@ -73,8 +75,12 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
   const loadRows = useCallback(async () => {
     setLoadingRows(true);
     try {
-      const res = await getAdminInconsistencies({ type, page, limit });
-      setRows(Array.isArray(res?.data) ? (res.data as any[]) : []);
+      const res = (await getAdminInconsistencies({
+        type,
+        page,
+        limit,
+      })) as { data?: Record<string, unknown>[]; total?: number };
+      setRows(Array.isArray(res?.data) ? res.data : []);
       setTotal(Number(res?.total) || 0);
     } catch {
       setRows([]);
@@ -88,11 +94,11 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
   const loadDuplicates = useCallback(async () => {
     setLoadingDup(true);
     try {
-      const res = await getAdminMedicineDuplicates({
+      const res = (await getAdminMedicineDuplicates({
         page: dupPage,
         limit: 25,
-      });
-      setDupRows(Array.isArray(res?.data) ? (res.data as any[]) : []);
+      })) as { data?: Record<string, unknown>[]; total?: number };
+      setDupRows(Array.isArray(res?.data) ? res.data : []);
       setDupTotal(Number(res?.total) || 0);
     } catch {
       setDupRows([]);
@@ -278,7 +284,11 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
                       <TableRow key={idx}>
                         <TableCell>{String(r.id ?? "-")}</TableCell>
                         <TableCell>{String(r.tipo ?? "-")}</TableCell>
-                        <TableCell>{String(r.data ?? "-")}</TableCell>
+                        <TableCell>
+                          {r.data != null && String(r.data).trim() !== ""
+                            ? formatDateToPtBr(String(r.data))
+                            : "-"}
+                        </TableCell>
                         <TableCell>{String(r.login_id ?? "-")}</TableCell>
                         <TableCell>{String(r.quantidade ?? "-")}</TableCell>
                         <TableCell>{String(r.setor ?? "-")}</TableCell>
@@ -291,7 +301,11 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
                         <TableCell>{String(r.item_id ?? "-")}</TableCell>
                         <TableCell>{String(r.quantidade ?? "-")}</TableCell>
                         <TableCell>{String(r.setor ?? "-")}</TableCell>
-                        <TableCell>{String(r.validade ?? "-")}</TableCell>
+                        <TableCell>
+                          {formatValidityDate(
+                            r.validade != null ? String(r.validade) : "",
+                          )}
+                        </TableCell>
                         <TableCell>{String(r.lote ?? "-")}</TableCell>
                       </TableRow>
                     ),
@@ -338,19 +352,22 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
               variant="outline"
               onClick={async () => {
                 try {
-                  const res = await normalizeAdminMedicineUnits({
+                  const res = (await normalizeAdminMedicineUnits({
                     dryRun: true,
-                  });
+                  })) as { updated?: number };
                   toast({
                     title: "Prévia de normalização",
-                    description: `${res.updated} medicamento(s) seriam atualizados (mostrando até 50).`,
+                    description: `${res.updated ?? 0} medicamento(s) seriam atualizados (mostrando até 50).`,
                     variant: "success",
                   });
-                } catch (err) {
+                } catch (err: unknown) {
                   toast({
                     title: "Erro na prévia",
-                    description:
-                      err instanceof Error ? err.message : "Falha inesperada.",
+                    description: getErrorMessage(
+                      err,
+                      "Não foi possível gerar a prévia.",
+                      "AdminTabQualidade:normalizePreview",
+                    ),
                     variant: "error",
                   });
                 }
@@ -361,20 +378,23 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
             <Button
               onClick={async () => {
                 try {
-                  const res = await normalizeAdminMedicineUnits({
+                  const res = (await normalizeAdminMedicineUnits({
                     dryRun: false,
-                  });
+                  })) as { updated?: number };
                   toast({
                     title: "Unidades padronizadas",
-                    description: `${res.updated} medicamento(s) atualizado(s).`,
+                    description: `${res.updated ?? 0} medicamento(s) atualizado(s).`,
                     variant: "success",
                   });
                   loadDuplicates();
-                } catch (err) {
+                } catch (err: unknown) {
                   toast({
                     title: "Erro ao padronizar",
-                    description:
-                      err instanceof Error ? err.message : "Falha inesperada.",
+                    description: getErrorMessage(
+                      err,
+                      "Não foi possível padronizar as unidades.",
+                      "AdminTabQualidade:normalizeApply",
+                    ),
                     variant: "error",
                   });
                 }
@@ -466,13 +486,14 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
                                     variant: "success",
                                   });
                                   loadDuplicates();
-                                } catch (err) {
+                                } catch (err: unknown) {
                                   toast({
                                     title: "Erro ao mesclar",
-                                    description:
-                                      err instanceof Error
-                                        ? err.message
-                                        : "Falha inesperada.",
+                                    description: getErrorMessage(
+                                      err,
+                                      "Não foi possível mesclar os registos.",
+                                      "AdminTabQualidade:merge",
+                                    ),
                                     variant: "error",
                                   });
                                 }

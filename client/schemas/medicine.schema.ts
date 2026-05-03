@@ -1,4 +1,4 @@
-import { MeasurementUnit } from "@/pages/RegisterMedicine";
+import { MeasurementUnit } from "@/constants/measurement-units";
 import { z } from "zod";
 
 export const medicineSchema = z.object({

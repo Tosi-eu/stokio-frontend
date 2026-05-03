@@ -1,16 +1,21 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import Layout from "@/components/Layout";
 import { toast } from "@/hooks/use-toast.hook";
-import { useNavigate, useLocation } from "react-router-dom";
-import { createStockOut, getResidents, getStock } from "@/api/requests";
-import { useUiDisplay } from "@/context/ui-display-context";
+import { useRouter } from "next/navigation";
+import { consumeSpaNavigationState } from "@/helpers/spa-navigation-state.helper";
 import {
-  caselaFilterLabel,
-  caselaModeForContext,
-} from "@/helpers/ui-display.helper";
-import { fetchAllPaginated } from "@/helpers/paginacao.helper";
+  createStockOut,
+  getResidents,
+  getStockFilterOptions,
+} from "@/api/requests";
+import {
+  buildFilterOptionsFromApi,
+  fetchStockPage,
+  type ApiFilterOptions,
+} from "@/helpers/stock-list.helper";
 import { useFormWithZod } from "@/hooks/use-form-with-zod";
 import { stockOutQuantitySchema } from "@/schemas/stock-out.schema";
+import { getErrorMessage } from "@/helpers/validation.helper";
 
 import { AnimatePresence, motion } from "framer-motion";
 import Pagination from "@/components/Pagination";
@@ -35,21 +40,35 @@ import {
 } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
+import { fetchAllPaginated } from "@/helpers/paginacao.helper";
+import { TableFilter } from "@/components/TableFilter";
 
-const UI_PAGE_SIZE = 6;
+const PAGE_SIZE = 24;
 
 export default function StockOut() {
-  const { uiDisplay } = useUiDisplay();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { data: passedData } = location.state || {};
+  const { uiDisplay } = useTenant();
+  const { canMovementTipo } = usePermissionMatrix();
+  const canSaida = canMovementTipo("saida");
+  const router = useRouter();
+  const [initialNav] = useState(() =>
+    consumeSpaNavigationState<{ data?: StockItemRaw[] }>(),
+  );
+  const passedData = initialNav?.data;
+  const usingPassedData = Boolean(passedData?.length);
+
   const [items, setItems] = useState<StockItemRaw[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loadingStock, setLoadingStock] = useState(false);
+  const [apiFilterOptions, setApiFilterOptions] =
+    useState<ApiFilterOptions | null>(null);
+
   const [residents, setResidents] = useState<
     Array<{ casela: number; name: string }>
   >([]);
 
-  const [uiPage, setUiPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [stockPage, setStockPage] = useState(1);
 
   const [filters, setFilters] = useState({
     nome: "",
@@ -57,6 +76,27 @@ export default function StockOut() {
     setor: "",
     lote: "",
   });
+
+  const [debouncedNome, setDebouncedNome] = useState("");
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      setDebouncedNome(filters.nome);
+    }, 400);
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, [filters.nome]);
+
+  const effectiveFilters = useMemo(
+    () => ({
+      ...filters,
+      nome: debouncedNome,
+    }),
+    [debouncedNome, filters],
+  );
 
   const [step, setStep] = useState<StockWizardSteps>(StockWizardSteps.TIPO);
   const [operationType, setOperationType] = useState<
@@ -70,49 +110,27 @@ export default function StockOut() {
     },
   });
 
-  async function fetchStock() {
-    try {
-      if (passedData && passedData.length > 0) {
-        const filtered =
-          operationType !== "Selecione"
-            ? passedData.filter(
-                (item: StockItemRaw) => item.tipo_item === operationType,
-              )
-            : passedData;
-        setItems(filtered as StockItemRaw[]);
-      } else {
-        const allItems = await fetchAllPaginated(
-          (page, limit) => getStock(page, limit),
-          100,
-        );
-        const filtered =
-          operationType !== "Selecione"
-            ? allItems.filter(
-                (item: StockItemRaw) => item.tipo_item === operationType,
-              )
-            : allItems;
-        setItems(filtered as StockItemRaw[]);
-      }
-    } catch (err) {
-      console.error(err);
-      toast({
-        title: "Erro ao carregar estoque",
-        description: "Não foi possível carregar os dados.",
-        variant: "error",
-        duration: 3000,
-      });
-    }
-  }
+  const itemTypeFilter =
+    operationType !== "Selecione" &&
+    (operationType === OperationType.MEDICINE ||
+      operationType === OperationType.INPUT)
+      ? operationType
+      : undefined;
 
   useEffect(() => {
-    fetchStock();
-    const id = setTimeout(() => {
-      setUiPage(1);
-      setSelected(null);
-    }, 0);
-    return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchStock intentionally omitted
-  }, [operationType]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const opts = await getStockFilterOptions();
+        if (!cancelled) setApiFilterOptions(opts ?? null);
+      } catch {
+        if (!cancelled) setApiFilterOptions(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,131 +153,147 @@ export default function StockOut() {
     };
   }, []);
 
-  const nameOptions = useMemo(
+  const filterOptions = useMemo(
     () =>
-      Array.from(new Set(items.map((i) => i.nome).filter(Boolean))).map(
-        (name) => ({ label: name, value: name }),
-      ),
-    [items],
-  );
-
-  const caselaIdsFromItems = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          items
-            .map((i) => i.casela_id)
-            .filter((id): id is number => id !== null && id !== undefined),
-        ),
-      ),
-    [items],
-  );
-
-  const caselaOptions = useMemo(() => {
-    const sector = filters.setor || "";
-    const eff = caselaModeForContext(
+      buildFilterOptionsFromApi(apiFilterOptions, {
+        residents,
+        setor: filters.setor,
+        displayCasela: uiDisplay.casela,
+        caselaSetor: uiDisplay.caselaSetor,
+        armarioMode: uiDisplay.armario,
+      }),
+    [
+      apiFilterOptions,
+      residents,
+      filters.setor,
       uiDisplay.casela,
       uiDisplay.caselaSetor,
-      sector,
-    );
-    if (filters.setor === "enfermagem" && residents.length > 0) {
-      return residents
-        .filter((r) => caselaIdsFromItems.includes(r.casela))
-        .sort((a, b) =>
-          eff === "nome"
-            ? a.name.localeCompare(b.name, "pt-BR")
-            : a.casela - b.casela,
-        )
-        .map((r) => ({
-          label:
-            eff === "nome"
-              ? r.name
-              : caselaFilterLabel(r.casela, r.name, uiDisplay, sector),
-          value: String(r.casela),
-        }));
-    }
-    return caselaIdsFromItems
-      .sort((a, b) => {
-        if (eff === "nome" && residents.length > 0) {
-          const na = residents.find((r) => r.casela === a)?.name ?? "";
-          const nb = residents.find((r) => r.casela === b)?.name ?? "";
-          return na.localeCompare(nb, "pt-BR");
-        }
-        return a - b;
-      })
-      .map((id) => {
-        const r = residents.find((x) => x.casela === id);
-        return {
-          label: caselaFilterLabel(id, r?.name ?? null, uiDisplay, sector),
-          value: String(id),
-        };
+      uiDisplay.armario,
+    ],
+  );
+
+  const caselaOptions = filterOptions.caselas;
+  const setorOptions = filterOptions.sectors;
+  const loteOptions = filterOptions.lots;
+
+  const applyLocalFilters = useCallback(
+    (list: StockItemRaw[]) => {
+      const q = debouncedNome.trim().toLowerCase();
+      return list.filter((item) => {
+        if (q && !(item.nome ?? "").toLowerCase().includes(q)) return false;
+        if (filters.casela && String(item.casela_id ?? "") !== filters.casela)
+          return false;
+        if (filters.setor && (item.setor ?? "") !== filters.setor) return false;
+        if (filters.lote && (item.lote ?? "") !== filters.lote) return false;
+        return true;
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- caselaIdsFromItems already from items
+    },
+    [debouncedNome, filters.casela, filters.setor, filters.lote],
+  );
+
+  const loadStock = useCallback(async () => {
+    if (!itemTypeFilter) {
+      setItems([]);
+      setTotalCount(0);
+      return;
+    }
+
+    if (step !== StockWizardSteps.ITENS) {
+      return;
+    }
+
+    if (usingPassedData && passedData) {
+      const base = passedData.filter((i) => i.tipo_item === itemTypeFilter);
+      const filtered = applyLocalFilters(base);
+      setTotalCount(filtered.length);
+      const start = (stockPage - 1) * PAGE_SIZE;
+      setItems(filtered.slice(start, start + PAGE_SIZE));
+      return;
+    }
+
+    setLoadingStock(true);
+    try {
+      const { data, total } = await fetchStockPage(stockPage, PAGE_SIZE, {
+        nome: debouncedNome.trim() || undefined,
+        casela: filters.casela || undefined,
+        setor: filters.setor || undefined,
+        lote: filters.lote || undefined,
+        itemType: itemTypeFilter,
+      });
+      setItems((data ?? []) as StockItemRaw[]);
+      setTotalCount(Number(total ?? 0));
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Erro ao carregar estoque",
+        description: "Não foi possível carregar os dados.",
+        variant: "error",
+        duration: 3000,
+      });
+      setItems([]);
+      setTotalCount(0);
+    } finally {
+      setLoadingStock(false);
+    }
   }, [
-    items,
-    residents,
+    itemTypeFilter,
+    usingPassedData,
+    passedData,
+    applyLocalFilters,
+    stockPage,
+    debouncedNome,
+    filters.casela,
     filters.setor,
-    caselaIdsFromItems,
-    uiDisplay.casela,
-    uiDisplay.caselaSetor,
+    filters.lote,
+    step,
   ]);
 
-  const setorOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(items.map((i) => i.setor).filter(Boolean)) as Set<string>,
-      )
-        .sort()
-        .map((s) => ({ label: s, value: s })),
-    [items],
-  );
+  useEffect(() => {
+    void loadStock();
+  }, [loadStock]);
 
-  const loteOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          items
-            .map((i) => i.lote)
-            .filter((l): l is string => l != null && l !== ""),
-        ),
-      )
-        .sort()
-        .map((l) => ({ label: l, value: l })),
-    [items],
-  );
-
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      if (filters.nome && item.nome !== filters.nome) return false;
-      if (filters.casela && String(item.casela_id ?? "") !== filters.casela)
-        return false;
-      if (filters.setor && (item.setor ?? "") !== filters.setor) return false;
-      if (filters.lote && (item.lote ?? "") !== filters.lote) return false;
-      return true;
-    });
-  }, [items, filters]);
-
-  const paginatedItems = useMemo(() => {
-    const start = (uiPage - 1) * UI_PAGE_SIZE;
-    const end = start + UI_PAGE_SIZE;
-    return filteredItems.slice(start, end);
-  }, [filteredItems, uiPage]);
+  const isInitialMount = useRef(true);
+  const prevFiltersRef = useRef(effectiveFilters);
 
   useEffect(() => {
-    const id = setTimeout(() => {
-      setUiPage(1);
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      prevFiltersRef.current = effectiveFilters;
+      return;
+    }
+
+    const filtersChanged =
+      prevFiltersRef.current.nome !== effectiveFilters.nome ||
+      prevFiltersRef.current.casela !== effectiveFilters.casela ||
+      prevFiltersRef.current.setor !== effectiveFilters.setor ||
+      prevFiltersRef.current.lote !== effectiveFilters.lote;
+
+    if (filtersChanged) {
+      setStockPage(1);
       setSelected(null);
-      setTotalPages(
-        Math.max(1, Math.ceil(filteredItems.length / UI_PAGE_SIZE)),
-      );
-    }, 0);
-    return () => clearTimeout(id);
-  }, [filteredItems]);
+      prevFiltersRef.current = effectiveFilters;
+    }
+  }, [effectiveFilters]);
+
+  useEffect(() => {
+    setStockPage(1);
+    setSelected(null);
+  }, [operationType]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  useEffect(() => {
+    setStockPage((p) => Math.min(p, totalPages));
+  }, [totalPages]);
+
+  const handleNomeFilterChange = useCallback((value: string) => {
+    setFilters((prev) => ({ ...prev, nome: value }));
+  }, []);
 
   const handleSelectType = (type: OperationType) => {
     setOperationType(type);
     setSelected(null);
-    setUiPage(1);
+    setStockPage(1);
     setStep(StockWizardSteps.ITENS);
   };
 
@@ -273,6 +307,15 @@ export default function StockOut() {
 
   const handleConfirm = async () => {
     if (!selected) return;
+    if (!canSaida) {
+      toast({
+        title: "Sem permissão",
+        description: "Você não tem permissão para dar saída no estoque.",
+        variant: "error",
+        duration: 3000,
+      });
+      return;
+    }
 
     const isValid = await quantityForm.trigger();
     if (!isValid) return;
@@ -294,11 +337,15 @@ export default function StockOut() {
         duration: 3000,
       });
 
-      navigate("/stock");
+      router.push("/stock");
     } catch (err: unknown) {
       toast({
         title: "Erro ao registrar saída",
-        description: err instanceof Error ? err.message : "Erro inesperado.",
+        description: getErrorMessage(
+          err,
+          "Não foi possível registar a saída. Tente novamente.",
+          "StockOut:submit",
+        ),
         variant: "error",
         duration: 3000,
       });
@@ -320,55 +367,28 @@ export default function StockOut() {
 
   return (
     <Layout title="Saída de Estoque">
-      <div className="bg-white p-6 rounded-lg border border-gray-300 max-w-7xl mx-auto mt-6 shadow-sm">
+      <div className="rounded-xl border border-border bg-card p-6 shadow-sm max-w-7xl mx-auto mt-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-xs text-gray-700 mb-1">Nome</label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white">
-                  {filters.nome || "Selecione"}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-0">
-                <Command>
-                  <CommandInput placeholder="Buscar nome..." />
-                  <CommandEmpty>Nenhum item encontrado</CommandEmpty>
-                  <CommandGroup>
-                    {nameOptions.map((o) => (
-                      <CommandItem
-                        key={o.value}
-                        value={o.value}
-                        onSelect={() =>
-                          setFilters((prev) => ({
-                            ...prev,
-                            nome: prev.nome === o.value ? "" : o.value,
-                          }))
-                        }
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            filters.nome === o.value
-                              ? "opacity-100"
-                              : "opacity-0",
-                          )}
-                        />
-                        {o.label}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
+          <div className="min-w-0">
+            <label className="block text-xs text-muted-foreground mb-1">
+              Nome
+            </label>
+            <TableFilter
+              placeholder="Buscar por nome"
+              onFilterChange={handleNomeFilterChange}
+            />
           </div>
 
           <div>
-            <label className="block text-xs text-gray-700 mb-1">Casela</label>
+            <label className="block text-xs text-muted-foreground mb-1">
+              Casela
+            </label>
             <Popover>
               <PopoverTrigger asChild>
-                <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white">
+                <button
+                  type="button"
+                  className="w-full border border-input bg-background p-2 rounded-lg flex justify-between items-center truncate"
+                >
                   {filters.casela
                     ? (caselaOptions.find((o) => o.value === filters.casela)
                         ?.label ?? `Casela ${filters.casela}`)
@@ -427,10 +447,15 @@ export default function StockOut() {
           </div>
 
           <div>
-            <label className="block text-xs text-gray-700 mb-1">Setor</label>
+            <label className="block text-xs text-muted-foreground mb-1">
+              Setor
+            </label>
             <Popover>
               <PopoverTrigger asChild>
-                <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white">
+                <button
+                  type="button"
+                  className="w-full border border-input bg-background p-2 rounded-lg flex justify-between items-center truncate"
+                >
                   {filters.setor || "Selecione"}
                   <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
                 </button>
@@ -483,10 +508,15 @@ export default function StockOut() {
           </div>
 
           <div>
-            <label className="block text-xs text-gray-700 mb-1">Lote</label>
+            <label className="block text-xs text-muted-foreground mb-1">
+              Lote
+            </label>
             <Popover>
               <PopoverTrigger asChild>
-                <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white">
+                <button
+                  type="button"
+                  className="w-full border border-input bg-background p-2 rounded-lg flex justify-between items-center truncate"
+                >
                   {filters.lote || "Selecione"}
                   <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
                 </button>
@@ -540,7 +570,7 @@ export default function StockOut() {
         </div>
       </div>
 
-      <div className="relative overflow-hidden max-w-7xl mx-auto bg-white border border-slate-400 rounded-xl p-10 px-16 shadow-sm mt-10">
+      <div className="relative overflow-hidden max-w-7xl mx-auto rounded-xl border border-border bg-card p-8 md:p-10 shadow-sm mt-8">
         {step !== StockWizardSteps.TIPO && (
           <button
             onClick={handleBack}
@@ -559,7 +589,7 @@ export default function StockOut() {
           </button>
         )}
 
-        <div className="min-h-[380px] flex items-center justify-center">
+        <div className="min-h-[380px] flex flex-col items-center justify-center gap-4">
           <AnimatePresence mode="wait" initial={false}>
             {step === StockWizardSteps.TIPO && (
               <motion.div
@@ -583,17 +613,18 @@ export default function StockOut() {
                 transition={{ duration: 0.22 }}
                 className="w-full"
               >
-                <StepItems
-                  items={paginatedItems}
-                  allItemsCount={filteredItems.length}
-                  page={uiPage}
-                  pageSize={UI_PAGE_SIZE}
-                  totalPages={totalPages}
-                  selected={selected}
-                  onSelectItem={handleSelectItem}
-                  onBack={() => setStep(StockWizardSteps.TIPO)}
-                  setPage={setUiPage}
-                />
+                <>
+                  {loadingStock && (
+                    <p className="text-sm text-muted-foreground text-center">
+                      Carregando itens…
+                    </p>
+                  )}
+                  <StepItems
+                    items={items}
+                    selected={selected}
+                    onSelectItem={handleSelectItem}
+                  />
+                </>
               </motion.div>
             )}
 
@@ -626,11 +657,28 @@ export default function StockOut() {
         </div>
 
         {step === StockWizardSteps.ITENS && (
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex flex-col items-center gap-3">
+            <p className="text-sm text-muted-foreground">
+              {totalCount === 0 ? (
+                <>Nenhum item encontrado para os filtros atuais.</>
+              ) : (
+                <>
+                  Mostrando{" "}
+                  <span className="font-medium text-foreground">
+                    {(stockPage - 1) * PAGE_SIZE + 1}–
+                    {Math.min(stockPage * PAGE_SIZE, totalCount)}
+                  </span>{" "}
+                  de{" "}
+                  <span className="font-medium text-foreground">
+                    {totalCount}
+                  </span>
+                </>
+              )}
+            </p>
             <Pagination
-              page={uiPage}
+              page={stockPage}
               totalPages={totalPages}
-              onChange={setUiPage}
+              onChange={setStockPage}
             />
           </div>
         )}

@@ -8,19 +8,23 @@ import {
   UserMinus,
   ArrowLeftRight,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { setSpaNavigationState } from "@/helpers/spa-navigation-state.helper";
 import { EditableTableProps } from "@/interfaces/interfaces";
 import { useToast } from "@/hooks/use-toast.hook";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import DeletePopUp from "./DeletePopUp";
 import { SkeletonTable } from "@/components/SkeletonTable";
 import DeleteStockModal from "./DeleteStockModal";
 import { AnimatePresence, motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { formatDateToPtBr } from "@/helpers/dates.helper";
+import { getErrorMessage } from "@/helpers/validation.helper";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 
 import {
   deleteCabinet,
@@ -48,7 +52,7 @@ const rowVariants = {
 };
 
 const SkeletonCell = () => (
-  <div className="h-4 w-full bg-slate-200 rounded animate-pulse" />
+  <div className="h-4 w-full bg-muted rounded-md animate-pulse" />
 );
 
 const SkeletonRow = ({ cols }: { cols: number }) => (
@@ -65,8 +69,8 @@ const SkeletonRow = ({ cols }: { cols: number }) => (
     ))}
     <td className="px-4 py-3">
       <div className="flex justify-center gap-3">
-        <div className="h-5 w-5 bg-slate-200 rounded animate-pulse" />
-        <div className="h-5 w-5 bg-slate-200 rounded animate-pulse" />
+        <div className="h-5 w-5 bg-muted rounded animate-pulse" />
+        <div className="h-5 w-5 bg-muted rounded animate-pulse" />
       </div>
     </td>
   </motion.tr>
@@ -81,27 +85,25 @@ const StatusBadge = ({ row }: StatusBadgeProps) => {
 
   if (row.status === "suspended") {
     return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
-              Suspenso
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            {row.suspended_at instanceof Date
-              ? `Suspenso em ${row.suspended_at.toLocaleDateString()}`
-              : row.suspended_at
-                ? `Suspenso em ${new Date(row.suspended_at as string).toLocaleDateString()}`
-                : "Medicamento suspenso"}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
+            Suspenso
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          {row.suspended_at instanceof Date
+            ? `Suspenso em ${formatDateToPtBr(row.suspended_at)}`
+            : row.suspended_at
+              ? `Suspenso em ${formatDateToPtBr(row.suspended_at as string)}`
+              : "Medicamento suspenso"}
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
   return (
-    <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
+    <span className="px-2 py-1 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 border border-sky-200">
       Ativo
     </span>
   );
@@ -112,6 +114,7 @@ export default function EditableTable({
   columns,
   entityType,
   showAddons = true,
+  readOnly = false,
   currentPage = 1,
   hasNextPage = false,
   loading = false,
@@ -126,6 +129,7 @@ export default function EditableTable({
 }: EditableTableProps & {
   entityType?: string;
   showAddons?: boolean;
+  readOnly?: boolean;
   currentPage?: number;
   hasNextPage?: boolean;
   minRows?: number;
@@ -138,6 +142,7 @@ export default function EditableTable({
   onResume?: (row: Record<string, unknown>) => void;
   onDeleteSuccess?: () => void;
 }) {
+  const effectiveShowAddons = showAddons && !readOnly;
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
   const [showStockDeleteModal, setShowStockDeleteModal] = useState(false);
@@ -145,7 +150,8 @@ export default function EditableTable({
 
   const instanceId = useId();
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const router = useRouter();
+  const { can, canMovementTipo } = usePermissionMatrix();
 
   useEffect(() => {
     setRows(data);
@@ -171,7 +177,37 @@ export default function EditableTable({
   const disabledActionClass =
     "opacity-40 cursor-not-allowed pointer-events-none";
 
+  const resourceKey = useMemo(() => {
+    const key =
+      entityType === "entries" || entityType === "exits" ? "stock" : entityType;
+    return key ?? null;
+  }, [entityType]);
+
+  const requirePermission = (
+    ok: boolean,
+    message: string = "Você não tem permissão para realizar esta ação.",
+  ): boolean => {
+    if (ok) return true;
+    toast({
+      title: "Sem permissão",
+      description: message,
+      variant: "error",
+      duration: 3000,
+    });
+    return false;
+  };
+
   const handleAddRow = () => {
+    if (
+      resourceKey &&
+      !requirePermission(
+        can(resourceKey as any, "create"),
+        "Você não tem permissão para criar novos registros.",
+      )
+    ) {
+      return;
+    }
+
     const routes: Record<string, string> = {
       entries: "/stock/in",
       exits: "/stock/out",
@@ -184,7 +220,7 @@ export default function EditableTable({
     };
 
     const route = routes[entityType ?? ""];
-    if (route) navigate(route);
+    if (route) router.push(route);
   };
 
   const canTransfer = (row: Record<string, unknown>): boolean => {
@@ -207,12 +243,23 @@ export default function EditableTable({
 
     if (!type) return;
 
-    if (entityType === "stock") {
-      navigate("/stock/edit", { state: { item: row } });
+    if (
+      !requirePermission(
+        can(type as any, "update"),
+        "Você não tem permissão para editar este item.",
+      )
+    ) {
       return;
     }
 
-    navigate(`/${type}/edit`, { state: { item: row } });
+    if (entityType === "stock") {
+      setSpaNavigationState({ item: row });
+      router.push("/stock/edit");
+      return;
+    }
+
+    setSpaNavigationState({ item: row });
+    router.push(`/${type}/edit`);
   };
 
   const renderCell = (
@@ -224,6 +271,14 @@ export default function EditableTable({
     switch (colKey) {
       case "status":
         return <StatusBadge row={row} />;
+
+      case "preco": {
+        const v = row[colKey];
+        if (v === null || v === undefined || v === "") return "-";
+        const num = typeof v === "number" ? v : Number(v);
+        if (Number.isNaN(num)) return "-";
+        return `R$ ${num.toFixed(2)}`;
+      }
 
       case "expiry":
         return renderExpiryTag(row);
@@ -251,6 +306,18 @@ export default function EditableTable({
     if (deleteIndex === null) return;
     const row = rows[deleteIndex];
     if (!row) return;
+
+    if (resourceKey && !can(resourceKey as any, "delete")) {
+      toast({
+        title: "Sem permissão",
+        description: "Você não tem permissão para excluir este item.",
+        variant: "error",
+        duration: 3000,
+      });
+      setDeleteIndex(null);
+      setShowStockDeleteModal(false);
+      return;
+    }
 
     setIsDeleting(true);
     try {
@@ -308,10 +375,11 @@ export default function EditableTable({
     } catch (err: unknown) {
       toast({
         title: "Erro ao remover item",
-        description:
-          err instanceof Error
-            ? err.message
-            : "Não foi possível remover o item.",
+        description: getErrorMessage(
+          err,
+          "Não foi possível remover o item.",
+          "EditableTable:delete",
+        ),
         variant: "error",
         duration: 3000,
       });
@@ -325,32 +393,35 @@ export default function EditableTable({
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-      <div className="flex justify-end px-4 py-3 border-b bg-sky-50">
-        {showAddons && (
-          <button
+    <div className="rounded-2xl border border-border/70 bg-card text-card-foreground shadow-elevated overflow-hidden ring-1 ring-black/[0.02] dark:ring-white/[0.04]">
+      <div className="flex justify-end px-3 sm:px-4 py-3 border-b border-border/60 bg-muted/30 backdrop-blur-[2px]">
+        {effectiveShowAddons && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={handleAddRow}
-            className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100 rounded-lg"
+            className="rounded-xl border-primary/20 bg-background/80 hover:bg-primary/5"
           >
             <Plus size={16} /> Adicionar
-          </button>
+          </Button>
         )}
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-max table-auto">
           <thead>
-            <tr className="bg-sky-100 border-b">
+            <tr className="bg-muted/80 border-b border-border/60">
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="px-4 py-3 text-xs font-semibold text-center whitespace-nowrap"
+                  className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground text-center whitespace-nowrap"
                 >
                   {col.label}
                 </th>
               ))}
-              {showAddons && (
-                <th className="px-4 py-3 text-xs font-semibold sticky right-0 bg-sky-100 z-10 min-w-[120px] whitespace-nowrap text-center">
+              {effectiveShowAddons && (
+                <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground sticky right-0 bg-muted/95 backdrop-blur-sm z-10 min-w-[120px] whitespace-nowrap text-center border-l border-border/40 shadow-[-8px_0_16px_-8px_rgba(0,0,0,0.06)]">
                   Ações
                 </th>
               )}
@@ -376,19 +447,19 @@ export default function EditableTable({
                       variants={rowVariants}
                       initial="initial"
                       animate="animate"
-                      className={`border-b group ${
+                      className={`border-b border-border/50 group transition-colors ${
                         row
                           ? row.status === "suspended"
-                            ? "bg-slate-200 opacity-70"
-                            : "hover:bg-sky-50"
-                          : "bg-white hover:bg-sky-50"
+                            ? "bg-muted/70"
+                            : "hover:bg-accent/50"
+                          : "bg-card/50 hover:bg-accent/30"
                       }`}
                     >
                       {columns.map((col) => (
                         <td
                           key={col.key}
                           className={`px-4 py-4 text-xs text-center align-middle ${
-                            !row ? "group-hover:bg-sky-50" : ""
+                            !row ? "group-hover:bg-accent/40" : ""
                           }`}
                         >
                           <div className="max-w-[200px] mx-auto">
@@ -397,14 +468,14 @@ export default function EditableTable({
                         </td>
                       ))}
 
-                      {showAddons && (
+                      {effectiveShowAddons && (
                         <td
-                          className={`px-4 py-3 flex justify-center gap-4 sticky right-0 z-10 min-w-[120px] ${
+                          className={`px-4 py-3 flex justify-center gap-4 sticky right-0 z-10 min-w-[120px] border-l border-border/30 shadow-[-8px_0_16px_-8px_rgba(0,0,0,0.05)] ${
                             row?.status === "suspended"
-                              ? "bg-slate-200 opacity-70"
+                              ? "bg-muted/70"
                               : row
-                                ? "bg-white group-hover:bg-sky-50"
-                                : "bg-white group-hover:bg-sky-50"
+                                ? "bg-card group-hover:bg-accent/50"
+                                : "bg-card/80 group-hover:bg-accent/30"
                           }`}
                         >
                           {row && (
@@ -412,7 +483,7 @@ export default function EditableTable({
                               <button
                                 type="button"
                                 onClick={() => handleEditClick(row)}
-                                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-sky-700 hover:text-sky-900 hover:bg-sky-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-primary hover:text-primary/90 hover:bg-accent/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 aria-label="Editar"
                               >
                                 <Pencil size={16} />
@@ -421,6 +492,15 @@ export default function EditableTable({
                               <button
                                 type="button"
                                 onClick={() => {
+                                  if (
+                                    resourceKey &&
+                                    !requirePermission(
+                                      can(resourceKey as any, "delete"),
+                                      "Você não tem permissão para excluir itens.",
+                                    )
+                                  ) {
+                                    return;
+                                  }
                                   if (entityType === "stock") {
                                     setDeleteIndex(i);
                                     setShowStockDeleteModal(true);
@@ -436,7 +516,17 @@ export default function EditableTable({
 
                               <button
                                 type="button"
-                                onClick={() => onRemoveIndividual?.(row)}
+                                onClick={() => {
+                                  if (
+                                    !requirePermission(
+                                      can("stock" as any, "update"),
+                                      "Você não tem permissão para alterar associações no estoque.",
+                                    )
+                                  ) {
+                                    return;
+                                  }
+                                  onRemoveIndividual?.(row);
+                                }}
                                 disabled={!isIndividualMedicine(row)}
                                 className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-orange-600 hover:bg-orange-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${
                                   !isIndividualMedicine(row) &&
@@ -450,15 +540,24 @@ export default function EditableTable({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  isActive(row)
-                                    ? onSuspend?.(row)
-                                    : onResume?.(row)
+                                  (() => {
+                                    if (
+                                      !requirePermission(
+                                        can("stock" as any, "update"),
+                                        "Você não tem permissão para alterar este item.",
+                                      )
+                                    ) {
+                                      return;
+                                    }
+                                    if (isActive(row)) onSuspend?.(row);
+                                    else onResume?.(row);
+                                  })()
                                 }
                                 disabled={!isIndividualMedicine(row)}
                                 className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded focus:outline-none focus-visible:ring-2 ${
                                   isActive(row)
                                     ? "text-yellow-600 hover:bg-amber-50 focus-visible:ring-amber-500"
-                                    : "text-green-600 hover:bg-green-50 focus-visible:ring-green-500"
+                                    : "text-primary hover:bg-primary/10 focus-visible:ring-primary"
                                 } ${
                                   !isIndividualMedicine(row) &&
                                   disabledActionClass
@@ -478,6 +577,14 @@ export default function EditableTable({
                                   type="button"
                                   onClick={() => {
                                     if (!canTransfer(row)) return;
+                                    if (
+                                      !requirePermission(
+                                        canMovementTipo("transferencia"),
+                                        "Você não tem permissão para transferir itens (transferência de estoque).",
+                                      )
+                                    ) {
+                                      return;
+                                    }
                                     onTransferSector(row);
                                   }}
                                   disabled={!canTransfer(row)}
@@ -501,30 +608,28 @@ export default function EditableTable({
       </div>
 
       {(onNextPage || onPrevPage) && (
-        <div className="flex justify-center gap-4 py-4 border-t">
-          <button
+        <div className="flex justify-center gap-3 py-4 px-4 border-t border-border/60 bg-muted/20">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={onPrevPage}
             disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg border ${
-              currentPage === 1
-                ? "bg-gray-200 text-gray-500"
-                : "bg-white text-sky-700 hover:bg-sky-50"
-            }`}
+            className="min-w-[6.5rem] rounded-xl"
           >
             Anterior
-          </button>
+          </Button>
 
-          <button
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={onNextPage}
             disabled={!hasNextPage}
-            className={`px-4 py-2 rounded-lg border ${
-              !hasNextPage
-                ? "bg-gray-200 text-gray-500"
-                : "bg-white text-sky-700 hover:bg-sky-50"
-            }`}
+            className="min-w-[6.5rem] rounded-xl"
           >
             Próximo
-          </button>
+          </Button>
         </div>
       )}
 
@@ -562,68 +667,223 @@ export default function EditableTable({
   );
 }
 
-const renderExpiryTag = (row: Record<string, unknown>) => {
-  const status =
-    typeof row.expirationStatus === "string" ? row.expirationStatus : undefined;
-  const message =
-    typeof row.expirationMsg === "string" ? row.expirationMsg : undefined;
+function readRowString(
+  row: Record<string, unknown>,
+  ...keys: string[]
+): string {
+  for (const key of keys) {
+    const v = row[key];
+    if (v == null) continue;
+    if (typeof v === "string") {
+      const t = v.trim();
+      if (t) return t;
+    }
+    if (typeof v === "number" && !Number.isNaN(v)) {
+      return String(v);
+    }
+  }
+  return "";
+}
 
-  if (!status) return "-";
+function readRowNumber(
+  row: Record<string, unknown>,
+  ...keys: string[]
+): number {
+  for (const key of keys) {
+    const v = row[key];
+    if (v == null) continue;
+    const n = typeof v === "number" ? v : Number(v);
+    if (!Number.isNaN(n)) return n;
+  }
+  return 0;
+}
+
+function parseDisplayDateForExpiry(s: string): Date | null {
+  const t = s.trim();
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(t);
+  if (iso) {
+    return new Date(
+      Number(iso[1]),
+      Number(iso[2]) - 1,
+      Number(iso[3]),
+      12,
+      0,
+      0,
+      0,
+    );
+  }
+  const br = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(t);
+  if (br) {
+    return new Date(
+      Number(br[3]),
+      Number(br[2]) - 1,
+      Number(br[1]),
+      12,
+      0,
+      0,
+      0,
+    );
+  }
+  return null;
+}
+
+function fallbackExpiryStatusKeyFromLabel(expiryLabel: string): string | null {
+  const d = parseDisplayDateForExpiry(expiryLabel);
+  if (!d || Number.isNaN(d.getTime())) return null;
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const diff = Math.ceil((d.getTime() - today.getTime()) / 86400000);
+  if (diff < 0) return "expired";
+  if (diff <= 30) return "critical";
+  if (diff <= 45) return "warning";
+  return "healthy";
+}
+
+function fallbackQuantityStatusKey(
+  quantity: number,
+  minimumStock: number,
+): string {
+  const min = minimumStock;
+  const lowMax = min * 1.35;
+  const highThreshold = min * 3;
+  if (quantity >= highThreshold) return "high";
+  if (quantity >= min && quantity <= lowMax) return "low";
+  if (quantity > lowMax && quantity < highThreshold) return "medium";
+  return "critical";
+}
+
+function normalizeExpiryStatusKey(raw: string): string {
+  const k = raw.trim().toLowerCase();
+  if (k === "ok") return "healthy";
+  return k;
+}
+
+function normalizeQuantityStatusKey(raw: string): string {
+  const k = raw.trim().toLowerCase();
+  if (k === "ok" || k === "normal") return "high";
+  if (k === "zero") return "empty";
+  return k;
+}
+
+const EXPIRY_TOOLTIP_BY_STATUS: Record<string, string> = {
+  expired: "Produto fora da validade.",
+  critical: "Validade em 30 dias ou menos.",
+  warning: "Validade entre 31 e 45 dias.",
+  healthy: "Validade superior a 45 dias.",
+};
+
+const QUANTITY_TOOLTIP_BY_STATUS: Record<string, string> = {
+  empty: "Sem unidades em stock.",
+  low: "Quantidade no limite inferior (perto do mínimo).",
+  critical: "Quantidade abaixo do mínimo definido.",
+  medium: "Quantidade entre faixa média e alta.",
+  high: "Quantidade confortável em relação ao mínimo.",
+  normal: "Quantidade confortável em relação ao mínimo.",
+};
+
+const renderExpiryTag = (row: Record<string, unknown>) => {
+  const expiryText =
+    typeof row.expiry === "string" ? row.expiry : String(row.expiry ?? "-");
+
+  const rawApi = readRowString(row, "expirationStatus", "st_expiracao");
+  const message = readRowString(row, "expirationMsg", "msg_expiracao");
+
+  let status = rawApi ? normalizeExpiryStatusKey(rawApi) : "";
+  if (!status && expiryText && expiryText !== "-") {
+    status = fallbackExpiryStatusKeyFromLabel(expiryText) ?? "";
+  }
 
   const colorMap: Record<string, string> = {
-    expired: "bg-red-50 text-red-700 border border-red-200",
-    critical: "bg-orange-50 text-orange-700 border border-orange-200",
-    warning: "bg-yellow-50 text-yellow-700 border border-yellow-200",
-    healthy: "bg-green-50 text-green-700 border border-green-200",
+    expired: "bg-red-50 text-red-800 border border-red-200",
+    critical: "bg-orange-50 text-orange-800 border border-orange-200",
+    warning: "bg-amber-50 text-amber-900 border border-amber-200",
+    healthy:
+      "bg-emerald-50 text-emerald-900 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-800",
   };
 
+  const badgeClass = status
+    ? (colorMap[status] ??
+      "bg-muted text-foreground border border-border font-medium")
+    : "bg-muted/80 text-muted-foreground border border-border font-medium";
+
+  const tooltipBody =
+    message ||
+    (status ? EXPIRY_TOOLTIP_BY_STATUS[status] : null) ||
+    "Validade do item.";
+
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span
-            className={`px-2 py-1 rounded-full text-[11px] font-medium ${colorMap[status] || ""}`}
-          >
-            {typeof row.expiry === "string" ? row.expiry : "-"}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>{message || "-"}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip delayDuration={200}>
+      <TooltipTrigger asChild>
+        <span
+          className={`inline-flex max-w-full justify-center px-2 py-1 rounded-full text-[11px] font-medium cursor-default ${badgeClass}`}
+        >
+          {expiryText}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs max-w-xs">
+        <p className="font-medium text-popover-foreground">{tooltipBody}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 };
 
 const renderQuantityTag = (row: Record<string, unknown>) => {
-  const status =
-    typeof row.quantityStatus === "string" ? row.quantityStatus : undefined;
-  const message =
-    typeof row.quantityMsg === "string" ? row.quantityMsg : undefined;
+  const qNum = readRowNumber(row, "quantity", "quantidade");
+  const qDisplay =
+    row.quantity !== null && row.quantity !== undefined
+      ? String(row.quantity)
+      : "-";
+
+  const minStock = readRowNumber(
+    row,
+    "minimumStock",
+    "minimo",
+    "estoque_minimo",
+  );
+
+  const rawApi = readRowString(row, "quantityStatus", "st_quantidade");
+  const message = readRowString(row, "quantityMsg", "msg_quantidade");
+
+  let status = rawApi ? normalizeQuantityStatusKey(rawApi) : "";
+  if (!status && qDisplay !== "-") {
+    status = fallbackQuantityStatusKey(qNum, minStock);
+  }
 
   const colorMap: Record<string, string> = {
-    empty: "bg-red-100 text-red-700 border border-red-300",
-    low: "bg-orange-100 text-orange-700 border border-orange-300",
-    critical: "bg-red-100 text-red-700 border border-red-300",
-    medium: "bg-yellow-100 text-yellow-700 border border-yellow-300",
-    high: "bg-green-100 text-green-700 border border-green-300",
-    normal: "bg-green-100 text-green-700 border border-green-300",
+    empty: "bg-red-50 text-red-800 border border-red-200",
+    low: "bg-orange-50 text-orange-800 border border-orange-200",
+    critical: "bg-red-50 text-red-900 border border-red-300",
+    medium: "bg-amber-50 text-amber-900 border border-amber-200",
+    high: "bg-emerald-50 text-emerald-900 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-800",
+    normal:
+      "bg-emerald-50 text-emerald-900 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-800",
   };
 
+  const badgeClass = status
+    ? (colorMap[status] ??
+      "bg-muted text-foreground border border-border font-medium")
+    : "bg-muted/80 text-muted-foreground border border-border font-medium";
+
+  const tooltipBody =
+    message ||
+    (status ? QUANTITY_TOOLTIP_BY_STATUS[status] : null) ||
+    `Quantidade: ${qDisplay}.`;
+
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span
-            className={`inline-flex items-center px-2 py-1 rounded-full text-[11px] font-medium cursor-default ${colorMap[status || ""] || ""}`}
-          >
-            {row.quantity !== null && row.quantity !== undefined
-              ? String(row.quantity)
-              : "-"}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="text-xs">
-          {message}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip delayDuration={200}>
+      <TooltipTrigger asChild>
+        <span
+          className={`inline-flex items-center justify-center px-2 py-1 rounded-full text-[11px] font-medium cursor-default ${badgeClass}`}
+        >
+          {qDisplay}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs max-w-xs">
+        <p className="font-medium text-popover-foreground">{tooltipBody}</p>
+        {minStock > 0 ? (
+          <p className="text-muted-foreground mt-1">Mínimo: {minStock}</p>
+        ) : null}
+      </TooltipContent>
+    </Tooltip>
   );
 };

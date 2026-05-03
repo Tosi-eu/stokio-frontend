@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import type { AlertStockItem } from "../types";
+import { formatValidityDate } from "@/helpers/dates.helper";
 
 interface AdminTabAlertasProps {
   alerts: {
@@ -18,6 +19,12 @@ interface AdminTabAlertasProps {
     belowMin: AlertStockItem[];
     expired: AlertStockItem[];
     expiringSoon: AlertStockItem[];
+  };
+  counts: {
+    noStock: number;
+    belowMin: number;
+    expired: number;
+    expiringSoon: number;
   };
   loadingAlerts: boolean;
 }
@@ -79,7 +86,7 @@ function AlertTable({
                   <TableCell>{row.detalhe ?? "-"}</TableCell>
                   <TableCell>{row.quantidade}</TableCell>
                   <TableCell>{row.minimo ?? "-"}</TableCell>
-                  <TableCell>{row.validade}</TableCell>
+                  <TableCell>{formatValidityDate(row.validade)}</TableCell>
                   <TableCell>{row.setor}</TableCell>
                 </TableRow>
               ))
@@ -117,6 +124,7 @@ function AlertTable({
 
 export function AdminTabAlertas({
   alerts,
+  counts,
   loadingAlerts,
 }: AdminTabAlertasProps) {
   return (
@@ -134,25 +142,25 @@ export function AdminTabAlertas({
           <>
             <AlertTable
               title="Sem estoque"
-              count={alerts.noStock.length}
+              count={counts.noStock}
               rows={alerts.noStock}
               titleClassName="text-red-600"
             />
             <AlertTable
               title="Abaixo do mínimo"
-              count={alerts.belowMin.length}
+              count={counts.belowMin}
               rows={alerts.belowMin}
               titleClassName="text-amber-600"
             />
             <AlertTable
               title="Vencidos"
-              count={alerts.expired.length}
+              count={counts.expired}
               rows={alerts.expired}
               titleClassName="text-red-700"
             />
             <AlertTable
               title="Próximos ao vencimento"
-              count={alerts.expiringSoon.length}
+              count={counts.expiringSoon}
               rows={alerts.expiringSoon}
               titleClassName="text-orange-600"
             />

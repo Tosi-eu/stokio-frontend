@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -7,13 +7,15 @@ import {
   AlertTriangle,
   FileText,
   Users,
-  Edit,
   LogIn,
-  Settings,
+  Cog,
   Bell,
-  ShieldCheck,
+  Building2,
+  Edit,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
+import type { PermissionResourceKey } from "@/domain/permission-matrix.types";
 import {
   useAdminSummary,
   useAdminAlerts,
@@ -35,48 +37,82 @@ import {
   AdminTabConfig,
   AdminTabNotificacoes,
   AdminTabInsights,
-  AdminTabQualidade,
+  AdminTabTenants,
   AdminAuditCompareDialog,
   AdminUserEditDialog,
   AdminUserCreateDialog,
   AdminUserDeleteDialog,
 } from "./components";
 import { parseYearMonthToDate } from "@/helpers/dates.helper";
+import { isSuperAdminUser } from "@/helpers/auth-roles.helper";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { getDefaultHomePath } from "@/helpers/default-home-route.helper";
+import AdminPanelPreview from "./AdminPanelPreview";
 
 export default function AdminPanel() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const { can } = usePermissionMatrix();
+  const { isEnabled, previewMode } = useTenant();
+  const canFullAdminUi = user?.role === "admin" || isSuperAdminUser(user);
+  const adminTabEnabled = previewMode || canFullAdminUi;
+  const isSuperAdmin = isSuperAdminUser(user);
 
   const [activeTab, setActiveTab] = useState("resumo");
 
+  const effectiveTab =
+    !isSuperAdmin && activeTab === "tenants" ? "resumo" : activeTab;
+
   useEffect(() => {
-    if (!isAdmin) navigate("/dashboard");
-  }, [isAdmin, navigate]);
+    if (!adminTabEnabled) {
+      const path =
+        getDefaultHomePath(
+          isEnabled,
+          user,
+          (m) => can(m as PermissionResourceKey, "read"),
+          previewMode,
+        ) ?? "/loading";
+      router.replace(path);
+    }
+  }, [adminTabEnabled, previewMode, router, isEnabled, user, can]);
 
-  const summary = useAdminSummary(isAdmin, activeTab === "resumo");
-  const alerts = useAdminAlerts(isAdmin, activeTab === "alertas");
+  const summary = useAdminSummary(canFullAdminUi, effectiveTab === "resumo");
+  const alerts = useAdminAlerts(canFullAdminUi, effectiveTab === "alertas");
   const users = useAdminUsers(
-    isAdmin,
-    activeTab === "users" || activeTab === "insights",
+    canFullAdminUi,
+    effectiveTab === "users" || effectiveTab === "insights",
   );
-  const loginLog = useAdminLoginLog(isAdmin, activeTab === "acessos");
-  const config = useAdminConfig(isAdmin, activeTab === "config");
-  const metrics = useAdminMetrics(isAdmin, activeTab === "resumo");
+  const loginLog = useAdminLoginLog(canFullAdminUi, effectiveTab === "acessos");
+  const config = useAdminConfig(canFullAdminUi, effectiveTab === "config");
+  const metrics = useAdminMetrics(canFullAdminUi, effectiveTab === "resumo");
   const notifications = useAdminNotifications(
-    isAdmin,
-    activeTab === "notificacoes",
+    canFullAdminUi,
+    effectiveTab === "notificacoes",
   );
-  const insights = useAdminInsights(isAdmin, activeTab === "insights");
-  const reports = useAdminReports(activeTab === "relatorios");
-  const resumoExtras = useAdminResumoExtras(isAdmin, activeTab === "resumo");
+  const insights = useAdminInsights(
+    canFullAdminUi,
+    effectiveTab === "insights",
+  );
+  const reports = useAdminReports(effectiveTab === "relatorios");
+  const resumoExtras = useAdminResumoExtras(
+    canFullAdminUi,
+    effectiveTab === "resumo",
+  );
 
-  if (!isAdmin) return null;
+  if (!adminTabEnabled) return null;
+
+  if (!canFullAdminUi && previewMode) {
+    return <AdminPanelPreview />;
+  }
 
   return (
     <Layout title="Painel administrativo">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-9 gap-1 w-full p-1">
+      <Tabs
+        value={effectiveTab}
+        onValueChange={setActiveTab}
+        className="w-full"
+      >
+        <TabsList className="grid grid-cols-10 gap-1 w-full p-1">
           <TabsTrigger
             value="resumo"
             className="gap-1.5 min-w-0 text-xs sm:text-sm"
@@ -116,16 +152,18 @@ export default function AdminPanel() {
             value="config"
             className="gap-1.5 min-w-0 text-xs sm:text-sm"
           >
-            <Settings className="h-4 w-4 shrink-0" />
+            <Cog className="h-4 w-4 shrink-0" />
             <span className="truncate">Config</span>
           </TabsTrigger>
-          <TabsTrigger
-            value="qualidade"
-            className="gap-1.5 min-w-0 text-xs sm:text-sm"
-          >
-            <ShieldCheck className="h-4 w-4 shrink-0" />
-            <span className="truncate">Qualidade</span>
-          </TabsTrigger>
+          {isSuperAdmin ? (
+            <TabsTrigger
+              value="tenants"
+              className="gap-1.5 min-w-0 text-xs sm:text-sm"
+            >
+              <Building2 className="h-4 w-4 shrink-0" />
+              <span className="truncate">Tenants</span>
+            </TabsTrigger>
+          ) : null}
           <TabsTrigger
             value="notificacoes"
             className="gap-1.5 min-w-0 text-xs sm:text-sm"
@@ -196,6 +234,7 @@ export default function AdminPanel() {
         <TabsContent value="alertas" className="mt-6">
           <AdminTabAlertas
             alerts={alerts.alerts}
+            counts={alerts.counts}
             loadingAlerts={alerts.loadingAlerts}
           />
         </TabsContent>
@@ -282,15 +321,19 @@ export default function AdminPanel() {
             setForm={config.setForm}
             loading={config.loading}
             saving={config.saving}
-            health={config.health}
             onSave={config.save}
-            refetchHealth={config.refetchHealth}
           />
         </TabsContent>
 
-        <TabsContent value="qualidade" className="mt-6">
-          <AdminTabQualidade enabled={isAdmin && activeTab === "qualidade"} />
-        </TabsContent>
+        {isSuperAdmin ? (
+          <TabsContent value="tenants" className="mt-6">
+            <AdminTabTenants
+              enabled={
+                isSuperAdmin && canFullAdminUi && effectiveTab === "tenants"
+              }
+            />
+          </TabsContent>
+        ) : null}
 
         <TabsContent value="notificacoes" className="mt-6">
           <AdminTabNotificacoes

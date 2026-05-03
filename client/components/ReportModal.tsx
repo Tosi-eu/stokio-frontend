@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
-  Package,
+  Bandage,
   Stethoscope,
   Check,
   X,
@@ -38,6 +38,8 @@ import { getReportTitle } from "@/helpers/relatorio.helper";
 import { parseYearMonthToDate } from "@/helpers/dates.helper";
 import { createStockPDF, MovementsParams } from "./StockReporter";
 import { toast } from "@/hooks/use-toast.hook";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
 
 type StatusType = "idle" | "loading" | "success" | "error";
 
@@ -58,6 +60,7 @@ enum MovementPeriod {
 }
 
 export default function ReportModal({ open, onClose }: ReportModalProps) {
+  const { uiDisplay } = useTenant();
   const [status, setStatus] = useState<StatusType>("idle");
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
   const [selectedResident, setSelectedResident] = useState<number | null>(null);
@@ -76,7 +79,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
   const [residentSearch, setResidentSearch] = useState("");
 
   const reportOptions = [
-    { value: "insumos", label: "Insumos", icon: Package },
+    { value: "insumos", label: "Insumos", icon: Bandage },
     { value: "medicamentos", label: "Medicamentos", icon: Stethoscope },
     { value: "residentes", label: "Residentes", icon: User },
     { value: "psicotropicos", label: "Psicotrópicos", icon: Syringe },
@@ -109,15 +112,28 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
     },
   ];
 
+  const loadResidents = useCallback(async () => {
+    setLoadingResidents(true);
+    try {
+      const residentsList = await fetchAllPaginated<Resident>(getResidents);
+      setResidents(residentsList);
+    } catch (error) {
+      console.error("Erro ao carregar residentes:", error);
+      setResidents([]);
+    } finally {
+      setLoadingResidents(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (
       open &&
       (selectedReports[0] === "residente_consumo" ||
         selectedReports[0] === "medicamentos_residente")
     ) {
-      loadResidents();
+      void loadResidents();
     }
-  }, [open, selectedReports]);
+  }, [open, selectedReports, loadResidents]);
 
   const handleClose = useCallback(() => {
     setStatus("idle");
@@ -141,19 +157,6 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
       return () => clearTimeout(timer);
     }
   }, [status, handleClose]);
-
-  const loadResidents = async () => {
-    setLoadingResidents(true);
-    try {
-      const residentsList = await fetchAllPaginated<Resident>(getResidents);
-      setResidents(residentsList);
-    } catch (error) {
-      console.error("Erro ao carregar residentes:", error);
-      setResidents([]);
-    } finally {
-      setLoadingResidents(false);
-    }
-  };
 
   const handleSelectReport = (value: string) => {
     setSelectedReports([value]);
@@ -315,14 +318,16 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                         className={`border rounded-lg px-4 py-2 flex items-center gap-3 cursor-pointer transition-all
                     ${
                       isSelected
-                        ? "border-sky-600 bg-sky-50"
+                        ? "border-primary bg-accent/50"
                         : "border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50"
                     }
                   `}
                       >
                         <Icon
                           className={`w-6 h-6 ${
-                            isSelected ? "text-sky-600" : "text-gray-500"
+                            isSelected
+                              ? "text-primary"
+                              : "text-muted-foreground"
                           }`}
                         />
                         <span className="text-sm font-medium">{label}</span>
@@ -507,7 +512,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
 
                           {loadingResidents ? (
                             <div className="flex justify-center py-2">
-                              <Loader2 className="animate-spin text-sky-600" />
+                              <Loader2 className="animate-spin text-primary" />
                             </div>
                           ) : (
                             <Popover>
@@ -517,10 +522,13 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                                   role="combobox"
                                   className="w-full justify-between text-sm"
                                 >
-                                  {selectedResident
-                                    ? residents.find(
-                                        (r) => r.casela === selectedResident,
-                                      )?.name
+                                  {selectedResident != null
+                                    ? formatCaselaLabel(uiDisplay.casela, {
+                                        caselaId: selectedResident,
+                                        residentName: residents.find(
+                                          (r) => r.casela === selectedResident,
+                                        )?.name,
+                                      })
                                     : "Selecionar residente"}
                                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
@@ -554,7 +562,9 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                                           setResidentSearch("");
                                         }}
                                       >
-                                        Casela {r.casela?.toString()}
+                                        {uiDisplay.casela === "nome"
+                                          ? r.name
+                                          : `Casela ${r.casela}`}
                                       </CommandItem>
                                     ))}
                                   </CommandGroup>
@@ -569,7 +579,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                 })}
 
                 <Button
-                  className="mt-4 w-full max-w-md bg-sky-600 hover:bg-sky-700 text-white"
+                  className="mt-4 w-full max-w-md bg-primary hover:bg-primary/90 text-primary-foreground"
                   disabled={
                     !selectedReports.length ||
                     (showResidentSelector && !selectedResident)
@@ -583,7 +593,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
           )}
           {status === "loading" && (
             <div className="p-12 flex flex-col items-center gap-4">
-              <Loader2 className="w-12 h-12 animate-spin text-sky-600" />
+              <Loader2 className="w-12 h-12 animate-spin text-primary" />
               <p>Gerando relatório…</p>
             </div>
           )}
@@ -611,7 +621,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                   initial={{ scale: 0 }}
                   animate={{ scale: [0, 1.2, 1] }}
                   transition={{ delay: 0.2, duration: 0.4 }}
-                  className="absolute inset-0 bg-green-100 rounded-full"
+                  className="absolute inset-0 bg-primary/15 rounded-full"
                   style={{
                     width: iconSize + 40,
                     height: iconSize + 40,
@@ -620,7 +630,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                   }}
                 />
                 <Check
-                  className="text-green-600 relative z-10"
+                  className="text-primary relative z-10"
                   style={{ width: iconSize, height: iconSize }}
                   strokeWidth={3}
                 />
@@ -629,7 +639,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="mt-6 text-xl font-bold text-green-600"
+                className="mt-6 text-xl font-bold text-primary"
               >
                 Relatório gerado com sucesso!
               </motion.p>

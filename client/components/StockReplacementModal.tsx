@@ -10,7 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Package } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { formatDateToPtBr } from "@/helpers/dates.helper";
 
 export interface StockReplacementItem {
   id: number;
@@ -40,11 +41,11 @@ const StockReplacementModal: FC<StockReplacementModalProps> = ({
   items,
   onClose,
 }) => {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleGoToStock = () => {
     onClose();
-    navigate("/stock");
+    router.push("/stock");
   };
 
   return (
@@ -57,7 +58,7 @@ const StockReplacementModal: FC<StockReplacementModalProps> = ({
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl text-slate-900">
-            <Package className="w-5 h-5 text-sky-600" />
+            <Package className="w-5 h-5 text-primary" />
             Reposição de estoque amanhã
           </DialogTitle>
         </DialogHeader>
@@ -96,7 +97,7 @@ const StockReplacementModal: FC<StockReplacementModalProps> = ({
 
                   <div className="text-sm text-slate-700">
                     <span className="font-semibold">Data prevista: </span>
-                    {item.data_prevista}
+                    {formatDateToPtBr(item.data_prevista)}
                   </div>
 
                   <div className="text-sm text-slate-600">
@@ -120,7 +121,7 @@ const StockReplacementModal: FC<StockReplacementModalProps> = ({
 
           <Button
             onClick={onClose}
-            className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg"
           >
             OK
           </Button>

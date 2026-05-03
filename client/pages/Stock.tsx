@@ -2,7 +2,7 @@ import Layout from "@/components/Layout";
 import EditableTable from "@/components/EditableTable";
 import { SkeletonTable } from "@/components/SkeletonTable";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useRouter, useSearchParams } from "next/navigation";
 import { StockItem } from "@/interfaces/interfaces";
 import { lazy, Suspense } from "react";
 
@@ -17,17 +17,8 @@ import {
   suspendInputFromStock,
   transferStockSector,
   getResidents,
-  getCabinets,
   getDrawers,
 } from "@/api/requests";
-import { useUiDisplay } from "@/context/ui-display-context";
-import {
-  formatArmarioDisplay,
-  formatCaselaDisplay,
-  formatGavetaDisplay,
-  cabinetCategoryByNumero,
-  drawerCategoryByNumero,
-} from "@/helpers/ui-display.helper";
 import { ItemStockType, SectorType } from "@/utils/enums";
 import { StockActionType, StockItemType } from "@/interfaces/types";
 import {
@@ -42,7 +33,9 @@ import {
   actionMessages,
   actionTitles,
 } from "@/helpers/toaster.helper";
+import { getErrorMessage } from "@/helpers/validation.helper";
 import { toast } from "@/hooks/use-toast.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import {
   Popover,
@@ -57,6 +50,17 @@ import {
 } from "@/components/ui/command";
 import { ChevronsUpDown, X } from "lucide-react";
 import { TableFilter } from "@/components/TableFilter";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import {
+  getPreviewStockItems,
+  PREVIEW_CABINETS,
+  PREVIEW_DRAWERS,
+  PREVIEW_RESIDENTS,
+} from "@/helpers/preview-mock-data";
+import {
+  formatCaselaLabel,
+  formatGavetaLabel,
+} from "@/helpers/storage-location-display.helper";
 
 const FILTER_LABELS: Record<string, string> = {
   belowMin: "Abaixo do estoque mínimo",
@@ -66,11 +70,13 @@ const FILTER_LABELS: Record<string, string> = {
 };
 
 export default function Stock() {
-  const { uiDisplay } = useUiDisplay();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const filter = params.get("filter"); // "noStock" | "belowMin" | "expired" | "expiringSoon"
+  const { uiDisplay, previewMode } = useTenant();
+  const router = useRouter();
+  const { can, canMovementTipo } = usePermissionMatrix();
+  const canSaida = canMovementTipo("saida");
+  const canReports = can("reports", "read");
+  const searchParams = useSearchParams();
+  const filter = searchParams.get("filter");
 
   const stockBreadcrumb = useMemo(
     () =>
@@ -140,21 +146,9 @@ export default function Stock() {
   const [residents, setResidents] = useState<
     Array<{ casela: number; name: string }>
   >([]);
-  const [cabinetList, setCabinetList] = useState<
-    Array<{ numero: number; categoria: string }>
-  >([]);
-  const [drawerList, setDrawerList] = useState<
-    Array<{ numero: number; categoria: string }>
-  >([]);
-
-  const cabinetCatMap = useMemo(
-    () => cabinetCategoryByNumero(cabinetList),
-    [cabinetList],
-  );
-  const drawerCatMap = useMemo(
-    () => drawerCategoryByNumero(drawerList),
-    [drawerList],
-  );
+  const [drawerCategoryByNum, setDrawerCategoryByNum] = useState<
+    Map<number, string>
+  >(() => new Map());
 
   async function loadStock(pageToLoad: number, currentFilters = filters) {
     setLoading(true);
@@ -165,19 +159,30 @@ export default function Stock() {
         currentFilters,
         filter,
       );
-      setItems(formatStockItems(data));
-      setHasNext(hasNext);
+      let formatted = formatStockItems(data);
+      const previewFill = previewMode && formatted.length === 0;
+      if (previewFill) {
+        formatted = getPreviewStockItems();
+      }
+      setItems(formatted);
+      setHasNext(previewFill ? false : hasNext);
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Não foi possível carregar os itens do estoque.";
-      toast({
-        title: "Erro ao carregar estoque",
-        description: errorMessage,
-        variant: "error",
-        duration: 3000,
-      });
+      if (previewMode) {
+        setItems(getPreviewStockItems());
+        setHasNext(false);
+      } else {
+        const errorMessage = getErrorMessage(
+          err,
+          "Não foi possível carregar os itens do estoque.",
+          "Stock:loadItems",
+        );
+        toast({
+          title: "Erro ao carregar estoque",
+          description: errorMessage,
+          variant: "error",
+          duration: 3000,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -188,16 +193,25 @@ export default function Stock() {
       const res = await getStockFilterOptions();
       setApiFilterOptions(res ?? null);
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Não foi possível carregar as opções de filtro.";
-      toast({
-        title: "Erro ao carregar opções",
-        description: errorMessage,
-        variant: "error",
-        duration: 3000,
-      });
+      if (previewMode) {
+        setApiFilterOptions({
+          cabinets: PREVIEW_CABINETS.map((c) => c.numero),
+          caselas: PREVIEW_RESIDENTS.map((r) => r.casela),
+          lots: ["LT-DEMO"],
+        });
+      } else {
+        const errorMessage = getErrorMessage(
+          err,
+          "Não foi possível carregar as opções de filtro.",
+          "Stock:filterOptions",
+        );
+        toast({
+          title: "Erro ao carregar opções",
+          description: errorMessage,
+          variant: "error",
+          duration: 3000,
+        });
+      }
     }
   }
 
@@ -214,48 +228,50 @@ export default function Stock() {
         })),
       );
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Não foi possível carregar os residentes.";
-      toast({
-        title: "Erro ao carregar residentes",
-        description: errorMessage,
-        variant: "error",
-        duration: 3000,
-      });
+      if (previewMode) {
+        setResidents(
+          PREVIEW_RESIDENTS.map((r) => ({ casela: r.casela, name: r.name })),
+        );
+      } else {
+        const errorMessage = getErrorMessage(
+          err,
+          "Não foi possível carregar os residentes.",
+          "Stock:residents",
+        );
+        toast({
+          title: "Erro ao carregar residentes",
+          description: errorMessage,
+          variant: "error",
+          duration: 3000,
+        });
+      }
     }
   }
 
-  async function loadCabinetDrawerCatalog() {
+  async function loadDrawerLabels() {
     try {
-      const [cabs, drs] = await Promise.all([
-        fetchAllPaginated((page, limit) => getCabinets(page, limit), 100),
-        fetchAllPaginated((page, limit) => getDrawers(page, limit), 100),
-      ]);
-      setCabinetList(
-        cabs.map((c: { numero: number; categoria: string }) => ({
-          numero: c.numero,
-          categoria: c.categoria,
-        })),
+      const allDrawers = await fetchAllPaginated(
+        (page, limit) => getDrawers(page, limit),
+        100,
       );
-      setDrawerList(
-        drs.map((d: { numero: number; categoria: string }) => ({
-          numero: d.numero,
-          categoria: d.categoria,
-        })),
-      );
-    } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Não foi possível carregar armários e gavetas.";
-      toast({
-        title: "Erro ao carregar catálogo",
-        description: errorMessage,
-        variant: "error",
-        duration: 3000,
-      });
+      const m = new Map<number, string>();
+      for (const d of allDrawers as Array<{
+        numero: number;
+        categoria?: string;
+      }>) {
+        if (d.categoria) m.set(d.numero, d.categoria);
+      }
+      setDrawerCategoryByNum(m);
+    } catch {
+      if (previewMode) {
+        const m = new Map<number, string>();
+        for (const d of PREVIEW_DRAWERS) {
+          if (d.categoria) m.set(d.numero, d.categoria);
+        }
+        setDrawerCategoryByNum(m);
+      } else {
+        setDrawerCategoryByNum(new Map());
+      }
     }
   }
 
@@ -266,7 +282,7 @@ export default function Stock() {
         loadStock(1),
         loadFilterOptions(),
         loadResidents(),
-        loadCabinetDrawerCatalog(),
+        loadDrawerLabels(),
       ]);
     }
 
@@ -326,42 +342,49 @@ export default function Stock() {
       buildFilterOptionsFromApi(apiFilterOptions, {
         residents,
         setor: filters.setor,
-        uiDisplay,
-        cabinets: cabinetList,
+        displayCasela: uiDisplay.casela,
+        caselaSetor: uiDisplay.caselaSetor,
+        armarioMode: uiDisplay.armario,
       }),
-    [apiFilterOptions, residents, filters.setor, uiDisplay, cabinetList],
+    [
+      apiFilterOptions,
+      residents,
+      filters.setor,
+      uiDisplay.casela,
+      uiDisplay.caselaSetor,
+      uiDisplay.armario,
+    ],
   );
 
   const displayItems = useMemo(() => {
     return items.map((item) => {
-      const res =
-        item.casela != null
-          ? residents.find((r) => r.casela === item.casela)
-          : undefined;
-      const caselaDisplay = formatCaselaDisplay(
-        item.casela,
-        res?.name,
-        uiDisplay,
-        item.sector,
-      );
-      const cabNum = typeof item.cabinet === "number" ? item.cabinet : null;
-      const drwNum = typeof item.drawer === "number" ? item.drawer : null;
-      return {
-        ...item,
-        cabinetDisplay: formatArmarioDisplay(
-          cabNum,
-          cabNum != null ? (cabinetCatMap.get(cabNum) ?? null) : null,
-          uiDisplay.armario,
-        ),
-        drawerDisplay: formatGavetaDisplay(
-          drwNum,
-          drwNum != null ? (drawerCatMap.get(drwNum) ?? null) : null,
-          uiDisplay.gaveta,
-        ),
-        caselaDisplay,
-      };
+      const caselaId = item.casela;
+      const residentName =
+        item.patient && item.patient !== "-"
+          ? item.patient
+          : caselaId != null
+            ? residents.find((r) => r.casela === caselaId)?.name
+            : undefined;
+      const caselaDisplay = formatCaselaLabel(uiDisplay.casela, {
+        caselaId,
+        residentName,
+      });
+      const numDrawer =
+        typeof item.drawer === "number"
+          ? item.drawer
+          : item.drawer === "-" || item.drawer == null
+            ? null
+            : Number(item.drawer);
+      const drawerDisplay = formatGavetaLabel(uiDisplay.gaveta, {
+        gavetaId: numDrawer,
+        categoriaNome:
+          numDrawer != null && !Number.isNaN(numDrawer)
+            ? drawerCategoryByNum.get(numDrawer)
+            : undefined,
+      });
+      return { ...item, caselaDisplay, drawerDisplay };
     });
-  }, [items, residents, uiDisplay, cabinetCatMap, drawerCatMap]);
+  }, [items, residents, uiDisplay, drawerCategoryByNum]);
 
   const filteredCabinets = useMemo(() => {
     if (!armarioSearch) return filterOptions.cabinets;
@@ -390,7 +413,7 @@ export default function Stock() {
     { key: "description", label: "Descrição", editable: true },
     { key: "expiry", label: "Validade", editable: true },
     { key: "quantity", label: "Quantidade", editable: true },
-    { key: "cabinetDisplay", label: "Armário", editable: false },
+    { key: "cabinet", label: "Armário", editable: false },
     { key: "drawerDisplay", label: "Gaveta", editable: false },
     { key: "caselaDisplay", label: "Casela", editable: false },
     { key: "daysToReplacement", label: "Dias para Repor", editable: false },
@@ -479,10 +502,11 @@ export default function Stock() {
         duration: 3000,
       });
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Ocorreu um erro ao executar a ação.";
+      const errorMessage = getErrorMessage(
+        err,
+        "Não foi possível concluir a ação. Tente novamente.",
+        "Stock:rowAction",
+      );
 
       const messages =
         typeof actionMessages[type] === "function"
@@ -534,10 +558,11 @@ export default function Stock() {
       const messages = actionMessages.transfer(row);
       toast({ title: messages.success, variant: "success", duration: 3000 });
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Ocorreu um erro ao transferir o item.";
+      const errorMessage = getErrorMessage(
+        err,
+        "Não foi possível transferir o item. Tente novamente.",
+        "Stock:transfer",
+      );
 
       const messages = actionMessages.transfer(row);
       toast({
@@ -563,9 +588,22 @@ export default function Stock() {
       <div className="space-y-6 max-w-7xl mx-auto">
         <div className="flex flex-wrap gap-3 justify-end mt-8">
           <button
-            onClick={() => navigate("/stock/out")}
+            onClick={() => {
+              if (!canSaida) {
+                toast({
+                  title: "Sem permissão",
+                  description:
+                    "Você não tem permissão para dar saída no estoque.",
+                  variant: "error",
+                  duration: 3000,
+                });
+                return;
+              }
+              router.push("/stock/out");
+            }}
+            disabled={previewMode}
             className="
-                h-12 px-6 rounded-lg font-semiboldfetchStockPage
+                h-12 px-6 rounded-lg font-semibold
                 bg-red-600 text-white
                 shadow-md hover:bg-red-700 hover:shadow-lg active:bg-red-800 active:shadow-xl
                 disabled:opacity-50 disabled:cursor-not-allowed
@@ -576,11 +614,23 @@ export default function Stock() {
           </button>
 
           <button
-            onClick={() => setReportModalOpen(true)}
+            onClick={() => {
+              if (!canReports) {
+                toast({
+                  title: "Sem permissão",
+                  description: "Você não tem permissão para gerar relatórios.",
+                  variant: "error",
+                  duration: 3000,
+                });
+                return;
+              }
+              setReportModalOpen(true);
+            }}
+            disabled={previewMode}
             className="
                 h-12 px-6 rounded-lg font-semibold
-                bg-sky-600 text-white
-                shadow-md hover:bg-sky-700 hover:shadow-lg active:bg-sky-800 active:shadow-xl
+                bg-primary text-primary-foreground
+                shadow-md hover:bg-primary/90 hover:shadow-lg active:bg-primary/80 active:shadow-xl
                 disabled:opacity-50 disabled:cursor-not-allowed
                 transition-all ease-in-out duration-200
               "
@@ -591,9 +641,9 @@ export default function Stock() {
 
         {filter && FILTER_LABELS[filter] && (
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm text-slate-600">
+            <span className="text-sm text-muted-foreground">
               Exibindo:{" "}
-              <span className="font-medium text-slate-800">
+              <span className="font-medium text-foreground">
                 {FILTER_LABELS[filter]}
               </span>
             </span>
@@ -601,9 +651,9 @@ export default function Stock() {
               type="button"
               onClick={() => {
                 setPage(1);
-                navigate("/stock");
+                router.push("/stock");
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary hover:text-primary/90 hover:bg-accent rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <X className="h-4 w-4" />
               Limpar filtro
@@ -733,7 +783,13 @@ export default function Stock() {
                         {filters.casela
                           ? (filterOptions.caselas.find(
                               (c) => c.value === filters.casela,
-                            )?.label ?? `Casela ${filters.casela}`)
+                            )?.label ??
+                            formatCaselaLabel(uiDisplay.casela, {
+                              caselaId: Number(filters.casela),
+                              residentName: residents.find(
+                                (r) => r.casela === Number(filters.casela),
+                              )?.name,
+                            }))
                           : "Selecione"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
@@ -790,6 +846,7 @@ export default function Stock() {
               data={displayItems as unknown as Record<string, unknown>[]}
               columns={columns}
               showAddons={true}
+              readOnly={previewMode}
               currentPage={page}
               hasNextPage={hasNext}
               onNextPage={() => setPage((p) => p + 1)}

@@ -1,3 +1,5 @@
+import type { EffectivePermissionMatrixSerialized } from "@/domain/permission-matrix.types";
+
 export interface UserPermissions {
   read: boolean;
   create: boolean;
@@ -12,6 +14,7 @@ export interface AdminUser {
   lastName: string;
   role: "admin" | "user";
   permissions?: UserPermissions;
+  permissionMatrix?: EffectivePermissionMatrixSerialized;
 }
 
 export interface AuditEvent {

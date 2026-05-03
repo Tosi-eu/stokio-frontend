@@ -1,32 +1,35 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Controller } from "react-hook-form";
 import Layout from "@/components/Layout";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { consumeSpaNavigationState } from "@/helpers/spa-navigation-state.helper";
 import { toast } from "@/hooks/use-toast.hook";
 import { getErrorMessage } from "@/helpers/validation.helper";
 import { useFormWithZod } from "@/hooks/use-form-with-zod";
 import { editMedicineSchema } from "@/schemas/edit-medicine.schema";
 import { updateMedicine } from "@/api/requests";
-import {
-  MEASUREMENT_UNIT_LABEL,
-  MeasurementUnit,
-} from "@/pages/RegisterMedicine";
-
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectValue,
-  SelectItem,
-} from "@/components/ui/select";
+import { MeasurementUnitCombobox } from "@/components/MeasurementUnitCombobox";
 
 export default function EditMedicine() {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const router = useRouter();
+  const navState = useMemo(
+    () =>
+      consumeSpaNavigationState<{
+        item?: {
+          id: number;
+          nome?: string;
+          principio_ativo?: string;
+          dosagem?: string;
+          unidade_medida?: string;
+          estoque_minimo?: number;
+        };
+      }>(),
+    [],
+  );
 
   const [medicineId, setMedicineId] = useState<number | null>(null);
 
@@ -47,8 +50,8 @@ export default function EditMedicine() {
   });
 
   useEffect(() => {
-    if (location.state?.item) {
-      const item = location.state.item;
+    if (navState?.item) {
+      const item = navState.item;
       const id = setTimeout(() => {
         setMedicineId(item.id);
         reset({
@@ -61,7 +64,7 @@ export default function EditMedicine() {
       }, 0);
       return () => clearTimeout(id);
     }
-  }, [location.state, reset]);
+  }, [navState, reset]);
 
   const onSubmit = async (data: {
     nome: string;
@@ -96,7 +99,7 @@ export default function EditMedicine() {
         duration: 3000,
       });
 
-      navigate("/medicines");
+      router.push("/medicines");
     } catch (err: unknown) {
       toast({
         title: "Erro ao atualizar",
@@ -177,24 +180,14 @@ export default function EditMedicine() {
                   control={control}
                   render={({ field }) => (
                     <>
-                      <Select
+                      <MeasurementUnitCombobox
                         value={field.value}
                         onValueChange={field.onChange}
                         disabled={isSubmitting}
-                      >
-                        <SelectTrigger className="bg-white" id="unidade_medida">
-                          <SelectValue placeholder="Unidade" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(
-                            Object.values(MeasurementUnit) as MeasurementUnit[]
-                          ).map((unit) => (
-                            <SelectItem key={unit} value={unit}>
-                              {MEASUREMENT_UNIT_LABEL[unit]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        id="unidade_medida"
+                        placeholder="Unidade"
+                        aria-invalid={Boolean(errors.unidade_medida)}
+                      />
                       {errors.unidade_medida && (
                         <p className="text-sm text-red-600 mt-1">
                           {errors.unidade_medida.message}
@@ -226,7 +219,7 @@ export default function EditMedicine() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate("/medicines")}
+                onClick={() => router.push("/medicines")}
                 disabled={isSubmitting}
                 className="rounded-lg"
               >
@@ -236,7 +229,7 @@ export default function EditMedicine() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-sky-600 hover:bg-sky-700 text-white rounded-lg"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg"
               >
                 {isSubmitting ? "Salvando..." : "Salvar Alterações"}
               </Button>

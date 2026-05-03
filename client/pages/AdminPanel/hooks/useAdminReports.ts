@@ -15,6 +15,10 @@ import {
 import { parseYearMonthToDate } from "@/helpers/dates.helper";
 import { pdf } from "@react-pdf/renderer";
 import type { ResidentOption } from "../types";
+import {
+  getErrorMessage,
+  USER_FACING_RETRY_SHORT,
+} from "@/helpers/validation.helper";
 
 export function useAdminReports(enabled = true) {
   const [selectedReportType, setSelectedReportType] = useState("");
@@ -58,11 +62,6 @@ export function useAdminReports(enabled = true) {
     [reportResidents, reportResidentSearch],
   );
 
-  useEffect(() => {
-    if (enabled && showReportResidentSelector) loadReportResidents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional deps
-  }, [enabled, selectedReportType]);
-
   async function loadReportResidents() {
     setLoadingReportResidents(true);
     try {
@@ -79,6 +78,11 @@ export function useAdminReports(enabled = true) {
       setLoadingReportResidents(false);
     }
   }
+
+  useEffect(() => {
+    if (enabled && showReportResidentSelector) void loadReportResidents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional deps
+  }, [enabled, selectedReportType]);
 
   async function handleGenerateReport() {
     if (!selectedReportType) {
@@ -289,9 +293,14 @@ export function useAdminReports(enabled = true) {
       }
       await downloadAdminExportCSV(params);
       toast({ title: "Exportação CSV concluída", variant: "success" });
-    } catch (e) {
+    } catch (e: unknown) {
       toast({
-        title: e instanceof Error ? e.message : "Erro ao exportar CSV",
+        title: "Não foi possível exportar",
+        description: getErrorMessage(
+          e,
+          USER_FACING_RETRY_SHORT,
+          "useAdminReports:csvExport",
+        ),
         variant: "error",
       });
     }

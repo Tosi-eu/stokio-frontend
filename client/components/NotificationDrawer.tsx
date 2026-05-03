@@ -14,9 +14,15 @@ import { useNotifications } from "@/hooks/use-notification.hook";
 import { getNotifications, updateNotification } from "@/api/requests";
 import { EventStatus } from "@/utils/enums";
 import { AnimatePresence, motion } from "framer-motion";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import {
+  getPreviewNotificationsReceita,
+  getPreviewNotificationsReposicao,
+} from "@/helpers/preview-mock-data";
 
 export function NotificationDrawer() {
   const { open, setOpen, triggerReload, setCount } = useNotifications();
+  const { previewMode } = useTenant();
 
   const [items, setItems] = useState<any[]>([]);
   const [page, setPage] = useState(1);
@@ -32,7 +38,6 @@ export function NotificationDrawer() {
 
   const [filterResidentName, setFilterResidentName] = useState("");
 
-  // Timeout para filtro leve
   const [filterTimeout, setFilterTimeout] = useState<NodeJS.Timeout | null>(
     null,
   );
@@ -41,9 +46,28 @@ export function NotificationDrawer() {
     async (p = 1, append = false) => {
       setLoading(true);
       try {
+        if (previewMode) {
+          const raw =
+            activeTab === "receita"
+              ? getPreviewNotificationsReceita()
+              : getPreviewNotificationsReposicao();
+          const term = filterResidentName.trim().toLowerCase();
+          const filtered = term
+            ? raw.filter((n) =>
+                String(n.residente_nome ?? "")
+                  .toLowerCase()
+                  .includes(term),
+              )
+            : raw;
+          setItems((prev) => (append ? [...prev, ...filtered] : filtered));
+          setCount(filtered.length);
+          setHasNext(false);
+          return;
+        }
+
         const params: Parameters<typeof getNotifications>[0] = {
           page: p,
-          limit: 5, // limite ajustado
+          limit: 5,
           type: activeTab === "receita" ? "medicamento" : "reposicao_estoque",
           status: EventStatus.PENDENTE,
           residente_nome: filterResidentName || undefined,
@@ -71,10 +95,9 @@ export function NotificationDrawer() {
         setLoading(false);
       }
     },
-    [activeTab, filterResidentName, setCount],
+    [activeTab, filterResidentName, previewMode, setCount],
   );
 
-  // Carrega itens quando o drawer abre ou muda de aba
   useEffect(() => {
     if (open) {
       setMode("list");
@@ -84,7 +107,6 @@ export function NotificationDrawer() {
     }
   }, [open, triggerReload, activeTab, fetchItems]);
 
-  // Atualiza itens quando o filtro muda, com delay de 300ms
   useEffect(() => {
     if (filterTimeout) clearTimeout(filterTimeout);
 
@@ -96,7 +118,6 @@ export function NotificationDrawer() {
     setFilterTimeout(timeout);
 
     return () => clearTimeout(timeout);
-    // filterTimeout is a ref set by this effect; omit to avoid re-running on its change
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterResidentName, fetchItems]);
 
@@ -105,6 +126,15 @@ export function NotificationDrawer() {
     status: "sent" | "cancelled",
     message: string,
   ) => {
+    if (previewMode) {
+      toast({
+        title: "Modo de visualização",
+        description: "Não é possível alterar notificações na demonstração.",
+        variant: "warning",
+        duration: 3500,
+      });
+      return;
+    }
     try {
       await updateNotification(id, { status });
       toast({ title: message, variant: "success", duration: 3000 });
@@ -141,7 +171,7 @@ export function NotificationDrawer() {
               <button
                 className={`flex-1 py-2 text-sm font-medium ${
                   activeTab === "receita"
-                    ? "border-b-2 border-sky-600 text-sky-600"
+                    ? "border-b-2 border-primary text-primary"
                     : "text-slate-500"
                 }`}
                 onClick={() => {
@@ -154,7 +184,7 @@ export function NotificationDrawer() {
               <button
                 className={`flex-1 py-2 text-sm font-medium ${
                   activeTab === "reposicao"
-                    ? "border-b-2 border-sky-600 text-sky-600"
+                    ? "border-b-2 border-primary text-primary"
                     : "text-slate-500"
                 }`}
                 onClick={() => {
@@ -229,6 +259,16 @@ export function NotificationDrawer() {
                             )
                           }
                           onEdit={() => {
+                            if (previewMode) {
+                              toast({
+                                title: "Modo de visualização",
+                                description:
+                                  "Edição de notificações não está disponível na demonstração.",
+                                variant: "warning",
+                                duration: 3500,
+                              });
+                              return;
+                            }
                             setMode("create");
                             setEditingNotification({
                               medicamento_id: n.medicamento_id,
@@ -269,7 +309,7 @@ export function NotificationDrawer() {
               {items.length > 0 && hasNext && (
                 <div className="text-center py-2">
                   <button
-                    className="text-sky-600 hover:text-sky-700 font-medium"
+                    className="text-primary hover:text-primary/90 font-medium"
                     onClick={() => {
                       const nextPage = page + 1;
                       setPage(nextPage);
@@ -283,9 +323,9 @@ export function NotificationDrawer() {
             </div>
 
             <DrawerFooter>
-              {activeTab === "receita" && (
+              {activeTab === "receita" && !previewMode ? (
                 <button
-                  className="bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700"
+                  className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90"
                   onClick={() => {
                     setMode("create");
                     setEditingNotification(null);
@@ -293,12 +333,12 @@ export function NotificationDrawer() {
                 >
                   Criar Notificação
                 </button>
-              )}
+              ) : null}
             </DrawerFooter>
           </>
         )}
 
-        {mode === "create" && activeTab === "receita" && (
+        {mode === "create" && activeTab === "receita" && !previewMode && (
           <>
             <div className="pt-2">
               <CreateNotificationForm
@@ -315,7 +355,7 @@ export function NotificationDrawer() {
               <button
                 form="create-notification-form"
                 type="submit"
-                className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg w-full"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg w-full"
               >
                 {editingNotification
                   ? "Salvar Alterações"

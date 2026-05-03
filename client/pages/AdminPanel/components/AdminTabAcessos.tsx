@@ -19,16 +19,7 @@ import {
 } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { LoginLogEntry } from "@/api/requests";
-
-function formatDate(s: string | null) {
-  if (!s) return "-";
-  try {
-    const d = new Date(s);
-    return d.toLocaleString("pt-BR");
-  } catch {
-    return s;
-  }
-}
+import { formatDateTimePtBr } from "@/helpers/dates.helper";
 
 interface AdminTabAcessosProps {
   data: LoginLogEntry[];
@@ -161,14 +152,16 @@ export function AdminTabAcessos({
                     data.map((row) => (
                       <TableRow key={row.id}>
                         <TableCell className="whitespace-nowrap">
-                          {formatDate(row.created_at)}
+                          {row.created_at
+                            ? formatDateTimePtBr(row.created_at)
+                            : "-"}
                         </TableCell>
                         <TableCell>{row.login}</TableCell>
                         <TableCell>
                           <span
                             className={
                               row.success
-                                ? "text-green-600 font-medium"
+                                ? "text-primary font-medium"
                                 : "text-red-600 font-medium"
                             }
                           >

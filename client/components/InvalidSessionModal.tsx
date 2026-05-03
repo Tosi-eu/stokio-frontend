@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -19,13 +19,13 @@ export function InvalidSessionModal({
   open,
   onClose,
 }: InvalidSessionModalProps) {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleGoToLogin = () => {
     sessionStorage.removeItem("user");
     sessionStorage.removeItem("token");
     onClose();
-    navigate("/user/login", { replace: true });
+    router.replace("/user/login");
   };
 
   return (
@@ -63,12 +63,7 @@ export function InvalidSessionModal({
               </DialogHeader>
 
               <div className="flex justify-end gap-3 mt-6">
-                <Button
-                  onClick={handleGoToLogin}
-                  className="bg-sky-600 hover:bg-sky-700 text-white"
-                >
-                  Ir para Login
-                </Button>
+                <Button onClick={handleGoToLogin}>Ir para Login</Button>
               </div>
             </motion.div>
           </DialogContent>

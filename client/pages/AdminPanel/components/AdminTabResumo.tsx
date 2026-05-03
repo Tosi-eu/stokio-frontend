@@ -38,7 +38,7 @@ import {
 import {
   Users,
   Pill,
-  Package,
+  Bandage,
   Archive,
   Grid,
   Loader2,
@@ -57,6 +57,11 @@ import type {
   AdminMetricsResponse,
   StockHistoryEntry,
 } from "@/api/requests";
+import {
+  formatDateTimePtBr,
+  formatDateToPtBr,
+  formatValidityDate,
+} from "@/helpers/dates.helper";
 
 interface AdminTabResumoProps {
   metrics?: AdminMetricsResponse | null;
@@ -196,7 +201,6 @@ export function AdminTabResumo({
   }, [metricsDialog]);
 
   useEffect(() => {
-    // Reset pagination when switching the expanded summary list
     const id = setTimeout(() => setSummaryListPage(1), 0);
     return () => clearTimeout(id);
   }, [expandedSummary]);
@@ -262,7 +266,7 @@ export function AdminTabResumo({
                   >
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2">
-                        <Activity className="h-8 w-8 text-blue-600" />
+                        <Activity className="h-8 w-8 text-primary" />
                         <div>
                           <p className="text-2xl font-bold">
                             {metrics.movementsThisMonth}
@@ -283,7 +287,7 @@ export function AdminTabResumo({
                   >
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-2">
-                        <LogIn className="h-8 w-8 text-green-600" />
+                        <LogIn className="h-8 w-8 text-sky-600" />
                         <div>
                           <p className="text-2xl font-bold">
                             {metrics.activeUsersThisMonth}
@@ -302,12 +306,12 @@ export function AdminTabResumo({
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <Card
-                  className={`bg-slate-50 cursor-pointer transition-all hover:shadow-md ${expandedSummary === "residents" ? "ring-2 ring-sky-500" : ""}`}
+                  className={`bg-muted/40 cursor-pointer transition-all hover:shadow-md ${expandedSummary === "residents" ? "ring-2 ring-primary" : ""}`}
                   onClick={() => loadSummaryList("residents")}
                 >
                   <CardContent className="pt-4">
                     <div className="flex items-center gap-2">
-                      <Users className="h-8 w-8 text-sky-600" />
+                      <Users className="h-8 w-8 text-primary" />
                       <div>
                         <p className="text-2xl font-bold">
                           {summary.residents}
@@ -323,12 +327,12 @@ export function AdminTabResumo({
                   </CardContent>
                 </Card>
                 <Card
-                  className={`bg-slate-50 cursor-pointer transition-all hover:shadow-md ${expandedSummary === "medicines" ? "ring-2 ring-emerald-500" : ""}`}
+                  className={`bg-muted/40 cursor-pointer transition-all hover:shadow-md ${expandedSummary === "medicines" ? "ring-2 ring-primary" : ""}`}
                   onClick={() => loadSummaryList("medicines")}
                 >
                   <CardContent className="pt-4">
                     <div className="flex items-center gap-2">
-                      <Pill className="h-8 w-8 text-emerald-600" />
+                      <Pill className="h-8 w-8 text-primary" />
                       <div>
                         <p className="text-2xl font-bold">
                           {summary.medicines}
@@ -344,12 +348,12 @@ export function AdminTabResumo({
                   </CardContent>
                 </Card>
                 <Card
-                  className={`bg-slate-50 cursor-pointer transition-all hover:shadow-md ${expandedSummary === "inputs" ? "ring-2 ring-amber-500" : ""}`}
+                  className={`bg-muted/40 cursor-pointer transition-all hover:shadow-md ${expandedSummary === "inputs" ? "ring-2 ring-amber-500" : ""}`}
                   onClick={() => loadSummaryList("inputs")}
                 >
                   <CardContent className="pt-4">
                     <div className="flex items-center gap-2">
-                      <Package className="h-8 w-8 text-amber-600" />
+                      <Bandage className="h-8 w-8 text-amber-600" />
                       <div>
                         <p className="text-2xl font-bold">{summary.inputs}</p>
                         <p className="text-sm text-muted-foreground">Insumos</p>
@@ -361,12 +365,12 @@ export function AdminTabResumo({
                   </CardContent>
                 </Card>
                 <Card
-                  className={`bg-slate-50 cursor-pointer transition-all hover:shadow-md ${expandedSummary === "cabinets" ? "ring-2 ring-violet-500" : ""}`}
+                  className={`bg-muted/40 cursor-pointer transition-all hover:shadow-md ${expandedSummary === "cabinets" ? "ring-2 ring-primary/70" : ""}`}
                   onClick={() => loadSummaryList("cabinets")}
                 >
                   <CardContent className="pt-4">
                     <div className="flex items-center gap-2">
-                      <Archive className="h-8 w-8 text-violet-600" />
+                      <Archive className="h-8 w-8 text-primary" />
                       <div>
                         <p className="text-2xl font-bold">{summary.cabinets}</p>
                         <p className="text-sm text-muted-foreground">
@@ -380,12 +384,12 @@ export function AdminTabResumo({
                   </CardContent>
                 </Card>
                 <Card
-                  className={`bg-slate-50 cursor-pointer transition-all hover:shadow-md ${expandedSummary === "drawers" ? "ring-2 ring-rose-500" : ""}`}
+                  className={`bg-muted/40 cursor-pointer transition-all hover:shadow-md ${expandedSummary === "drawers" ? "ring-2 ring-sky-500/80" : ""}`}
                   onClick={() => loadSummaryList("drawers")}
                 >
                   <CardContent className="pt-4">
                     <div className="flex items-center gap-2">
-                      <Grid className="h-8 w-8 text-rose-600" />
+                      <Grid className="h-8 w-8 text-sky-600" />
                       <div>
                         <p className="text-2xl font-bold">{summary.drawers}</p>
                         <p className="text-sm text-muted-foreground">Gavetas</p>
@@ -673,7 +677,9 @@ export function AdminTabResumo({
                         <TableRow key={idx}>
                           <TableCell>{row.nome}</TableCell>
                           <TableCell>{row.tipo_item}</TableCell>
-                          <TableCell>{row.validade}</TableCell>
+                          <TableCell>
+                            {formatValidityDate(row.validade)}
+                          </TableCell>
                           <TableCell>{row.dias_para_vencer}</TableCell>
                           <TableCell>{row.quantidade}</TableCell>
                           <TableCell>{row.setor}</TableCell>
@@ -941,7 +947,7 @@ export function AdminTabResumo({
                   <TableBody>
                     {stockHistoryData.map((row) => (
                       <TableRow key={row.id}>
-                        <TableCell>{row.data}</TableCell>
+                        <TableCell>{formatDateToPtBr(row.data)}</TableCell>
                         <TableCell>{row.tipo}</TableCell>
                         <TableCell>{row.nome}</TableCell>
                         <TableCell>{row.quantidade}</TableCell>
@@ -1064,7 +1070,7 @@ export function AdminTabResumo({
                           .join(" ")
                           .trim();
                         const last = u.last_login_at
-                          ? new Date(u.last_login_at).toLocaleString("pt-BR")
+                          ? formatDateTimePtBr(u.last_login_at)
                           : "-";
                         return (
                           <TableRow key={u.id}>
@@ -1095,7 +1101,7 @@ export function AdminTabResumo({
                     movementsRows.map((m) => (
                       <TableRow key={m.id}>
                         <TableCell className="whitespace-nowrap">
-                          {m.data}
+                          {formatDateToPtBr(m.data)}
                         </TableCell>
                         <TableCell>{m.tipo}</TableCell>
                         <TableCell>{m.nome}</TableCell>

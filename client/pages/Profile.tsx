@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast.hook";
 import Layout from "@/components/Layout";
 import { getCurrentUser, updateUser } from "@/api/requests";
@@ -20,11 +20,16 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
+import { APP_PUBLIC_NAME } from "@/constants/app-branding";
 import { VALIDATION_LIMITS } from "@/constants/app.constants";
 import { authStorage } from "@/helpers/auth.helper";
+import {
+  getErrorMessage,
+  USER_FACING_RETRY_SHORT,
+} from "@/helpers/validation.helper";
 
 export default function Profile() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toast } = useToast();
   const [logoutOpen, setLogoutOpen] = useState(false);
 
@@ -109,8 +114,12 @@ export default function Profile() {
       });
     } catch (err: unknown) {
       toast({
-        title: "Erro",
-        description: err instanceof Error ? err.message : "Erro inesperado",
+        title: "Não foi possível atualizar o perfil",
+        description: getErrorMessage(
+          err,
+          USER_FACING_RETRY_SHORT,
+          "Profile:update",
+        ),
         variant: "error",
         duration: 3000,
       });
@@ -119,7 +128,7 @@ export default function Profile() {
 
   const handleLogout = () => {
     authStorage.clearAll();
-    navigate("/user/login");
+    router.push("/user/login");
   };
 
   return (
@@ -242,7 +251,7 @@ export default function Profile() {
               <CardFooter className="flex gap-2 px-0">
                 <Button
                   type="submit"
-                  className="w-full bg-sky-600 hover:bg-sky-700"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? "Salvando..." : "Salvar"}
@@ -263,7 +272,7 @@ export default function Profile() {
       </div>
 
       <div className="text-center text-xs text-slate-400">
-        © {new Date().getFullYear()} Abrigo Helena Dornfeld
+        © {new Date().getFullYear()} {APP_PUBLIC_NAME}
       </div>
     </Layout>
   );

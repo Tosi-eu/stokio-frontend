@@ -6,6 +6,7 @@ import {
 } from "@/utils/enums";
 import { ReactNode } from "react";
 import { StockExpiryStatus, StockQuantityStatus } from "./types";
+import type { EffectivePermissionMatrixSerialized } from "@/domain/permission-matrix.types";
 
 export interface RawStockMedicine {
   id?: number;
@@ -51,6 +52,7 @@ export interface LayoutProps {
   children: ReactNode;
   title?: string;
   breadcrumb?: BreadcrumbItem[];
+  minimal?: boolean;
 }
 
 export interface DeletePopUpProps {
@@ -70,13 +72,30 @@ export interface LoggedUser {
   login: string;
   first_name?: string;
   last_name?: string;
+  firstName?: string;
+  lastName?: string;
   role?: "admin" | "user";
+  tenantId?: number;
+
+  permissions?: {
+    read: boolean;
+    create: boolean;
+    update: boolean;
+    delete: boolean;
+  };
+  permissionMatrix?: EffectivePermissionMatrixSerialized;
+  isTenantOwner?: boolean;
+  is_tenant_owner?: boolean;
+  isSuperAdmin?: boolean;
+  is_super_admin?: boolean;
 }
 
 export interface AuthContextType {
   user: LoggedUser | null;
-  login: (login: string, password: string) => Promise<void>;
+  login: (login: string, password: string, tenantSlug: string) => Promise<void>;
   logout: () => void;
+
+  patchStoredUser: (partial: Partial<LoggedUser>) => void;
 }
 
 export interface Patient {
@@ -365,6 +384,11 @@ export interface RawMovement {
 
   CabinetModel?: {
     num_armario?: number;
+  };
+
+  DrawerModel?: {
+    num_gaveta?: number;
+    DrawerCategoryModel?: { nome?: string };
   };
 }
 

@@ -1,15 +1,28 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast.hook";
+import { getAdminConfig, updateAdminConfig } from "@/api/requests";
 import {
-  getAdminConfig,
-  updateAdminConfig,
-  getAdminHealth,
-} from "@/api/requests";
-import type { AdminHealthResponse } from "@/api/requests";
+  getErrorMessage,
+  USER_FACING_RETRY_SHORT,
+} from "@/helpers/validation.helper";
+import type { AdminSystemConfig } from "@/api/requests";
 
 export const CONFIG_KEYS = {
   expiring_days: "Dias para considerar “próximo ao vencimento”",
   estoque_minimo_padrao: "Estoque mínimo padrão (novos itens)",
+  display_casela: "Identificação de casela (estoque, movimentações, filtros)",
+  display_gaveta: "Identificação de gaveta (estoque, movimentações)",
+} as const;
+
+export const CONFIG_SELECT_KEYS = {
+  display_casela: [
+    { value: "nome", label: "Nome do residente" },
+    { value: "numero", label: "Número da casela" },
+  ],
+  display_gaveta: [
+    { value: "categoria", label: "Categoria da gaveta" },
+    { value: "numero", label: "Número da gaveta" },
+  ],
 } as const;
 
 export const DISPLAY_CONFIG_KEYS = {
@@ -40,21 +53,18 @@ export const DISPLAY_SELECT_OPTIONS = {
   ],
 } as const;
 
-const DEFAULT_VALUES: Record<string, string> = {
+const DEFAULT_VALUES: AdminSystemConfig = {
   expiring_days: "45",
   estoque_minimo_padrao: "0",
-  display_casela: "numero",
-  display_casela_setor: "todos",
-  display_armario: "numero",
+  display_casela: "nome",
   display_gaveta: "numero",
 };
 
 export function useAdminConfig(isAdmin: boolean, enabled = true) {
-  const [config, setConfig] = useState<Record<string, string>>({});
+  const [config, setConfig] = useState<AdminSystemConfig>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState<Record<string, string>>({});
-  const [health, setHealth] = useState<AdminHealthResponse | null>(null);
+  const [form, setForm] = useState<AdminSystemConfig>({});
 
   const load = useCallback(async () => {
     if (!isAdmin) return;
@@ -77,21 +87,6 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
     if (isAdmin && enabled) load();
   }, [isAdmin, enabled, load]);
 
-  const refetchHealth = useCallback(async () => {
-    if (!isAdmin) return;
-    try {
-      const h = await getAdminHealth();
-      setHealth(h);
-    } catch {
-      setHealth(null);
-    }
-  }, [isAdmin]);
-
-  useEffect(() => {
-    if (!isAdmin || !enabled) return;
-    void refetchHealth();
-  }, [isAdmin, enabled, refetchHealth]);
-
   async function save() {
     setSaving(true);
     try {
@@ -100,9 +95,14 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
       setForm(updated);
       window.dispatchEvent(new Event("ui-display-updated"));
       toast({ title: "Configurações salvas", variant: "success" });
-    } catch (e) {
+    } catch (e: unknown) {
       toast({
-        title: e instanceof Error ? e.message : "Erro ao salvar",
+        title: "Não foi possível guardar as configurações",
+        description: getErrorMessage(
+          e,
+          USER_FACING_RETRY_SHORT,
+          "useAdminConfig:save",
+        ),
         variant: "error",
       });
     } finally {
@@ -116,9 +116,7 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
     setForm,
     loading,
     saving,
-    health,
     load,
     save,
-    refetchHealth,
   };
 }
