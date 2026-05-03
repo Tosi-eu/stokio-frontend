@@ -46,7 +46,7 @@ export function AdminTabQualidade({ enabled }: { enabled: boolean }) {
 
   const [dupPage, setDupPage] = useState(1);
   const [dupTotal, setDupTotal] = useState(0);
-  const [dupRows, setDupRows] = useState<any[]>([]);
+  const [dupRows, setDupRows] = useState<Record<string, unknown>[]>([]);
   const [loadingDup, setLoadingDup] = useState(false);
 
   const totalPages = useMemo(

@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
 import { getErrorMessage } from "@/helpers/validation.helper";
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
+import type { PermissionResourceKey } from "@/domain/permission-matrix.types";
 
 import {
   deleteCabinet,
@@ -38,6 +39,33 @@ import {
 const typeMap: Record<string, string> = {
   Medicamento: "medicines",
   Insumo: "inputs",
+};
+
+const toPermissionResourceKey = (
+  v: string | null | undefined,
+): PermissionResourceKey | null => {
+  if (!v) return null;
+  // EditableTable recebe `entityType` e alguns aliases internos. Mantemos aqui
+  // a whitelist de chaves válidas do permission matrix.
+  const allowed: readonly PermissionResourceKey[] = [
+    "dashboard",
+    "residents",
+    "medicines",
+    "inputs",
+    "stock",
+    "movements",
+    "reports",
+    "notifications",
+    "admin",
+    "cabinets",
+    "drawers",
+    "cabinet_categories",
+    "drawer_categories",
+    "tenant",
+    "imports",
+    "profile",
+  ] as const;
+  return (allowed as readonly string[]).includes(v) ? (v as PermissionResourceKey) : null;
 };
 
 const tableVariants = {
@@ -180,7 +208,7 @@ export default function EditableTable({
   const resourceKey = useMemo(() => {
     const key =
       entityType === "entries" || entityType === "exits" ? "stock" : entityType;
-    return key ?? null;
+    return toPermissionResourceKey(key ?? null);
   }, [entityType]);
 
   const requirePermission = (
@@ -201,7 +229,7 @@ export default function EditableTable({
     if (
       resourceKey &&
       !requirePermission(
-        can(resourceKey as any, "create"),
+        can(resourceKey, "create"),
         "Você não tem permissão para criar novos registros.",
       )
     ) {
@@ -245,7 +273,7 @@ export default function EditableTable({
 
     if (
       !requirePermission(
-        can(type as any, "update"),
+        can(toPermissionResourceKey(type) ?? "dashboard", "update"),
         "Você não tem permissão para editar este item.",
       )
     ) {
@@ -307,7 +335,7 @@ export default function EditableTable({
     const row = rows[deleteIndex];
     if (!row) return;
 
-    if (resourceKey && !can(resourceKey as any, "delete")) {
+    if (resourceKey && !can(resourceKey, "delete")) {
       toast({
         title: "Sem permissão",
         description: "Você não tem permissão para excluir este item.",
@@ -495,7 +523,7 @@ export default function EditableTable({
                                   if (
                                     resourceKey &&
                                     !requirePermission(
-                                      can(resourceKey as any, "delete"),
+                                      can(resourceKey, "delete"),
                                       "Você não tem permissão para excluir itens.",
                                     )
                                   ) {
@@ -519,7 +547,7 @@ export default function EditableTable({
                                 onClick={() => {
                                   if (
                                     !requirePermission(
-                                      can("stock" as any, "update"),
+                                      can("stock", "update"),
                                       "Você não tem permissão para alterar associações no estoque.",
                                     )
                                   ) {
@@ -543,7 +571,7 @@ export default function EditableTable({
                                   (() => {
                                     if (
                                       !requirePermission(
-                                        can("stock" as any, "update"),
+                                        can("stock", "update"),
                                         "Você não tem permissão para alterar este item.",
                                       )
                                     ) {
