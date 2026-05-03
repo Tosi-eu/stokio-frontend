@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { toast } from "@/hooks/use-toast.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
-import { useNotifications } from "@/hooks/use-notification.hook";
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import {
   getTodayMedicineNotifications,
@@ -25,7 +24,6 @@ const StockReplacementModal = lazy(() =>
 
 export function GlobalNotificationModals() {
   const { previewMode, isEnabled } = useTenant();
-  const { open: notificationsDrawerOpen } = useNotifications();
   const { can } = usePermissionMatrix();
 
   const canFetch = useMemo(() => {
@@ -40,18 +38,24 @@ export function GlobalNotificationModals() {
   const [replacementItems, setReplacementItems] = useState<
     StockReplacementItem[]
   >([]);
-
   useEffect(() => {
     if (!canFetch) return;
-    if (!notificationsDrawerOpen) return;
-    async function fetchReminders() {
-      try {
-        const res = await getTodayMedicineNotifications();
+    let cancelled = false;
+    async function loadStartupReminders() {
+      const [todayOutcome, tomorrowOutcome] = await Promise.allSettled([
+        getTodayMedicineNotifications(),
+        getTomorrowReplacementNotifications(),
+      ]);
+      if (cancelled) return;
+
+      if (todayOutcome.status === "fulfilled") {
+        const res = todayOutcome.value;
         if (res.items.length > 0) {
           setNotifList(res.items);
           setNotifOpen(true);
         }
-      } catch (err: unknown) {
+      } else {
+        const err = todayOutcome.reason;
         const errorMessage = getErrorMessage(
           err,
           "Não foi possível carregar as notificações do dia.",
@@ -64,26 +68,20 @@ export function GlobalNotificationModals() {
           duration: 3000,
         });
       }
-    }
-    fetchReminders();
-  }, [canFetch, notificationsDrawerOpen]);
 
-  useEffect(() => {
-    if (!canFetch) return;
-    if (!notificationsDrawerOpen) return;
-    async function fetchReplacementReminders() {
-      try {
-        const res = await getTomorrowReplacementNotifications();
-        if (res.items.length > 0) {
-          setReplacementItems(res.items);
-          setReplacementOpen(true);
-        }
-      } catch {
-        /* NO-OP */
+      if (
+        tomorrowOutcome.status === "fulfilled" &&
+        tomorrowOutcome.value.items.length > 0
+      ) {
+        setReplacementItems(tomorrowOutcome.value.items);
+        setReplacementOpen(true);
       }
     }
-    fetchReplacementReminders();
-  }, [canFetch, notificationsDrawerOpen]);
+    void loadStartupReminders();
+    return () => {
+      cancelled = true;
+    };
+  }, [canFetch]);
 
   return (
     <Suspense fallback={null}>
