@@ -83,7 +83,11 @@ export default function AdminPanel() {
     effectiveTab === "users" || effectiveTab === "insights",
   );
   const loginLog = useAdminLoginLog(canFullAdminUi, effectiveTab === "acessos");
-  const config = useAdminConfig(canFullAdminUi, effectiveTab === "config");
+  const config = useAdminConfig(
+    canFullAdminUi,
+    effectiveTab === "config",
+    isSuperAdmin,
+  );
   const metrics = useAdminMetrics(canFullAdminUi, effectiveTab === "resumo");
   const notifications = useAdminNotifications(
     canFullAdminUi,
@@ -322,6 +326,9 @@ export default function AdminPanel() {
             loading={config.loading}
             saving={config.saving}
             onSave={config.save}
+            isSuperAdmin={isSuperAdmin}
+            scheduledBackup={config.scheduledBackup}
+            setScheduledBackup={config.setScheduledBackup}
           />
         </TabsContent>
 

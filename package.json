@@ -17,7 +17,7 @@
     "@mui/icons-material": "^7.3.4",
     "@mui/material": "^7.3.4",
     "@react-pdf/renderer": "^4.3.1",
-    "@stokio/sdk": "^0.4.0",
+    "@stokio/sdk": "^0.4.1",
     "@tanstack/react-virtual": "^3.13.18",
     "next": "^14.2.25",
     "react-pdf": "^10.2.0",

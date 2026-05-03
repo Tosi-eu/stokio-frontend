@@ -14,6 +14,7 @@ import {
   forceTenantPriceBackfill,
   getTenantPriceBackfillStatus,
   uploadTenantLogoWithProgress,
+  type AdminScheduledBackupConfig,
   type TenantSetorRow,
 } from "@/api/requests";
 import { getEnabledSectors } from "@/helpers/tenant-sectors.helper";
@@ -61,6 +62,11 @@ interface AdminTabConfigProps {
   loading: boolean;
   saving: boolean;
   onSave: () => void;
+  isSuperAdmin: boolean;
+  scheduledBackup: AdminScheduledBackupConfig;
+  setScheduledBackup: React.Dispatch<
+    React.SetStateAction<AdminScheduledBackupConfig>
+  >;
 }
 
 export function AdminTabConfig({
@@ -69,6 +75,9 @@ export function AdminTabConfig({
   loading,
   saving,
   onSave,
+  isSuperAdmin,
+  scheduledBackup,
+  setScheduledBackup,
 }: AdminTabConfigProps) {
   const { modules, tenant, refetch: refetchTenant } = useTenant();
   const [moduleEnabled, setModuleEnabled] = useState<Set<string>>(
@@ -818,6 +827,72 @@ export function AdminTabConfig({
           </div>
         </CardContent>
       </Card>
+
+      {isSuperAdmin ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Backups agendados (Temporal)</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Expressão cron no fuso indicado. O agendamento corre no Temporal
+              (workflow{" "}
+              <span className="font-mono">systemBackupCronWorkflow</span>
+              ); ao guardar, o servidor tenta sincronizar o schedule{" "}
+              <span className="font-mono">system-backup-cron</span>.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4 max-w-2xl">
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+              <div className="space-y-0.5">
+                <Label htmlFor="scheduled-backup-enabled">
+                  Agendamento ativo
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Desligar pausa o schedule no Temporal (não apaga histórico).
+                </p>
+              </div>
+              <Switch
+                id="scheduled-backup-enabled"
+                checked={scheduledBackup.enabled}
+                onCheckedChange={(v) =>
+                  setScheduledBackup((p) => ({ ...p, enabled: Boolean(v) }))
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="scheduled-backup-cron">Cron (5 campos)</Label>
+              <Input
+                id="scheduled-backup-cron"
+                className="font-mono"
+                value={scheduledBackup.cronExpression}
+                onChange={(e) =>
+                  setScheduledBackup((p) => ({
+                    ...p,
+                    cronExpression: e.target.value,
+                  }))
+                }
+                placeholder="0 3 * * *"
+                spellCheck={false}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="scheduled-backup-tz">Fuso horário (IANA)</Label>
+              <Input
+                id="scheduled-backup-tz"
+                className="font-mono"
+                value={scheduledBackup.timezone}
+                onChange={(e) =>
+                  setScheduledBackup((p) => ({
+                    ...p,
+                    timezone: e.target.value,
+                  }))
+                }
+                placeholder="America/Sao_Paulo"
+                spellCheck={false}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

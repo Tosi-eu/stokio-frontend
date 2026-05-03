@@ -65,7 +65,9 @@ const toPermissionResourceKey = (
     "imports",
     "profile",
   ] as const;
-  return (allowed as readonly string[]).includes(v) ? (v as PermissionResourceKey) : null;
+  return (allowed as readonly string[]).includes(v)
+    ? (v as PermissionResourceKey)
+    : null;
 };
 
 const tableVariants = {
