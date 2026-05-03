@@ -2553,7 +2553,7 @@ packages:
         integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==,
       }
 
-  "@stokio/sdk@0.4.0":
+  "@stokio/sdk@0.4.1":
     resolution:
       {
         integrity: sha512-c+WoREEU1ZZqu+tDXUVKJrlZ7NU6Vc8x1aPJ+63wfDyfWtMq+0eq1HT+cXZFY5dzwynNPEvOPRXSgVpznKDN5Q==,
@@ -7807,7 +7807,7 @@ snapshots:
 
   "@standard-schema/utils@0.3.0": {}
 
-  "@stokio/sdk@0.4.0": {}
+  "@stokio/sdk@0.4.1": {}
 
   "@swc/counter@0.1.3": {}
 

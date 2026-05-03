@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast.hook";
-import { getAdminConfig, updateAdminConfig } from "@/api/requests";
+import {
+  getAdminConfig,
+  updateAdminConfig,
+  type AdminScheduledBackupConfig,
+  type AdminSystemConfig,
+} from "@/api/requests";
 import {
   getErrorMessage,
   USER_FACING_RETRY_SHORT,
 } from "@/helpers/validation.helper";
-import type { AdminSystemConfig } from "@/api/requests";
 
 export const CONFIG_KEYS = {
   expiring_days: "Dias para considerar “próximo ao vencimento”",
@@ -60,24 +64,46 @@ const DEFAULT_VALUES: AdminSystemConfig = {
   display_gaveta: "numero",
 };
 
-export function useAdminConfig(isAdmin: boolean, enabled = true) {
+const DEFAULT_SCHEDULED_BACKUP: AdminScheduledBackupConfig = {
+  enabled: true,
+  cronExpression: "0 8-18/2 * * *",
+  timezone: "America/Sao_Paulo",
+};
+
+export function useAdminConfig(
+  isAdmin: boolean,
+  enabled = true,
+  isSuperAdmin = false,
+) {
   const [config, setConfig] = useState<AdminSystemConfig>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<AdminSystemConfig>({});
+  const [scheduledBackup, setScheduledBackup] =
+    useState<AdminScheduledBackupConfig>(DEFAULT_SCHEDULED_BACKUP);
 
   const load = useCallback(async () => {
     if (!isAdmin) return;
     setLoading(true);
     try {
       const data = await getAdminConfig();
-      const next = { ...DEFAULT_VALUES, ...data };
+      const display = data.display ?? {};
+      const next = { ...DEFAULT_VALUES, ...display };
       setConfig(next);
       setForm(next);
+      if (data.system?.scheduledBackup) {
+        setScheduledBackup({
+          ...DEFAULT_SCHEDULED_BACKUP,
+          ...data.system.scheduledBackup,
+        });
+      } else {
+        setScheduledBackup(DEFAULT_SCHEDULED_BACKUP);
+      }
     } catch {
       toast({ title: "Erro ao carregar configurações", variant: "error" });
       setConfig(DEFAULT_VALUES);
       setForm({ ...DEFAULT_VALUES });
+      setScheduledBackup(DEFAULT_SCHEDULED_BACKUP);
     } finally {
       setLoading(false);
     }
@@ -90,9 +116,23 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
   async function save() {
     setSaving(true);
     try {
-      const updated = await updateAdminConfig(form);
-      setConfig(updated);
-      setForm(updated);
+      const body: Parameters<typeof updateAdminConfig>[0] = {
+        display: form,
+      };
+      if (isSuperAdmin) {
+        body.system = { scheduledBackup };
+      }
+      const updated = await updateAdminConfig(body);
+      const display = updated.display ?? {};
+      const merged = { ...DEFAULT_VALUES, ...display };
+      setConfig(merged);
+      setForm(merged);
+      if (updated.system?.scheduledBackup) {
+        setScheduledBackup({
+          ...DEFAULT_SCHEDULED_BACKUP,
+          ...updated.system.scheduledBackup,
+        });
+      }
       window.dispatchEvent(new Event("ui-display-updated"));
       toast({ title: "Configurações salvas", variant: "success" });
     } catch (e: unknown) {
@@ -114,6 +154,8 @@ export function useAdminConfig(isAdmin: boolean, enabled = true) {
     config,
     form,
     setForm,
+    scheduledBackup,
+    setScheduledBackup,
     loading,
     saving,
     load,

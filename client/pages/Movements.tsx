@@ -125,10 +125,7 @@ export default function InputMovements() {
       const merged = [
         ...insumos.data.map(normalizeMovement),
         ...medicamentos.data.map(normalizeMovement),
-      ].sort(
-        (a, b) =>
-          b._movementDateSort - a._movementDateSort,
-      );
+      ].sort((a, b) => b._movementDateSort - a._movementDateSort);
 
       const slice = merged.slice(0, TABLE_LIMIT);
       if (previewMode && slice.length === 0) {
@@ -189,10 +186,7 @@ export default function InputMovements() {
       const merged = [
         ...insumos.data.map(normalizeMovement),
         ...medicamentos.data.map(normalizeMovement),
-      ].sort(
-        (a, b) =>
-          b._movementDateSort - a._movementDateSort,
-      );
+      ].sort((a, b) => b._movementDateSort - a._movementDateSort);
 
       const slice = merged.slice(0, TABLE_LIMIT);
       if (previewMode && slice.length === 0) {
@@ -253,10 +247,7 @@ export default function InputMovements() {
       const merged = [
         ...insumos.data.map(normalizeMovement),
         ...medicamentos.data.map(normalizeMovement),
-      ].sort(
-        (a, b) =>
-          b._movementDateSort - a._movementDateSort,
-      );
+      ].sort((a, b) => b._movementDateSort - a._movementDateSort);
 
       const slice = merged.slice(0, TABLE_LIMIT);
       if (previewMode && slice.length === 0) {

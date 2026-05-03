@@ -836,14 +836,17 @@ export const getStock = (
     if (filters.name != null) params.append("name", String(filters.name));
     if (filters.activeSubstance)
       params.append("activeSubstance", String(filters.activeSubstance));
-    if (filters.cabinet != null) params.append("cabinet", String(filters.cabinet));
+    if (filters.cabinet != null)
+      params.append("cabinet", String(filters.cabinet));
     if (filters.drawer != null) params.append("drawer", String(filters.drawer));
     if (filters.casela != null) params.append("casela", String(filters.casela));
     if (filters.origin != null) params.append("origin", String(filters.origin));
     if (filters.sector != null) params.append("sector", String(filters.sector));
     if (filters.lot != null) params.append("lot", String(filters.lot));
-    if (filters.itemType != null) params.append("itemType", String(filters.itemType));
-    if (filters.stockType != null) params.append("stockType", String(filters.stockType));
+    if (filters.itemType != null)
+      params.append("itemType", String(filters.itemType));
+    if (filters.stockType != null)
+      params.append("stockType", String(filters.stockType));
   }
 
   if (extraFilter) {
@@ -1280,11 +1283,29 @@ export const normalizeAdminMedicineUnits = (payload?: { dryRun?: boolean }) =>
 
 export type AdminSystemConfig = Record<string, string>;
 
-export const getAdminConfig = () =>
-  stokioClient.get<AdminSystemConfig>("/admin/config");
+export type AdminScheduledBackupConfig = {
+  enabled: boolean;
+  cronExpression: string;
+  timezone: string;
+};
 
-export const updateAdminConfig = (config: AdminSystemConfig) =>
-  stokioClient.put<AdminSystemConfig>("/admin/config", config);
+export type AdminConfigApiResponse = {
+  display: AdminSystemConfig;
+  system: {
+    scheduledBackup: AdminScheduledBackupConfig;
+  } | null;
+};
+
+export type AdminConfigPutBody = {
+  display?: AdminSystemConfig;
+  system?: { scheduledBackup?: AdminScheduledBackupConfig };
+};
+
+export const getAdminConfig = () =>
+  stokioClient.get<AdminConfigApiResponse>("/admin/config");
+
+export const updateAdminConfig = (body: AdminConfigPutBody) =>
+  stokioClient.put<AdminConfigApiResponse>("/admin/config", body);
 
 export type {
   AdminTenant,

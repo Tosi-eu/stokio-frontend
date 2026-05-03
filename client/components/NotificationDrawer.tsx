@@ -269,7 +269,10 @@ export function NotificationDrawer() {
                           medicineName={n.medicamento_nome}
                           dateToGo={n.data_prevista}
                           destiny={n.destino}
-                          createdBy={String((n.usuario as { id?: number } | undefined)?.id ?? "-")}
+                          createdBy={String(
+                            (n.usuario as { id?: number } | undefined)?.id ??
+                              "-",
+                          )}
                           onComplete={() =>
                             handleRemove(n.id, "sent", "Notificação concluída")
                           }
