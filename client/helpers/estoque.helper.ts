@@ -2,13 +2,14 @@ import {
   StockDistributionItem,
   StockProportionResponse,
 } from "@/interfaces/interfaces";
+import type { DashboardStockProportionBlock } from "@stokio/sdk";
 import { SectorType } from "@/utils/enums";
 
 export function prepareStockDistributionData(
-  response: StockProportionResponse,
+  response: StockProportionResponse | DashboardStockProportionBlock,
   sector: SectorType,
 ): StockDistributionItem[] {
-  const { percentuais, totais } = response;
+  const { percentuais, totais } = response as StockProportionResponse;
 
   const items: StockDistributionItem[] = [
     {

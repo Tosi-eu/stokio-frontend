@@ -295,7 +295,7 @@ export default function Dashboard() {
           cabinetRes.data.map((arm) => ({
             label: formatArmarioDisplay(
               arm.armario_id,
-              cabMap.get(arm.armario_id) ?? null,
+              cabMap.get(arm.armario_id ?? 0) ?? null,
               uiDisplay.armario,
             ),
             total: Number(arm.total_geral) || 0,
@@ -307,7 +307,7 @@ export default function Dashboard() {
           drawerRes.data.map((drawer) => ({
             label: formatGavetaDisplay(
               drawer.gaveta_id,
-              drwMap.get(drawer.gaveta_id) ?? null,
+              drwMap.get(drawer.gaveta_id ?? 0) ?? null,
               uiDisplay.gaveta,
             ),
             total: Number(drawer.total_geral) || 0,

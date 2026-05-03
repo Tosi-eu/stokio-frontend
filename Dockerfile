@@ -26,6 +26,10 @@ RUN npm run build
 
 FROM node:20-bookworm-slim AS runner
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends curl \
+  && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 ENV NODE_ENV=production
