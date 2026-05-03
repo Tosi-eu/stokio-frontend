@@ -26,5 +26,18 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build (Next.js)
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://localhost/api/v1
+          NEXT_PUBLIC_LOGO_URL: /logo.png
+          NEXT_PUBLIC_APP_NAME: CI
+          NEXT_PUBLIC_APP_LOGO_URL: ""
+          NEXT_PUBLIC_R2_PUBLIC_BASE_URL: ""
+          NEXT_PUBLIC_X_API_KEY: ""
+        run: npm run build
+
       - name: Prettier (format check)
         run: npm run format:check
