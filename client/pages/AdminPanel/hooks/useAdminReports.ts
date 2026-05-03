@@ -62,11 +62,6 @@ export function useAdminReports(enabled = true) {
     [reportResidents, reportResidentSearch],
   );
 
-  useEffect(() => {
-    if (enabled && showReportResidentSelector) loadReportResidents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional deps
-  }, [enabled, selectedReportType]);
-
   async function loadReportResidents() {
     setLoadingReportResidents(true);
     try {
@@ -83,6 +78,11 @@ export function useAdminReports(enabled = true) {
       setLoadingReportResidents(false);
     }
   }
+
+  useEffect(() => {
+    if (enabled && showReportResidentSelector) void loadReportResidents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional deps
+  }, [enabled, selectedReportType]);
 
   async function handleGenerateReport() {
     if (!selectedReportType) {

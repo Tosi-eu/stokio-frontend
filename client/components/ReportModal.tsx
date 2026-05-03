@@ -112,15 +112,28 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
     },
   ];
 
+  const loadResidents = useCallback(async () => {
+    setLoadingResidents(true);
+    try {
+      const residentsList = await fetchAllPaginated<Resident>(getResidents);
+      setResidents(residentsList);
+    } catch (error) {
+      console.error("Erro ao carregar residentes:", error);
+      setResidents([]);
+    } finally {
+      setLoadingResidents(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (
       open &&
       (selectedReports[0] === "residente_consumo" ||
         selectedReports[0] === "medicamentos_residente")
     ) {
-      loadResidents();
+      void loadResidents();
     }
-  }, [open, selectedReports]);
+  }, [open, selectedReports, loadResidents]);
 
   const handleClose = useCallback(() => {
     setStatus("idle");
@@ -144,19 +157,6 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
       return () => clearTimeout(timer);
     }
   }, [status, handleClose]);
-
-  const loadResidents = async () => {
-    setLoadingResidents(true);
-    try {
-      const residentsList = await fetchAllPaginated<Resident>(getResidents);
-      setResidents(residentsList);
-    } catch (error) {
-      console.error("Erro ao carregar residentes:", error);
-      setResidents([]);
-    } finally {
-      setLoadingResidents(false);
-    }
-  };
 
   const handleSelectReport = (value: string) => {
     setSelectedReports([value]);

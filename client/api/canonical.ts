@@ -1,5 +1,7 @@
+import { createStokioClient, StokioApiError } from "@stokio/sdk";
 import { readPreviewModeFromStorage } from "@/helpers/preview-mode-storage";
 import { sanitizeUserFacingMessage } from "@/helpers/user-facing-error.helper";
+import { reportClientError } from "@/helpers/error-report.helper";
 import { toast } from "@/hooks/use-toast.hook";
 
 export const API_BASE_URL =
@@ -36,35 +38,6 @@ export function readBearerToken(): string | null {
   }
 }
 
-function buildQueryString(params?: Record<string, any>): string {
-  if (!params) return "";
-
-  try {
-    const searchParams = new URLSearchParams();
-
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        if (Array.isArray(value)) {
-          value.forEach((item) => {
-            searchParams.append(key, String(item));
-          });
-        } else {
-          const sanitizedKey = String(key).replace(/[^a-zA-Z0-9_-]/g, "");
-          if (sanitizedKey) {
-            searchParams.append(sanitizedKey, String(value));
-          }
-        }
-      }
-    });
-
-    const query = searchParams.toString();
-    return query ? `?${query}` : "";
-  } catch (error) {
-    console.error("Error building query string:", error);
-    return "";
-  }
-}
-
 const PREVIEW_MUTATION_ALLOW_PREFIXES = [
   "/login/authenticate",
   "/login/logout",
@@ -82,141 +55,133 @@ function isMutationAllowedInPreviewMode(path: string, method: string): boolean {
   return PREVIEW_MUTATION_ALLOW_PREFIXES.some((p) => path.startsWith(p));
 }
 
-async function request(
-  path: string,
-  options: RequestInit & {
-    body?: unknown;
-    silentInsufficientPrivileges?: boolean;
-  } = {},
-) {
-  const isFormData = options.body instanceof FormData;
-  const {
-    headers: optionHeaders,
-    silentInsufficientPrivileges,
-    ...restOptions
-  } = options;
-  const method = (restOptions.method || "GET").toUpperCase();
-  if (
-    readPreviewModeFromStorage() &&
-    !isMutationAllowedInPreviewMode(path, method)
-  ) {
-    toast({
-      title: "Modo de visualização",
-      description:
-        "Alterações não estão disponíveis enquanto explora o sistema. Conclua a configuração do abrigo para utilizar todas as funções.",
-      variant: "warning",
-      duration: 4500,
-    });
-    return Promise.reject(
-      new Error("Modo de visualização: alterações indisponíveis."),
+function handleHttpError(err: StokioApiError): never {
+  const rawMsg = err.messageRaw;
+  const messageStr = String(rawMsg).toLowerCase();
+  const method = err.httpMethod;
+  const path = err.httpPath;
+  const data = err.responseBody as { error?: string; message?: string } | null;
+
+  if (err.httpStatus === 401) {
+    if (messageStr.includes("api key")) {
+      const e = new Error(String(rawMsg));
+      reportClientError(e, {
+        category: "auth",
+        severity: "warning",
+        httpMethod: method,
+        httpPath: path,
+        httpStatus: 401,
+      });
+      throw e;
+    }
+    const isAuthError =
+      messageStr.includes("invalidation") ||
+      messageStr.includes("invalid session") ||
+      messageStr.includes("sessão inválida") ||
+      messageStr.includes("token inválido") ||
+      messageStr.includes("invalid token") ||
+      messageStr.includes("unauthorized") ||
+      messageStr.includes("não autorizado") ||
+      messageStr.includes("authentication") ||
+      messageStr.includes("autenticação");
+
+    if (isAuthError) {
+      window.dispatchEvent(new CustomEvent("invalid-session"));
+      sessionStorage.removeItem("user");
+      const sessErr = new InvalidSessionError("Sessão inválida");
+      reportClientError(sessErr, {
+        category: "auth",
+        severity: "warning",
+        httpMethod: method,
+        httpPath: path,
+        httpStatus: 401,
+      });
+      throw sessErr;
+    }
+  }
+
+  if (err.httpStatus === 403) {
+    if (!err.silentInsufficientPrivileges) {
+      window.dispatchEvent(
+        new CustomEvent("insufficient-privileges", {
+          detail: {
+            message:
+              (data && typeof data === "object" && "error" in data
+                ? String((data as { error?: string }).error)
+                : null) ||
+              rawMsg ||
+              INSUFFICIENT_PRIVILEGES_MESSAGE,
+          },
+        }),
+      );
+    }
+    const forbidden = new Error(
+      (data && typeof data === "object" && "error" in data
+        ? String((data as { error?: string }).error)
+        : null) ||
+        rawMsg ||
+        INSUFFICIENT_PRIVILEGES_MESSAGE,
     );
+    reportClientError(forbidden, {
+      category: "auth",
+      severity: "warning",
+      httpMethod: method,
+      httpPath: path,
+      httpStatus: 403,
+    });
+    throw forbidden;
   }
-  const token = readBearerToken();
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    credentials: "include",
-    ...restOptions,
-    headers: isFormData
-      ? {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(optionHeaders as HeadersInit),
-        }
-      : {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(optionHeaders as HeadersInit),
-        },
+  const sanitizedMsg = sanitizeUserFacingMessage(String(rawMsg));
+  const apiErr = new Error(sanitizedMsg);
+  reportClientError(apiErr, {
+    category: err.httpStatus >= 500 ? "integration" : "validation",
+    severity: err.httpStatus >= 500 ? "error" : "warning",
+    httpMethod: method,
+    httpPath: path,
+    httpStatus: err.httpStatus,
+    context: { apiResponse: true },
   });
-
-  const data = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    const rawMsg = data?.error || data?.message || "Erro inesperado";
-    const messageStr = String(rawMsg).toLowerCase();
-
-    if (res?.status === 401) {
-      if (messageStr.includes("api key")) {
-        throw new Error(String(rawMsg));
-      }
-      const isAuthError =
-        messageStr.includes("invalidation") ||
-        messageStr.includes("invalid session") ||
-        messageStr.includes("sessão inválida") ||
-        messageStr.includes("token inválido") ||
-        messageStr.includes("invalid token") ||
-        messageStr.includes("unauthorized") ||
-        messageStr.includes("não autorizado") ||
-        messageStr.includes("authentication") ||
-        messageStr.includes("autenticação");
-
-      if (isAuthError) {
-        window.dispatchEvent(new CustomEvent("invalid-session"));
-        sessionStorage.removeItem("user");
-        throw new InvalidSessionError("Sessão inválida");
-      }
-    }
-
-    if (res?.status === 403) {
-      if (!silentInsufficientPrivileges) {
-        window.dispatchEvent(
-          new CustomEvent("insufficient-privileges", {
-            detail: {
-              message: data?.error || rawMsg || INSUFFICIENT_PRIVILEGES_MESSAGE,
-            },
-          }),
-        );
-      }
-      throw new Error(data?.error || rawMsg || INSUFFICIENT_PRIVILEGES_MESSAGE);
-    }
-
-    const sanitizedMsg = sanitizeUserFacingMessage(String(rawMsg));
-    throw new Error(sanitizedMsg);
-  }
-
-  return data;
+  throw apiErr;
 }
 
+export const stokioClient = createStokioClient({
+  baseUrl: API_BASE_URL,
+  getToken: readBearerToken,
+  onBeforeRequest: async ({ path, method, body }) => {
+    const m = method.toUpperCase();
+    if (
+      readPreviewModeFromStorage() &&
+      !isMutationAllowedInPreviewMode(path, m)
+    ) {
+      toast({
+        title: "Modo de visualização",
+        description:
+          "Alterações não estão disponíveis enquanto explora o sistema. Conclua a configuração do abrigo para utilizar todas as funções.",
+        variant: "warning",
+        duration: 4500,
+      });
+      const previewErr = new Error(
+        "Modo de visualização: alterações indisponíveis.",
+      );
+      reportClientError(previewErr, {
+        category: "validation",
+        severity: "warning",
+        httpMethod: m,
+        httpPath: path,
+        context: { previewMode: true },
+      });
+      throw previewErr;
+    }
+    void body;
+  },
+  onHttpError: handleHttpError,
+});
+
 export const api = {
-  get: <T = unknown>(
-    path: string,
-    options?: {
-      params?: Record<string, unknown>;
-      headers?: HeadersInit;
-      silentInsufficientPrivileges?: boolean;
-    },
-  ) =>
-    request(`${path}${buildQueryString(options?.params)}`, {
-      method: "GET",
-      headers: options?.headers,
-      silentInsufficientPrivileges: options?.silentInsufficientPrivileges,
-    }) as Promise<T>,
-
-  post: <T = unknown>(path: string, body?: unknown, options?: RequestInit) =>
-    request(path, {
-      method: "POST",
-      body: body instanceof FormData ? body : JSON.stringify(body),
-      ...options,
-    }) as Promise<T>,
-
-  put: <T = unknown>(path: string, body?: any, options?: RequestInit) =>
-    request(path, {
-      method: "PUT",
-      body: JSON.stringify(body),
-      ...options,
-    }) as Promise<T>,
-
-  patch: <T = unknown>(path: string, body?: any, options?: RequestInit) =>
-    request(path, {
-      method: "PATCH",
-      body: JSON.stringify(body),
-      ...options,
-    }) as Promise<T>,
-
-  delete: <T = unknown>(path: string, body?: any, options?: RequestInit) =>
-    request(path, {
-      method: "DELETE",
-      body: body ? JSON.stringify(body) : undefined,
-      ...options,
-    }) as Promise<T>,
+  get: stokioClient.get.bind(stokioClient) as typeof stokioClient.get,
+  post: stokioClient.post.bind(stokioClient) as typeof stokioClient.post,
+  put: stokioClient.put.bind(stokioClient) as typeof stokioClient.put,
+  patch: stokioClient.patch.bind(stokioClient) as typeof stokioClient.patch,
+  delete: stokioClient.delete.bind(stokioClient) as typeof stokioClient.delete,
 };

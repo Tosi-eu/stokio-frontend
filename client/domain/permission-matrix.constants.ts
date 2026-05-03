@@ -6,6 +6,7 @@ export const PERMISSION_RESOURCE_KEYS = [
   "medicines",
   "inputs",
   "stock",
+  "movements",
   "reports",
   "notifications",
   "cabinets",
@@ -22,8 +23,7 @@ export const PERMISSION_RESOURCE_LABELS: Record<PermissionResourceKey, string> =
     medicines: "Medicamentos",
     inputs: "Insumos",
     stock: "Estoque",
-
-    movements: "Movimentações (oculto)",
+    movements: "Movimentações",
     reports: "Relatórios",
     notifications: "Notificações",
     admin: "Painel administrativo (oculto)",

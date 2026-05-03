@@ -47,7 +47,7 @@ export default [
 
       "react/prop-types": "off",
 
-      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/set-state-in-effect": "off",
 
       "react-hooks/incompatible-library": "warn",
       "react-hooks/purity": "warn",

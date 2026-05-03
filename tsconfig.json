@@ -17,7 +17,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./client/*"],
-      "@porto-sdk/sdk": ["./node_modules/@porto-sdk/sdk/dist/index.d.ts"]
+      "@stokio/sdk": ["./node_modules/@stokio/sdk/dist/index.d.ts"]
     },
     "ignoreDeprecations": "5.0"
   },

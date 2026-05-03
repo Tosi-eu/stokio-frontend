@@ -7,6 +7,7 @@ import {
   Pill,
   Bandage,
   Boxes,
+  ArrowLeftRight,
   Users,
   Archive,
   Grid,
@@ -33,6 +34,12 @@ const baseNavigationTabs = [
   { name: "Medicamentos", href: "/medicines", icon: Pill, module: "medicines" },
   { name: "Insumos", href: "/inputs", icon: Bandage, module: "inputs" },
   { name: "Estoque", href: "/stock", icon: Boxes, module: "stock" },
+  {
+    name: "Movimentações",
+    href: "/movements",
+    icon: ArrowLeftRight,
+    module: "movements",
+  },
   { name: "Residentes", href: "/residents", icon: Users, module: "residents" },
   {
     name: "Armários",

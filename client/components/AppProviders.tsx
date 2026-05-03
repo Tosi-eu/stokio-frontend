@@ -12,6 +12,8 @@ import { TenantProvider } from "@/context/tenant-context";
 import { InvalidSessionProvider } from "@/context/invalid-session.context";
 import { useAuth } from "@/hooks/use-auth.hook";
 import { AppRouteGate } from "@/components/AppRouteGate";
+import { GlobalErrorListeners } from "@/components/GlobalErrorListeners";
+import { RootErrorBoundary } from "@/components/RootErrorBoundary";
 
 function TenantProviderWithUserKey({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -26,11 +28,14 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <GlobalErrorListeners />
         <AuthProvider>
           <TenantProviderWithUserKey>
             <NotificationProvider>
               <InvalidSessionProvider>
-                <AppRouteGate>{children}</AppRouteGate>
+                <RootErrorBoundary>
+                  <AppRouteGate>{children}</AppRouteGate>
+                </RootErrorBoundary>
               </InvalidSessionProvider>
             </NotificationProvider>
           </TenantProviderWithUserKey>
