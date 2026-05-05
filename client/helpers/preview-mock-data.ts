@@ -377,7 +377,21 @@ export function getPreviewDashboardSummary(): DashboardSummaryResponse {
 
 export function getPreviewMovementRows(
   kind: "entrada" | "saida" | "transferencia",
-): Record<string, unknown>[] {
+): Array<{
+  id: number;
+  name: string;
+  additionalData: string;
+  quantity: number;
+  operator: string;
+  movementDate: string;
+  _movementDateSort: number;
+  cabinet: number;
+  drawerDisplay: string;
+  resident: string;
+  type: string;
+  sector: SectorType;
+  lot: string;
+}> {
   const base = {
     operator: "Usuário demo",
     sector: SectorType.FARMACIA,

@@ -6,8 +6,9 @@ import {
   SectorType,
 } from "@/utils/enums";
 import type {
+  ConsumptionByItemResponse,
+  ConsumptionPeriodItem,
   PublicTenantBranding,
-  TenantBrandingApiResponse,
   TenantConfigResponse,
   TenantPgDumpImportResponse,
   UpdateTenantBrandingPayload,
@@ -283,41 +284,25 @@ export const getExpiringItems = (
     params: { days, page, limit },
   });
 
-export type ConsumptionPeriodItem = {
-  period: string;
-  entrada: number;
-  saida: number;
-};
+export type { ConsumptionPeriodItem } from "@stokio/sdk";
 
 export const getConsumptionByPeriod = (
   start: string,
   end: string,
   groupBy: "month" | "quarter" = "month",
 ): Promise<ConsumptionPeriodItem[]> =>
-  stokioClient.get("/movimentacoes/consumo", {
-    params: { start, end, groupBy },
-  });
+  stokioClient.movements.getConsumptionByPeriod(start, end, groupBy);
 
-export type ConsumptionByItemRow = {
-  tipo_item: "medicamento" | "insumo";
-  item_id: number;
-  nome: string;
-  entrada: number;
-  saida: number;
-};
-
-export type ConsumptionByItemResponse = {
-  items: ConsumptionByItemRow[];
-  subtotal: { entrada: number; saida: number };
-};
+export type {
+  ConsumptionByItemRow,
+  ConsumptionByItemResponse,
+} from "@stokio/sdk";
 
 export const getConsumptionByItem = (
   start: string,
   end: string,
 ): Promise<ConsumptionByItemResponse> =>
-  stokioClient.get("/movimentacoes/consumo-por-item", {
-    params: { start, end },
-  });
+  stokioClient.movements.getConsumptionByItem(start, end);
 
 export const deleteResident = (casela: string | number) =>
   stokioClient.delete(`/residentes/${casela}`);
@@ -378,12 +363,7 @@ export async function fetchPublicTenantBrandingIfExists(
   if (!s) return null;
   const path = `/tenants/${encodeURIComponent(s)}/branding`;
   try {
-    const res = await fetch(`${API_BASE_URL}${path}`, {
-      credentials: "include",
-      headers: { Accept: "application/json" },
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as TenantBrandingApiResponse;
+    const data = await stokioClient.public.tenantBrandingBySlug(s);
     if (!data || typeof data !== "object" || !("found" in data)) return null;
     if (!data.found) return null;
     return {
@@ -413,19 +393,13 @@ export async function fetchLoginTenantsForEmail(
 ): Promise<LoginTenantSummary[]> {
   const trimmed = login.trim();
   if (!trimmed) return [];
-  const res = await fetch(
-    `${API_BASE_URL}/login/tenants-for-email?${new URLSearchParams({ login: trimmed })}`,
-    { credentials: "include", headers: { Accept: "application/json" } },
-  );
-  const data = (await res.json().catch(() => null)) as {
-    tenants?: Partial<LoginTenantSummary>[];
-  } | null;
-  if (!res.ok) {
-    if (res.status >= 500) {
+  const { status, data } = await stokioClient.auth.tenantsForEmail(trimmed);
+  if (!status || status < 200 || status >= 300) {
+    if (status >= 500) {
       reportClientError(new Error(`login/tenants-for-email failed`), {
         httpMethod: "GET",
         httpPath: "/login/tenants-for-email",
-        httpStatus: res.status,
+        httpStatus: status,
       });
     }
     return [];
@@ -453,26 +427,30 @@ export async function resolveTenantByLogin(
   const trimmed = login.trim();
   if (!trimmed) return { ok: false, reason: "not_found" };
 
-  const res = await fetch(
-    `${API_BASE_URL}/login/resolve-tenant?${new URLSearchParams({ login: trimmed })}`,
-    { credentials: "include", headers: { Accept: "application/json" } },
-  );
-  const data = (await res.json().catch(() => null)) as {
-    slug?: string;
-    tenants?: LoginTenantSummary[];
-  } | null;
+  const { status, data } =
+    await stokioClient.auth.resolveTenantByLogin(trimmed);
 
-  if (res.ok && data && typeof data.slug === "string" && data.slug.trim())
+  if (
+    status >= 200 &&
+    status < 300 &&
+    data &&
+    typeof data.slug === "string" &&
+    data.slug.trim()
+  )
     return { ok: true, slug: data.slug.trim() };
 
-  if (res.status === 409 && data?.tenants && Array.isArray(data.tenants))
-    return { ok: false, reason: "ambiguous", tenants: data.tenants };
+  if (status === 409 && data?.tenants && Array.isArray(data.tenants))
+    return {
+      ok: false,
+      reason: "ambiguous",
+      tenants: data.tenants as LoginTenantSummary[],
+    };
 
-  if (res.status >= 500) {
-    reportClientError(new Error(`login/resolve-tenant ${res.status}`), {
+  if (status >= 500) {
+    reportClientError(new Error(`login/resolve-tenant ${status}`), {
       httpMethod: "GET",
       httpPath: "/login/resolve-tenant",
-      httpStatus: res.status,
+      httpStatus: status,
     });
   }
 
@@ -845,7 +823,7 @@ export const getStockFilterOptions = () =>
 export const getStock = (
   page = 1,
   limit = 6,
-  filters?: Record<string, any>,
+  filters?: Record<string, unknown>,
   extraFilter?: string | null,
 ) => {
   const params = new URLSearchParams({
@@ -854,18 +832,21 @@ export const getStock = (
   });
 
   if (filters) {
-    if (filters.type) params.append("type", filters.type);
-    if (filters.name) params.append("name", filters.name);
+    if (filters.type != null) params.append("type", String(filters.type));
+    if (filters.name != null) params.append("name", String(filters.name));
     if (filters.activeSubstance)
-      params.append("activeSubstance", filters.activeSubstance);
-    if (filters.cabinet) params.append("cabinet", filters.cabinet);
-    if (filters.drawer) params.append("drawer", filters.drawer);
-    if (filters.casela) params.append("casela", filters.casela);
-    if (filters.origin) params.append("origin", filters.origin);
-    if (filters.sector) params.append("sector", filters.sector);
-    if (filters.lot) params.append("lot", filters.lot);
-    if (filters.itemType) params.append("itemType", filters.itemType);
-    if (filters.stockType) params.append("stockType", filters.stockType);
+      params.append("activeSubstance", String(filters.activeSubstance));
+    if (filters.cabinet != null)
+      params.append("cabinet", String(filters.cabinet));
+    if (filters.drawer != null) params.append("drawer", String(filters.drawer));
+    if (filters.casela != null) params.append("casela", String(filters.casela));
+    if (filters.origin != null) params.append("origin", String(filters.origin));
+    if (filters.sector != null) params.append("sector", String(filters.sector));
+    if (filters.lot != null) params.append("lot", String(filters.lot));
+    if (filters.itemType != null)
+      params.append("itemType", String(filters.itemType));
+    if (filters.stockType != null)
+      params.append("stockType", String(filters.stockType));
   }
 
   if (extraFilter) {
@@ -1302,11 +1283,29 @@ export const normalizeAdminMedicineUnits = (payload?: { dryRun?: boolean }) =>
 
 export type AdminSystemConfig = Record<string, string>;
 
-export const getAdminConfig = () =>
-  stokioClient.get<AdminSystemConfig>("/admin/config");
+export type AdminScheduledBackupConfig = {
+  enabled: boolean;
+  cronExpression: string;
+  timezone: string;
+};
 
-export const updateAdminConfig = (config: AdminSystemConfig) =>
-  stokioClient.put<AdminSystemConfig>("/admin/config", config);
+export type AdminConfigApiResponse = {
+  display: AdminSystemConfig;
+  system: {
+    scheduledBackup: AdminScheduledBackupConfig;
+  } | null;
+};
+
+export type AdminConfigPutBody = {
+  display?: AdminSystemConfig;
+  system?: { scheduledBackup?: AdminScheduledBackupConfig };
+};
+
+export const getAdminConfig = () =>
+  stokioClient.get<AdminConfigApiResponse>("/admin/config");
+
+export const updateAdminConfig = (body: AdminConfigPutBody) =>
+  stokioClient.put<AdminConfigApiResponse>("/admin/config", body);
 
 export type {
   AdminTenant,
