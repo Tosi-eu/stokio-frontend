@@ -5,6 +5,7 @@ export const AUDIT_OPERATION_LABEL: Record<string, string> = {
 };
 
 export const AUDIT_RESOURCE_LABEL: Record<string, string> = {
+  pricing: "API de preços",
   login: "Usuários",
   admin: "Administração",
   medicamentos: "Medicamentos",
@@ -68,6 +69,15 @@ export const AUDIT_FIELD_LABEL: Record<string, string> = {
   preco: "Preço",
   suspended_at: "Suspenso em",
   ultima_reposicao: "Última reposição",
+  kind: "Tipo de evento",
+  itemType: "Tipo de item",
+  itemName: "Item (consulta)",
+  averagePrice: "Preço médio",
+  lastUpdated: "Atualizado em",
+  source: "Fonte de preço",
+  failed: "Falhou",
+  dosage: "Dosagem",
+  measurementUnit: "Unidade",
 };
 
 export const REPORT_OPTIONS = [
