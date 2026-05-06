@@ -49,12 +49,21 @@ export function useAdminAlerts(isAdmin: boolean, enabled = true) {
         getStock(1, ROWS_LIMIT, undefined, "noPrice"),
       ]);
 
+      const alertCounts = summary?.alerts as
+        | {
+            noStock?: number;
+            belowMin?: number;
+            expired?: number;
+            expiringSoon?: number;
+            noPrice?: number;
+          }
+        | undefined;
       setCounts({
-        noStock: Number(summary?.alerts?.noStock ?? 0),
-        belowMin: Number(summary?.alerts?.belowMin ?? 0),
-        expired: Number(summary?.alerts?.expired ?? 0),
-        expiringSoon: Number(summary?.alerts?.expiringSoon ?? 0),
-        noPrice: Number(summary?.alerts?.noPrice ?? 0),
+        noStock: Number(alertCounts?.noStock ?? 0),
+        belowMin: Number(alertCounts?.belowMin ?? 0),
+        expired: Number(alertCounts?.expired ?? 0),
+        expiringSoon: Number(alertCounts?.expiringSoon ?? 0),
+        noPrice: Number(alertCounts?.noPrice ?? 0),
       });
 
       const mapRows = (res: unknown): AlertStockItem[] => {

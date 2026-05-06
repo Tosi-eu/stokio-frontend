@@ -64,11 +64,11 @@ export default function StockIn() {
       try {
         const [medicinesRes, inputsRes, residents, cabinets, drawers] =
           await Promise.all([
-            fetchAllPaginated(getMedicines),
-            fetchAllPaginated(getInputs),
-            fetchAllPaginated(getResidents),
-            fetchAllPaginated(getCabinets),
-            fetchAllPaginated(getDrawers),
+            fetchAllPaginated<RawStockMedicine>(getMedicines),
+            fetchAllPaginated<RawStockInput>(getInputs),
+            fetchAllPaginated<Patient>(getResidents),
+            fetchAllPaginated<Cabinet>(getCabinets),
+            fetchAllPaginated<Drawer>(getDrawers),
           ]);
 
         setMedicines(medicinesRes);

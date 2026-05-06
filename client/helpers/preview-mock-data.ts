@@ -286,7 +286,7 @@ export function getPreviewDashboardSummary(): DashboardSummaryResponse {
       expired: 0,
       expiringSoon: 1,
       noPrice: 0,
-    },
+    } as DashboardSummaryResponse["alerts"],
     recentMovements: [
       {
         tipo: "entrada",

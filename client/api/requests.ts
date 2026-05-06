@@ -13,7 +13,10 @@ import type {
   TenantPgDumpImportResponse,
   UpdateTenantBrandingPayload,
 } from "@stokio/sdk";
-import { uploadTenantBrandingLogoWithProgress } from "@stokio/sdk";
+import {
+  uploadTenantBrandingLogoWithProgress,
+  StokioApiError,
+} from "@stokio/sdk";
 import { stokioClient, API_BASE_URL, readBearerToken } from "./canonical";
 import { reportClientError } from "@/helpers/error-report.helper";
 import { readPreviewModeFromStorage } from "@/helpers/preview-mode-storage";
@@ -363,7 +366,14 @@ export async function fetchPublicTenantBrandingIfExists(
   if (!s) return null;
   const path = `/tenants/${encodeURIComponent(s)}/branding`;
   try {
-    const data = await stokioClient.public.tenantBrandingBySlug(s);
+    const data = await stokioClient.get<{
+      found: boolean;
+      slug?: string;
+      name?: string;
+      brandName?: string | null;
+      logoUrl?: string | null;
+      contractCodeMandatory?: boolean;
+    }>(`/tenants/${encodeURIComponent(s)}/branding`);
     if (!data || typeof data !== "object" || !("found" in data)) return null;
     if (!data.found) return null;
     return {
@@ -393,9 +403,15 @@ export async function fetchLoginTenantsForEmail(
 ): Promise<LoginTenantSummary[]> {
   const trimmed = login.trim();
   if (!trimmed) return [];
-  const { status, data } = await stokioClient.auth.tenantsForEmail(trimmed);
-  if (!status || status < 200 || status >= 300) {
-    if (status >= 500) {
+  let data: { tenants?: unknown[] } | null;
+  try {
+    data = await stokioClient.get<{ tenants?: unknown[] }>(
+      "/login/tenants-for-email",
+      { params: { login: trimmed } },
+    );
+  } catch (err) {
+    const status = err instanceof StokioApiError ? err.httpStatus : undefined;
+    if (status != null && status >= 500) {
       reportClientError(new Error(`login/tenants-for-email failed`), {
         httpMethod: "GET",
         httpPath: "/login/tenants-for-email",
@@ -406,12 +422,14 @@ export async function fetchLoginTenantsForEmail(
   }
   const raw = Array.isArray(data?.tenants) ? data.tenants : [];
   return raw
-    .map((t) => {
-      const slug = String(t?.slug ?? "").trim();
+    .map((t: unknown) => {
+      if (!t || typeof t !== "object") return null;
+      const row = t as Record<string, unknown>;
+      const slug = String(row.slug ?? "").trim();
       if (!slug) return null;
-      const label = String(t?.label ?? "").trim() || slug;
-      const tenantName = String(t?.tenantName ?? "").trim() || label;
-      const bn = t?.brandName != null ? String(t.brandName).trim() : "";
+      const label = String(row.label ?? "").trim() || slug;
+      const tenantName = String(row.tenantName ?? "").trim() || label;
+      const bn = row.brandName != null ? String(row.brandName).trim() : "";
       const brandName = bn.length > 0 ? bn : null;
       return { slug, label, tenantName, brandName };
     })
@@ -427,34 +445,39 @@ export async function resolveTenantByLogin(
   const trimmed = login.trim();
   if (!trimmed) return { ok: false, reason: "not_found" };
 
-  const { status, data } =
-    await stokioClient.auth.resolveTenantByLogin(trimmed);
-
-  if (
-    status >= 200 &&
-    status < 300 &&
-    data &&
-    typeof data.slug === "string" &&
-    data.slug.trim()
-  )
-    return { ok: true, slug: data.slug.trim() };
-
-  if (status === 409 && data?.tenants && Array.isArray(data.tenants))
-    return {
-      ok: false,
-      reason: "ambiguous",
-      tenants: data.tenants as LoginTenantSummary[],
-    };
-
-  if (status >= 500) {
-    reportClientError(new Error(`login/resolve-tenant ${status}`), {
-      httpMethod: "GET",
-      httpPath: "/login/resolve-tenant",
-      httpStatus: status,
-    });
+  try {
+    const data = await stokioClient.get<{ slug?: string }>(
+      "/login/resolve-tenant",
+      { params: { login: trimmed } },
+    );
+    if (data && typeof data.slug === "string" && data.slug.trim()) {
+      return { ok: true, slug: data.slug.trim() };
+    }
+    return { ok: false, reason: "not_found" };
+  } catch (err) {
+    if (err instanceof StokioApiError && err.httpStatus === 409) {
+      const body = err.responseBody as { tenants?: LoginTenantSummary[] };
+      if (body?.tenants && Array.isArray(body.tenants)) {
+        return {
+          ok: false,
+          reason: "ambiguous",
+          tenants: body.tenants,
+        };
+      }
+    }
+    if (
+      err instanceof StokioApiError &&
+      err.httpStatus != null &&
+      err.httpStatus >= 500
+    ) {
+      reportClientError(new Error(`login/resolve-tenant ${err.httpStatus}`), {
+        httpMethod: "GET",
+        httpPath: "/login/resolve-tenant",
+        httpStatus: err.httpStatus,
+      });
+    }
+    return { ok: false, reason: "not_found" };
   }
-
-  return { ok: false, reason: "not_found" };
 }
 
 export type UserPermissions = {
