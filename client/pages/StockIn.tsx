@@ -73,9 +73,11 @@ export default function StockIn() {
 
         setMedicines(medicinesRes);
         setInputs(inputsRes);
-        setCaselas(residents);
-        setCabinets(cabinets);
-        setDrawers(drawers);
+        setCaselas(
+          [...residents].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+        );
+        setCabinets([...cabinets].sort((a, b) => b.numero - a.numero));
+        setDrawers([...drawers].sort((a, b) => b.numero - a.numero));
       } catch (err: unknown) {
         toast({
           title: "Erro ao carregar dados",

@@ -36,7 +36,9 @@ export function NotificationRepositionCard({
           </li>
           <li>
             <b>Intervalo de dias entre reposições:</b>{" "}
-            {daysToReposition != null ? daysToReposition : "-"}
+            {daysToReposition != null && daysToReposition > 0
+              ? daysToReposition
+              : "—"}
           </li>
           <li>
             <b>Próxima reposição:</b> {formatDateToPtBr(nextRepositionDate)}

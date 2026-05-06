@@ -27,6 +27,7 @@ export default function RegisterResident() {
     resolver: zodResolver(residentSchema),
     defaultValues: {
       name: "",
+      cpf: "",
       casela: "",
       data_nascimento: "",
     },
@@ -35,10 +36,12 @@ export default function RegisterResident() {
   const onSubmit = async (data: ResidentFormData) => {
     try {
       const dn = data.data_nascimento?.trim();
+      const cpf = data.cpf?.trim();
       await createResident(
         data.name.trim(),
         data.casela,
         dn && dn !== "" ? dn : undefined,
+        cpf && cpf !== "" ? cpf : undefined,
       );
 
       toast({
@@ -86,6 +89,27 @@ export default function RegisterResident() {
               {errors.name && (
                 <p className="text-sm text-red-600 mt-1">
                   {errors.name.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="cpf">CPF</Label>
+              <Input
+                id="cpf"
+                {...register("cpf")}
+                placeholder="000.000.000-00"
+                disabled={isSubmitting}
+                aria-invalid={errors.cpf ? "true" : "false"}
+                inputMode="numeric"
+                autoComplete="off"
+              />
+              <p className="text-xs text-muted-foreground">
+                Opcional. Aceita com ou sem pontuação.
+              </p>
+              {errors.cpf && (
+                <p className="text-sm text-red-600 mt-1">
+                  {errors.cpf.message}
                 </p>
               )}
             </div>

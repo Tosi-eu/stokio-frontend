@@ -63,4 +63,5 @@ export enum NotificationDestiny {
   SUS = "sus",
   FAMILY = "familia",
   PHARMACY = "farmacia",
+  STOCK = "estoque",
 }

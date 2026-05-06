@@ -62,15 +62,41 @@ export default function CreateNotificationForm({
     [NotificationDestiny.SUS]: "SUS",
     [NotificationDestiny.FAMILY]: "Família",
     [NotificationDestiny.PHARMACY]: "Farmácia",
+    [NotificationDestiny.STOCK]: "Estoque",
   };
+
+  /** Destinos permitidos para notificação de receita (sem Estoque — só automático/reposição). */
+  const receitaDestinoOptions: NotificationDestiny[] = [
+    NotificationDestiny.SUS,
+    NotificationDestiny.FAMILY,
+    NotificationDestiny.PHARMACY,
+  ];
+
+  function normalizeReceitaDestino(
+    d: NotificationDestiny | string | null | undefined,
+  ): NotificationDestiny {
+    const v = String(d ?? "").toLowerCase();
+    if (v === NotificationDestiny.STOCK || v === "estoque") {
+      return NotificationDestiny.SUS;
+    }
+    if (
+      v === NotificationDestiny.SUS ||
+      v === NotificationDestiny.FAMILY ||
+      v === NotificationDestiny.PHARMACY
+    ) {
+      return v as NotificationDestiny;
+    }
+    return NotificationDestiny.SUS;
+  }
 
   useEffect(() => {
     if (editData) {
       setForm({
         medicamento_id: Number(editData.medicamento_id ?? 0),
         residente_id: Number(editData.residente_id ?? 0),
-        destino: (editData.destino ??
-          NotificationDestiny.SUS) as NotificationDestiny,
+        destino: normalizeReceitaDestino(
+          (editData.destino ?? NotificationDestiny.SUS) as NotificationDestiny,
+        ),
         data_prevista: parseDateFromString(
           String(editData.data_prevista ?? ""),
         ),
@@ -183,13 +209,13 @@ export default function CreateNotificationForm({
         value={residentes.find((r) => r.casela === form.residente_id)}
         items={residentes}
         onSelect={(r) => setForm({ ...form, residente_id: r.casela })}
-        getLabel={(r) => r.name}
+        getLabel={(r) => `${r.name} (${r.casela})`}
       />
 
       <CommandSelect
         label="Destino"
         value={form.destino}
-        items={Object.values(NotificationDestiny)}
+        items={receitaDestinoOptions}
         onSelect={(d) => setForm({ ...form, destino: d })}
         getLabel={(d) => NotificationDestinyLabel[d]}
       />

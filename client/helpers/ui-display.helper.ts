@@ -94,7 +94,9 @@ export function caselaFilterLabel(
     uiDisplay.caselaSetor,
     sector,
   );
-  if (mode === "nome" && residentName?.trim()) return residentName.trim();
+  if (mode === "nome" && residentName?.trim()) {
+    return `${residentName.trim()} (${num})`;
+  }
   return `Casela ${num}`;
 }
 

@@ -222,15 +222,20 @@ export default function Stock() {
         100,
       );
       setResidents(
-        allResidents.map((r: { casela: number; name: string }) => ({
-          casela: r.casela,
-          name: r.name,
-        })),
+        allResidents
+          .map((r: { casela: number; name: string }) => ({
+            casela: r.casela,
+            name: r.name,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
       );
     } catch (err: unknown) {
       if (previewMode) {
         setResidents(
-          PREVIEW_RESIDENTS.map((r) => ({ casela: r.casela, name: r.name })),
+          PREVIEW_RESIDENTS.map((r) => ({
+            casela: r.casela,
+            name: r.name,
+          })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
         );
       } else {
         const errorMessage = getErrorMessage(
@@ -408,6 +413,7 @@ export default function Stock() {
 
   const columns = [
     { key: "stockType", label: "Tipo", editable: false },
+    { key: "lot", label: "Lote", editable: false },
     { key: "name", label: "Nome", editable: true },
     { key: "activeSubstance", label: "Princípio Ativo", editable: true },
     { key: "description", label: "Descrição", editable: true },
@@ -422,7 +428,6 @@ export default function Stock() {
     { key: "destination", label: "Destino", editable: false },
     { key: "detail", label: "Observação", editable: false },
     { key: "status", label: "Status", editable: false },
-    { key: "lot", label: "Lote", editable: false },
   ];
 
   const requestTransferSector = (row: StockItem) => {

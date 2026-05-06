@@ -38,6 +38,14 @@ import { cn } from "@/lib/utils";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { caselaModeForContext } from "@/helpers/ui-display.helper";
 
+function normalizeText(text: string) {
+  return text
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 export const MedicineForm = memo(function MedicineForm({
   medicines,
   caselas,
@@ -50,6 +58,8 @@ export const MedicineForm = memo(function MedicineForm({
   const router = useRouter();
   const [medicineOpen, setMedicineOpen] = useState(false);
   const [caselaOpen, setCaselaOpen] = useState(false);
+  const [medicineSearch, setMedicineSearch] = useState("");
+  const [caselaSearch, setCaselaSearch] = useState("");
 
   const {
     register,
@@ -91,6 +101,24 @@ export const MedicineForm = memo(function MedicineForm({
     }
     return list.sort((a, b) => a.casela - b.casela);
   }, [caselas, effectiveCaselaMode]);
+
+  const filteredMedicines = useMemo(() => {
+    const s = normalizeText(medicineSearch);
+    if (!s) return medicines;
+    return medicines.filter((m) => {
+      const label =
+        `${m.name} ${m.dosage ?? ""} ${m.measurementUnit ?? ""}`.trim();
+      return normalizeText(label).includes(s);
+    });
+  }, [medicineSearch, medicines]);
+
+  const filteredCaselas = useMemo(() => {
+    const s = normalizeText(caselaSearch);
+    if (!s) return caselasForSelect;
+    return caselasForSelect.filter((c) =>
+      normalizeText(`${c.casela} ${c.name}`).includes(s),
+    );
+  }, [caselaSearch, caselasForSelect]);
   const isEmergencyCart = stockType === ItemStockType.CARRINHO;
   const isPsychotropicCart = stockType === ItemStockType.CARRINHO_PSICOTROPICOS;
   const isCart = isEmergencyCart || isPsychotropicCart;
@@ -198,11 +226,23 @@ export const MedicineForm = memo(function MedicineForm({
                   avoidCollisions={false}
                   className="w-full p-0"
                 >
-                  <Command>
-                    <CommandInput placeholder="Buscar medicamento" />
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Buscar medicamento"
+                      value={medicineSearch}
+                      onValueChange={setMedicineSearch}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        if (filteredMedicines.length !== 1) return;
+                        const m = filteredMedicines[0]!;
+                        e.preventDefault();
+                        field.onChange(m.id);
+                        handleMedicineSelect(m.id);
+                      }}
+                    />
                     <CommandEmpty>Nenhum medicamento encontrado.</CommandEmpty>
                     <CommandGroup>
-                      {medicines.map((m) => (
+                      {filteredMedicines.map((m) => (
                         <CommandItem
                           key={m.id}
                           value={`${m.name} ${m.dosage} ${m.measurementUnit}`}
@@ -360,7 +400,7 @@ export const MedicineForm = memo(function MedicineForm({
                     >
                       {field.value != null && selectedCasela
                         ? uiDisplay.casela === "nome"
-                          ? selectedCasela.name
+                          ? `${selectedCasela.name} (${selectedCasela.casela})`
                           : String(selectedCasela.casela)
                         : uiDisplay.casela === "nome"
                           ? "Buscar por nome do residente..."
@@ -375,24 +415,27 @@ export const MedicineForm = memo(function MedicineForm({
                     avoidCollisions={false}
                     className="w-full p-0"
                   >
-                    <Command
-                      shouldFilter={true}
-                      filter={(itemValue, search) => {
-                        if (!search?.trim()) return 1;
-                        const term = search.trim().toLowerCase();
-                        return itemValue.toLowerCase().includes(term) ? 1 : 0;
-                      }}
-                    >
+                    <Command shouldFilter={false}>
                       <CommandInput
                         placeholder={
                           uiDisplay.casela === "nome"
                             ? "Buscar por nome ou número..."
                             : "Buscar por número ou nome..."
                         }
+                        value={caselaSearch}
+                        onValueChange={setCaselaSearch}
+                        onKeyDown={(e) => {
+                          if (e.key !== "Enter") return;
+                          if (filteredCaselas.length !== 1) return;
+                          const c = filteredCaselas[0]!;
+                          e.preventDefault();
+                          field.onChange(c.casela);
+                          setCaselaOpen(false);
+                        }}
                       />
                       <CommandEmpty>Nenhuma casela encontrada.</CommandEmpty>
                       <CommandGroup>
-                        {caselasForSelect.map((c) => {
+                        {filteredCaselas.map((c) => {
                           const primary =
                             uiDisplay.casela === "nome"
                               ? c.name
@@ -418,7 +461,7 @@ export const MedicineForm = memo(function MedicineForm({
                               {primary}
                               <span className="ml-2 text-slate-500 text-xs">
                                 {uiDisplay.casela === "nome"
-                                  ? `(Casela ${c.casela})`
+                                  ? `(${c.casela})`
                                   : c.name}
                               </span>
                             </CommandItem>

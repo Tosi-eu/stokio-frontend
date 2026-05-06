@@ -143,7 +143,11 @@ export default function StockOut() {
         const mapped = (list as Array<{ casela: number; name: string }>).map(
           (r) => ({ casela: r.casela, name: r.name }),
         );
-        if (!cancelled) setResidents(mapped);
+        if (!cancelled) {
+          setResidents(
+            mapped.sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+          );
+        }
       } catch {
         if (!cancelled) setResidents([]);
       }
@@ -301,7 +305,6 @@ export default function StockOut() {
     setSelected(item);
     if (item) {
       quantityForm.reset({ quantity: 0 });
-      setStep(StockWizardSteps.QUANTIDADE);
     }
   };
 
@@ -353,16 +356,16 @@ export default function StockOut() {
   };
 
   const handleBack = () => {
-    if (step === StockWizardSteps.ITENS) setStep(StockWizardSteps.TIPO);
-    else if (step === StockWizardSteps.QUANTIDADE)
-      setStep(StockWizardSteps.ITENS);
+    if (step === StockWizardSteps.ITENS) {
+      setSelected(null);
+      quantityForm.reset({ quantity: 0 });
+      setStep(StockWizardSteps.TIPO);
+    }
   };
 
   const handleNext = () => {
     if (step === StockWizardSteps.TIPO && operationType !== "Selecione")
       setStep(StockWizardSteps.ITENS);
-    else if (step === StockWizardSteps.ITENS && selected)
-      setStep(StockWizardSteps.QUANTIDADE);
   };
 
   return (
@@ -574,20 +577,23 @@ export default function StockOut() {
         {step !== StockWizardSteps.TIPO && (
           <button
             onClick={handleBack}
-            className="absolute left-2 top-1/2 -translate-y-1/2 p-3 rounded-full border bg-white shadow"
+            className="absolute left-3 top-3 p-3 rounded-full border bg-white shadow"
           >
             ←
           </button>
         )}
 
-        {step !== StockWizardSteps.QUANTIDADE && (
-          <button
-            onClick={handleNext}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-3 rounded-full border bg-white shadow"
-          >
-            →
-          </button>
-        )}
+        {step === StockWizardSteps.TIPO ? (
+          <div className="absolute right-3 top-3">
+            <button
+              onClick={handleNext}
+              className="px-4 py-2 rounded-lg border bg-white shadow text-sm"
+              disabled={operationType === "Selecione"}
+            >
+              Avançar
+            </button>
+          </div>
+        ) : null}
 
         <div className="min-h-[380px] flex flex-col items-center justify-center gap-4">
           <AnimatePresence mode="wait" initial={false}>
@@ -624,33 +630,25 @@ export default function StockOut() {
                     selected={selected}
                     onSelectItem={handleSelectItem}
                   />
+                  {selected ? (
+                    <div className="mt-10">
+                      <QuantityStep
+                        item={selected}
+                        quantity={quantityForm.watch("quantity") || 0}
+                        quantityRegister={quantityForm.register("quantity", {
+                          valueAsNumber: true,
+                        })}
+                        quantityErrors={quantityForm.formState.errors}
+                        isSubmitting={quantityForm.formState.isSubmitting}
+                        onBack={() => {
+                          quantityForm.reset({ quantity: 0 });
+                          setSelected(null);
+                        }}
+                        onConfirm={handleConfirm}
+                      />
+                    </div>
+                  ) : null}
                 </>
-              </motion.div>
-            )}
-
-            {step === StockWizardSteps.QUANTIDADE && (
-              <motion.div
-                key="quantidade"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.22 }}
-                className="w-full max-w-6xl"
-              >
-                <QuantityStep
-                  item={selected}
-                  quantity={quantityForm.watch("quantity") || 0}
-                  quantityRegister={quantityForm.register("quantity", {
-                    valueAsNumber: true,
-                  })}
-                  quantityErrors={quantityForm.formState.errors}
-                  isSubmitting={quantityForm.formState.isSubmitting}
-                  onBack={() => {
-                    quantityForm.reset();
-                    setStep(StockWizardSteps.ITENS);
-                  }}
-                  onConfirm={handleConfirm}
-                />
               </motion.div>
             )}
           </AnimatePresence>

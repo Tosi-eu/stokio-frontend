@@ -12,6 +12,7 @@ import { getResidents, updateResident } from "@/api/requests";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { pdf } from "@react-pdf/renderer";
 import {
   PREVIEW_RESIDENTS,
   filterPreviewStockByCasela,
@@ -22,7 +23,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { OperationType } from "@/utils/enums";
-import { ClipboardList, Pencil, Trash2, UserRound } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  ClipboardList,
+  Download,
+  Pencil,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import DeletePopUp from "@/components/DeletePopUp";
 import { deleteResident } from "@/api/requests";
 import {
@@ -44,6 +56,7 @@ import {
 type ResidentRow = {
   name: string;
   casela: number;
+  cpf: string | null;
   data_nascimento: string | null;
   idade: number | null;
 };
@@ -53,6 +66,8 @@ const PRONTUARIO_COLUMNS = [
   { key: "name", label: "Nome", editable: false },
   { key: "quantity", label: "Qtd.", editable: false },
   { key: "expiry", label: "Validade", editable: false },
+  { key: "entryDate", label: "Data entrada", editable: false },
+  { key: "exitDate", label: "Data saída", editable: false },
   { key: "cabinet", label: "Armário", editable: false },
   { key: "drawer", label: "Gaveta", editable: false },
   { key: "sector", label: "Setor", editable: false },
@@ -69,6 +84,8 @@ function stockToProntuarioRows(items: StockItem[]): Record<string, unknown>[] {
     name: i.name,
     quantity: i.quantity,
     expiry: i.expiry,
+    entryDate: i.entryDate?.trim() ? i.entryDate : "—",
+    exitDate: i.exitDate?.trim() ? i.exitDate : "—",
     cabinet: i.cabinet ?? "—",
     drawer: i.drawer ?? "—",
     sector: i.sector ?? "—",
@@ -81,6 +98,12 @@ function initials(name: string): string {
   if (p.length === 0) return "?";
   if (p.length === 1) return p[0].slice(0, 2).toUpperCase();
   return (p[0][0] + p[p.length - 1][0]).toUpperCase();
+}
+
+function csvEscape(v: unknown): string {
+  const s = v == null ? "" : String(v);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
 }
 
 export default function Resident() {
@@ -101,12 +124,14 @@ export default function Resident() {
   const [prontuarioSetor, setProntuarioSetor] = useState("__all");
   const [prontuarioLote, setProntuarioLote] = useState("");
   const [prontuarioArmario, setProntuarioArmario] = useState("__all");
+  const [prontuarioDownloading, setProntuarioDownloading] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editNome, setEditNome] = useState("");
   const [editDataNascimento, setEditDataNascimento] = useState("");
+  const [editCpf, setEditCpf] = useState("");
 
   const loadResidents = useCallback(async () => {
     setLoading(true);
@@ -114,7 +139,11 @@ export default function Resident() {
       if (previewMode) {
         const start = (page - 1) * DEFAULT_PAGE_SIZE;
         const slice = PREVIEW_RESIDENTS.slice(start, start + DEFAULT_PAGE_SIZE);
-        setResidents(slice);
+        setResidents(
+          slice
+            .map((r) => ({ ...r, cpf: null }))
+            .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+        );
         setHasNext(start + DEFAULT_PAGE_SIZE < PREVIEW_RESIDENTS.length);
         return;
       }
@@ -123,6 +152,10 @@ export default function Resident() {
       const mapped = (Array.isArray(res.data) ? res.data : []).map((r) => ({
         name: String(r.name ?? ""),
         casela: Number(r.casela),
+        cpf:
+          (r as { cpf?: unknown }).cpf != null
+            ? String((r as { cpf?: unknown }).cpf)
+            : null,
         data_nascimento:
           r.data_nascimento != null ? String(r.data_nascimento) : null,
         idade:
@@ -304,6 +337,182 @@ export default function Resident() {
     [prontuarioItems],
   );
 
+  const fetchAllProntuarioItems = useCallback(
+    async (resident: ResidentRow): Promise<StockItem[]> => {
+      const allItems: StockItem[] = [];
+
+      if (previewMode) {
+        // In preview mode we only have the current page in state.
+        allItems.push(...prontuarioItems);
+        return allItems;
+      }
+
+      const baseFilters = {
+        nome: prontuarioNome.trim() ? prontuarioNome.trim() : undefined,
+        casela: String(resident.casela),
+        setor:
+          prontuarioSetor !== "__all" && prontuarioSetor.trim()
+            ? prontuarioSetor.trim()
+            : undefined,
+        lote: prontuarioLote.trim() ? prontuarioLote.trim() : undefined,
+        armario:
+          prontuarioArmario !== "__all" && prontuarioArmario.trim()
+            ? prontuarioArmario.trim()
+            : undefined,
+      };
+
+      let page = 1;
+      const limit = 200;
+      for (let guard = 0; guard < 200; guard++) {
+        const res = await fetchStockPage(page, limit, baseFilters);
+        const pageItems = formatStockItems(res.data);
+        allItems.push(...pageItems);
+        if (!res.hasNext) break;
+        page += 1;
+      }
+
+      return allItems;
+    },
+    [
+      previewMode,
+      prontuarioItems,
+      prontuarioNome,
+      prontuarioSetor,
+      prontuarioLote,
+      prontuarioArmario,
+    ],
+  );
+
+  const downloadProntuarioCsv = useCallback(
+    async (resident: ResidentRow) => {
+      if (prontuarioDownloading) return;
+      setProntuarioDownloading(true);
+      try {
+        const allItems = await fetchAllProntuarioItems(resident);
+
+        const header = [
+          "Casela",
+          "Residente",
+          "Categoria",
+          "Nome",
+          "Qtd",
+          "Validade",
+          "Data entrada",
+          "Data saída",
+          "Armário",
+          "Gaveta",
+          "Setor",
+          "Lote",
+        ];
+
+        const lines = [
+          header.map(csvEscape).join(","),
+          ...allItems.map((i) =>
+            [
+              resident.casela,
+              resident.name,
+              itemKindLabel(i),
+              i.name,
+              i.quantity,
+              i.expiry,
+              i.entryDate ?? "",
+              i.exitDate ?? "",
+              i.cabinet ?? "",
+              i.drawer ?? "",
+              i.sector ?? "",
+              i.lot ?? "",
+            ]
+              .map(csvEscape)
+              .join(","),
+          ),
+        ];
+
+        const content = `\uFEFF${lines.join("\n")}`;
+        const blob = new Blob([content], {
+          type: "text/csv;charset=utf-8",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const today = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = `prontuario-casela-${resident.casela}-${today}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (err: unknown) {
+        const errorMessage = getErrorMessage(
+          err,
+          "Não foi possível gerar o download do prontuário.",
+          "Residents:prontuario:download",
+        );
+        toast({
+          title: "Erro ao baixar prontuário",
+          description: errorMessage || USER_FACING_RETRY_SHORT,
+          variant: "error",
+          duration: 3000,
+        });
+      } finally {
+        setProntuarioDownloading(false);
+      }
+    },
+    [prontuarioDownloading, fetchAllProntuarioItems],
+  );
+
+  const downloadProntuarioPdf = useCallback(
+    async (resident: ResidentRow) => {
+      if (prontuarioDownloading) return;
+      setProntuarioDownloading(true);
+      try {
+        const allItems = await fetchAllProntuarioItems(resident);
+        const { createStockPDF } = await import("@/components/StockReporter");
+
+        const pdfDoc = createStockPDF("prontuario_residente", {
+          residente: resident.name,
+          casela: resident.casela,
+          itens: allItems.map((i) => ({
+            categoria: itemKindLabel(i),
+            nome: i.name,
+            quantidade: i.quantity,
+            validade: i.expiry,
+            data_entrada: i.entryDate ?? "",
+            data_saida: i.exitDate ?? "",
+            armario: i.cabinet ?? "",
+            gaveta: i.drawer ?? "",
+            setor: i.sector ?? "",
+            lote: i.lot ?? "",
+          })),
+        });
+
+        const blob = await pdf(pdfDoc).toBlob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const today = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = `prontuario-casela-${resident.casela}-${today}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (err: unknown) {
+        const errorMessage = getErrorMessage(
+          err,
+          "Não foi possível gerar o PDF do prontuário.",
+          "Residents:prontuario:download:pdf",
+        );
+        toast({
+          title: "Erro ao baixar prontuário (PDF)",
+          description: errorMessage || USER_FACING_RETRY_SHORT,
+          variant: "error",
+          duration: 3000,
+        });
+      } finally {
+        setProntuarioDownloading(false);
+      }
+    },
+    [fetchAllProntuarioItems, prontuarioDownloading],
+  );
+
   const prontuarioTotalPages = useMemo(() => {
     if (previewMode) {
       return Math.max(1, Math.ceil(prontuarioTotal / PRONTUARIO_PAGE_SIZE));
@@ -328,6 +537,7 @@ export default function Resident() {
         ? selected.data_nascimento
         : "",
     );
+    setEditCpf(typeof selected.cpf === "string" ? selected.cpf : "");
     setEditOpen(true);
   }, [selected, previewMode]);
 
@@ -349,6 +559,7 @@ export default function Resident() {
       const dn = editDataNascimento.trim();
       await updateResident(selected.casela, {
         nome: nomeTrim,
+        cpf: editCpf.trim() === "" ? null : editCpf.trim(),
         data_nascimento: dn === "" ? null : dn,
       });
       toast({
@@ -380,6 +591,7 @@ export default function Resident() {
     editDataNascimento,
     loadResidents,
     setEditOpen,
+    editCpf,
   ]);
 
   const handleDeleteResident = useCallback(async () => {
@@ -587,6 +799,12 @@ export default function Resident() {
                       <dd className="font-medium mt-1">{selected.casela}</dd>
                     </div>
                     <div>
+                      <dt className="text-muted-foreground">CPF</dt>
+                      <dd className="font-medium mt-1">
+                        {selected.cpf?.trim() ? selected.cpf : "—"}
+                      </dd>
+                    </div>
+                    <div>
                       <dt className="text-muted-foreground">
                         Data de nascimento
                       </dt>
@@ -607,14 +825,56 @@ export default function Resident() {
                   </dl>
 
                   <div className="border-t border-border/60 pt-6 space-y-4">
-                    <div className="flex items-center gap-2">
-                      <ClipboardList
-                        className="h-5 w-5 text-muted-foreground shrink-0"
-                        aria-hidden
-                      />
-                      <h3 className="text-base font-semibold tracking-tight">
-                        Prontuário
-                      </h3>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <ClipboardList
+                          className="h-5 w-5 text-muted-foreground shrink-0"
+                          aria-hidden
+                        />
+                        <h3 className="text-base font-semibold tracking-tight">
+                          Prontuário
+                        </h3>
+                      </div>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl"
+                            disabled={
+                              prontuarioDownloading || prontuarioLoading
+                            }
+                          >
+                            <Download className="h-4 w-4 mr-2" aria-hidden />
+                            Download
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-44 p-2">
+                          <div className="grid gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="rounded-lg justify-start"
+                              onClick={() => downloadProntuarioPdf(selected)}
+                              disabled={prontuarioDownloading}
+                            >
+                              PDF
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="rounded-lg justify-start"
+                              onClick={() => downloadProntuarioCsv(selected)}
+                              disabled={prontuarioDownloading}
+                            >
+                              CSV
+                            </Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       Medicamentos e insumos em estoque vinculados a esta casela
@@ -823,6 +1083,23 @@ export default function Resident() {
                               className="rounded-xl bg-muted"
                             />
                           </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="resident-cpf">CPF</Label>
+                          <Input
+                            id="resident-cpf"
+                            value={editCpf}
+                            onChange={(e) => setEditCpf(e.target.value)}
+                            disabled={editSaving}
+                            className="rounded-xl"
+                            placeholder="000.000.000-00"
+                            inputMode="numeric"
+                            autoComplete="off"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Deixe em branco para remover.
+                          </p>
                         </div>
 
                         <div className="space-y-1">

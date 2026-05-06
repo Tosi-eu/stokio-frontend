@@ -684,10 +684,12 @@ export const createResident = (
   nome: string,
   casela: string,
   data_nascimento?: string | null,
+  cpf?: string | null,
 ) =>
   stokioClient.post("/residentes", {
     nome,
     casela: parseInt(casela),
+    ...(cpf != null && String(cpf).trim() !== "" ? { cpf } : {}),
     ...(data_nascimento != null && String(data_nascimento).trim() !== ""
       ? { data_nascimento: String(data_nascimento).trim() }
       : {}),
@@ -736,8 +738,22 @@ export const createNotificationEvent = (payload: {
   data_prevista: Date;
   criado_por: number;
   tipo_evento: string;
-  status: EventStatus;
-}) => stokioClient.post("/notificacao", payload);
+  status?: EventStatus;
+  visto?: boolean;
+}) => {
+  const d =
+    payload.data_prevista instanceof Date ? payload.data_prevista : null;
+  const dateOnly = d ? d.toISOString().slice(0, 10) : "";
+  return stokioClient.post("/notificacao", {
+    medicamento_id: payload.medicamento_id,
+    residente_id: payload.residente_id,
+    destino: payload.destino,
+    data_prevista: dateOnly,
+    criado_por: payload.criado_por,
+    visto: payload.visto ?? false,
+    tipo_evento: payload.tipo_evento,
+  });
+};
 
 export const getNotifications = async ({
   page = 1,
@@ -792,7 +808,13 @@ export const patchNotificationEvent = (
     criado_por: number;
     status: EventStatus;
   }>,
-) => stokioClient.patch(`/notificacao/${id}`, data);
+) => {
+  const out: Record<string, unknown> = { ...data };
+  if (data.data_prevista instanceof Date) {
+    out.data_prevista = data.data_prevista.toISOString().slice(0, 10);
+  }
+  return stokioClient.patch(`/notificacao/${id}`, out);
+};
 
 export const getTodayMedicineNotifications = () =>
   getNotifications({

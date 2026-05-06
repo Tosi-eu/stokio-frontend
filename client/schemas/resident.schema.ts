@@ -8,6 +8,21 @@ export const residentSchema = z.object({
     .min(1, "Nome é obrigatório")
     .max(60, "Nome deve ter no máximo 60 caracteres")
     .trim(),
+  cpf: z
+    .string()
+    .optional()
+    .superRefine((val, ctx) => {
+      if (val == null) return;
+      const v = String(val).trim();
+      if (!v) return;
+      const digits = v.replace(/\D/g, "");
+      if (digits.length !== 11) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "CPF deve ter 11 dígitos",
+        });
+      }
+    }),
   casela: z
     .string()
     .min(1, "Casela é obrigatória")

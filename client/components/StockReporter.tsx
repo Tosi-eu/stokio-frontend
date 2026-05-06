@@ -126,32 +126,30 @@ interface ResidentConsumptionReport {
   casela: number;
   medicamentos: {
     nome: string;
-    dosagem: string;
-    unidade_medida: string;
     principio_ativo: string;
-    preco: number | null;
+    preco_formatado: string;
     quantidade_estoque: number;
     observacao?: string | null;
   }[];
   insumos: {
     nome: string;
     descricao: string | null;
-    preco: number | null;
+    preco_formatado: string;
     quantidade_estoque: number;
   }[];
   custos_medicamentos: {
     item: string;
     nome: string;
-    custo_mensal: number;
-    custo_anual: number;
+    custo_mensal_formatado: string;
+    custo_anual_formatado: string;
   }[];
   custos_insumos: {
     item: string;
     nome: string;
-    custo_mensal: number;
-    custo_anual: number;
+    custo_mensal_formatado: string;
+    custo_anual_formatado: string;
   }[];
-  total_estimado: number;
+  total_estimado_formatado: string;
 }
 
 interface RowData {
@@ -171,12 +169,23 @@ interface RowData {
   [key: string]: unknown;
 }
 
+type ResidentProntuarioReport = {
+  residente: string;
+  casela: number | string;
+  itens: RowData[];
+};
+
 function formatPdfRowDates(r: RowData): RowData {
   const out = { ...r } as Record<string, unknown>;
   if (out.validade != null && String(out.validade).trim() !== "") {
     out.validade = formatValidityDate(String(out.validade));
   }
-  for (const key of ["data", "data_movimentacao"]) {
+  for (const key of [
+    "data",
+    "data_movimentacao",
+    "data_entrada",
+    "data_saida",
+  ]) {
     const v = out[key];
     if (v != null && String(v).trim() !== "") {
       out[key] = formatDateOrDateTimePtBr(String(v));
@@ -373,6 +382,7 @@ export function createStockPDF(
   tipo: string,
   data:
     | RowData[]
+    | ResidentProntuarioReport
     | ResidentesResponse
     | ResidentConsumptionReport
     | TransferReport[]
@@ -388,6 +398,7 @@ export function createStockPDF(
   const isResidentMedicines = tipo === "medicamentos_residente";
   const isExpiredMedicines = tipo === "medicamentos_vencidos";
   const isExpiringSoon = tipo === "expiringSoon";
+  const isResidentProntuario = tipo === "prontuario_residente";
   const consumptionData = isResidentConsumption
     ? (data as ResidentConsumptionReport)
     : null;
@@ -404,6 +415,10 @@ export function createStockPDF(
     : null;
   const expiringSoonData = isExpiringSoon
     ? (data as ExpiringSoonReport[])
+    : null;
+
+  const prontuarioData = isResidentProntuario
+    ? (data as ResidentProntuarioReport)
     : null;
 
   const movementsPayload = isMovementsReport
@@ -453,9 +468,44 @@ export function createStockPDF(
                       ? "MEDICAMENTOS VENCIDOS"
                       : isExpiringSoon
                         ? "MEDICAMENTOS E INSUMOS PRÓXIMOS AO VENCIMENTO"
-                        : "ESTOQUE ATUAL"}
+                        : isResidentProntuario
+                          ? "PRONTUÁRIO DO RESIDENTE"
+                          : "ESTOQUE ATUAL"}
           </Text>
         </View>
+
+        {isResidentProntuario && prontuarioData && (
+          <>
+            <View style={{ marginBottom: 15 }}>
+              <Text
+                style={{ fontSize: 14, fontWeight: "bold", marginBottom: 5 }}
+              >
+                Residente: {prontuarioData.residente}
+              </Text>
+              <Text style={{ fontSize: 12, color: "#666" }}>
+                Casela: {prontuarioData.casela}
+              </Text>
+            </View>
+
+            <Text style={styles.sectionTitle}>Itens no Estoque</Text>
+
+            {renderTableWithConfig(
+              [
+                { header: "Categoria", key: "categoria" },
+                { header: "Nome", key: "nome" },
+                { header: "Quantidade", key: "quantidade", isNumeric: true },
+                { header: "Validade", key: "validade" },
+                { header: "Data Entrada", key: "data_entrada" },
+                { header: "Data Saída", key: "data_saida" },
+                { header: "Armário", key: "armario", isNumeric: true },
+                { header: "Gaveta", key: "gaveta", isNumeric: true },
+                { header: "Setor", key: "setor" },
+                { header: "Lote", key: "lote" },
+              ],
+              (prontuarioData.itens ?? []).map(formatPdfRowDates),
+            )}
+          </>
+        )}
 
         {isResidentConsumption && consumptionData && (
           <>
@@ -479,16 +529,6 @@ export function createStockPDF(
                   <Text style={styles.cell}>Observação</Text>
                 </View>
                 {consumptionData.medicamentos.map((med, idx) => {
-                  const nomeCompleto =
-                    [
-                      med.nome || "",
-                      med.dosagem || "",
-                      med.unidade_medida || "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")
-                      .trim() || "-";
-
                   return (
                     <View
                       key={idx}
@@ -497,11 +537,9 @@ export function createStockPDF(
                         idx % 2 === 0 ? styles.striped : undefined,
                       ]}
                     >
-                      <Text style={styles.cell}>{nomeCompleto}</Text>
+                      <Text style={styles.cell}>{med.nome || "-"}</Text>
                       <Text style={styles.cell}>
-                        {med.preco !== null && med.preco !== undefined
-                          ? `R$ ${Number(med.preco).toFixed(2)}`
-                          : "-"}
+                        {med.preco_formatado || "-"}
                       </Text>
                       <Text style={styles.cell}>{med.observacao || "-"}</Text>
                     </View>
@@ -533,7 +571,7 @@ export function createStockPDF(
                     <Text style={styles.cell}>{input.nome || "-"}</Text>
                     <Text style={styles.cell}>{input.descricao || "-"}</Text>
                     <Text style={styles.cell}>
-                      {input.preco ? `R$ ${input.preco.toFixed(2)}` : "-"}
+                      {input.preco_formatado || "-"}
                     </Text>
                   </View>
                 ))}
@@ -566,10 +604,10 @@ export function createStockPDF(
                     <Text style={styles.cell}>{custo.item || "-"}</Text>
                     <Text style={styles.cell}>{custo.nome || "-"}</Text>
                     <Text style={styles.cell}>
-                      R$ {custo.custo_mensal.toFixed(2)}
+                      {custo.custo_mensal_formatado || "-"}
                     </Text>
                     <Text style={styles.cell}>
-                      R$ {custo.custo_anual.toFixed(2)}
+                      {custo.custo_anual_formatado || "-"}
                     </Text>
                   </View>
                 ))}
@@ -600,10 +638,10 @@ export function createStockPDF(
                     <Text style={styles.cell}>{custo.item || "-"}</Text>
                     <Text style={styles.cell}>{custo.nome || "-"}</Text>
                     <Text style={styles.cell}>
-                      R$ {custo.custo_mensal.toFixed(2)}
+                      {custo.custo_mensal_formatado || "-"}
                     </Text>
                     <Text style={styles.cell}>
-                      R$ {custo.custo_anual.toFixed(2)}
+                      {custo.custo_anual_formatado || "-"}
                     </Text>
                   </View>
                 ))}
@@ -632,7 +670,7 @@ export function createStockPDF(
                 }}
               >
                 Total Estimado Anual: R${" "}
-                {consumptionData.total_estimado.toFixed(2)}
+                {consumptionData.total_estimado_formatado || "-"}
               </Text>
             </View>
           </>
@@ -683,6 +721,8 @@ export function createStockPDF(
                 "Principio Ativo",
                 "Quantidade",
                 "Validade",
+                "Data Entrada",
+                "Data Saída",
                 "Residente",
               ],
               (data as RowData[]).map(formatPdfRowDates),
@@ -694,7 +734,15 @@ export function createStockPDF(
           <>
             <Text style={styles.sectionTitle}>Insumos</Text>
             {renderTable(
-              ["Insumo", "Quantidade", "Armario", "Validade"],
+              [
+                "Insumo",
+                "Quantidade",
+                "Armario",
+                "Validade",
+                "Data Entrada",
+                "Data Saída",
+                "Residente",
+              ],
               (data as RowData[]).map(formatPdfRowDates),
             )}
           </>

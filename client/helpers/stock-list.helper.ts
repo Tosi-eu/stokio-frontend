@@ -79,6 +79,8 @@ export function formatStockItems(raw: unknown[]): StockItem[] {
       activeSubstance: item.principio_ativo || "-",
       description: item.descricao || "-",
       expiry: formatValidityDate(item.validade ?? ""),
+      entryDate: item.data_entrada ?? null,
+      exitDate: item.data_saida ?? null,
       quantity: Number(item.quantidade) || 0,
       cabinet: item.armario_id ?? "-",
       drawer: item.gaveta_id ?? "-",
@@ -147,7 +149,7 @@ export function buildFilterOptions(
         .filter((id): id is number => id != null),
     ),
   )
-    .sort((a, b) => a - b)
+    .sort((a, b) => b - a)
     .map((id) => ({
       value: String(id),
       label: armarioFilterLabel(id, cabByNum.get(id) ?? null, armMode),
@@ -252,7 +254,7 @@ export function buildFilterOptionsFromApi(
   );
   const armMode = options?.armarioMode ?? "numero";
   const cabinets: StockFilterOption[] = (apiOptions?.cabinets ?? [])
-    .sort((a, b) => a - b)
+    .sort((a, b) => b - a)
     .map((id) => ({
       value: String(id),
       label: armarioFilterLabel(id, cabByNum.get(id) ?? null, armMode),

@@ -158,6 +158,7 @@ export interface StockListAlertItem {
   tipo_item?: string;
   st_quantidade?: string | null;
   st_expiracao?: string | null;
+  tentativas_busca?: number;
 }
 
 export interface StockItemRaw {
@@ -168,6 +169,8 @@ export interface StockItemRaw {
   principio_ativo?: string;
   descricao?: string | null;
   validade: string;
+  data_entrada?: string | null;
+  data_saida?: string | null;
   quantidade: number;
   minimo?: number;
   origem: string;
@@ -196,6 +199,8 @@ export interface StockItem {
   dosage?: string | null;
   measurementUnit?: string | null;
   expiry: string;
+  entryDate?: string | null;
+  exitDate?: string | null;
   quantity: number;
   minimumStock?: number;
   patient?: string;

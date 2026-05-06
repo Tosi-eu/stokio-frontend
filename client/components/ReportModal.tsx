@@ -279,7 +279,10 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
 
   const filteredResidents = residents.filter((r) => {
     if (!residentSearch) return true;
-    return r.casela.toString().startsWith(residentSearch.trim());
+    const q = residentSearch.trim().toLowerCase();
+    if (!q) return true;
+    if (/^\d+$/.test(q)) return String(r.casela).startsWith(q);
+    return r.name.toLowerCase().includes(q);
   });
 
   return (
@@ -563,7 +566,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                                         }}
                                       >
                                         {uiDisplay.casela === "nome"
-                                          ? r.name
+                                          ? `${r.name} (${r.casela})`
                                           : `Casela ${r.casela}`}
                                       </CommandItem>
                                     ))}

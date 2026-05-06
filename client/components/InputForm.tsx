@@ -32,6 +32,14 @@ import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/hooks/use-tenant.hook";
 
+function normalizeText(text: string) {
+  return text
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 export const InputForm = memo(function InputForm({
   inputs,
   caselas,
@@ -44,6 +52,8 @@ export const InputForm = memo(function InputForm({
   const router = useRouter();
   const [inputOpen, setInputOpen] = useState(false);
   const [caselaOpen, setCaselaOpen] = useState(false);
+  const [inputSearch, setInputSearch] = useState("");
+  const [caselaSearch, setCaselaSearch] = useState("");
 
   const {
     register,
@@ -85,6 +95,20 @@ export const InputForm = memo(function InputForm({
     }
     return caselas ?? [];
   }, [caselas, sector]);
+
+  const filteredInputs = useMemo(() => {
+    const s = normalizeText(inputSearch);
+    if (!s) return inputs;
+    return inputs.filter((i) => normalizeText(i.name ?? "").includes(s));
+  }, [inputSearch, inputs]);
+
+  const filteredCaselas = useMemo(() => {
+    const s = normalizeText(caselaSearch);
+    if (!s) return caselasForSelect;
+    return caselasForSelect.filter((c) =>
+      normalizeText(`${c.casela} ${c.name}`).includes(s),
+    );
+  }, [caselaSearch, caselasForSelect]);
 
   useEffect(() => {
     if (isCart) {
@@ -181,11 +205,23 @@ export const InputForm = memo(function InputForm({
                   avoidCollisions={false}
                   className="w-full p-0"
                 >
-                  <Command>
-                    <CommandInput placeholder="Buscar insumo" />
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Buscar insumo"
+                      value={inputSearch}
+                      onValueChange={setInputSearch}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        if (filteredInputs.length !== 1) return;
+                        const i = filteredInputs[0]!;
+                        e.preventDefault();
+                        field.onChange(i.id);
+                        handleInputSelect(i.id);
+                      }}
+                    />
                     <CommandEmpty>Nenhum insumo encontrado.</CommandEmpty>
                     <CommandGroup>
-                      {inputs.map((i) => (
+                      {filteredInputs.map((i) => (
                         <CommandItem
                           key={i.id}
                           value={i.name}
@@ -352,7 +388,7 @@ export const InputForm = memo(function InputForm({
                     >
                       {field.value != null && selectedCasela
                         ? uiDisplay.casela === "nome"
-                          ? selectedCasela.name
+                          ? `${selectedCasela.name} (${selectedCasela.casela})`
                           : String(selectedCasela.casela)
                         : uiDisplay.casela === "nome"
                           ? "Buscar por nome do residente..."
@@ -367,24 +403,27 @@ export const InputForm = memo(function InputForm({
                     avoidCollisions={false}
                     className="w-full p-0"
                   >
-                    <Command
-                      shouldFilter={true}
-                      filter={(itemValue, search) => {
-                        if (!search?.trim()) return 1;
-                        const term = search.trim().toLowerCase();
-                        return itemValue.toLowerCase().includes(term) ? 1 : 0;
-                      }}
-                    >
+                    <Command shouldFilter={false}>
                       <CommandInput
                         placeholder={
                           uiDisplay.casela === "nome"
                             ? "Buscar por nome ou número..."
                             : "Buscar por número ou nome..."
                         }
+                        value={caselaSearch}
+                        onValueChange={setCaselaSearch}
+                        onKeyDown={(e) => {
+                          if (e.key !== "Enter") return;
+                          if (filteredCaselas.length !== 1) return;
+                          const c = filteredCaselas[0]!;
+                          e.preventDefault();
+                          field.onChange(c.casela);
+                          setCaselaOpen(false);
+                        }}
                       />
                       <CommandEmpty>Nenhuma casela encontrada.</CommandEmpty>
                       <CommandGroup>
-                        {caselasForSelect.map((c) => {
+                        {filteredCaselas.map((c) => {
                           const primary =
                             uiDisplay.casela === "nome"
                               ? c.name
@@ -410,7 +449,7 @@ export const InputForm = memo(function InputForm({
                               {primary}
                               <span className="ml-2 text-slate-500 text-xs">
                                 {uiDisplay.casela === "nome"
-                                  ? `(Casela ${c.casela})`
+                                  ? `(${c.casela})`
                                   : c.name}
                               </span>
                             </CommandItem>
