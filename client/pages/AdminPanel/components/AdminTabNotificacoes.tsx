@@ -19,6 +19,17 @@ import { ChevronLeft, ChevronRight, Check, Archive } from "lucide-react";
 import type { AdminNotificationItem } from "@/api/requests";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
 
+function formatNotificationStatus(status: string | null | undefined): string {
+  const s = String(status ?? "")
+    .trim()
+    .toLowerCase();
+  if (!s) return "—";
+  if (s === "sent") return "Emitida";
+  if (s === "pending") return "Pendente";
+  if (s === "cancelled") return "Cancelada";
+  return status ?? "—";
+}
+
 interface AdminTabNotificacoesProps {
   items: AdminNotificationItem[];
   total: number;
@@ -186,7 +197,9 @@ export function AdminTabNotificacoes({
                         <TableCell>
                           {row.residente_nome ?? row.medicamento_nome ?? "—"}
                         </TableCell>
-                        <TableCell>{row.status}</TableCell>
+                        <TableCell>
+                          {formatNotificationStatus(row.status)}
+                        </TableCell>
                         <TableCell>{row.visto ? "Sim" : "Não"}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">

@@ -7,7 +7,8 @@ export type DashboardWidgetId =
   | "cabinetChart"
   | "drawerChart"
   | "pharmacyProportion"
-  | "nursingProportion";
+  | "nursingProportion"
+  | "customSectorProportions";
 
 export const DASHBOARD_WIDGET_IDS: DashboardWidgetId[] = [
   "kpis",
@@ -19,6 +20,7 @@ export const DASHBOARD_WIDGET_IDS: DashboardWidgetId[] = [
   "drawerChart",
   "pharmacyProportion",
   "nursingProportion",
+  "customSectorProportions",
 ];
 
 export const DASHBOARD_WIDGET_LABELS: Record<DashboardWidgetId, string> = {
@@ -31,4 +33,5 @@ export const DASHBOARD_WIDGET_LABELS: Record<DashboardWidgetId, string> = {
   drawerChart: "Itens por gaveta",
   pharmacyProportion: "Proporção — farmácia",
   nursingProportion: "Proporção — enfermagem",
+  customSectorProportions: "Proporção — outros setores",
 };

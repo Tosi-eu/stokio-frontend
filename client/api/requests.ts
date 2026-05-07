@@ -3,7 +3,6 @@ import {
   MovementType,
   NotificationDestiny,
   OperationType,
-  SectorType,
 } from "@/utils/enums";
 import type {
   ConsumptionByItemResponse,
@@ -988,7 +987,7 @@ export const deleteStockItem = (stockId: number, type: StockItemType) =>
 
 export const transferStockSector = (payload: {
   estoque_id: number;
-  setor: SectorType;
+  setor: string;
   itemType: StockItemType;
   quantidade?: number;
   casela_id?: number;

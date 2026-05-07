@@ -3,11 +3,10 @@ import {
   StockProportionResponse,
 } from "@/interfaces/interfaces";
 import type { DashboardStockProportionBlock } from "@stokio/sdk";
-import { SectorType } from "@/utils/enums";
 
 export function prepareStockDistributionData(
   response: StockProportionResponse | DashboardStockProportionBlock,
-  sector: SectorType,
+  proportionProfile: "farmacia" | "enfermagem",
 ): StockDistributionItem[] {
   const { percentuais, totais } = response as StockProportionResponse;
 
@@ -34,7 +33,7 @@ export function prepareStockDistributionData(
     },
   ];
 
-  if (sector === SectorType.ENFERMAGEM) {
+  if (proportionProfile === "enfermagem") {
     items.push(
       {
         name: "Carrinho de Emergência (Medicamentos)",

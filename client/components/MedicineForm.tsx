@@ -13,12 +13,7 @@ import {
   medicineFormSchema,
   type MedicineFormData,
 } from "@/schemas/medicine-form.schema";
-import {
-  ItemStockType,
-  OriginType,
-  SectorType,
-  StockTypeLabels,
-} from "@/utils/enums";
+import { ItemStockType, OriginType, StockTypeLabels } from "@/utils/enums";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +31,11 @@ import {
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
+import {
+  buildSectorFilterOptions,
+  getEnabledSectors,
+} from "@/helpers/tenant-sectors.helper";
 import { caselaModeForContext } from "@/helpers/ui-display.helper";
 
 function normalizeText(text: string) {
@@ -54,7 +54,17 @@ export const MedicineForm = memo(function MedicineForm({
   onSubmit,
   isLoading = false,
 }: MedicineFormProps) {
-  const { uiDisplay } = useTenant();
+  const { uiDisplay, modules } = useTenant();
+  const { labelByKey } = useTenantSetores();
+  const sectorKeys = useMemo(() => getEnabledSectors(modules), [modules]);
+  const sectorOptions = useMemo(
+    () => buildSectorFilterOptions(sectorKeys, labelByKey),
+    [sectorKeys, labelByKey],
+  );
+  const defaultSector = sectorKeys.includes("farmacia")
+    ? "farmacia"
+    : (sectorKeys[0] ?? "farmacia");
+
   const router = useRouter();
   const [medicineOpen, setMedicineOpen] = useState(false);
   const [caselaOpen, setCaselaOpen] = useState(false);
@@ -67,6 +77,7 @@ export const MedicineForm = memo(function MedicineForm({
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors },
   } = useFormWithZod(medicineFormSchema, {
     defaultValues: {
@@ -78,7 +89,7 @@ export const MedicineForm = memo(function MedicineForm({
       cabinetId: null,
       drawerId: null,
       origin: null,
-      sector: SectorType.FARMACIA,
+      sector: defaultSector,
       lot: null,
       observacao: null,
     },
@@ -126,9 +137,17 @@ export const MedicineForm = memo(function MedicineForm({
 
   useEffect(() => {
     if (isCart) {
-      setValue("sector", SectorType.ENFERMAGEM);
+      setValue("sector", "enfermagem");
     }
   }, [isCart, setValue]);
+
+  useEffect(() => {
+    if (!sectorKeys.length || isCart) return;
+    const cur = getValues("sector");
+    if (!sectorKeys.includes(cur)) {
+      setValue("sector", defaultSector);
+    }
+  }, [sectorKeys, defaultSector, getValues, isCart, setValue]);
 
   useEffect(() => {
     if (isCart) {
@@ -336,9 +355,9 @@ export const MedicineForm = memo(function MedicineForm({
           <option value="" disabled hidden>
             Selecione
           </option>
-          {Object.values(SectorType).map((s) => (
-            <option key={s} value={s}>
-              {s === SectorType.FARMACIA ? "Farmácia" : "Enfermagem"}
+          {sectorOptions.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
             </option>
           ))}
         </select>

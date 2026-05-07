@@ -15,6 +15,11 @@ import {
   USER_FACING_RETRY_SHORT,
 } from "@/helpers/validation.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
+import {
+  buildSectorFilterOptions,
+  getEnabledSectors,
+} from "@/helpers/tenant-sectors.helper";
 import {
   PREVIEW_CABINETS,
   filterPreviewStockByCabinet,
@@ -71,7 +76,13 @@ function stockItemsToDetailRows(items: StockItem[]): Record<string, unknown>[] {
 }
 
 export default function Cabinets() {
-  const { previewMode } = useTenant();
+  const { previewMode, modules } = useTenant();
+  const { labelByKey } = useTenantSetores();
+
+  const sectorFilterChoices = useMemo(
+    () => buildSectorFilterOptions(getEnabledSectors(modules), labelByKey),
+    [modules, labelByKey],
+  );
   const [cabinets, setCabinets] = useState<StorageFolderItem[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [selectedNumero, setSelectedNumero] = useState<number | null>(null);
@@ -494,8 +505,11 @@ export default function Cabinets() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__all">Todos</SelectItem>
-                      <SelectItem value="farmacia">Farmácia</SelectItem>
-                      <SelectItem value="enfermagem">Enfermagem</SelectItem>
+                      {sectorFilterChoices.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

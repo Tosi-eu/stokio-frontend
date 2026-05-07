@@ -41,6 +41,12 @@ import {
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
+import {
+  buildSectorFilterOptions,
+  getEnabledSectors,
+  resolveSectorProfile,
+} from "@/helpers/tenant-sectors.helper";
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import { TableFilter } from "@/components/TableFilter";
@@ -48,7 +54,15 @@ import { TableFilter } from "@/components/TableFilter";
 const PAGE_SIZE = 24;
 
 export default function StockOut() {
-  const { uiDisplay } = useTenant();
+  const { uiDisplay, modules } = useTenant();
+  const { profilesByKey, labelByKey } = useTenantSetores();
+
+  const sectorKeys = useMemo(() => getEnabledSectors(modules), [modules]);
+
+  const sectorFilterOptions = useMemo(
+    () => buildSectorFilterOptions(sectorKeys, labelByKey),
+    [sectorKeys, labelByKey],
+  );
   const { canMovementTipo } = usePermissionMatrix();
   const canSaida = canMovementTipo("saida");
   const router = useRouter();
@@ -76,6 +90,14 @@ export default function StockOut() {
     setor: "",
     lote: "",
   });
+
+  const setorProfileForFilters = useMemo(
+    () =>
+      filters.setor
+        ? resolveSectorProfile(filters.setor, profilesByKey)
+        : undefined,
+    [filters.setor, profilesByKey],
+  );
 
   const [debouncedNome, setDebouncedNome] = useState("");
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -162,6 +184,8 @@ export default function StockOut() {
       buildFilterOptionsFromApi(apiFilterOptions, {
         residents,
         setor: filters.setor,
+        setorProfile: setorProfileForFilters,
+        sectorFilterOptions,
         displayCasela: uiDisplay.casela,
         caselaSetor: uiDisplay.caselaSetor,
         armarioMode: uiDisplay.armario,
@@ -170,6 +194,8 @@ export default function StockOut() {
       apiFilterOptions,
       residents,
       filters.setor,
+      setorProfileForFilters,
+      sectorFilterOptions,
       uiDisplay.casela,
       uiDisplay.caselaSetor,
       uiDisplay.armario,

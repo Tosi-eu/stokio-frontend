@@ -69,6 +69,9 @@ export interface AlertNoPriceItem {
 export interface ResidentOption {
   casela: number;
   name: string;
+  cpf?: string | null;
+  data_nascimento?: string | null;
+  idade?: number | null;
 }
 
 export type AuditDiffEntry = {

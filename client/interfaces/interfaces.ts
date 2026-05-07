@@ -1,9 +1,4 @@
-import {
-  ItemStockType,
-  OperationType,
-  OriginType,
-  SectorType,
-} from "@/utils/enums";
+import { ItemStockType, OperationType, OriginType } from "@/utils/enums";
 import { ReactNode } from "react";
 import { StockExpiryStatus, StockQuantityStatus } from "./types";
 import type { EffectivePermissionMatrixSerialized } from "@/domain/permission-matrix.types";
@@ -393,5 +388,5 @@ export interface MedicineFormInitialData {
   cabinetId: number | null;
   drawerId: number | null;
   origin: OriginType | "";
-  sector: SectorType | "";
+  sector: string;
 }

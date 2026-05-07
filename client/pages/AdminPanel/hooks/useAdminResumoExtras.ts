@@ -52,6 +52,8 @@ export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
   );
   const [stockHistoryTotal, setStockHistoryTotal] = useState(0);
   const [loadingStockHistory, setLoadingStockHistory] = useState(false);
+  const [stockHistoryPage, setStockHistoryPage] = useState(1);
+  const [stockHistoryLimit, setStockHistoryLimit] = useState(25);
 
   useEffect(() => {
     if (!isAdmin || !enabled) return;
@@ -132,17 +134,18 @@ export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
     return () => clearTimeout(t);
   }, [stockHistoryItemSearch, stockHistoryItemType]);
 
-  async function fetchStockHistoryByItem(itemId: number) {
+  async function fetchStockHistoryByItem(itemId: number, page = 1) {
     setLoadingStockHistory(true);
     try {
       const res = await getAdminStockHistory({
         itemType: stockHistoryItemType,
         itemId,
-        page: 1,
-        limit: 25,
+        page,
+        limit: stockHistoryLimit,
       });
       setStockHistoryData(res.data);
       setStockHistoryTotal(res.total);
+      setStockHistoryPage(res.page ?? page);
     } catch {
       setStockHistoryData([]);
       setStockHistoryTotal(0);
@@ -151,17 +154,18 @@ export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
     }
   }
 
-  async function fetchStockHistoryByLote() {
+  async function fetchStockHistoryByLote(page = 1) {
     setStockHistorySelectedItem(null);
     setLoadingStockHistory(true);
     try {
       const res = await getAdminStockHistory({
         lote: stockHistoryLote.trim(),
-        page: 1,
-        limit: 25,
+        page,
+        limit: stockHistoryLimit,
       });
       setStockHistoryData(res.data);
       setStockHistoryTotal(res.total);
+      setStockHistoryPage(res.page ?? page);
     } catch {
       setStockHistoryData([]);
       setStockHistoryTotal(0);
@@ -169,6 +173,10 @@ export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
       setLoadingStockHistory(false);
     }
   }
+
+  useEffect(() => {
+    setStockHistoryPage(1);
+  }, [stockHistoryLimit]);
 
   return {
     expiringDays,
@@ -203,5 +211,9 @@ export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
     loadingStockHistory,
     fetchStockHistoryByItem,
     fetchStockHistoryByLote,
+    stockHistoryPage,
+    setStockHistoryPage,
+    stockHistoryLimit,
+    setStockHistoryLimit,
   };
 }

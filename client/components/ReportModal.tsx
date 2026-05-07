@@ -40,6 +40,7 @@ import { createStockPDF, MovementsParams } from "./StockReporter";
 import { toast } from "@/hooks/use-toast.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
+import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
 
 type StatusType = "idle" | "loading" | "success" | "error";
 
@@ -51,6 +52,9 @@ interface ReportModalProps {
 interface Resident {
   casela: number;
   name: string;
+  cpf?: string | null;
+  data_nascimento?: string | null;
+  idade?: number | null;
 }
 
 enum MovementPeriod {
@@ -60,7 +64,10 @@ enum MovementPeriod {
 }
 
 export default function ReportModal({ open, onClose }: ReportModalProps) {
-  const { uiDisplay } = useTenant();
+  const { uiDisplay, tenant, loading: tenantConfigLoading } = useTenant();
+  const { displaySrc: tenantLogoSrc } = useTenantBrandLogoSrc(tenant, {
+    tenantConfigLoading,
+  });
   const [status, setStatus] = useState<StatusType>("idle");
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
   const [selectedResident, setSelectedResident] = useState<number | null>(null);
@@ -115,8 +122,23 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
   const loadResidents = useCallback(async () => {
     setLoadingResidents(true);
     try {
-      const residentsList = await fetchAllPaginated<Resident>(getResidents);
-      setResidents(residentsList);
+      const residentsList = await fetchAllPaginated<Resident>((p, l) =>
+        getResidents(p, l).then((r) => ({
+          data: ((r.data ?? []) as Array<Record<string, unknown>>).map((x) => ({
+            casela: Number(x.casela),
+            name: String(x.name ?? ""),
+            cpf: x.cpf != null ? String(x.cpf) : null,
+            data_nascimento:
+              x.data_nascimento != null ? String(x.data_nascimento) : null,
+            idade:
+              typeof x.idade === "number" && Number.isFinite(x.idade)
+                ? x.idade
+                : null,
+          })),
+          hasNext: r.hasNext ?? false,
+        })),
+      );
+      setResidents(residentsList ?? []);
     } catch (error) {
       console.error("Erro ao carregar residentes:", error);
       setResidents([]);
@@ -250,9 +272,56 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
             : undefined;
 
         response = await getReport(tipo, casela);
+        if (
+          casela != null &&
+          (tipo === "residente_consumo" || tipo === "medicamentos_residente")
+        ) {
+          const r = residents.find((x) => x.casela === casela) ?? null;
+          if (r) {
+            if (
+              tipo === "residente_consumo" &&
+              response &&
+              typeof response === "object"
+            ) {
+              response = {
+                ...(response as Record<string, unknown>),
+                cpf: r.cpf ?? null,
+                data_nascimento: r.data_nascimento ?? null,
+                idade: r.idade ?? null,
+              };
+            } else if (tipo === "medicamentos_residente") {
+              if (Array.isArray(response)) {
+                if (
+                  response.length > 0 &&
+                  response[0] &&
+                  typeof response[0] === "object"
+                ) {
+                  response = [
+                    {
+                      ...(response[0] as Record<string, unknown>),
+                      cpf: r.cpf ?? null,
+                      data_nascimento: r.data_nascimento ?? null,
+                      idade: r.idade ?? null,
+                    },
+                    ...response.slice(1),
+                  ];
+                }
+              } else if (response && typeof response === "object") {
+                response = {
+                  ...(response as Record<string, unknown>),
+                  cpf: r.cpf ?? null,
+                  data_nascimento: r.data_nascimento ?? null,
+                  idade: r.idade ?? null,
+                };
+              }
+            }
+          }
+        }
       }
 
-      const doc = createStockPDF(tipo, response);
+      const doc = createStockPDF(tipo, response, undefined, {
+        logoUrl: tenantLogoSrc,
+      });
       const blob = await pdf(doc).toBlob();
       const url = URL.createObjectURL(blob);
 

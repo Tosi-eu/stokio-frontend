@@ -13,7 +13,7 @@ import {
   inputFormSchema,
   type InputFormData,
 } from "@/schemas/input-form.schema";
-import { ItemStockType, StockTypeLabels, SectorType } from "@/utils/enums";
+import { ItemStockType, StockTypeLabels } from "@/utils/enums";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +31,12 @@ import {
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
+import {
+  buildSectorFilterOptions,
+  getEnabledSectors,
+  resolveSectorProfile,
+} from "@/helpers/tenant-sectors.helper";
 
 function normalizeText(text: string) {
   return text
@@ -48,7 +54,17 @@ export const InputForm = memo(function InputForm({
   onSubmit,
   isLoading = false,
 }: InputFormProps) {
-  const { uiDisplay } = useTenant();
+  const { uiDisplay, modules } = useTenant();
+  const { labelByKey, profilesByKey } = useTenantSetores();
+  const sectorKeys = useMemo(() => getEnabledSectors(modules), [modules]);
+  const sectorOptions = useMemo(
+    () => buildSectorFilterOptions(sectorKeys, labelByKey),
+    [sectorKeys, labelByKey],
+  );
+  const defaultSector = sectorKeys.includes("farmacia")
+    ? "farmacia"
+    : (sectorKeys[0] ?? "farmacia");
+
   const router = useRouter();
   const [inputOpen, setInputOpen] = useState(false);
   const [caselaOpen, setCaselaOpen] = useState(false);
@@ -61,6 +77,7 @@ export const InputForm = memo(function InputForm({
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors },
   } = useFormWithZod(inputFormSchema, {
     defaultValues: {
@@ -71,7 +88,7 @@ export const InputForm = memo(function InputForm({
       casela: null,
       cabinetId: null,
       drawerId: null,
-      sector: SectorType.FARMACIA,
+      sector: defaultSector,
       lot: null,
     },
   });
@@ -81,6 +98,11 @@ export const InputForm = memo(function InputForm({
   const selectedInputId = watch("inputId");
   const casela = watch("casela");
 
+  const nursingLike =
+    resolveSectorProfile(sector, profilesByKey) === "enfermagem";
+  const farmaciaLike =
+    resolveSectorProfile(sector, profilesByKey) === "farmacia";
+
   const selectedInput = inputs.find((i) => i.id === selectedInputId);
   const isEmergencyCart = stockType === ItemStockType.CARRINHO;
   const isPsychotropicCart = stockType === ItemStockType.CARRINHO_PSICOTROPICOS;
@@ -88,13 +110,13 @@ export const InputForm = memo(function InputForm({
   const isIndividual = stockType === ItemStockType.INDIVIDUAL;
   const selectedCasela = caselas.find((c) => c.casela === casela);
   const caselasForSelect = useMemo(() => {
-    if (sector === SectorType.ENFERMAGEM) {
+    if (nursingLike) {
       return [...(caselas ?? [])].sort((a, b) =>
         a.name.localeCompare(b.name, "pt-BR"),
       );
     }
     return caselas ?? [];
-  }, [caselas, sector]);
+  }, [caselas, nursingLike]);
 
   const filteredInputs = useMemo(() => {
     const s = normalizeText(inputSearch);
@@ -112,9 +134,17 @@ export const InputForm = memo(function InputForm({
 
   useEffect(() => {
     if (isCart) {
-      setValue("sector", SectorType.ENFERMAGEM);
+      setValue("sector", "enfermagem");
     }
   }, [isCart, setValue]);
+
+  useEffect(() => {
+    if (!sectorKeys.length || isCart) return;
+    const cur = getValues("sector");
+    if (!sectorKeys.includes(cur)) {
+      setValue("sector", defaultSector);
+    }
+  }, [sectorKeys, defaultSector, getValues, isCart, setValue]);
 
   useEffect(() => {
     if (isCart) {
@@ -317,9 +347,9 @@ export const InputForm = memo(function InputForm({
           <option value="" disabled hidden>
             Selecione
           </option>
-          {Object.values(SectorType).map((s) => (
-            <option key={s} value={s}>
-              {s === SectorType.FARMACIA ? "Farmácia" : "Enfermagem"}
+          {sectorOptions.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
             </option>
           ))}
         </select>
@@ -358,14 +388,12 @@ export const InputForm = memo(function InputForm({
       <div
         className={cn(
           "grid gap-6",
-          sector === SectorType.ENFERMAGEM
-            ? "grid-cols-1"
-            : "grid-cols-1 md:grid-cols-2",
+          nursingLike ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2",
         )}
       >
         <div className="grid gap-2">
           <label className="text-sm font-semibold text-slate-700">
-            {sector === SectorType.ENFERMAGEM ? "Casela (residente)" : "Casela"}
+            {nursingLike ? "Casela (residente)" : "Casela"}
           </label>
           <Controller
             name="casela"
@@ -468,7 +496,7 @@ export const InputForm = memo(function InputForm({
             )}
           />
         </div>
-        {sector === SectorType.FARMACIA && (
+        {farmaciaLike && (
           <div className="grid gap-2">
             <label className="text-sm font-semibold text-slate-700">
               Residente

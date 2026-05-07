@@ -19,7 +19,7 @@ import {
   getResidents,
   getDrawers,
 } from "@/api/requests";
-import { ItemStockType, SectorType } from "@/utils/enums";
+import { ItemStockType } from "@/utils/enums";
 import { StockActionType, StockItemType } from "@/interfaces/types";
 import {
   fetchStockPage,
@@ -51,6 +51,12 @@ import {
 import { ChevronsUpDown, X } from "lucide-react";
 import { TableFilter } from "@/components/TableFilter";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
+import {
+  buildSectorFilterOptions,
+  getEnabledSectors,
+  resolveSectorProfile,
+} from "@/helpers/tenant-sectors.helper";
 import {
   getPreviewStockItems,
   PREVIEW_CABINETS,
@@ -70,7 +76,16 @@ const FILTER_LABELS: Record<string, string> = {
 };
 
 export default function Stock() {
-  const { uiDisplay, previewMode } = useTenant();
+  const { uiDisplay, previewMode, modules } = useTenant();
+  const { profilesByKey, labelByKey } = useTenantSetores();
+
+  const sectorKeys = useMemo(() => getEnabledSectors(modules), [modules]);
+
+  const sectorFilterOptions = useMemo(
+    () => buildSectorFilterOptions(sectorKeys, labelByKey),
+    [sectorKeys, labelByKey],
+  );
+
   const router = useRouter();
   const { can, canMovementTipo } = usePermissionMatrix();
   const canSaida = canMovementTipo("saida");
@@ -106,6 +121,14 @@ export default function Stock() {
     setor: "",
     lote: "",
   });
+
+  const setorProfileForFilters = useMemo(
+    () =>
+      filters.setor
+        ? resolveSectorProfile(filters.setor, profilesByKey)
+        : undefined,
+    [filters.setor, profilesByKey],
+  );
 
   const [debouncedNome, setDebouncedNome] = useState("");
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -347,6 +370,8 @@ export default function Stock() {
       buildFilterOptionsFromApi(apiFilterOptions, {
         residents,
         setor: filters.setor,
+        setorProfile: setorProfileForFilters,
+        sectorFilterOptions,
         displayCasela: uiDisplay.casela,
         caselaSetor: uiDisplay.caselaSetor,
         armarioMode: uiDisplay.armario,
@@ -355,6 +380,8 @@ export default function Stock() {
       apiFilterOptions,
       residents,
       filters.setor,
+      setorProfileForFilters,
+      sectorFilterOptions,
       uiDisplay.casela,
       uiDisplay.caselaSetor,
       uiDisplay.armario,
@@ -548,7 +575,7 @@ export default function Stock() {
     try {
       await transferStockSector({
         estoque_id: row.id,
-        setor: SectorType.ENFERMAGEM,
+        setor: "enfermagem",
         itemType: row.itemType as StockItemType,
         quantidade: quantity,
         casela_id: casela ?? null,

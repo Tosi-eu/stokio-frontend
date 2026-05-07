@@ -111,10 +111,40 @@ export function formatStockItems(raw: unknown[]): StockItem[] {
 export interface BuildFilterOptionsParams {
   residents?: Array<{ casela: number; name: string }>;
   setor?: string;
+  setorProfile?: "farmacia" | "enfermagem";
+  sectorFilterOptions?: StockFilterOption[];
   displayCasela?: UiDisplayCasela;
   caselaSetor?: UiDisplayCaselaSetor;
   armarioMode?: "numero" | "categoria";
   cabinets?: Array<{ numero: number; categoria: string }>;
+}
+
+const DEFAULT_SECTOR_FILTER_OPTIONS: StockFilterOption[] = [
+  { value: "enfermagem", label: "Enfermagem" },
+  { value: "farmacia", label: "Farmácia" },
+];
+
+function resolveSectorFilterParts(options?: BuildFilterOptionsParams): {
+  sectors: StockFilterOption[];
+  isEnfermagem: boolean;
+  sectorForFarmaciaList: string;
+} {
+  const sectors =
+    (options?.sectorFilterOptions?.length ?? false)
+      ? options.sectorFilterOptions!
+      : DEFAULT_SECTOR_FILTER_OPTIONS;
+
+  const profile =
+    options?.setorProfile ??
+    (options?.setor === "enfermagem" ? "enfermagem" : "farmacia");
+
+  const isEnfermagem =
+    profile === "enfermagem" && (options?.residents?.length ?? 0) > 0;
+
+  const sectorForFarmaciaList =
+    profile === "enfermagem" ? "" : (options?.setor ?? "");
+
+  return { sectors, isEnfermagem, sectorForFarmaciaList };
 }
 
 function caselaUiPick(options?: BuildFilterOptionsParams): {
@@ -133,10 +163,8 @@ export function buildFilterOptions(
 ): StockFilterOptions {
   const raw = Array.isArray(allRawData) ? allRawData : [];
 
-  const sectors: StockFilterOption[] = [
-    { value: "enfermagem", label: "Enfermagem" },
-    { value: "farmacia", label: "Farmácia" },
-  ];
+  const { sectors, isEnfermagem, sectorForFarmaciaList } =
+    resolveSectorFilterParts(options);
 
   const cabByNum = new Map(
     (options?.cabinets ?? []).map((c) => [c.numero, c.categoria]),
@@ -156,14 +184,11 @@ export function buildFilterOptions(
     }));
 
   const uiCasela = caselaUiPick(options);
-  const isEnfermagem =
-    options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
   const effEnf = caselaModeForContext(
     uiCasela.casela,
     uiCasela.caselaSetor,
     "enfermagem",
   );
-  const sectorForFarmaciaList = options?.setor === "farmacia" ? "farmacia" : "";
   const effFarm = caselaModeForContext(
     uiCasela.casela,
     uiCasela.caselaSetor,
@@ -244,10 +269,8 @@ export function buildFilterOptionsFromApi(
   apiOptions: ApiFilterOptions | null,
   options?: BuildFilterOptionsParams,
 ): StockFilterOptions {
-  const sectors: StockFilterOption[] = [
-    { value: "enfermagem", label: "Enfermagem" },
-    { value: "farmacia", label: "Farmácia" },
-  ];
+  const { sectors, isEnfermagem, sectorForFarmaciaList } =
+    resolveSectorFilterParts(options);
 
   const cabByNum = new Map(
     (options?.cabinets ?? []).map((c) => [c.numero, c.categoria]),
@@ -261,14 +284,11 @@ export function buildFilterOptionsFromApi(
     }));
 
   const uiCasela = caselaUiPick(options);
-  const isEnfermagem =
-    options?.setor === "enfermagem" && (options?.residents?.length ?? 0) > 0;
   const effEnf = caselaModeForContext(
     uiCasela.casela,
     uiCasela.caselaSetor,
     "enfermagem",
   );
-  const sectorForFarmaciaList = options?.setor === "farmacia" ? "farmacia" : "";
   const effFarm = caselaModeForContext(
     uiCasela.casela,
     uiCasela.caselaSetor,

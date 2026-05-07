@@ -74,6 +74,9 @@ export interface PeriodMovementReport {
 export interface ResidentMedicinesReport {
   residente: string;
   casela: number;
+  cpf?: string | null;
+  data_nascimento?: string | null;
+  idade?: number | null;
   medicamento: string;
   principio_ativo: string;
   dosagem: string;
@@ -124,6 +127,9 @@ interface PsicotropicosReport {
 interface ResidentConsumptionReport {
   residente: string;
   casela: number;
+  cpf?: string | null;
+  data_nascimento?: string | null;
+  idade?: number | null;
   medicamentos: {
     nome: string;
     principio_ativo: string;
@@ -172,6 +178,9 @@ interface RowData {
 type ResidentProntuarioReport = {
   residente: string;
   casela: number | string;
+  cpf?: string | null;
+  data_nascimento?: string | null;
+  idade?: number | null;
   itens: RowData[];
 };
 
@@ -391,7 +400,12 @@ export function createStockPDF(
     | ExpiredMedicineReport[]
     | ExpiringSoonReport[],
   _reportMeta?: { period: MovementPeriod },
+  options?: { logoUrl?: string | null },
 ) {
+  const effectiveLogoUrl =
+    options?.logoUrl && String(options.logoUrl).trim()
+      ? String(options.logoUrl).trim()
+      : PDF_REPORT_LOGO_URL;
   const isResidentConsumption = tipo === "residente_consumo";
   const isTransferReport = tipo === "transferencias";
   const isMovementsReport = tipo === "movimentacoes";
@@ -454,7 +468,7 @@ export function createStockPDF(
         <View style={styles.topLine} />
 
         <View style={styles.header}>
-          <Image src={PDF_REPORT_LOGO_URL} style={styles.logo} />
+          <Image src={effectiveLogoUrl} style={styles.logo} />
           <Text style={styles.title}>
             {isResidentConsumption
               ? "CONSUMO DO RESIDENTE"
@@ -485,6 +499,21 @@ export function createStockPDF(
               <Text style={{ fontSize: 12, color: "#666" }}>
                 Casela: {prontuarioData.casela}
               </Text>
+              {prontuarioData.cpf ? (
+                <Text style={{ fontSize: 12, color: "#666" }}>
+                  CPF: {prontuarioData.cpf}
+                </Text>
+              ) : null}
+              {prontuarioData.data_nascimento ? (
+                <Text style={{ fontSize: 12, color: "#666" }}>
+                  Nascimento: {formatDateToPtBr(prontuarioData.data_nascimento)}
+                </Text>
+              ) : null}
+              {typeof prontuarioData.idade === "number" ? (
+                <Text style={{ fontSize: 12, color: "#666" }}>
+                  Idade: {prontuarioData.idade}
+                </Text>
+              ) : null}
             </View>
 
             <Text style={styles.sectionTitle}>Itens no Estoque</Text>
@@ -518,6 +547,22 @@ export function createStockPDF(
               <Text style={{ fontSize: 12, color: "#666" }}>
                 Casela: {consumptionData.casela}
               </Text>
+              {consumptionData.cpf ? (
+                <Text style={{ fontSize: 12, color: "#666" }}>
+                  CPF: {consumptionData.cpf}
+                </Text>
+              ) : null}
+              {consumptionData.data_nascimento ? (
+                <Text style={{ fontSize: 12, color: "#666" }}>
+                  Nascimento:{" "}
+                  {formatDateToPtBr(consumptionData.data_nascimento)}
+                </Text>
+              ) : null}
+              {typeof consumptionData.idade === "number" ? (
+                <Text style={{ fontSize: 12, color: "#666" }}>
+                  Idade: {consumptionData.idade}
+                </Text>
+              ) : null}
             </View>
 
             <Text style={styles.sectionTitle}>1. Medicamentos e Uso</Text>
@@ -969,6 +1014,24 @@ export function createStockPDF(
                   <Text style={{ fontSize: 12, color: "#666" }}>
                     Casela: {residentMedicinesData[0]?.casela || ""}
                   </Text>
+                  {residentMedicinesData[0]?.cpf ? (
+                    <Text style={{ fontSize: 12, color: "#666" }}>
+                      CPF: {residentMedicinesData[0]?.cpf}
+                    </Text>
+                  ) : null}
+                  {residentMedicinesData[0]?.data_nascimento ? (
+                    <Text style={{ fontSize: 12, color: "#666" }}>
+                      Nascimento:{" "}
+                      {formatDateToPtBr(
+                        String(residentMedicinesData[0]?.data_nascimento),
+                      )}
+                    </Text>
+                  ) : null}
+                  {typeof residentMedicinesData[0]?.idade === "number" ? (
+                    <Text style={{ fontSize: 12, color: "#666" }}>
+                      Idade: {residentMedicinesData[0]?.idade}
+                    </Text>
+                  ) : null}
                 </View>
 
                 {renderTableWithConfig(

@@ -19,8 +19,14 @@ import {
   getErrorMessage,
   USER_FACING_RETRY_SHORT,
 } from "@/helpers/validation.helper";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
 
 export function useAdminReports(enabled = true) {
+  const { tenant, loading: tenantConfigLoading } = useTenant();
+  const { displaySrc: tenantLogoSrc } = useTenantBrandLogoSrc(tenant, {
+    tenantConfigLoading,
+  });
   const [selectedReportType, setSelectedReportType] = useState("");
   const [reportResidents, setReportResidents] = useState<ResidentOption[]>([]);
   const [selectedReportResident, setSelectedReportResident] = useState<
@@ -67,7 +73,17 @@ export function useAdminReports(enabled = true) {
     try {
       const list = await fetchAllPaginated<ResidentOption>((p, l) =>
         getResidents(p, l).then((r) => ({
-          data: (r.data ?? []) as ResidentOption[],
+          data: ((r.data ?? []) as Array<Record<string, unknown>>).map((x) => ({
+            casela: Number(x.casela),
+            name: String(x.name ?? ""),
+            cpf: x.cpf != null ? String(x.cpf) : null,
+            data_nascimento:
+              x.data_nascimento != null ? String(x.data_nascimento) : null,
+            idade:
+              typeof x.idade === "number" && Number.isFinite(x.idade)
+                ? x.idade
+                : null,
+          })),
           hasNext: r.hasNext ?? false,
         })),
       );
@@ -96,6 +112,8 @@ export function useAdminReports(enabled = true) {
       const doc = createStockPDF(
         tipo,
         response as Parameters<typeof createStockPDF>[1],
+        undefined,
+        { logoUrl: tenantLogoSrc },
       );
       const blob = await pdf(doc).toBlob();
       const url = URL.createObjectURL(blob);
@@ -125,6 +143,8 @@ export function useAdminReports(enabled = true) {
       const doc = createStockPDF(
         tipo,
         response as Parameters<typeof createStockPDF>[1],
+        undefined,
+        { logoUrl: tenantLogoSrc },
       );
       const blob = await pdf(doc).toBlob();
       const url = URL.createObjectURL(blob);
@@ -201,7 +221,42 @@ export function useAdminReports(enabled = true) {
       tipo === "residente_consumo" || tipo === "medicamentos_residente"
         ? (selectedReportResident ?? undefined)
         : undefined;
-    return getReport(tipo, casela);
+    const payload = await getReport(tipo, casela);
+    if (casela == null) return payload;
+    const r = reportResidents.find((x) => x.casela === casela) ?? null;
+    if (!r) return payload;
+    if (tipo === "residente_consumo") {
+      const base = payload as Record<string, unknown>;
+      return {
+        ...base,
+        cpf: r.cpf ?? null,
+        data_nascimento: r.data_nascimento ?? null,
+        idade: r.idade ?? null,
+      };
+    }
+    if (tipo === "medicamentos_residente") {
+      // Payload é tipicamente uma lista de medicamentos; colocamos meta no 1º item
+      // para o PDF mostrar os dados do residente sem depender do backend.
+      if (Array.isArray(payload)) {
+        if (payload.length === 0) return payload;
+        const first = payload[0] as Record<string, unknown>;
+        const nextFirst = {
+          ...first,
+          cpf: r.cpf ?? null,
+          data_nascimento: r.data_nascimento ?? null,
+          idade: r.idade ?? null,
+        };
+        return [nextFirst, ...payload.slice(1)];
+      }
+      const base = payload as Record<string, unknown>;
+      return {
+        ...base,
+        cpf: r.cpf ?? null,
+        data_nascimento: r.data_nascimento ?? null,
+        idade: r.idade ?? null,
+      };
+    }
+    return payload;
   }
 
   async function handleExportCSV() {

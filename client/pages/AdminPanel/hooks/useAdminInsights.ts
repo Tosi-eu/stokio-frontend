@@ -4,6 +4,35 @@ import { toast } from "@/hooks/use-toast.hook";
 import { getAdminInsights } from "@/api/requests";
 import type { InsightsData, AuditEvent } from "../types";
 
+const SYSTEM_USER_IDS = new Set([1]);
+
+function isSystemAuditEvent(e: AuditEvent): boolean {
+  if (e.user_id != null && SYSTEM_USER_IDS.has(e.user_id)) return true;
+
+  const path = (e.path ?? "").toLowerCase();
+  if (
+    path.includes("reposicao") ||
+    path.includes("backfill") ||
+    path.includes("price") ||
+    path.includes("schedule") ||
+    path.includes("temporal")
+  ) {
+    return true;
+  }
+
+  const resource = (e.resource ?? "").toLowerCase();
+  if (
+    resource.includes("pricing") ||
+    resource.includes("reposicao") ||
+    resource.includes("temporal") ||
+    resource.includes("schedule")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function useAdminInsights(isAdmin: boolean, enabled = true) {
   const [insightDays, setInsightDays] = useState(30);
   const [insightDaysInput, setInsightDaysInput] = useState("30");
@@ -50,13 +79,18 @@ export function useAdminInsights(isAdmin: boolean, enabled = true) {
 
   const insights = useMemo(() => {
     if (!insightsData) return null;
+    const rawEvents: AuditEvent[] = Array.isArray(insightsData.events)
+      ? (insightsData.events as AuditEvent[])
+      : [];
+    const events = rawEvents.filter((e) => !isSystemAuditEvent(e));
+    const removed = rawEvents.length - events.length;
     return {
       created: insightsData.created ?? 0,
       updated: insightsData.updated ?? 0,
       deleted: insightsData.deleted ?? 0,
       total: insightsData.total ?? 0,
-      totalFiltered: insightsData.totalFiltered ?? 0,
-      events: insightsData.events ?? [],
+      totalFiltered: Math.max(0, (insightsData.totalFiltered ?? 0) - removed),
+      events,
     } as InsightsData;
   }, [insightsData]);
 

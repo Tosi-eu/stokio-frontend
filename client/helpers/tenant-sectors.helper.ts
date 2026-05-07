@@ -2,7 +2,7 @@ import type { TenantModules } from "@/context/tenant-context";
 
 const DEFAULT = ["farmacia", "enfermagem"] as const;
 
-const sectorKeyRe = /^[a-z0-9_]{1,64}$/;
+export const SECTOR_KEY_REGEX = /^[a-z0-9_]{1,64}$/;
 
 export function getEnabledSectors(
   modules: Pick<TenantModules, "enabled_sectors"> | null,
@@ -14,7 +14,7 @@ export function getEnabledSectors(
   for (const x of raw) {
     if (typeof x !== "string") continue;
     const k = x.trim().toLowerCase();
-    if (!sectorKeyRe.test(k) || seen.has(k)) continue;
+    if (!SECTOR_KEY_REGEX.test(k) || seen.has(k)) continue;
     seen.add(k);
     out.push(k);
   }
@@ -29,4 +29,26 @@ export function formatTenantSectorKeyLabel(key: string): string {
     .split("_")
     .map((p) => (p ? p.charAt(0).toUpperCase() + p.slice(1) : p))
     .join(" ");
+}
+
+export function resolveSectorProfile(
+  sectorKey: string | null | undefined,
+  profilesByKey: Map<string, "farmacia" | "enfermagem">,
+): "farmacia" | "enfermagem" {
+  const k = (sectorKey ?? "").trim().toLowerCase();
+  if (!k) return "farmacia";
+  const p = profilesByKey.get(k);
+  if (p) return p;
+  return k === "enfermagem" ? "enfermagem" : "farmacia";
+}
+
+/** Labels for selects/filters: prefer catalog nome, else formatted key. */
+export function buildSectorFilterOptions(
+  enabledKeys: string[],
+  labelByKey: Map<string, string>,
+): Array<{ value: string; label: string }> {
+  return enabledKeys.map((k) => ({
+    value: k,
+    label: labelByKey.get(k) ?? formatTenantSectorKeyLabel(k),
+  }));
 }

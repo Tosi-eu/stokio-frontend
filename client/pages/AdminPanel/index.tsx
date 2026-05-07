@@ -232,6 +232,10 @@ export default function AdminPanel() {
             loadingStockHistory={resumoExtras.loadingStockHistory}
             fetchStockHistoryByItem={resumoExtras.fetchStockHistoryByItem}
             fetchStockHistoryByLote={resumoExtras.fetchStockHistoryByLote}
+            stockHistoryPage={resumoExtras.stockHistoryPage}
+            setStockHistoryPage={resumoExtras.setStockHistoryPage}
+            stockHistoryLimit={resumoExtras.stockHistoryLimit}
+            setStockHistoryLimit={resumoExtras.setStockHistoryLimit}
           />
         </TabsContent>
 

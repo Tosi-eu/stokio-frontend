@@ -12,6 +12,12 @@ import { getResidents, updateResident } from "@/api/requests";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
+import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
+import {
+  buildSectorFilterOptions,
+  getEnabledSectors,
+} from "@/helpers/tenant-sectors.helper";
 import { pdf } from "@react-pdf/renderer";
 import {
   PREVIEW_RESIDENTS,
@@ -107,7 +113,21 @@ function csvEscape(v: unknown): string {
 }
 
 export default function Resident() {
-  const { previewMode } = useTenant();
+  const {
+    previewMode,
+    modules,
+    tenant,
+    loading: tenantConfigLoading,
+  } = useTenant();
+  const { displaySrc: tenantLogoSrc } = useTenantBrandLogoSrc(tenant, {
+    tenantConfigLoading,
+  });
+  const { labelByKey } = useTenantSetores();
+
+  const prontuarioSectorOptions = useMemo(
+    () => buildSectorFilterOptions(getEnabledSectors(modules), labelByKey),
+    [modules, labelByKey],
+  );
   const [residents, setResidents] = useState<ResidentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -393,6 +413,9 @@ export default function Resident() {
         const header = [
           "Casela",
           "Residente",
+          "CPF",
+          "Data nascimento",
+          "Idade",
           "Categoria",
           "Nome",
           "Qtd",
@@ -411,6 +434,9 @@ export default function Resident() {
             [
               resident.casela,
               resident.name,
+              resident.cpf ?? "",
+              resident.data_nascimento ?? "",
+              resident.idade ?? "",
               itemKindLabel(i),
               i.name,
               i.quantity,
@@ -467,22 +493,30 @@ export default function Resident() {
         const allItems = await fetchAllProntuarioItems(resident);
         const { createStockPDF } = await import("@/components/StockReporter");
 
-        const pdfDoc = createStockPDF("prontuario_residente", {
-          residente: resident.name,
-          casela: resident.casela,
-          itens: allItems.map((i) => ({
-            categoria: itemKindLabel(i),
-            nome: i.name,
-            quantidade: i.quantity,
-            validade: i.expiry,
-            data_entrada: i.entryDate ?? "",
-            data_saida: i.exitDate ?? "",
-            armario: i.cabinet ?? "",
-            gaveta: i.drawer ?? "",
-            setor: i.sector ?? "",
-            lote: i.lot ?? "",
-          })),
-        });
+        const pdfDoc = createStockPDF(
+          "prontuario_residente",
+          {
+            residente: resident.name,
+            casela: resident.casela,
+            cpf: resident.cpf ?? null,
+            data_nascimento: resident.data_nascimento ?? null,
+            idade: resident.idade ?? null,
+            itens: allItems.map((i) => ({
+              categoria: itemKindLabel(i),
+              nome: i.name,
+              quantidade: i.quantity,
+              validade: i.expiry,
+              data_entrada: i.entryDate ?? "",
+              data_saida: i.exitDate ?? "",
+              armario: i.cabinet ?? "",
+              gaveta: i.drawer ?? "",
+              setor: i.sector ?? "",
+              lote: i.lot ?? "",
+            })),
+          },
+          undefined,
+          { logoUrl: tenantLogoSrc },
+        );
 
         const blob = await pdf(pdfDoc).toBlob();
         const url = URL.createObjectURL(blob);
@@ -510,7 +544,7 @@ export default function Resident() {
         setProntuarioDownloading(false);
       }
     },
-    [fetchAllProntuarioItems, prontuarioDownloading],
+    [fetchAllProntuarioItems, prontuarioDownloading, tenantLogoSrc],
   );
 
   const prontuarioTotalPages = useMemo(() => {
@@ -909,10 +943,11 @@ export default function Resident() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__all">Todos</SelectItem>
-                            <SelectItem value="farmacia">Farmácia</SelectItem>
-                            <SelectItem value="enfermagem">
-                              Enfermagem
-                            </SelectItem>
+                            {prontuarioSectorOptions.map((s) => (
+                              <SelectItem key={s.value} value={s.value}>
+                                {s.label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
