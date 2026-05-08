@@ -282,7 +282,7 @@ export default function AdminPanel() {
             setReportPreviewUrl={reports.setReportPreviewUrl}
             handleGenerateReport={reports.handleGenerateReport}
             handlePreviewReport={reports.handlePreviewReport}
-            handleExportCSV={reports.handleExportCSV}
+            handleExportSpreadsheet={reports.handleExportSpreadsheet}
           />
         </TabsContent>
 

@@ -21,8 +21,15 @@ import {
   AlertTriangle,
   ChevronsUpDown,
 } from "lucide-react";
+import {
+  createReportExportJob,
+  downloadReportExportBlob,
+  getReportExportJob,
+  getResidents,
+} from "@/api/requests";
+import { createStockPDF, MovementPeriod } from "@/components/StockReporter";
 import { pdf } from "@react-pdf/renderer";
-import { getReport, getResidents } from "@/api/requests";
+import { fetchStockReportPayloadForPdf } from "@/helpers/stock-report-payload.helper";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import {
   CommandEmpty,
@@ -36,12 +43,10 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { getReportTitle } from "@/helpers/relatorio.helper";
 import { parseYearMonthToDate } from "@/helpers/dates.helper";
-import { createStockPDF, MovementsParams } from "./StockReporter";
 import { toast } from "@/hooks/use-toast.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
-import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
 import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
-
+import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
 type StatusType = "idle" | "loading" | "success" | "error";
 
 interface ReportModalProps {
@@ -55,12 +60,6 @@ interface Resident {
   cpf?: string | null;
   data_nascimento?: string | null;
   idade?: number | null;
-}
-
-enum MovementPeriod {
-  DIARIO = "diario",
-  MENSAL = "mensal",
-  INTERVALO = "intervalo",
 }
 
 export default function ReportModal({ open, onClose }: ReportModalProps) {
@@ -185,6 +184,20 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
     if (value !== "residente_consumo" && value !== "medicamentos_residente") {
       setSelectedResident(null);
     }
+    // Defaults úteis pra reduzir fricção
+    if (value === "movimentacoes") {
+      setMovementPeriod(MovementPeriod.DIARIO);
+      setMovementDate((d) => d ?? new Date());
+      setMovementMonth("");
+      setStartDate(null);
+      setEndDate(null);
+    }
+    if (value === "transferencias") {
+      setMovementPeriodTransfer(MovementPeriod.DIARIO);
+      setTransferDate((d) => d ?? new Date());
+      setStartDate(null);
+      setEndDate(null);
+    }
   };
 
   const handleGenerate = async () => {
@@ -194,28 +207,25 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
     setStatus("loading");
 
     try {
-      let response;
+      const params: Record<string, string> = {};
 
       if (tipo === "movimentacoes") {
-        let params: MovementsParams;
-
         if (movementPeriod === MovementPeriod.DIARIO) {
           if (!movementDate) {
             toast({ title: "Selecione a data", variant: "error" });
             setStatus("idle");
             return;
           }
-          params = {
-            periodo: MovementPeriod.DIARIO,
-            data: movementDate.toISOString().split("T")[0],
-          };
+          params.periodo = MovementPeriod.DIARIO;
+          params.data = movementDate.toISOString().split("T")[0];
         } else if (movementPeriod === MovementPeriod.MENSAL) {
           if (!movementMonth) {
             toast({ title: "Selecione o mês", variant: "error" });
             setStatus("idle");
             return;
           }
-          params = { periodo: MovementPeriod.MENSAL, mes: movementMonth };
+          params.periodo = MovementPeriod.MENSAL;
+          params.mes = movementMonth;
         } else if (movementPeriod === MovementPeriod.INTERVALO) {
           if (!startDate || !endDate) {
             toast({
@@ -225,16 +235,20 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
             setStatus("idle");
             return;
           }
-          params = {
-            periodo: MovementPeriod.INTERVALO,
-            data_inicial: startDate.toISOString().split("T")[0],
-            data_final: endDate.toISOString().split("T")[0],
-          };
+          if (endDate.getTime() < startDate.getTime()) {
+            toast({
+              title: "Intervalo inválido",
+              description: "A data final precisa ser maior ou igual à inicial.",
+              variant: "error",
+            });
+            setStatus("idle");
+            return;
+          }
+          params.periodo = MovementPeriod.INTERVALO;
+          params.data_inicial = startDate.toISOString().split("T")[0];
+          params.data_final = endDate.toISOString().split("T")[0];
         }
-
-        response = await getReport("movimentacoes", undefined, params);
       } else if (tipo === "transferencias") {
-        let params: MovementsParams;
         if (movementPeriodTransfer === MovementPeriod.DIARIO) {
           if (!transferDate) {
             toast({
@@ -244,10 +258,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
             setStatus("idle");
             return;
           }
-          params = {
-            periodo: MovementPeriod.DIARIO,
-            data: transferDate.toISOString().split("T")[0],
-          };
+          params.data = transferDate.toISOString().split("T")[0];
         } else if (movementPeriodTransfer === MovementPeriod.INTERVALO) {
           if (!startDate || !endDate) {
             toast({
@@ -257,83 +268,105 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
             setStatus("idle");
             return;
           }
-          params = {
-            periodo: MovementPeriod.INTERVALO,
-            data_inicial: startDate.toISOString().split("T")[0],
-            data_final: endDate.toISOString().split("T")[0],
-          };
+          if (endDate.getTime() < startDate.getTime()) {
+            toast({
+              title: "Intervalo inválido",
+              description: "A data final precisa ser maior ou igual à inicial.",
+              variant: "error",
+            });
+            setStatus("idle");
+            return;
+          }
+          params.data_inicial = startDate.toISOString().split("T")[0];
+          params.data_final = endDate.toISOString().split("T")[0];
         }
-
-        response = await getReport("transferencias", undefined, params);
       } else {
         const casela =
           tipo === "residente_consumo" || tipo === "medicamentos_residente"
             ? selectedResident
             : undefined;
 
-        response = await getReport(tipo, casela);
-        if (
-          casela != null &&
-          (tipo === "residente_consumo" || tipo === "medicamentos_residente")
-        ) {
-          const r = residents.find((x) => x.casela === casela) ?? null;
-          if (r) {
-            if (
-              tipo === "residente_consumo" &&
-              response &&
-              typeof response === "object"
-            ) {
-              response = {
-                ...(response as Record<string, unknown>),
-                cpf: r.cpf ?? null,
-                data_nascimento: r.data_nascimento ?? null,
-                idade: r.idade ?? null,
-              };
-            } else if (tipo === "medicamentos_residente") {
-              if (Array.isArray(response)) {
-                if (
-                  response.length > 0 &&
-                  response[0] &&
-                  typeof response[0] === "object"
-                ) {
-                  response = [
-                    {
-                      ...(response[0] as Record<string, unknown>),
-                      cpf: r.cpf ?? null,
-                      data_nascimento: r.data_nascimento ?? null,
-                      idade: r.idade ?? null,
-                    },
-                    ...response.slice(1),
-                  ];
-                }
-              } else if (response && typeof response === "object") {
-                response = {
-                  ...(response as Record<string, unknown>),
-                  cpf: r.cpf ?? null,
-                  data_nascimento: r.data_nascimento ?? null,
-                  idade: r.idade ?? null,
-                };
-              }
-            }
-          }
-        }
+        if (casela != null) params.casela = String(casela);
       }
 
-      const doc = createStockPDF(tipo, response, undefined, {
-        logoUrl: tenantLogoSrc,
-      });
-      const blob = await pdf(doc).toBlob();
-      const url = URL.createObjectURL(blob);
+      const fmt = uiDisplay.defaultReportFormat ?? "pdf";
 
+      if (fmt === "pdf") {
+        const payload = await fetchStockReportPayloadForPdf({
+          tipo,
+          movementPeriod,
+          movementDate,
+          movementMonth,
+          startDate,
+          endDate,
+          movementPeriodTransfer,
+          transferDate,
+          selectedResident,
+          residents,
+        });
+        const doc = createStockPDF(
+          tipo,
+          payload as Parameters<typeof createStockPDF>[1],
+          undefined,
+          { logoUrl: tenantLogoSrc },
+        );
+        const blob = await pdf(doc).toBlob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `relatorio-${tipo}.pdf`;
+        link.click();
+        URL.revokeObjectURL(url);
+        setStatus("success");
+        return;
+      }
+
+      const job = await createReportExportJob(tipo, {
+        ...params,
+        format: "xlsx",
+      });
+
+      const startedAt = Date.now();
+      while (true) {
+        const j = (await getReportExportJob(job.jobId)) as {
+          status?: string;
+          error?: string | null;
+        };
+        const s = String(j?.status ?? "");
+        if (s === "succeeded") break;
+        if (s === "failed") {
+          throw new Error(j?.error ?? "Falha ao gerar planilha");
+        }
+        if (Date.now() - startedAt > 5 * 60_000) {
+          throw new Error("Geração demorando demais. Tente novamente.");
+        }
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+
+      const blob = await downloadReportExportBlob(job.jobId);
+      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `relatorio-${tipo}.pdf`;
+      link.download = `relatorio-${tipo}.xlsx`;
       link.click();
-
       URL.revokeObjectURL(url);
       setStatus("success");
     } catch (e) {
       console.error(e);
+      const m = e instanceof Error ? e.message : "";
+      if (m === "Data obrigatória") {
+        toast({
+          title:
+            tipo === "transferencias"
+              ? "Selecione a data da transferência"
+              : "Selecione a data",
+          variant: "error",
+        });
+      } else if (m === "Mês obrigatório") {
+        toast({ title: "Selecione o mês", variant: "error" });
+      } else if (m === "Intervalo obrigatório") {
+        toast({ title: "Selecione o intervalo de datas", variant: "error" });
+      }
       setStatus("error");
     }
   };
@@ -666,7 +699,11 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
           {status === "loading" && (
             <div className="p-12 flex flex-col items-center gap-4">
               <Loader2 className="w-12 h-12 animate-spin text-primary" />
-              <p>Gerando relatório…</p>
+              <p>
+                {uiDisplay.defaultReportFormat === "xlsx"
+                  ? "Gerando planilha…"
+                  : "Gerando PDF…"}
+              </p>
             </div>
           )}
 

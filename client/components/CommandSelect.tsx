@@ -25,14 +25,17 @@ export function CommandSelect<T>({
   items,
   onSelect,
   getLabel,
+  allowEnterSelectSingle = true,
 }: {
   label: string;
   value: T | null | undefined;
   items: T[];
   onSelect: (item: T) => void;
   getLabel: (item: T) => string | undefined | null;
+  allowEnterSelectSingle?: boolean;
 }) {
   const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => matchSequence(getLabel(item), search));
@@ -43,7 +46,9 @@ export function CommandSelect<T>({
       <label className="mb-1 text-sm font-medium text-slate-700">{label}</label>
 
       <Popover
+        open={open}
         onOpenChange={(isOpen) => {
+          setOpen(isOpen);
           if (isOpen) setSearch("");
         }}
       >
@@ -62,6 +67,16 @@ export function CommandSelect<T>({
               placeholder={`Buscar ou digitar ${label.toLowerCase()}`}
               value={search}
               onValueChange={setSearch}
+              onKeyDown={(e) => {
+                if (!allowEnterSelectSingle) return;
+                if (e.key !== "Enter") return;
+                if (filteredItems.length !== 1) return;
+                e.preventDefault();
+                const only = filteredItems[0];
+                onSelect(only);
+                setSearch(getLabel(only) || "");
+                setOpen(false);
+              }}
             />
             <CommandGroup>
               {filteredItems.map((item, index) => (
@@ -71,6 +86,7 @@ export function CommandSelect<T>({
                   onSelect={() => {
                     onSelect(item);
                     setSearch(getLabel(item) || "");
+                    setOpen(false);
                   }}
                 >
                   {getLabel(item)}

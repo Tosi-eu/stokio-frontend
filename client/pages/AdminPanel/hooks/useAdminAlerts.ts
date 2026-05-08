@@ -3,9 +3,9 @@ import { toast } from "@/hooks/use-toast.hook";
 import { formatValidityDate } from "@/helpers/dates.helper";
 import type { StockListAlertItem } from "@/interfaces/interfaces";
 import type { AlertNoPriceItem, AlertStockItem } from "../types";
-import { getDashboardSummary, getStock } from "@/api/requests";
+import { getStock } from "@/api/requests";
 
-const ROWS_LIMIT = 50;
+const ALERTS_PAGE_LIMIT = 50000;
 
 export function useAdminAlerts(isAdmin: boolean, enabled = true) {
   const [alerts, setAlerts] = useState<{
@@ -33,38 +33,14 @@ export function useAdminAlerts(isAdmin: boolean, enabled = true) {
   async function loadAlerts() {
     setLoadingAlerts(true);
     try {
-      const [
-        summary,
-        noStockRes,
-        belowMinRes,
-        expiredRes,
-        expiringSoonRes,
-        noPriceRes,
-      ] = await Promise.all([
-        getDashboardSummary(),
-        getStock(1, ROWS_LIMIT, undefined, "noStock"),
-        getStock(1, ROWS_LIMIT, undefined, "belowMin"),
-        getStock(1, ROWS_LIMIT, undefined, "expired"),
-        getStock(1, ROWS_LIMIT, undefined, "expiringSoon"),
-        getStock(1, ROWS_LIMIT, undefined, "noPrice"),
-      ]);
-
-      const alertCounts = summary?.alerts as
-        | {
-            noStock?: number;
-            belowMin?: number;
-            expired?: number;
-            expiringSoon?: number;
-            noPrice?: number;
-          }
-        | undefined;
-      setCounts({
-        noStock: Number(alertCounts?.noStock ?? 0),
-        belowMin: Number(alertCounts?.belowMin ?? 0),
-        expired: Number(alertCounts?.expired ?? 0),
-        expiringSoon: Number(alertCounts?.expiringSoon ?? 0),
-        noPrice: Number(alertCounts?.noPrice ?? 0),
-      });
+      const [noStockRes, belowMinRes, expiredRes, expiringSoonRes, noPriceRes] =
+        await Promise.all([
+          getStock(1, ALERTS_PAGE_LIMIT, undefined, "noStock"),
+          getStock(1, ALERTS_PAGE_LIMIT, undefined, "belowMin"),
+          getStock(1, ALERTS_PAGE_LIMIT, undefined, "expired"),
+          getStock(1, ALERTS_PAGE_LIMIT, undefined, "expiringSoon"),
+          getStock(1, ALERTS_PAGE_LIMIT, undefined, "noPrice"),
+        ]);
 
       const mapRows = (res: unknown): AlertStockItem[] => {
         const data = (res as { data?: unknown })?.data;
@@ -80,11 +56,6 @@ export function useAdminAlerts(isAdmin: boolean, enabled = true) {
         }));
       };
 
-      const noStock = mapRows(noStockRes);
-      const belowMin = mapRows(belowMinRes);
-      const expired = mapRows(expiredRes);
-      const expiringSoon = mapRows(expiringSoonRes);
-
       const mapNoPriceRows = (res: unknown): AlertNoPriceItem[] => {
         const data = (res as { data?: unknown })?.data;
         const list = Array.isArray(data) ? (data as StockListAlertItem[]) : [];
@@ -97,7 +68,19 @@ export function useAdminAlerts(isAdmin: boolean, enabled = true) {
         }));
       };
 
+      const noStock = mapRows(noStockRes);
+      const belowMin = mapRows(belowMinRes);
+      const expired = mapRows(expiredRes);
+      const expiringSoon = mapRows(expiringSoonRes);
       const noPrice = mapNoPriceRows(noPriceRes);
+
+      setCounts({
+        noStock: Number(noStockRes.total ?? noStock.length),
+        belowMin: Number(belowMinRes.total ?? belowMin.length),
+        expired: Number(expiredRes.total ?? expired.length),
+        expiringSoon: Number(expiringSoonRes.total ?? expiringSoon.length),
+        noPrice: Number(noPriceRes.total ?? noPrice.length),
+      });
 
       setAlerts({ noStock, belowMin, expired, expiringSoon, noPrice });
     } catch {

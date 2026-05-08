@@ -320,6 +320,30 @@ export const getReport = (
     params as Record<string, string | number | boolean | undefined>,
   );
 
+export type ReportExportJobResponse = {
+  jobId: string;
+  workflowId: string;
+  accepted: boolean;
+};
+
+export const createReportExportJob = (
+  type: string,
+  params?: Record<string, string | number | boolean | undefined>,
+): Promise<ReportExportJobResponse> =>
+  stokioClient.post("/relatorios/jobs", undefined, {
+    params: { type, ...params },
+  });
+
+export const getReportExportJob = (jobId: string) =>
+  stokioClient.get(`/relatorios/jobs/${encodeURIComponent(jobId)}`);
+
+export const downloadReportExportBlob = (jobId: string): Promise<Blob> =>
+  stokioClient.get(`/relatorios/jobs/${encodeURIComponent(jobId)}/download`, {
+    responseType: "blob",
+  });
+
+export const downloadReportExportXlsx = downloadReportExportBlob;
+
 export { buildAdminExportParams } from "@stokio/sdk";
 
 export async function downloadAdminExportCSV(
@@ -1154,6 +1178,27 @@ export type CreateTenantSetorPayload = {
 
 export const createTenantSetor = (payload: CreateTenantSetorPayload) =>
   stokioClient.post<TenantSetorRow>("/tenant/setores", payload);
+
+export type TenantSetorStockTypesResponse = {
+  setorId: number;
+  stockTypes: Array<
+    "geral" | "individual" | "carrinho_emergencia" | "carrinho_psicotropicos"
+  >;
+};
+
+export const getTenantSetorStockTypes = (setorId: number) =>
+  stokioClient.get<TenantSetorStockTypesResponse>(
+    `/tenant/setores/${setorId}/stock-types`,
+  );
+
+export const updateTenantSetorStockTypes = (
+  setorId: number,
+  stockTypes: TenantSetorStockTypesResponse["stockTypes"],
+) =>
+  stokioClient.put<TenantSetorStockTypesResponse>(
+    `/tenant/setores/${setorId}/stock-types`,
+    { stockTypes },
+  );
 
 export const getAdminUsers = (params?: { page?: number; limit?: number }) =>
   stokioClient.get("/admin/users", { params: params ?? {} });

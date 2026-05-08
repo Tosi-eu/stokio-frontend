@@ -9,9 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CONFIG_KEYS, CONFIG_SELECT_KEYS } from "../hooks/useAdminConfig";
 import {
   createTenantSetor,
+  getTenantSetorStockTypes,
   listTenantSetores,
   updateTenantBranding,
   updateTenantConfig,
+  updateTenantSetorStockTypes,
   forceTenantPriceBackfill,
   getTenantPriceBackfillStatus,
   uploadTenantLogoWithProgress,
@@ -35,6 +37,7 @@ import {
   getErrorMessage,
   USER_FACING_RETRY_SHORT,
 } from "@/helpers/validation.helper";
+import { ItemStockType, StockTypeLabels } from "@/utils/enums";
 import {
   Select,
   SelectContent,
@@ -101,6 +104,13 @@ export function AdminTabConfig({
     "farmacia" | "enfermagem"
   >("farmacia");
   const [creatingSector, setCreatingSector] = useState(false);
+  const [sectorStockTypes, setSectorStockTypes] = useState<
+    Record<number, Array<ItemStockType>>
+  >({});
+  const [loadingSectorStockTypes, setLoadingSectorStockTypes] = useState(false);
+  const [savingSectorStockTypes, setSavingSectorStockTypes] = useState<
+    Record<number, boolean>
+  >({});
   const [forcePriceBackfillLoading, setForcePriceBackfillLoading] =
     useState(false);
   const [priceBackfillRunning, setPriceBackfillRunning] = useState(false);
@@ -123,9 +133,37 @@ export function AdminTabConfig({
     }
   }, []);
 
+  const loadSectorStockTypes = useCallback(async () => {
+    setLoadingSectorStockTypes(true);
+    try {
+      const list = sectorCatalog.filter((s) => Number(s.id) > 0);
+      const results = await Promise.all(
+        list.map(async (s) => {
+          try {
+            const res = await getTenantSetorStockTypes(s.id);
+            return [s.id, res.stockTypes] as const;
+          } catch {
+            return [s.id, []] as const;
+          }
+        }),
+      );
+      const next: Record<number, Array<ItemStockType>> = {};
+      for (const [id, types] of results) {
+        next[id] = (types ?? []) as Array<ItemStockType>;
+      }
+      setSectorStockTypes(next);
+    } finally {
+      setLoadingSectorStockTypes(false);
+    }
+  }, [sectorCatalog]);
+
   useEffect(() => {
     void loadSectorCatalog();
   }, [loadSectorCatalog]);
+
+  useEffect(() => {
+    if (sectorCatalog.length > 0) void loadSectorStockTypes();
+  }, [sectorCatalog, loadSectorStockTypes]);
 
   const stopPriceBackfillPolling = useCallback(() => {
     if (priceBackfillPollRef.current) {
@@ -339,6 +377,67 @@ export function AdminTabConfig({
       setCreatingSector(false);
     }
   };
+
+  const stockTypeOptions = useMemo(
+    () =>
+      Object.values(ItemStockType).map((value) => ({
+        value,
+        label: StockTypeLabels[value],
+      })),
+    [],
+  );
+
+  const toggleSectorStockType = useCallback(
+    (setorId: number, stockType: ItemStockType) => {
+      setSectorStockTypes((prev) => {
+        const current = new Set(prev[setorId] ?? []);
+        if (current.has(stockType)) current.delete(stockType);
+        else current.add(stockType);
+        return { ...prev, [setorId]: Array.from(current) };
+      });
+    },
+    [],
+  );
+
+  const saveSectorStockTypes = useCallback(
+    async (setorId: number) => {
+      const types = sectorStockTypes[setorId] ?? [];
+      if (types.length === 0) {
+        toast({
+          title: "Selecione ao menos um tipo",
+          description:
+            "O setor precisa ter pelo menos 1 tipo de estoque permitido.",
+          variant: "error",
+        });
+        return;
+      }
+      setSavingSectorStockTypes((p) => ({ ...p, [setorId]: true }));
+      try {
+        const res = await updateTenantSetorStockTypes(setorId, types);
+        setSectorStockTypes((p) => ({
+          ...p,
+          [setorId]: (res.stockTypes ?? []) as Array<ItemStockType>,
+        }));
+        toast({
+          title: "Tipos atualizados",
+          variant: "success",
+        });
+      } catch (err: unknown) {
+        toast({
+          title: "Não foi possível salvar",
+          description: getErrorMessage(
+            err,
+            USER_FACING_RETRY_SHORT,
+            "AdminTabConfig:setorStockTypes",
+          ),
+          variant: "error",
+        });
+      } finally {
+        setSavingSectorStockTypes((p) => ({ ...p, [setorId]: false }));
+      }
+    },
+    [sectorStockTypes],
+  );
 
   const handleForcePriceBackfill = async () => {
     setForcePriceBackfillLoading(true);
@@ -694,6 +793,86 @@ export function AdminTabConfig({
                       )}
                       <span className="ml-1">Criar</span>
                     </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-md border p-3 space-y-3 bg-background">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-medium text-foreground">
+                        Tipos de estoque por setor
+                      </p>
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        Controla quais opções aparecem em “Tipo de estoque” ao
+                        dar entrada/editar itens para cada setor.
+                      </p>
+                    </div>
+                    {loadingSectorStockTypes ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : null}
+                  </div>
+
+                  <div className="space-y-3">
+                    {[...sectorCatalog]
+                      .filter((s) => Number(s.id) > 0)
+                      .sort(
+                        (a, b) => a.sort_order - b.sort_order || a.id - b.id,
+                      )
+                      .map((s) => {
+                        const current = new Set(sectorStockTypes[s.id] ?? []);
+                        const saving = Boolean(savingSectorStockTypes[s.id]);
+                        return (
+                          <div
+                            key={`setor-stock-types-${s.id}`}
+                            className="rounded-md border p-3"
+                          >
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium truncate">
+                                  {s.nome}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground font-mono truncate">
+                                  {s.key} · {s.proportion_profile}
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                disabled={saving}
+                                onClick={() => void saveSectorStockTypes(s.id)}
+                              >
+                                {saving ? "Salvando…" : "Salvar tipos"}
+                              </Button>
+                            </div>
+
+                            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                              {stockTypeOptions.map((opt) => (
+                                <label
+                                  key={`${s.id}-${opt.value}`}
+                                  className={cn(
+                                    "flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer text-sm",
+                                    current.has(opt.value)
+                                      ? "border-primary/40 bg-primary/5"
+                                      : "border-border",
+                                  )}
+                                >
+                                  <Checkbox
+                                    checked={current.has(opt.value)}
+                                    onCheckedChange={() =>
+                                      toggleSectorStockType(s.id, opt.value)
+                                    }
+                                    aria-label={`Tipo ${opt.label}`}
+                                  />
+                                  <span className="leading-tight">
+                                    {opt.label}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
               </div>

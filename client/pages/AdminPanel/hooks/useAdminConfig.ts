@@ -16,6 +16,8 @@ export const CONFIG_KEYS = {
   estoque_minimo_padrao: "Estoque mínimo padrão (novos itens)",
   display_casela: "Identificação de casela (estoque, movimentações, filtros)",
   display_gaveta: "Identificação de gaveta (estoque, movimentações)",
+  display_default_report_format:
+    "Formato padrão ao gerar relatórios (estoque e painel admin)",
 } as const;
 
 export const CONFIG_SELECT_KEYS = {
@@ -26,6 +28,10 @@ export const CONFIG_SELECT_KEYS = {
   display_gaveta: [
     { value: "categoria", label: "Categoria da gaveta" },
     { value: "numero", label: "Número da gaveta" },
+  ],
+  display_default_report_format: [
+    { value: "pdf", label: "PDF" },
+    { value: "xlsx", label: "Planilha (Excel)" },
   ],
 } as const;
 
@@ -62,6 +68,7 @@ const DEFAULT_VALUES: AdminSystemConfig = {
   estoque_minimo_padrao: "0",
   display_casela: "nome",
   display_gaveta: "numero",
+  display_default_report_format: "pdf",
 };
 
 const DEFAULT_SCHEDULED_BACKUP: AdminScheduledBackupConfig = {

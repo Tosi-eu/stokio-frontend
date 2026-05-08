@@ -106,12 +106,6 @@ function initials(name: string): string {
   return (p[0][0] + p[p.length - 1][0]).toUpperCase();
 }
 
-function csvEscape(v: unknown): string {
-  const s = v == null ? "" : String(v);
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
 export default function Resident() {
   const {
     previewMode,
@@ -403,11 +397,12 @@ export default function Resident() {
     ],
   );
 
-  const downloadProntuarioCsv = useCallback(
+  const downloadProntuarioExcel = useCallback(
     async (resident: ResidentRow) => {
       if (prontuarioDownloading) return;
       setProntuarioDownloading(true);
       try {
+        const XLSX = await import("xlsx");
         const allItems = await fetchAllProntuarioItems(resident);
 
         const header = [
@@ -428,40 +423,39 @@ export default function Resident() {
           "Lote",
         ];
 
-        const lines = [
-          header.map(csvEscape).join(","),
-          ...allItems.map((i) =>
-            [
-              resident.casela,
-              resident.name,
-              resident.cpf ?? "",
-              resident.data_nascimento ?? "",
-              resident.idade ?? "",
-              itemKindLabel(i),
-              i.name,
-              i.quantity,
-              i.expiry,
-              i.entryDate ?? "",
-              i.exitDate ?? "",
-              i.cabinet ?? "",
-              i.drawer ?? "",
-              i.sector ?? "",
-              i.lot ?? "",
-            ]
-              .map(csvEscape)
-              .join(","),
-          ),
+        const rows: (string | number)[][] = [
+          header,
+          ...allItems.map((i) => [
+            resident.casela,
+            resident.name,
+            resident.cpf ?? "",
+            resident.data_nascimento ?? "",
+            resident.idade ?? "",
+            itemKindLabel(i),
+            i.name,
+            i.quantity,
+            i.expiry,
+            i.entryDate ?? "",
+            i.exitDate ?? "",
+            i.cabinet ?? "",
+            i.drawer ?? "",
+            i.sector ?? "",
+            i.lot ?? "",
+          ]),
         ];
 
-        const content = `\uFEFF${lines.join("\n")}`;
-        const blob = new Blob([content], {
-          type: "text/csv;charset=utf-8",
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Prontuário");
+        const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        const blob = new Blob([out], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         const today = new Date().toISOString().slice(0, 10);
         a.href = url;
-        a.download = `prontuario-casela-${resident.casela}-${today}.csv`;
+        a.download = `prontuario-casela-${resident.casela}-${today}.xlsx`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -470,10 +464,10 @@ export default function Resident() {
         const errorMessage = getErrorMessage(
           err,
           "Não foi possível gerar o download do prontuário.",
-          "Residents:prontuario:download",
+          "Residents:prontuario:download:xlsx",
         );
         toast({
-          title: "Erro ao baixar prontuário",
+          title: "Erro ao baixar prontuário (Excel)",
           description: errorMessage || USER_FACING_RETRY_SHORT,
           variant: "error",
           duration: 3000,
@@ -901,10 +895,10 @@ export default function Resident() {
                               variant="outline"
                               size="sm"
                               className="rounded-lg justify-start"
-                              onClick={() => downloadProntuarioCsv(selected)}
+                              onClick={() => downloadProntuarioExcel(selected)}
                               disabled={prontuarioDownloading}
                             >
-                              CSV
+                              Excel
                             </Button>
                           </div>
                         </PopoverContent>

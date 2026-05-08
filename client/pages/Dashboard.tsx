@@ -440,15 +440,13 @@ export default function Dashboard() {
   const showPharmacyChart =
     Boolean(chartFarmacia) &&
     showPharmacySector &&
-    widgetVisible("pharmacyProportion");
+    widgetVisible("pharmacyProportion") &&
+    (chartFarmacia?.data?.length ?? 0) > 0;
   const showNursingChart =
     Boolean(chartEnfermagem) &&
     showNursingSector &&
-    widgetVisible("nursingProportion");
-  const showExtraSectorCharts =
-    chartsExtra.length > 0 &&
-    widgetVisible("customSectorProportions") &&
-    chartsExtra.some((c) => enabledSectors.includes(c.key));
+    widgetVisible("nursingProportion") &&
+    (chartEnfermagem?.data?.length ?? 0) > 0;
 
   const movementGridClass =
     showNonMovement && showRecentMovements
@@ -465,18 +463,21 @@ export default function Dashboard() {
       ? "grid grid-cols-1 gap-6 lg:grid-cols-2"
       : "grid grid-cols-1 gap-6";
 
+  const extraChartsVisible = chartsExtra.filter(
+    (c) => enabledSectors.includes(c.key) && (c.data?.length ?? 0) > 0,
+  );
+
+  const showExtraSectorCharts =
+    extraChartsVisible.length > 0 && widgetVisible("customSectorProportions");
+
   const proportionSectionCount =
     Number(showPharmacyChart) +
     Number(showNursingChart) +
     Number(showExtraSectorCharts);
   const proportionGridClass =
     proportionSectionCount >= 2
-      ? "grid grid-cols-1 gap-6 lg:grid-cols-2"
-      : "grid grid-cols-1 gap-6";
-
-  const extraChartsVisible = chartsExtra.filter((c) =>
-    enabledSectors.includes(c.key),
-  );
+      ? "grid grid-cols-1 gap-6 lg:grid-cols-2 items-stretch"
+      : "grid grid-cols-1 gap-6 items-stretch";
 
   return (
     <Layout>
@@ -602,6 +603,7 @@ export default function Dashboard() {
                   <DashboardChartCard
                     title="Quantidade de Itens por Armário"
                     data={cabinetStockData}
+                    sortByNumericLabel
                     gradientId="barFillCabinet"
                     gradientColors={{
                       start: "hsl(215 52% 42%)",
@@ -624,6 +626,7 @@ export default function Dashboard() {
                   <DashboardChartCard
                     title="Quantidade de Itens por Gaveta"
                     data={drawerStockData}
+                    sortByNumericLabel
                     gradientId="barFillDrawer"
                     gradientColors={{
                       start: "hsl(191 72% 48%)",
@@ -674,7 +677,9 @@ export default function Dashboard() {
               <DashboardWidgetShell
                 id="customSectorProportions"
                 editMode={dashLayout.editMode}
-                wide={dashLayout.isWide("customSectorProportions")}
+                // Sempre ocupar a linha inteira para os cards não ficarem "minúsculos"
+                wide={true}
+                allowWide={false}
                 onHide={() => dashLayout.hide("customSectorProportions")}
                 onToggleWide={() =>
                   dashLayout.toggleWide("customSectorProportions")
@@ -683,16 +688,23 @@ export default function Dashboard() {
                 <div
                   className={
                     extraChartsVisible.length > 1
-                      ? "grid grid-cols-1 gap-6 lg:grid-cols-2"
-                      : "grid grid-cols-1 gap-6"
+                      ? "grid grid-cols-1 gap-6 lg:grid-cols-2 items-stretch"
+                      : "grid grid-cols-1 gap-6 items-stretch"
                   }
                 >
-                  {extraChartsVisible.map((chart) => (
+                  {extraChartsVisible.map((chart, idx) => (
                     <StockProportionCard
                       key={chart.key}
                       title={`Proporção de estoque — ${chart.nome}`}
                       data={chart.data}
                       colors={COLORS}
+                      className={
+                        extraChartsVisible.length > 1 &&
+                        extraChartsVisible.length % 2 === 1 &&
+                        idx === extraChartsVisible.length - 1
+                          ? "h-[360px] w-full lg:col-span-2"
+                          : "h-[360px] w-full"
+                      }
                     />
                   ))}
                 </div>

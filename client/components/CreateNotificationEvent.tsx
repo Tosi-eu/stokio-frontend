@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import DatePicker from "react-datepicker";
 import { CommandSelect } from "./CommandSelect";
 import type { RawStockMedicine } from "@/interfaces/interfaces";
+import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 
 type EditNotificationData = {
   medicamento_id?: number | string | null;
@@ -123,10 +124,14 @@ export default function CreateNotificationForm({
     async function loadOptions() {
       setLoadingOptions(true);
       try {
-        const meds = await getMedicines(1, 200);
-        const res = await getResidents(1, 200);
-        setMedicamentos(meds.data ?? []);
-        setResidentes(res.data ?? []);
+        const [allMeds, allResidents] = await Promise.all([
+          fetchAllPaginated((p, l) => getMedicines(p, l), 250),
+          fetchAllPaginated((p, l) => getResidents(p, l), 250),
+        ]);
+        setMedicamentos(allMeds);
+        setResidentes(
+          allResidents.map((r) => ({ casela: r.casela, name: r.name })),
+        );
       } catch {
         toast({
           title: "Erro ao carregar opções",

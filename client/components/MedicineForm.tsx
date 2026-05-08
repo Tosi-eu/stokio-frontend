@@ -37,6 +37,7 @@ import {
   getEnabledSectors,
 } from "@/helpers/tenant-sectors.helper";
 import { caselaModeForContext } from "@/helpers/ui-display.helper";
+import { getTenantSetorStockTypes } from "@/api/requests";
 
 function normalizeText(text: string) {
   return text
@@ -55,7 +56,7 @@ export const MedicineForm = memo(function MedicineForm({
   isLoading = false,
 }: MedicineFormProps) {
   const { uiDisplay, modules } = useTenant();
-  const { labelByKey } = useTenantSetores();
+  const { labelByKey, rows: setorRows, profilesByKey } = useTenantSetores();
   const sectorKeys = useMemo(() => getEnabledSectors(modules), [modules]);
   const sectorOptions = useMemo(
     () => buildSectorFilterOptions(sectorKeys, labelByKey),
@@ -99,6 +100,9 @@ export const MedicineForm = memo(function MedicineForm({
   const sector = watch("sector");
   const selectedMedicineId = watch("id");
   const casela = watch("casela");
+  const [allowedStockTypes, setAllowedStockTypes] = useState<ItemStockType[]>(
+    Object.values(ItemStockType),
+  );
 
   const selectedMedicine = medicines.find((m) => m.id === selectedMedicineId);
   const effectiveCaselaMode = useMemo(
@@ -134,6 +138,55 @@ export const MedicineForm = memo(function MedicineForm({
   const isPsychotropicCart = stockType === ItemStockType.CARRINHO_PSICOTROPICOS;
   const isCart = isEmergencyCart || isPsychotropicCart;
   const isIndividual = stockType === ItemStockType.INDIVIDUAL;
+
+  const setorRow = useMemo(
+    () => setorRows.find((r) => r.key === sector) ?? null,
+    [setorRows, sector],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const setorId = setorRow?.id;
+    if (!setorId) {
+      setAllowedStockTypes(Object.values(ItemStockType));
+      return;
+    }
+    void (async () => {
+      try {
+        const res = await getTenantSetorStockTypes(setorId);
+        const list = (res.stockTypes ?? []) as ItemStockType[];
+        if (!cancelled) {
+          setAllowedStockTypes(
+            list.length ? list : Object.values(ItemStockType),
+          );
+        }
+      } catch {
+        const profile =
+          profilesByKey.get(sector) === "enfermagem"
+            ? "enfermagem"
+            : "farmacia";
+        const fallback =
+          profile === "enfermagem"
+            ? [
+                ItemStockType.GERAL,
+                ItemStockType.INDIVIDUAL,
+                ItemStockType.CARRINHO,
+                ItemStockType.CARRINHO_PSICOTROPICOS,
+              ]
+            : [ItemStockType.GERAL, ItemStockType.INDIVIDUAL];
+        if (!cancelled) setAllowedStockTypes(fallback);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [setorRow?.id, sector, profilesByKey]);
+
+  useEffect(() => {
+    if (stockType && !allowedStockTypes.includes(stockType)) {
+      setValue("stockType", undefined);
+    }
+  }, [allowedStockTypes, stockType, setValue]);
 
   useEffect(() => {
     if (isCart) {
@@ -380,7 +433,7 @@ export const MedicineForm = memo(function MedicineForm({
           <option value="" disabled hidden>
             Selecione
           </option>
-          {Object.values(ItemStockType).map((t) => (
+          {allowedStockTypes.map((t) => (
             <option key={t} value={t}>
               {StockTypeLabels[t]}
             </option>

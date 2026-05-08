@@ -16,12 +16,14 @@ interface StockProportionCardProps {
   title: string;
   data: StockDistributionItem[];
   colors: string[];
+  className?: string;
 }
 
 export default function StockProportionCard({
   title,
   data,
   colors,
+  className,
 }: StockProportionCardProps) {
   const [activePieIndex, setActivePieIndex] = useState<number | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -105,13 +107,13 @@ export default function StockProportionCard({
   };
 
   return (
-    <Card>
+    <Card className={className ?? "h-[360px] w-full"}>
       <CardHeader>
         <CardTitle className="text-center">{title}</CardTitle>
       </CardHeader>
 
-      <CardContent>
-        <div className="flex flex-col lg:flex-row items-center justify-center gap-6">
+      <CardContent className="flex">
+        <div className="flex flex-1 flex-col lg:flex-row items-center justify-center gap-6">
           <div className="w-full lg:w-1/2 h-56">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -152,7 +154,7 @@ export default function StockProportionCard({
             </ResponsiveContainer>
           </div>
 
-          <div className="space-y-2 text-sm text-slate-700">
+          <div className="space-y-2 text-sm text-slate-700 max-h-56 overflow-auto pr-1">
             {data.map((item, i) => (
               <div key={i} className="flex items-center gap-2">
                 <div

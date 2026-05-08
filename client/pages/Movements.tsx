@@ -24,13 +24,6 @@ import { formatDateToPtBr } from "@/helpers/dates.helper";
 import { getErrorMessage } from "@/helpers/validation.helper";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -55,6 +48,94 @@ import {
 const TABLE_LIMIT = 10;
 const REQUEST_LIMIT = 5;
 
+function SearchableSelect<T extends { value: string; label: string }>({
+  label,
+  placeholder,
+  value,
+  onChange,
+  options,
+  triggerClassName,
+  searchPlaceholder = "Buscar...",
+}: {
+  label: string;
+  placeholder?: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: T[];
+  triggerClassName?: string;
+  searchPlaceholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const selectedLabel = useMemo(() => {
+    if (!value) return "";
+    return options.find((o) => o.value === value)?.label ?? "";
+  }, [options, value]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((o) => o.label.toLowerCase().includes(q));
+  }, [options, search]);
+
+  return (
+    <div className="min-w-[150px]">
+      <Label className="text-xs">{label}</Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            className={`w-full justify-between mt-1 h-8 px-2 text-xs ${triggerClassName ?? ""}`}
+          >
+            <span className="truncate">
+              {selectedLabel || placeholder || "Selecione"}
+            </span>
+            <ChevronsUpDown className="h-4 w-4 opacity-60" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder={searchPlaceholder}
+              value={search}
+              onValueChange={setSearch}
+            />
+            <CommandEmpty>Nenhum resultado.</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value="all"
+                onSelect={() => {
+                  onChange("");
+                  setSearch("");
+                  setOpen(false);
+                }}
+              >
+                Todos
+              </CommandItem>
+              {filtered.map((o) => (
+                <CommandItem
+                  key={o.value}
+                  value={o.value}
+                  onSelect={() => {
+                    onChange(o.value);
+                    setSearch("");
+                    setOpen(false);
+                  }}
+                >
+                  {o.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 type MovementRow = {
   id: number | undefined;
   name: string | undefined;
@@ -63,18 +144,18 @@ type MovementRow = {
   operator: string | undefined;
   movementDate: string;
   _movementDateSort: number;
-  cabinet: number | string; // display
+  cabinet: number | string;
   cabinetNumber: number | null;
   cabinetCategory: string | null;
-  drawerDisplay: string; // display (depende do uiDisplay)
+  drawerDisplay: string;
   drawerNumber: number | null;
   drawerCategory: string | null;
-  resident: string; // display
+  resident: string;
   residentCasela: number | null;
   residentName: string | null;
   type: string | undefined;
-  sector: string; // display / key
-  lot: string; // display
+  sector: string;
+  lot: string;
 };
 
 type MovementFilters = {
@@ -123,7 +204,11 @@ export default function InputMovements() {
     Array<{ casela: number; name: string }>
   >([]);
   const [residentSearch, setResidentSearch] = useState("");
-  const [residentPopoverOpen, setResidentPopoverOpen] = useState(false);
+  const [residentPopoverOpen, setResidentPopoverOpen] = useState<{
+    entries: boolean;
+    exits: boolean;
+    transfers: boolean;
+  }>({ entries: false, exits: false, transfers: false });
 
   const [cabinetOptions, setCabinetOptions] = useState<
     Array<{ numero: number; categoria: string }>
@@ -602,6 +687,7 @@ export default function InputMovements() {
     (
       title: string,
       filters: MovementFilters,
+      uiKey: "entries" | "exits" | "transfers",
       actions: {
         onProduto: (v: string) => void;
         onArmario: (v: string) => void;
@@ -612,81 +698,68 @@ export default function InputMovements() {
         onClear: () => void;
       },
     ) => {
+      const cabinetSelectOptions = cabinetOptions
+        .slice()
+        .sort((a, b) => a.numero - b.numero)
+        .map((c) => ({
+          value: String(c.numero),
+          label:
+            uiDisplay.armario === "categoria" && c.categoria?.trim()
+              ? c.categoria
+              : `Armário ${c.numero}`,
+        }));
+
+      const drawerSelectOptions = drawerOptions
+        .slice()
+        .sort((a, b) => a.numero - b.numero)
+        .map((d) => ({
+          value: String(d.numero),
+          label: formatGavetaLabel(uiDisplay.gaveta, {
+            gavetaId: d.numero,
+            categoriaNome: d.categoria,
+          }),
+        }));
+
       return (
-        <div className="grid gap-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
-            <div className="lg:col-span-2">
+        <div className="grid gap-2">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="min-w-[220px] flex-1 max-w-[360px]">
               <Label className="text-xs">Produto</Label>
               <Input
                 value={filters.produto}
                 onChange={(e) => actions.onProduto(e.target.value)}
                 placeholder="Nome do produto"
-                className="mt-1"
+                className="mt-1 h-8 px-2 text-xs"
               />
             </div>
-            <div>
-              <Label className="text-xs">Armário</Label>
-              <Select
-                value={filters.armario || "all"}
-                onValueChange={(v) => actions.onArmario(v === "all" ? "" : v)}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {cabinetOptions
-                    .slice()
-                    .sort((a, b) => a.numero - b.numero)
-                    .map((c) => (
-                      <SelectItem key={c.numero} value={String(c.numero)}>
-                        {uiDisplay.armario === "categoria" &&
-                        c.categoria?.trim()
-                          ? c.categoria
-                          : `Armário ${c.numero}`}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">
-                {uiDisplay.gaveta === "categoria" ? "Categoria" : "Gaveta"}
-              </Label>
-              <Select
-                value={filters.gaveta || "all"}
-                onValueChange={(v) => actions.onGaveta(v === "all" ? "" : v)}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {drawerOptions
-                    .slice()
-                    .sort((a, b) => a.numero - b.numero)
-                    .map((d) => (
-                      <SelectItem key={d.numero} value={String(d.numero)}>
-                        {formatGavetaLabel(uiDisplay.gaveta, {
-                          gavetaId: d.numero,
-                          categoriaNome: d.categoria,
-                        })}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
+            <SearchableSelect
+              label="Armário"
+              value={filters.armario}
+              onChange={actions.onArmario}
+              options={cabinetSelectOptions}
+              searchPlaceholder="Buscar armário..."
+            />
+            <SearchableSelect
+              label={uiDisplay.gaveta === "categoria" ? "Categoria" : "Gaveta"}
+              value={filters.gaveta}
+              onChange={actions.onGaveta}
+              options={drawerSelectOptions}
+              searchPlaceholder="Buscar gaveta..."
+            />
+            <div className="min-w-[220px] max-w-[320px]">
               <Label className="text-xs">Casela</Label>
               <Popover
-                open={residentPopoverOpen}
-                onOpenChange={setResidentPopoverOpen}
+                open={residentPopoverOpen[uiKey]}
+                onOpenChange={(next) =>
+                  setResidentPopoverOpen((p) => ({ ...p, [uiKey]: next }))
+                }
               >
                 <PopoverTrigger asChild>
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full justify-between mt-1"
+                    role="combobox"
+                    className="w-full justify-between mt-1 h-8 px-2 text-xs"
                   >
                     <span className="truncate">
                       {filters.casela
@@ -716,7 +789,10 @@ export default function InputMovements() {
                         onSelect={() => {
                           actions.onCasela("");
                           setResidentSearch("");
-                          setResidentPopoverOpen(false);
+                          setResidentPopoverOpen((p) => ({
+                            ...p,
+                            [uiKey]: false,
+                          }));
                         }}
                       >
                         Todos
@@ -728,7 +804,10 @@ export default function InputMovements() {
                           onSelect={() => {
                             actions.onCasela(String(r.casela));
                             setResidentSearch("");
-                            setResidentPopoverOpen(false);
+                            setResidentPopoverOpen((p) => ({
+                              ...p,
+                              [uiKey]: false,
+                            }));
                           }}
                         >
                           {uiDisplay.casela === "nome"
@@ -741,45 +820,24 @@ export default function InputMovements() {
                 </PopoverContent>
               </Popover>
             </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Data</Label>
-              <div className="mt-1 text-sm text-muted-foreground">
-                Filtro removido
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
-            <div className="lg:col-span-2">
-              <Label className="text-xs">Setor</Label>
-              <Select
-                value={filters.setor || "all"}
-                onValueChange={(v) => actions.onSetor(v === "all" ? "" : v)}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {sectorOptions.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="lg:col-span-2">
+            <SearchableSelect
+              label="Setor"
+              value={filters.setor}
+              onChange={actions.onSetor}
+              options={sectorOptions}
+              searchPlaceholder="Buscar setor..."
+            />
+            <div className="min-w-[180px] max-w-[240px]">
               <Label className="text-xs">Lote</Label>
               <Input
                 value={filters.lote}
                 onChange={(e) => actions.onLote(e.target.value)}
                 placeholder="Ex.: ABC123"
-                className="mt-1 max-w-[200px]"
+                className="mt-1 h-8 px-2 text-xs"
               />
             </div>
 
-            <div className="lg:col-span-2 flex gap-2 justify-end">
+            <div className="flex gap-2 justify-end ml-auto">
               <Button
                 type="button"
                 variant="outline"
@@ -820,7 +878,7 @@ export default function InputMovements() {
         <Card className="w-full max-w-[95%] xl:max-w-7xl bg-white border shadow-md p-8 space-y-6 overflow-x-auto">
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Entradas</h2>
-            {filtersHeader("Entradas", entriesFilters, {
+            {filtersHeader("Entradas", entriesFilters, "entries", {
               onProduto: makeTextSetter(
                 setEntriesFilters,
                 resetEntriesPaging,
@@ -882,7 +940,7 @@ export default function InputMovements() {
 
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Saídas</h2>
-            {filtersHeader("Saídas", exitsFilters, {
+            {filtersHeader("Saídas", exitsFilters, "exits", {
               onProduto: makeTextSetter(
                 setExitsFilters,
                 resetExitsPaging,
@@ -940,7 +998,7 @@ export default function InputMovements() {
 
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Transferências</h2>
-            {filtersHeader("Transferências", transfersFilters, {
+            {filtersHeader("Transferências", transfersFilters, "transfers", {
               onProduto: makeTextSetter(
                 setTransfersFilters,
                 resetTransfersPaging,

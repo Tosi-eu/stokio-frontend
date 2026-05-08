@@ -37,6 +37,7 @@ import {
   getEnabledSectors,
   resolveSectorProfile,
 } from "@/helpers/tenant-sectors.helper";
+import { getTenantSetorStockTypes } from "@/api/requests";
 
 function normalizeText(text: string) {
   return text
@@ -55,7 +56,7 @@ export const InputForm = memo(function InputForm({
   isLoading = false,
 }: InputFormProps) {
   const { uiDisplay, modules } = useTenant();
-  const { labelByKey, profilesByKey } = useTenantSetores();
+  const { labelByKey, profilesByKey, rows: setorRows } = useTenantSetores();
   const sectorKeys = useMemo(() => getEnabledSectors(modules), [modules]);
   const sectorOptions = useMemo(
     () => buildSectorFilterOptions(sectorKeys, labelByKey),
@@ -97,6 +98,9 @@ export const InputForm = memo(function InputForm({
   const sector = watch("sector");
   const selectedInputId = watch("inputId");
   const casela = watch("casela");
+  const [allowedStockTypes, setAllowedStockTypes] = useState<ItemStockType[]>(
+    Object.values(ItemStockType),
+  );
 
   const nursingLike =
     resolveSectorProfile(sector, profilesByKey) === "enfermagem";
@@ -109,6 +113,10 @@ export const InputForm = memo(function InputForm({
   const isCart = isEmergencyCart || isPsychotropicCart;
   const isIndividual = stockType === ItemStockType.INDIVIDUAL;
   const selectedCasela = caselas.find((c) => c.casela === casela);
+  const setorRow = useMemo(
+    () => setorRows.find((r) => r.key === sector) ?? null,
+    [setorRows, sector],
+  );
   const caselasForSelect = useMemo(() => {
     if (nursingLike) {
       return [...(caselas ?? [])].sort((a, b) =>
@@ -131,6 +139,50 @@ export const InputForm = memo(function InputForm({
       normalizeText(`${c.casela} ${c.name}`).includes(s),
     );
   }, [caselaSearch, caselasForSelect]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const setorId = setorRow?.id;
+    if (!setorId) {
+      setAllowedStockTypes(Object.values(ItemStockType));
+      return;
+    }
+    void (async () => {
+      try {
+        const res = await getTenantSetorStockTypes(setorId);
+        const list = (res.stockTypes ?? []) as ItemStockType[];
+        if (!cancelled) {
+          setAllowedStockTypes(
+            list.length ? list : Object.values(ItemStockType),
+          );
+        }
+      } catch {
+        const profile =
+          resolveSectorProfile(sector, profilesByKey) === "enfermagem"
+            ? "enfermagem"
+            : "farmacia";
+        const fallback =
+          profile === "enfermagem"
+            ? [
+                ItemStockType.GERAL,
+                ItemStockType.INDIVIDUAL,
+                ItemStockType.CARRINHO,
+                ItemStockType.CARRINHO_PSICOTROPICOS,
+              ]
+            : [ItemStockType.GERAL, ItemStockType.INDIVIDUAL];
+        if (!cancelled) setAllowedStockTypes(fallback);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [setorRow?.id, sector, profilesByKey]);
+
+  useEffect(() => {
+    if (stockType && !allowedStockTypes.includes(stockType)) {
+      setValue("stockType", undefined);
+    }
+  }, [allowedStockTypes, stockType, setValue]);
 
   useEffect(() => {
     if (isCart) {
@@ -372,7 +424,7 @@ export const InputForm = memo(function InputForm({
           <option value="" disabled hidden>
             Selecione
           </option>
-          {Object.values(ItemStockType).map((t) => (
+          {allowedStockTypes.map((t) => (
             <option key={t} value={t}>
               {StockTypeLabels[t]}
             </option>

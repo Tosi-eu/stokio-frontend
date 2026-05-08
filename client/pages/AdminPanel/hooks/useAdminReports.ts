@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "@/hooks/use-toast.hook";
 import {
-  getReport,
   getResidents,
   buildAdminExportParams,
-  downloadAdminExportCSV,
+  createReportExportJob,
+  downloadReportExportBlob,
+  getReportExportJob,
 } from "@/api/requests";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import {
@@ -19,11 +20,31 @@ import {
   getErrorMessage,
   USER_FACING_RETRY_SHORT,
 } from "@/helpers/validation.helper";
+import { fetchStockReportPayloadForPdf } from "@/helpers/stock-report-payload.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
 
+async function waitForReportExportJob(jobId: string): Promise<void> {
+  const startedAt = Date.now();
+  while (true) {
+    const j = (await getReportExportJob(jobId)) as {
+      status?: string;
+      error?: string | null;
+    };
+    const s = String(j?.status ?? "");
+    if (s === "succeeded") return;
+    if (s === "failed") {
+      throw new Error(j?.error ?? "Falha ao gerar planilha");
+    }
+    if (Date.now() - startedAt > 5 * 60_000) {
+      throw new Error("Geração demorando demais. Tente novamente.");
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+}
+
 export function useAdminReports(enabled = true) {
-  const { tenant, loading: tenantConfigLoading } = useTenant();
+  const { tenant, loading: tenantConfigLoading, uiDisplay } = useTenant();
   const { displaySrc: tenantLogoSrc } = useTenantBrandLogoSrc(tenant, {
     tenantConfigLoading,
   });
@@ -100,34 +121,150 @@ export function useAdminReports(enabled = true) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional deps
   }, [enabled, selectedReportType]);
 
+  function buildReportExportJobPayload(): Record<string, string> | null {
+    const tipo = selectedReportType;
+    if (!tipo) return null;
+
+    if (tipo === "movimentacoes") {
+      let movementParams: MovementsParams;
+      if (reportMovementPeriod === MovementPeriod.DIARIO) {
+        if (!reportMovementDate) {
+          toast({ title: "Selecione a data", variant: "error" });
+          return null;
+        }
+        movementParams = {
+          periodo: MovementPeriod.DIARIO,
+          data: reportMovementDate.toISOString().split("T")[0],
+        };
+      } else if (reportMovementPeriod === MovementPeriod.MENSAL) {
+        if (!reportMovementMonth) {
+          toast({ title: "Selecione o mês", variant: "error" });
+          return null;
+        }
+        movementParams = {
+          periodo: MovementPeriod.MENSAL,
+          mes: reportMovementMonth,
+        };
+      } else {
+        if (!reportStartDate || !reportEndDate) {
+          toast({
+            title: "Selecione o intervalo de datas",
+            variant: "error",
+          });
+          return null;
+        }
+        movementParams = {
+          periodo: MovementPeriod.INTERVALO,
+          data_inicial: reportStartDate.toISOString().split("T")[0],
+          data_final: reportEndDate.toISOString().split("T")[0],
+        };
+      }
+      return buildAdminExportParams("movimentacoes", undefined, movementParams);
+    }
+
+    if (tipo === "transferencias") {
+      let transferParams: MovementsParams;
+      if (reportTransferPeriod === MovementPeriod.DIARIO) {
+        if (!reportTransferDate) {
+          toast({
+            title: "Selecione a data da transferência",
+            variant: "error",
+          });
+          return null;
+        }
+        transferParams = {
+          periodo: MovementPeriod.DIARIO,
+          data: reportTransferDate.toISOString().split("T")[0],
+        };
+      } else {
+        if (!reportStartDate || !reportEndDate) {
+          toast({
+            title: "Selecione o intervalo de datas",
+            variant: "error",
+          });
+          return null;
+        }
+        transferParams = {
+          periodo: MovementPeriod.INTERVALO,
+          data_inicial: reportStartDate.toISOString().split("T")[0],
+          data_final: reportEndDate.toISOString().split("T")[0],
+        };
+      }
+      return buildAdminExportParams(
+        "transferencias",
+        undefined,
+        transferParams,
+      );
+    }
+
+    const casela =
+      tipo === "residente_consumo" || tipo === "medicamentos_residente"
+        ? (selectedReportResident ?? undefined)
+        : undefined;
+    return buildAdminExportParams(tipo, casela);
+  }
+
   async function handleGenerateReport() {
     if (!selectedReportType) {
       toast({ title: "Selecione um tipo de relatório", variant: "error" });
       return;
     }
     const tipo = selectedReportType;
+    const fmt = uiDisplay.defaultReportFormat ?? "pdf";
+
+    if (fmt === "pdf") {
+      setReportStatus("loading");
+      try {
+        const response = await fetchReportPayload(tipo);
+        const doc = createStockPDF(
+          tipo,
+          response as Parameters<typeof createStockPDF>[1],
+          undefined,
+          { logoUrl: tenantLogoSrc },
+        );
+        const blob = await pdf(doc).toBlob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `relatorio-${tipo}.pdf`;
+        link.click();
+        URL.revokeObjectURL(url);
+        setReportStatus("success");
+        toast({ title: "Relatório gerado", variant: "success" });
+      } catch (e) {
+        console.error(e);
+        setReportStatus("error");
+        toast({ title: "Erro ao gerar relatório", variant: "error" });
+      }
+      return;
+    }
+
     setReportStatus("loading");
     try {
-      const response = await fetchReportPayload(tipo);
-      const doc = createStockPDF(
-        tipo,
-        response as Parameters<typeof createStockPDF>[1],
-        undefined,
-        { logoUrl: tenantLogoSrc },
-      );
-      const blob = await pdf(doc).toBlob();
+      const built = buildReportExportJobPayload();
+      if (!built) {
+        setReportStatus("idle");
+        return;
+      }
+      const { type, ...jobParams } = built;
+      const job = await createReportExportJob(type, {
+        ...jobParams,
+        format: "xlsx",
+      });
+      await waitForReportExportJob(job.jobId);
+      const blob = await downloadReportExportBlob(job.jobId);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `relatorio-${tipo}.pdf`;
+      link.download = `relatorio-${tipo}.xlsx`;
       link.click();
       URL.revokeObjectURL(url);
       setReportStatus("success");
-      toast({ title: "Relatório gerado", variant: "success" });
+      toast({ title: "Planilha gerada", variant: "success" });
     } catch (e) {
       console.error(e);
       setReportStatus("error");
-      toast({ title: "Erro ao gerar relatório", variant: "error" });
+      toast({ title: "Erro ao gerar planilha", variant: "error" });
     }
   }
 
@@ -160,201 +297,71 @@ export function useAdminReports(enabled = true) {
   }
 
   async function fetchReportPayload(tipo: string): Promise<unknown> {
-    if (tipo === "movimentacoes") {
-      let params: MovementsParams;
-      if (reportMovementPeriod === MovementPeriod.DIARIO) {
-        if (!reportMovementDate) {
-          toast({ title: "Selecione a data", variant: "error" });
-          throw new Error("Data obrigatória");
-        }
-        params = {
-          periodo: MovementPeriod.DIARIO,
-          data: reportMovementDate.toISOString().split("T")[0],
-        };
-      } else if (reportMovementPeriod === MovementPeriod.MENSAL) {
-        if (!reportMovementMonth) {
-          toast({ title: "Selecione o mês", variant: "error" });
-          throw new Error("Mês obrigatório");
-        }
-        params = { periodo: MovementPeriod.MENSAL, mes: reportMovementMonth };
-      } else {
-        if (!reportStartDate || !reportEndDate) {
-          toast({ title: "Selecione o intervalo de datas", variant: "error" });
-          throw new Error("Intervalo obrigatório");
-        }
-        params = {
-          periodo: MovementPeriod.INTERVALO,
-          data_inicial: reportStartDate.toISOString().split("T")[0],
-          data_final: reportEndDate.toISOString().split("T")[0],
-        };
+    try {
+      return await fetchStockReportPayloadForPdf({
+        tipo,
+        movementPeriod: reportMovementPeriod,
+        movementDate: reportMovementDate,
+        movementMonth: reportMovementMonth,
+        startDate: reportStartDate,
+        endDate: reportEndDate,
+        movementPeriodTransfer: reportTransferPeriod,
+        transferDate: reportTransferDate,
+        selectedResident: selectedReportResident,
+        residents: reportResidents,
+      });
+    } catch (err) {
+      const m = err instanceof Error ? err.message : "";
+      if (m === "Data obrigatória") {
+        toast({
+          title:
+            tipo === "transferencias"
+              ? "Selecione a data da transferência"
+              : "Selecione a data",
+          variant: "error",
+        });
+      } else if (m === "Mês obrigatório") {
+        toast({ title: "Selecione o mês", variant: "error" });
+      } else if (m === "Intervalo obrigatório") {
+        toast({ title: "Selecione o intervalo de datas", variant: "error" });
       }
-      return getReport("movimentacoes", undefined, params);
+      throw err;
     }
-    if (tipo === "transferencias") {
-      let params: MovementsParams;
-      if (reportTransferPeriod === MovementPeriod.DIARIO) {
-        if (!reportTransferDate) {
-          toast({
-            title: "Selecione a data da transferência",
-            variant: "error",
-          });
-          throw new Error("Data obrigatória");
-        }
-        params = {
-          periodo: MovementPeriod.DIARIO,
-          data: reportTransferDate.toISOString().split("T")[0],
-        };
-      } else {
-        if (!reportStartDate || !reportEndDate) {
-          toast({ title: "Selecione o intervalo de datas", variant: "error" });
-          throw new Error("Intervalo obrigatório");
-        }
-        params = {
-          periodo: MovementPeriod.INTERVALO,
-          data_inicial: reportStartDate.toISOString().split("T")[0],
-          data_final: reportEndDate.toISOString().split("T")[0],
-        };
-      }
-      return getReport("transferencias", undefined, params);
-    }
-    const casela =
-      tipo === "residente_consumo" || tipo === "medicamentos_residente"
-        ? (selectedReportResident ?? undefined)
-        : undefined;
-    const payload = await getReport(tipo, casela);
-    if (casela == null) return payload;
-    const r = reportResidents.find((x) => x.casela === casela) ?? null;
-    if (!r) return payload;
-    if (tipo === "residente_consumo") {
-      const base = payload as Record<string, unknown>;
-      return {
-        ...base,
-        cpf: r.cpf ?? null,
-        data_nascimento: r.data_nascimento ?? null,
-        idade: r.idade ?? null,
-      };
-    }
-    if (tipo === "medicamentos_residente") {
-      // Payload é tipicamente uma lista de medicamentos; colocamos meta no 1º item
-      // para o PDF mostrar os dados do residente sem depender do backend.
-      if (Array.isArray(payload)) {
-        if (payload.length === 0) return payload;
-        const first = payload[0] as Record<string, unknown>;
-        const nextFirst = {
-          ...first,
-          cpf: r.cpf ?? null,
-          data_nascimento: r.data_nascimento ?? null,
-          idade: r.idade ?? null,
-        };
-        return [nextFirst, ...payload.slice(1)];
-      }
-      const base = payload as Record<string, unknown>;
-      return {
-        ...base,
-        cpf: r.cpf ?? null,
-        data_nascimento: r.data_nascimento ?? null,
-        idade: r.idade ?? null,
-      };
-    }
-    return payload;
   }
 
-  async function handleExportCSV() {
+  async function handleExportSpreadsheet() {
     if (!selectedReportType) {
       toast({ title: "Selecione um tipo de relatório", variant: "error" });
       return;
     }
     const tipo = selectedReportType;
-    let params: Record<string, string>;
+    setReportStatus("loading");
     try {
-      if (tipo === "movimentacoes") {
-        let movementParams: MovementsParams;
-        if (reportMovementPeriod === MovementPeriod.DIARIO) {
-          if (!reportMovementDate) {
-            toast({ title: "Selecione a data", variant: "error" });
-            return;
-          }
-          movementParams = {
-            periodo: MovementPeriod.DIARIO,
-            data: reportMovementDate.toISOString().split("T")[0],
-          };
-        } else if (reportMovementPeriod === MovementPeriod.MENSAL) {
-          if (!reportMovementMonth) {
-            toast({ title: "Selecione o mês", variant: "error" });
-            return;
-          }
-          movementParams = {
-            periodo: MovementPeriod.MENSAL,
-            mes: reportMovementMonth,
-          };
-        } else {
-          if (!reportStartDate || !reportEndDate) {
-            toast({
-              title: "Selecione o intervalo de datas",
-              variant: "error",
-            });
-            return;
-          }
-          movementParams = {
-            periodo: MovementPeriod.INTERVALO,
-            data_inicial: reportStartDate.toISOString().split("T")[0],
-            data_final: reportEndDate.toISOString().split("T")[0],
-          };
-        }
-        params = buildAdminExportParams(
-          "movimentacoes",
-          undefined,
-          movementParams,
-        );
-      } else if (tipo === "transferencias") {
-        let transferParams: MovementsParams;
-        if (reportTransferPeriod === MovementPeriod.DIARIO) {
-          if (!reportTransferDate) {
-            toast({
-              title: "Selecione a data da transferência",
-              variant: "error",
-            });
-            return;
-          }
-          transferParams = {
-            periodo: MovementPeriod.DIARIO,
-            data: reportTransferDate.toISOString().split("T")[0],
-          };
-        } else {
-          if (!reportStartDate || !reportEndDate) {
-            toast({
-              title: "Selecione o intervalo de datas",
-              variant: "error",
-            });
-            return;
-          }
-          transferParams = {
-            periodo: MovementPeriod.INTERVALO,
-            data_inicial: reportStartDate.toISOString().split("T")[0],
-            data_final: reportEndDate.toISOString().split("T")[0],
-          };
-        }
-        params = buildAdminExportParams(
-          "transferencias",
-          undefined,
-          transferParams,
-        );
-      } else {
-        const casela =
-          tipo === "residente_consumo" || tipo === "medicamentos_residente"
-            ? (selectedReportResident ?? undefined)
-            : undefined;
-        params = buildAdminExportParams(tipo, casela);
+      const built = buildReportExportJobPayload();
+      if (!built) {
+        setReportStatus("idle");
+        return;
       }
-      await downloadAdminExportCSV(params);
-      toast({ title: "Exportação CSV concluída", variant: "success" });
+      const { type, ...jobParams } = built;
+      const job = await createReportExportJob(type, jobParams);
+      await waitForReportExportJob(job.jobId);
+      const blob = await downloadReportExportBlob(job.jobId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `relatorio-${tipo}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setReportStatus("success");
+      toast({ title: "Planilha exportada", variant: "success" });
     } catch (e: unknown) {
+      setReportStatus("error");
       toast({
-        title: "Não foi possível exportar",
+        title: "Não foi possível exportar a planilha",
         description: getErrorMessage(
           e,
           USER_FACING_RETRY_SHORT,
-          "useAdminReports:csvExport",
+          "useAdminReports:xlsxExport",
         ),
         variant: "error",
       });
@@ -394,7 +401,7 @@ export function useAdminReports(enabled = true) {
     filteredReportResidents,
     handleGenerateReport,
     handlePreviewReport,
-    handleExportCSV,
+    handleExportSpreadsheet,
     parseYearMonthToDate,
   };
 }

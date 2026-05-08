@@ -1,4 +1,3 @@
-/** Compatível com `PaginatedResponse` do SDK (`hasNext` opcional). */
 export async function fetchAllPaginated<T>(
   fetchFn: (
     page: number,

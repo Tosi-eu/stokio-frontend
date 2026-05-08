@@ -62,7 +62,7 @@ interface AdminTabRelatoriosProps {
   setReportPreviewUrl: (v: string | null) => void;
   handleGenerateReport: () => void;
   handlePreviewReport: () => void;
-  handleExportCSV: () => void;
+  handleExportSpreadsheet: () => void;
 }
 
 export function AdminTabRelatorios({
@@ -99,7 +99,7 @@ export function AdminTabRelatorios({
   setReportPreviewUrl,
   handleGenerateReport,
   handlePreviewReport,
-  handleExportCSV,
+  handleExportSpreadsheet,
 }: AdminTabRelatoriosProps) {
   const { uiDisplay } = useTenant();
 
@@ -335,8 +335,12 @@ export function AdminTabRelatorios({
             {reportStatus === "loading" ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Gerando PDF...
+                {uiDisplay.defaultReportFormat === "xlsx"
+                  ? "Gerando planilha..."
+                  : "Gerando PDF..."}
               </>
+            ) : uiDisplay.defaultReportFormat === "xlsx" ? (
+              <>Gerar e baixar planilha (Excel)</>
             ) : (
               <>Gerar e baixar PDF</>
             )}
@@ -362,13 +366,14 @@ export function AdminTabRelatorios({
           </Button>
           <Button
             variant="outline"
-            onClick={handleExportCSV}
+            onClick={handleExportSpreadsheet}
             disabled={
               !selectedReportType ||
+              reportStatus === "loading" ||
               (showReportResidentSelector && selectedReportResident == null)
             }
           >
-            Exportar CSV
+            Exportar planilha (Excel)
           </Button>
         </div>
 
