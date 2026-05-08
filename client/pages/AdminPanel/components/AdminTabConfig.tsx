@@ -100,9 +100,7 @@ export function AdminTabConfig({
   );
   const [sectorCatalog, setSectorCatalog] = useState<TenantSetorRow[]>([]);
   const [newSectorNome, setNewSectorNome] = useState("");
-  const [newSectorProfile, setNewSectorProfile] = useState<
-    "farmacia" | "enfermagem"
-  >("farmacia");
+  const [newSectorProfile] = useState<"farmacia" | "enfermagem">("farmacia");
   const [creatingSector, setCreatingSector] = useState(false);
   const [sectorStockTypes, setSectorStockTypes] = useState<
     Record<number, Array<ItemStockType>>
@@ -760,23 +758,6 @@ export function AdminTabConfig({
                           Chave: {previewSectorKey}
                         </p>
                       ) : null}
-                    </div>
-                    <div className="space-y-1 w-full sm:w-40">
-                      <Label className="text-xs">Perfil gráficos</Label>
-                      <Select
-                        value={newSectorProfile}
-                        onValueChange={(v) =>
-                          setNewSectorProfile(v as "farmacia" | "enfermagem")
-                        }
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="farmacia">Farmácia</SelectItem>
-                          <SelectItem value="enfermagem">Enfermagem</SelectItem>
-                        </SelectContent>
-                      </Select>
                     </div>
                     <Button
                       type="button"

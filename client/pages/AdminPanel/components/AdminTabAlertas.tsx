@@ -10,7 +10,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useEffect, useMemo, useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { DownloadJobButton } from "@/components/DownloadJobButton";
 import type { AlertNoPriceItem, AlertStockItem } from "../types";
 interface AdminTabAlertasProps {
   alerts: {
@@ -34,39 +35,20 @@ function todaySlug(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-async function downloadXlsxFromAoA(
-  filename: string,
-  sheetName: string,
-  aoa: unknown[][],
-) {
-  const XLSX = await import("xlsx");
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31));
-  const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  const blob = new Blob([out], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 function AlertTable({
   title,
   totalCount,
   rows,
   titleClassName,
   exportBasename,
+  jobFilter,
 }: {
   title: string;
   totalCount: number;
   rows: AlertStockItem[];
   titleClassName?: string;
   exportBasename: string;
+  jobFilter: string;
 }) {
   const [filterQuery, setFilterQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -107,35 +89,6 @@ function AlertTable({
       ? `${filteredRows.length} correspondentes · ${totalCount} no alerta`
       : `${totalCount}`;
 
-  const handleDownload = () => {
-    const header = [
-      "Nome",
-      "Detalhe",
-      "Qtd",
-      "Mín",
-      "Validade",
-      "Setor",
-      "Tipo",
-    ];
-    const aoa: unknown[][] = [
-      header,
-      ...filteredRows.map((r) => [
-        r.nome,
-        r.detalhe ?? "",
-        r.quantidade,
-        r.minimo ?? "",
-        r.validade,
-        r.setor,
-        r.tipo_item,
-      ]),
-    ];
-    void downloadXlsxFromAoA(
-      `${exportBasename}-${todaySlug()}.xlsx`,
-      title,
-      aoa,
-    );
-  };
-
   return (
     <div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between mb-2">
@@ -162,17 +115,13 @@ function AlertTable({
             onChange={(e) => setFilterQuery(e.target.value)}
             className="h-8 max-w-[220px]"
           />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8"
-            onClick={handleDownload}
+          <DownloadJobButton
+            reportType="alertas"
+            params={{ filter: jobFilter }}
+            filenameBase={`${exportBasename}-${todaySlug()}`}
             disabled={filteredRows.length === 0}
-          >
-            <Download className="h-3.5 w-3.5 mr-1.5" aria-hidden />
-            Excel
-          </Button>
+            label="Download"
+          />
         </div>
       </div>
       <div className="border rounded-md overflow-auto max-h-48">
@@ -252,12 +201,14 @@ function NoPriceAlertTable({
   rows,
   titleClassName,
   exportBasename,
+  jobFilter,
 }: {
   title: string;
   totalCount: number;
   rows: AlertNoPriceItem[];
   titleClassName?: string;
   exportBasename: string;
+  jobFilter: string;
 }) {
   const [filterQuery, setFilterQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -296,25 +247,6 @@ function NoPriceAlertTable({
       ? `${filteredRows.length} correspondentes · ${totalCount} no alerta`
       : `${totalCount}`;
 
-  const handleDownload = () => {
-    const header = ["Nome", "Tipo", "Detalhe", "Mín.", "Buscas (auto)"];
-    const aoa: unknown[][] = [
-      header,
-      ...filteredRows.map((r) => [
-        r.nome,
-        tipoCatalogLabel(r.tipo_item),
-        r.detalhe ?? "",
-        r.minimo ?? "",
-        r.tentativas_busca,
-      ]),
-    ];
-    void downloadXlsxFromAoA(
-      `${exportBasename}-${todaySlug()}.xlsx`,
-      title,
-      aoa,
-    );
-  };
-
   return (
     <div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between mb-2">
@@ -344,17 +276,13 @@ function NoPriceAlertTable({
             onChange={(e) => setFilterQuery(e.target.value)}
             className="h-8 max-w-[220px]"
           />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8"
-            onClick={handleDownload}
+          <DownloadJobButton
+            reportType="alertas"
+            params={{ filter: jobFilter }}
+            filenameBase={`${exportBasename}-${todaySlug()}`}
             disabled={filteredRows.length === 0}
-          >
-            <Download className="h-3.5 w-3.5 mr-1.5" aria-hidden />
-            Excel
-          </Button>
+            label="Download"
+          />
         </div>
       </div>
       <div className="border rounded-md overflow-auto max-h-48">
@@ -446,6 +374,7 @@ export function AdminTabAlertas({
               rows={alerts.noStock}
               titleClassName="text-red-600"
               exportBasename="alertas-sem-estoque"
+              jobFilter="noStock"
             />
             <AlertTable
               title="Abaixo do mínimo"
@@ -453,6 +382,7 @@ export function AdminTabAlertas({
               rows={alerts.belowMin}
               titleClassName="text-amber-600"
               exportBasename="alertas-abaixo-minimo"
+              jobFilter="belowMin"
             />
             <AlertTable
               title="Vencidos"
@@ -460,6 +390,7 @@ export function AdminTabAlertas({
               rows={alerts.expired}
               titleClassName="text-red-700"
               exportBasename="alertas-vencidos"
+              jobFilter="expired"
             />
             <AlertTable
               title="Próximos ao vencimento"
@@ -467,6 +398,7 @@ export function AdminTabAlertas({
               rows={alerts.expiringSoon}
               titleClassName="text-orange-600"
               exportBasename="alertas-proximos-vencimento"
+              jobFilter="expiringSoon"
             />
             <NoPriceAlertTable
               title="Sem preço (catálogo)"
@@ -474,6 +406,7 @@ export function AdminTabAlertas({
               rows={alerts.noPrice}
               titleClassName="text-sky-700 dark:text-sky-400"
               exportBasename="alertas-sem-preco"
+              jobFilter="noPrice"
             />
           </>
         )}

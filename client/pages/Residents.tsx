@@ -12,13 +12,11 @@ import { getResidents, updateResident } from "@/api/requests";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
-import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
 import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
 import {
   buildSectorFilterOptions,
   getEnabledSectors,
 } from "@/helpers/tenant-sectors.helper";
-import { pdf } from "@react-pdf/renderer";
 import {
   PREVIEW_RESIDENTS,
   filterPreviewStockByCasela,
@@ -29,18 +27,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { OperationType } from "@/utils/enums";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  ClipboardList,
-  Download,
-  Pencil,
-  Trash2,
-  UserRound,
-} from "lucide-react";
+import { DownloadJobButton } from "@/components/DownloadJobButton";
+import { ClipboardList, Pencil, Trash2, UserRound } from "lucide-react";
 import DeletePopUp from "@/components/DeletePopUp";
 import { deleteResident } from "@/api/requests";
 import {
@@ -107,15 +95,7 @@ function initials(name: string): string {
 }
 
 export default function Resident() {
-  const {
-    previewMode,
-    modules,
-    tenant,
-    loading: tenantConfigLoading,
-  } = useTenant();
-  const { displaySrc: tenantLogoSrc } = useTenantBrandLogoSrc(tenant, {
-    tenantConfigLoading,
-  });
+  const { previewMode, modules } = useTenant();
   const { labelByKey } = useTenantSetores();
 
   const prontuarioSectorOptions = useMemo(
@@ -138,7 +118,6 @@ export default function Resident() {
   const [prontuarioSetor, setProntuarioSetor] = useState("__all");
   const [prontuarioLote, setProntuarioLote] = useState("");
   const [prontuarioArmario, setProntuarioArmario] = useState("__all");
-  const [prontuarioDownloading, setProntuarioDownloading] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -351,195 +330,23 @@ export default function Resident() {
     [prontuarioItems],
   );
 
-  const fetchAllProntuarioItems = useCallback(
-    async (resident: ResidentRow): Promise<StockItem[]> => {
-      const allItems: StockItem[] = [];
-
-      if (previewMode) {
-        // In preview mode we only have the current page in state.
-        allItems.push(...prontuarioItems);
-        return allItems;
-      }
-
-      const baseFilters = {
-        nome: prontuarioNome.trim() ? prontuarioNome.trim() : undefined,
-        casela: String(resident.casela),
-        setor:
-          prontuarioSetor !== "__all" && prontuarioSetor.trim()
-            ? prontuarioSetor.trim()
-            : undefined,
-        lote: prontuarioLote.trim() ? prontuarioLote.trim() : undefined,
-        armario:
-          prontuarioArmario !== "__all" && prontuarioArmario.trim()
-            ? prontuarioArmario.trim()
-            : undefined,
-      };
-
-      let page = 1;
-      const limit = 200;
-      for (let guard = 0; guard < 200; guard++) {
-        const res = await fetchStockPage(page, limit, baseFilters);
-        const pageItems = formatStockItems(res.data);
-        allItems.push(...pageItems);
-        if (!res.hasNext) break;
-        page += 1;
-      }
-
-      return allItems;
-    },
-    [
-      previewMode,
-      prontuarioItems,
-      prontuarioNome,
-      prontuarioSetor,
-      prontuarioLote,
-      prontuarioArmario,
-    ],
-  );
-
-  const downloadProntuarioExcel = useCallback(
-    async (resident: ResidentRow) => {
-      if (prontuarioDownloading) return;
-      setProntuarioDownloading(true);
-      try {
-        const XLSX = await import("xlsx");
-        const allItems = await fetchAllProntuarioItems(resident);
-
-        const header = [
-          "Casela",
-          "Residente",
-          "CPF",
-          "Data nascimento",
-          "Idade",
-          "Categoria",
-          "Nome",
-          "Qtd",
-          "Validade",
-          "Data entrada",
-          "Data saída",
-          "Armário",
-          "Gaveta",
-          "Setor",
-          "Lote",
-        ];
-
-        const rows: (string | number)[][] = [
-          header,
-          ...allItems.map((i) => [
-            resident.casela,
-            resident.name,
-            resident.cpf ?? "",
-            resident.data_nascimento ?? "",
-            resident.idade ?? "",
-            itemKindLabel(i),
-            i.name,
-            i.quantity,
-            i.expiry,
-            i.entryDate ?? "",
-            i.exitDate ?? "",
-            i.cabinet ?? "",
-            i.drawer ?? "",
-            i.sector ?? "",
-            i.lot ?? "",
-          ]),
-        ];
-
-        const ws = XLSX.utils.aoa_to_sheet(rows);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Prontuário");
-        const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-        const blob = new Blob([out], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        const today = new Date().toISOString().slice(0, 10);
-        a.href = url;
-        a.download = `prontuario-casela-${resident.casela}-${today}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      } catch (err: unknown) {
-        const errorMessage = getErrorMessage(
-          err,
-          "Não foi possível gerar o download do prontuário.",
-          "Residents:prontuario:download:xlsx",
-        );
-        toast({
-          title: "Erro ao baixar prontuário (Excel)",
-          description: errorMessage || USER_FACING_RETRY_SHORT,
-          variant: "error",
-          duration: 3000,
-        });
-      } finally {
-        setProntuarioDownloading(false);
-      }
-    },
-    [prontuarioDownloading, fetchAllProntuarioItems],
-  );
-
-  const downloadProntuarioPdf = useCallback(
-    async (resident: ResidentRow) => {
-      if (prontuarioDownloading) return;
-      setProntuarioDownloading(true);
-      try {
-        const allItems = await fetchAllProntuarioItems(resident);
-        const { createStockPDF } = await import("@/components/StockReporter");
-
-        const pdfDoc = createStockPDF(
-          "prontuario_residente",
-          {
-            residente: resident.name,
-            casela: resident.casela,
-            cpf: resident.cpf ?? null,
-            data_nascimento: resident.data_nascimento ?? null,
-            idade: resident.idade ?? null,
-            itens: allItems.map((i) => ({
-              categoria: itemKindLabel(i),
-              nome: i.name,
-              quantidade: i.quantity,
-              validade: i.expiry,
-              data_entrada: i.entryDate ?? "",
-              data_saida: i.exitDate ?? "",
-              armario: i.cabinet ?? "",
-              gaveta: i.drawer ?? "",
-              setor: i.sector ?? "",
-              lote: i.lot ?? "",
-            })),
-          },
-          undefined,
-          { logoUrl: tenantLogoSrc },
-        );
-
-        const blob = await pdf(pdfDoc).toBlob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        const today = new Date().toISOString().slice(0, 10);
-        a.href = url;
-        a.download = `prontuario-casela-${resident.casela}-${today}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      } catch (err: unknown) {
-        const errorMessage = getErrorMessage(
-          err,
-          "Não foi possível gerar o PDF do prontuário.",
-          "Residents:prontuario:download:pdf",
-        );
-        toast({
-          title: "Erro ao baixar prontuário (PDF)",
-          description: errorMessage || USER_FACING_RETRY_SHORT,
-          variant: "error",
-          duration: 3000,
-        });
-      } finally {
-        setProntuarioDownloading(false);
-      }
-    },
-    [fetchAllProntuarioItems, prontuarioDownloading, tenantLogoSrc],
-  );
+  const prontuarioDownloadParams = useMemo(() => {
+    const params: Record<string, string> = {};
+    if (selected?.casela != null) params.casela = String(selected.casela);
+    if (prontuarioNome.trim()) params.name = prontuarioNome.trim();
+    if (prontuarioSetor !== "__all" && prontuarioSetor.trim())
+      params.sector = prontuarioSetor.trim();
+    if (prontuarioLote.trim()) params.lot = prontuarioLote.trim();
+    if (prontuarioArmario !== "__all" && prontuarioArmario.trim())
+      params.cabinet = prontuarioArmario.trim();
+    return params;
+  }, [
+    selected?.casela,
+    prontuarioNome,
+    prontuarioSetor,
+    prontuarioLote,
+    prontuarioArmario,
+  ]);
 
   const prontuarioTotalPages = useMemo(() => {
     if (previewMode) {
@@ -863,46 +670,12 @@ export default function Resident() {
                           Prontuário
                         </h3>
                       </div>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="rounded-xl"
-                            disabled={
-                              prontuarioDownloading || prontuarioLoading
-                            }
-                          >
-                            <Download className="h-4 w-4 mr-2" aria-hidden />
-                            Download
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent align="end" className="w-44 p-2">
-                          <div className="grid gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="rounded-lg justify-start"
-                              onClick={() => downloadProntuarioPdf(selected)}
-                              disabled={prontuarioDownloading}
-                            >
-                              PDF
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="rounded-lg justify-start"
-                              onClick={() => downloadProntuarioExcel(selected)}
-                              disabled={prontuarioDownloading}
-                            >
-                              Excel
-                            </Button>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
+                      <DownloadJobButton
+                        reportType="prontuario_residente"
+                        params={prontuarioDownloadParams}
+                        filenameBase={`prontuario-casela-${selected.casela}-${new Date().toISOString().slice(0, 10)}`}
+                        disabled={prontuarioLoading}
+                      />
                     </div>
                     <p className="text-sm text-muted-foreground">
                       Medicamentos e insumos em estoque vinculados a esta casela

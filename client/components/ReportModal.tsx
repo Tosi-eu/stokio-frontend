@@ -27,9 +27,7 @@ import {
   getReportExportJob,
   getResidents,
 } from "@/api/requests";
-import { createStockPDF, MovementPeriod } from "@/components/StockReporter";
-import { pdf } from "@react-pdf/renderer";
-import { fetchStockReportPayloadForPdf } from "@/helpers/stock-report-payload.helper";
+import { MovementPeriod } from "@/components/StockReporter";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import {
   CommandEmpty,
@@ -45,7 +43,6 @@ import { getReportTitle } from "@/helpers/relatorio.helper";
 import { parseYearMonthToDate } from "@/helpers/dates.helper";
 import { toast } from "@/hooks/use-toast.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
-import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
 import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
 type StatusType = "idle" | "loading" | "success" | "error";
 
@@ -63,10 +60,7 @@ interface Resident {
 }
 
 export default function ReportModal({ open, onClose }: ReportModalProps) {
-  const { uiDisplay, tenant, loading: tenantConfigLoading } = useTenant();
-  const { displaySrc: tenantLogoSrc } = useTenantBrandLogoSrc(tenant, {
-    tenantConfigLoading,
-  });
+  const { uiDisplay } = useTenant();
   const [status, setStatus] = useState<StatusType>("idle");
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
   const [selectedResident, setSelectedResident] = useState<number | null>(null);
@@ -291,39 +285,9 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
 
       const fmt = uiDisplay.defaultReportFormat ?? "pdf";
 
-      if (fmt === "pdf") {
-        const payload = await fetchStockReportPayloadForPdf({
-          tipo,
-          movementPeriod,
-          movementDate,
-          movementMonth,
-          startDate,
-          endDate,
-          movementPeriodTransfer,
-          transferDate,
-          selectedResident,
-          residents,
-        });
-        const doc = createStockPDF(
-          tipo,
-          payload as Parameters<typeof createStockPDF>[1],
-          undefined,
-          { logoUrl: tenantLogoSrc },
-        );
-        const blob = await pdf(doc).toBlob();
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `relatorio-${tipo}.pdf`;
-        link.click();
-        URL.revokeObjectURL(url);
-        setStatus("success");
-        return;
-      }
-
       const job = await createReportExportJob(tipo, {
         ...params,
-        format: "xlsx",
+        format: fmt === "pdf" ? "pdf" : "xlsx",
       });
 
       const startedAt = Date.now();
@@ -347,7 +311,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `relatorio-${tipo}.xlsx`;
+      link.download = `relatorio-${tipo}.${fmt === "pdf" ? "pdf" : "xlsx"}`;
       link.click();
       URL.revokeObjectURL(url);
       setStatus("success");

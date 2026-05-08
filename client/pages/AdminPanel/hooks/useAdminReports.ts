@@ -8,21 +8,14 @@ import {
   getReportExportJob,
 } from "@/api/requests";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
-import {
-  createStockPDF,
-  MovementPeriod,
-  MovementsParams,
-} from "@/components/StockReporter";
+import { MovementPeriod, MovementsParams } from "@/components/StockReporter";
 import { parseYearMonthToDate } from "@/helpers/dates.helper";
-import { pdf } from "@react-pdf/renderer";
 import type { ResidentOption } from "../types";
 import {
   getErrorMessage,
   USER_FACING_RETRY_SHORT,
 } from "@/helpers/validation.helper";
-import { fetchStockReportPayloadForPdf } from "@/helpers/stock-report-payload.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
-import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
 
 async function waitForReportExportJob(jobId: string): Promise<void> {
   const startedAt = Date.now();
@@ -44,10 +37,7 @@ async function waitForReportExportJob(jobId: string): Promise<void> {
 }
 
 export function useAdminReports(enabled = true) {
-  const { tenant, loading: tenantConfigLoading, uiDisplay } = useTenant();
-  const { displaySrc: tenantLogoSrc } = useTenantBrandLogoSrc(tenant, {
-    tenantConfigLoading,
-  });
+  const { uiDisplay } = useTenant();
   const [selectedReportType, setSelectedReportType] = useState("");
   const [reportResidents, setReportResidents] = useState<ResidentOption[]>([]);
   const [selectedReportResident, setSelectedReportResident] = useState<
@@ -211,34 +201,6 @@ export function useAdminReports(enabled = true) {
     }
     const tipo = selectedReportType;
     const fmt = uiDisplay.defaultReportFormat ?? "pdf";
-
-    if (fmt === "pdf") {
-      setReportStatus("loading");
-      try {
-        const response = await fetchReportPayload(tipo);
-        const doc = createStockPDF(
-          tipo,
-          response as Parameters<typeof createStockPDF>[1],
-          undefined,
-          { logoUrl: tenantLogoSrc },
-        );
-        const blob = await pdf(doc).toBlob();
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `relatorio-${tipo}.pdf`;
-        link.click();
-        URL.revokeObjectURL(url);
-        setReportStatus("success");
-        toast({ title: "Relatório gerado", variant: "success" });
-      } catch (e) {
-        console.error(e);
-        setReportStatus("error");
-        toast({ title: "Erro ao gerar relatório", variant: "error" });
-      }
-      return;
-    }
-
     setReportStatus("loading");
     try {
       const built = buildReportExportJobPayload();
@@ -249,22 +211,25 @@ export function useAdminReports(enabled = true) {
       const { type, ...jobParams } = built;
       const job = await createReportExportJob(type, {
         ...jobParams,
-        format: "xlsx",
+        format: fmt === "pdf" ? "pdf" : "xlsx",
       });
       await waitForReportExportJob(job.jobId);
       const blob = await downloadReportExportBlob(job.jobId);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `relatorio-${tipo}.xlsx`;
+      link.download = `relatorio-${tipo}.${fmt === "pdf" ? "pdf" : "xlsx"}`;
       link.click();
       URL.revokeObjectURL(url);
       setReportStatus("success");
-      toast({ title: "Planilha gerada", variant: "success" });
+      toast({
+        title: fmt === "pdf" ? "Relatório gerado" : "Planilha gerada",
+        variant: "success",
+      });
     } catch (e) {
       console.error(e);
       setReportStatus("error");
-      toast({ title: "Erro ao gerar planilha", variant: "error" });
+      toast({ title: "Erro ao gerar relatório", variant: "error" });
     }
   }
 
@@ -273,17 +238,17 @@ export function useAdminReports(enabled = true) {
       toast({ title: "Selecione um tipo de relatório", variant: "error" });
       return;
     }
-    const tipo = selectedReportType;
     setReportPreviewLoading(true);
     try {
-      const response = await fetchReportPayload(tipo);
-      const doc = createStockPDF(
-        tipo,
-        response as Parameters<typeof createStockPDF>[1],
-        undefined,
-        { logoUrl: tenantLogoSrc },
-      );
-      const blob = await pdf(doc).toBlob();
+      const built = buildReportExportJobPayload();
+      if (!built) return;
+      const { type, ...jobParams } = built;
+      const job = await createReportExportJob(type, {
+        ...jobParams,
+        format: "pdf",
+      });
+      await waitForReportExportJob(job.jobId);
+      const blob = await downloadReportExportBlob(job.jobId);
       const url = URL.createObjectURL(blob);
       if (reportPreviewUrl) URL.revokeObjectURL(reportPreviewUrl);
       setReportPreviewUrl(url);
@@ -293,39 +258,6 @@ export function useAdminReports(enabled = true) {
       toast({ title: "Erro ao gerar pré-visualização", variant: "error" });
     } finally {
       setReportPreviewLoading(false);
-    }
-  }
-
-  async function fetchReportPayload(tipo: string): Promise<unknown> {
-    try {
-      return await fetchStockReportPayloadForPdf({
-        tipo,
-        movementPeriod: reportMovementPeriod,
-        movementDate: reportMovementDate,
-        movementMonth: reportMovementMonth,
-        startDate: reportStartDate,
-        endDate: reportEndDate,
-        movementPeriodTransfer: reportTransferPeriod,
-        transferDate: reportTransferDate,
-        selectedResident: selectedReportResident,
-        residents: reportResidents,
-      });
-    } catch (err) {
-      const m = err instanceof Error ? err.message : "";
-      if (m === "Data obrigatória") {
-        toast({
-          title:
-            tipo === "transferencias"
-              ? "Selecione a data da transferência"
-              : "Selecione a data",
-          variant: "error",
-        });
-      } else if (m === "Mês obrigatório") {
-        toast({ title: "Selecione o mês", variant: "error" });
-      } else if (m === "Intervalo obrigatório") {
-        toast({ title: "Selecione o intervalo de datas", variant: "error" });
-      }
-      throw err;
     }
   }
 
@@ -343,7 +275,10 @@ export function useAdminReports(enabled = true) {
         return;
       }
       const { type, ...jobParams } = built;
-      const job = await createReportExportJob(type, jobParams);
+      const job = await createReportExportJob(type, {
+        ...jobParams,
+        format: "xlsx",
+      });
       await waitForReportExportJob(job.jobId);
       const blob = await downloadReportExportBlob(job.jobId);
       const url = URL.createObjectURL(blob);

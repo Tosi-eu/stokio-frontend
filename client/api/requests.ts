@@ -346,14 +346,36 @@ export const downloadReportExportXlsx = downloadReportExportBlob;
 
 export { buildAdminExportParams } from "@stokio/sdk";
 
+async function waitForReportExportJob(jobId: string): Promise<void> {
+  const startedAt = Date.now();
+  while (true) {
+    const j = (await getReportExportJob(jobId)) as {
+      status?: string;
+      error?: string | null;
+    };
+    const s = String(j?.status ?? "");
+    if (s === "succeeded") return;
+    if (s === "failed") {
+      throw new Error(j?.error ?? "Falha ao gerar exportação");
+    }
+    if (Date.now() - startedAt > 5 * 60_000) {
+      throw new Error("Geração demorando demais. Tente novamente.");
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+}
+
 export async function downloadAdminExportCSV(
   queryParams: Record<string, string>,
 ): Promise<void> {
   try {
-    const blob = await stokioClient.admin.exportCsvBlob(queryParams);
-    const text = await blob.text();
-    const out = new Blob([text], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(out);
+    const job = await createReportExportJob(queryParams.type || "export", {
+      ...queryParams,
+      format: "csv",
+    });
+    await waitForReportExportJob(job.jobId);
+    const blob = await downloadReportExportBlob(job.jobId);
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
     link.download = `export-${queryParams.type || "relatorio"}-${new Date().toISOString().slice(0, 10)}.csv`;

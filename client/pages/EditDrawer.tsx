@@ -127,8 +127,6 @@ export default function EditDrawer() {
         variant: "success",
         duration: 3000,
       });
-
-      router.push("/drawers");
     } catch (err: unknown) {
       toast({
         title: "Erro ao editar gaveta",
