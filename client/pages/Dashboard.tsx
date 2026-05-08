@@ -63,7 +63,6 @@ import {
   type DashboardWidgetId,
 } from "@/constants/dashboard-widgets";
 import {
-  formatTenantSectorKeyLabel,
   getEnabledSectors,
 } from "@/helpers/tenant-sectors.helper";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
@@ -488,8 +487,7 @@ export default function Dashboard() {
               Painel
             </h1>
             <p className="text-sm text-muted-foreground">
-              Resumo do estoque e movimentações. Setores ativos:{" "}
-              {enabledSectors.map(formatTenantSectorKeyLabel).join(" · ")}.
+              Resumo do estoque e movimentações
             </p>
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">

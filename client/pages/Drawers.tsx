@@ -301,10 +301,6 @@ export default function Drawers() {
     <Layout title="Gavetas">
       <div className="pt-8 pb-12 px-4 sm:px-6 max-w-7xl mx-auto space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground max-w-xl">
-            Selecione uma gaveta para ver os itens de estoque associados. Filtre
-            por categoria ou busque pelo número.
-          </p>
           {!previewMode ? (
             <Button asChild className="rounded-xl">
               <Link href="/drawer/register">Nova gaveta</Link>

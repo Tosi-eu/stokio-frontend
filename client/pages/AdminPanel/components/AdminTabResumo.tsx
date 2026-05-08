@@ -905,10 +905,9 @@ export function AdminTabResumo({
 
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle>Histórico por item ou lote (rastreabilidade)</CardTitle>
+          <CardTitle>Histórico por item ou lote</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Consulte movimentações por medicamento/insumo (busque pelo nome) ou
-            por lote.
+            Busque o produto pelo nome ou por lote.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">

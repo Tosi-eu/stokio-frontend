@@ -463,10 +463,6 @@ export default function Resident() {
     <Layout title="Residentes">
       <div className="pt-8 pb-12 px-4 sm:px-6 max-w-7xl mx-auto space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground max-w-xl">
-            Cartões por casela: toque para ver os detalhes à direita (ou abaixo,
-            em ecrãs pequenos). A busca filtra por nome ou número da casela.
-          </p>
           {!previewMode ? (
             <Button asChild className="rounded-xl">
               <Link href="/residents/register">Novo residente</Link>

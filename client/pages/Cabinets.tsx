@@ -371,10 +371,6 @@ export default function Cabinets() {
     <Layout title="Armários">
       <div className="pt-8 pb-12 px-4 sm:px-6 max-w-7xl mx-auto space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground max-w-xl">
-            Selecione um armário para ver o que está armazenado nele. Use a
-            busca e o filtro por categoria para encontrar locais rapidamente.
-          </p>
           {!previewMode ? (
             <Button asChild className="rounded-xl">
               <Link href="/cabinets/register">Novo armário</Link>
