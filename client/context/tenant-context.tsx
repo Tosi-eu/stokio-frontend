@@ -172,6 +172,15 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     refetch();
   }, [refetch]);
 
+  useEffect(() => {
+    const onUiDisplayUpdated = () => {
+      void refetch();
+    };
+    window.addEventListener("ui-display-updated", onUiDisplayUpdated);
+    return () =>
+      window.removeEventListener("ui-display-updated", onUiDisplayUpdated);
+  }, [refetch]);
+
   const effectiveEnabled = useMemo(
     () => modulesPreview ?? modules?.enabled ?? [],
     [modulesPreview, modules],

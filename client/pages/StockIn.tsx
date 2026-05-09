@@ -64,18 +64,20 @@ export default function StockIn() {
       try {
         const [medicinesRes, inputsRes, residents, cabinets, drawers] =
           await Promise.all([
-            fetchAllPaginated(getMedicines),
-            fetchAllPaginated(getInputs),
-            fetchAllPaginated(getResidents),
-            fetchAllPaginated(getCabinets),
-            fetchAllPaginated(getDrawers),
+            fetchAllPaginated<RawStockMedicine>(getMedicines),
+            fetchAllPaginated<RawStockInput>(getInputs),
+            fetchAllPaginated<Patient>(getResidents),
+            fetchAllPaginated<Cabinet>(getCabinets),
+            fetchAllPaginated<Drawer>(getDrawers),
           ]);
 
         setMedicines(medicinesRes);
         setInputs(inputsRes);
-        setCaselas(residents);
-        setCabinets(cabinets);
-        setDrawers(drawers);
+        setCaselas(
+          [...residents].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+        );
+        setCabinets([...cabinets].sort((a, b) => b.numero - a.numero));
+        setDrawers([...drawers].sort((a, b) => b.numero - a.numero));
       } catch (err: unknown) {
         toast({
           title: "Erro ao carregar dados",

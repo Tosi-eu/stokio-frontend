@@ -1,9 +1,4 @@
-import {
-  ItemStockType,
-  OperationType,
-  OriginType,
-  SectorType,
-} from "@/utils/enums";
+import { ItemStockType, OperationType, OriginType } from "@/utils/enums";
 import { ReactNode } from "react";
 import { StockExpiryStatus, StockQuantityStatus } from "./types";
 import type { EffectivePermissionMatrixSerialized } from "@/domain/permission-matrix.types";
@@ -158,6 +153,7 @@ export interface StockListAlertItem {
   tipo_item?: string;
   st_quantidade?: string | null;
   st_expiracao?: string | null;
+  tentativas_busca?: number;
 }
 
 export interface StockItemRaw {
@@ -168,6 +164,8 @@ export interface StockItemRaw {
   principio_ativo?: string;
   descricao?: string | null;
   validade: string;
+  data_entrada?: string | null;
+  data_saida?: string | null;
   quantidade: number;
   minimo?: number;
   origem: string;
@@ -196,6 +194,8 @@ export interface StockItem {
   dosage?: string | null;
   measurementUnit?: string | null;
   expiry: string;
+  entryDate?: string | null;
+  exitDate?: string | null;
   quantity: number;
   minimumStock?: number;
   patient?: string;
@@ -388,5 +388,5 @@ export interface MedicineFormInitialData {
   cabinetId: number | null;
   drawerId: number | null;
   origin: OriginType | "";
-  sector: SectorType | "";
+  sector: string;
 }

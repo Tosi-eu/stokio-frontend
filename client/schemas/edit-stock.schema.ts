@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { SectorType, OriginType, ItemStockType } from "@/utils/enums";
+import { SECTOR_KEY_REGEX } from "@/helpers/tenant-sectors.helper";
+import { OriginType, ItemStockType } from "@/utils/enums";
 
 export const editStockSchema = z
   .object({
@@ -20,10 +21,9 @@ export const editStockSchema = z
       .union([z.nativeEnum(OriginType), z.null(), z.undefined()])
       .optional(),
 
-    setor: z.nativeEnum(SectorType, {
-      required_error: "Setor é obrigatório",
-      invalid_type_error: "Setor inválido",
-    }),
+    setor: z
+      .string({ required_error: "Setor é obrigatório" })
+      .regex(SECTOR_KEY_REGEX, "Setor inválido"),
 
     lote: z
       .string()

@@ -13,12 +13,7 @@ import {
   medicineFormSchema,
   type MedicineFormData,
 } from "@/schemas/medicine-form.schema";
-import {
-  ItemStockType,
-  OriginType,
-  SectorType,
-  StockTypeLabels,
-} from "@/utils/enums";
+import { ItemStockType, OriginType, StockTypeLabels } from "@/utils/enums";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -36,7 +31,21 @@ import {
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
+import {
+  buildSectorFilterOptions,
+  getEnabledSectors,
+} from "@/helpers/tenant-sectors.helper";
 import { caselaModeForContext } from "@/helpers/ui-display.helper";
+import { getTenantSetorStockTypes } from "@/api/requests";
+
+function normalizeText(text: string) {
+  return text
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
 
 export const MedicineForm = memo(function MedicineForm({
   medicines,
@@ -46,10 +55,22 @@ export const MedicineForm = memo(function MedicineForm({
   onSubmit,
   isLoading = false,
 }: MedicineFormProps) {
-  const { uiDisplay } = useTenant();
+  const { uiDisplay, modules } = useTenant();
+  const { labelByKey, rows: setorRows, profilesByKey } = useTenantSetores();
+  const sectorKeys = useMemo(() => getEnabledSectors(modules), [modules]);
+  const sectorOptions = useMemo(
+    () => buildSectorFilterOptions(sectorKeys, labelByKey),
+    [sectorKeys, labelByKey],
+  );
+  const defaultSector = sectorKeys.includes("farmacia")
+    ? "farmacia"
+    : (sectorKeys[0] ?? "farmacia");
+
   const router = useRouter();
   const [medicineOpen, setMedicineOpen] = useState(false);
   const [caselaOpen, setCaselaOpen] = useState(false);
+  const [medicineSearch, setMedicineSearch] = useState("");
+  const [caselaSearch, setCaselaSearch] = useState("");
 
   const {
     register,
@@ -57,6 +78,7 @@ export const MedicineForm = memo(function MedicineForm({
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors },
   } = useFormWithZod(medicineFormSchema, {
     defaultValues: {
@@ -68,7 +90,7 @@ export const MedicineForm = memo(function MedicineForm({
       cabinetId: null,
       drawerId: null,
       origin: null,
-      sector: SectorType.FARMACIA,
+      sector: defaultSector,
       lot: null,
       observacao: null,
     },
@@ -78,6 +100,9 @@ export const MedicineForm = memo(function MedicineForm({
   const sector = watch("sector");
   const selectedMedicineId = watch("id");
   const casela = watch("casela");
+  const [allowedStockTypes, setAllowedStockTypes] = useState<ItemStockType[]>(
+    Object.values(ItemStockType),
+  );
 
   const selectedMedicine = medicines.find((m) => m.id === selectedMedicineId);
   const effectiveCaselaMode = useMemo(
@@ -91,16 +116,91 @@ export const MedicineForm = memo(function MedicineForm({
     }
     return list.sort((a, b) => a.casela - b.casela);
   }, [caselas, effectiveCaselaMode]);
+
+  const filteredMedicines = useMemo(() => {
+    const s = normalizeText(medicineSearch);
+    if (!s) return medicines;
+    return medicines.filter((m) => {
+      const label =
+        `${m.name} ${m.dosage ?? ""} ${m.measurementUnit ?? ""}`.trim();
+      return normalizeText(label).includes(s);
+    });
+  }, [medicineSearch, medicines]);
+
+  const filteredCaselas = useMemo(() => {
+    const s = normalizeText(caselaSearch);
+    if (!s) return caselasForSelect;
+    return caselasForSelect.filter((c) =>
+      normalizeText(`${c.casela} ${c.name}`).includes(s),
+    );
+  }, [caselaSearch, caselasForSelect]);
   const isEmergencyCart = stockType === ItemStockType.CARRINHO;
   const isPsychotropicCart = stockType === ItemStockType.CARRINHO_PSICOTROPICOS;
   const isCart = isEmergencyCart || isPsychotropicCart;
   const isIndividual = stockType === ItemStockType.INDIVIDUAL;
 
+  const setorRow = useMemo(
+    () => setorRows.find((r) => r.key === sector) ?? null,
+    [setorRows, sector],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const setorId = setorRow?.id;
+    if (!setorId) {
+      setAllowedStockTypes(Object.values(ItemStockType));
+      return;
+    }
+    void (async () => {
+      try {
+        const res = await getTenantSetorStockTypes(setorId);
+        const list = (res.stockTypes ?? []) as ItemStockType[];
+        if (!cancelled) {
+          setAllowedStockTypes(
+            list.length ? list : Object.values(ItemStockType),
+          );
+        }
+      } catch {
+        const profile =
+          profilesByKey.get(sector) === "enfermagem"
+            ? "enfermagem"
+            : "farmacia";
+        const fallback =
+          profile === "enfermagem"
+            ? [
+                ItemStockType.GERAL,
+                ItemStockType.INDIVIDUAL,
+                ItemStockType.CARRINHO,
+                ItemStockType.CARRINHO_PSICOTROPICOS,
+              ]
+            : [ItemStockType.GERAL, ItemStockType.INDIVIDUAL];
+        if (!cancelled) setAllowedStockTypes(fallback);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [setorRow?.id, sector, profilesByKey]);
+
+  useEffect(() => {
+    if (stockType && !allowedStockTypes.includes(stockType)) {
+      setValue("stockType", undefined);
+    }
+  }, [allowedStockTypes, stockType, setValue]);
+
   useEffect(() => {
     if (isCart) {
-      setValue("sector", SectorType.ENFERMAGEM);
+      setValue("sector", "enfermagem");
     }
   }, [isCart, setValue]);
+
+  useEffect(() => {
+    if (!sectorKeys.length || isCart) return;
+    const cur = getValues("sector");
+    if (!sectorKeys.includes(cur)) {
+      setValue("sector", defaultSector);
+    }
+  }, [sectorKeys, defaultSector, getValues, isCart, setValue]);
 
   useEffect(() => {
     if (isCart) {
@@ -198,11 +298,23 @@ export const MedicineForm = memo(function MedicineForm({
                   avoidCollisions={false}
                   className="w-full p-0"
                 >
-                  <Command>
-                    <CommandInput placeholder="Buscar medicamento" />
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Buscar medicamento"
+                      value={medicineSearch}
+                      onValueChange={setMedicineSearch}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        if (filteredMedicines.length !== 1) return;
+                        const m = filteredMedicines[0]!;
+                        e.preventDefault();
+                        field.onChange(m.id);
+                        handleMedicineSelect(m.id);
+                      }}
+                    />
                     <CommandEmpty>Nenhum medicamento encontrado.</CommandEmpty>
                     <CommandGroup>
-                      {medicines.map((m) => (
+                      {filteredMedicines.map((m) => (
                         <CommandItem
                           key={m.id}
                           value={`${m.name} ${m.dosage} ${m.measurementUnit}`}
@@ -296,9 +408,9 @@ export const MedicineForm = memo(function MedicineForm({
           <option value="" disabled hidden>
             Selecione
           </option>
-          {Object.values(SectorType).map((s) => (
-            <option key={s} value={s}>
-              {s === SectorType.FARMACIA ? "Farmácia" : "Enfermagem"}
+          {sectorOptions.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
             </option>
           ))}
         </select>
@@ -321,7 +433,7 @@ export const MedicineForm = memo(function MedicineForm({
           <option value="" disabled hidden>
             Selecione
           </option>
-          {Object.values(ItemStockType).map((t) => (
+          {allowedStockTypes.map((t) => (
             <option key={t} value={t}>
               {StockTypeLabels[t]}
             </option>
@@ -360,7 +472,7 @@ export const MedicineForm = memo(function MedicineForm({
                     >
                       {field.value != null && selectedCasela
                         ? uiDisplay.casela === "nome"
-                          ? selectedCasela.name
+                          ? `${selectedCasela.name} (${selectedCasela.casela})`
                           : String(selectedCasela.casela)
                         : uiDisplay.casela === "nome"
                           ? "Buscar por nome do residente..."
@@ -375,24 +487,27 @@ export const MedicineForm = memo(function MedicineForm({
                     avoidCollisions={false}
                     className="w-full p-0"
                   >
-                    <Command
-                      shouldFilter={true}
-                      filter={(itemValue, search) => {
-                        if (!search?.trim()) return 1;
-                        const term = search.trim().toLowerCase();
-                        return itemValue.toLowerCase().includes(term) ? 1 : 0;
-                      }}
-                    >
+                    <Command shouldFilter={false}>
                       <CommandInput
                         placeholder={
                           uiDisplay.casela === "nome"
                             ? "Buscar por nome ou número..."
                             : "Buscar por número ou nome..."
                         }
+                        value={caselaSearch}
+                        onValueChange={setCaselaSearch}
+                        onKeyDown={(e) => {
+                          if (e.key !== "Enter") return;
+                          if (filteredCaselas.length !== 1) return;
+                          const c = filteredCaselas[0]!;
+                          e.preventDefault();
+                          field.onChange(c.casela);
+                          setCaselaOpen(false);
+                        }}
                       />
                       <CommandEmpty>Nenhuma casela encontrada.</CommandEmpty>
                       <CommandGroup>
-                        {caselasForSelect.map((c) => {
+                        {filteredCaselas.map((c) => {
                           const primary =
                             uiDisplay.casela === "nome"
                               ? c.name
@@ -418,7 +533,7 @@ export const MedicineForm = memo(function MedicineForm({
                               {primary}
                               <span className="ml-2 text-slate-500 text-xs">
                                 {uiDisplay.casela === "nome"
-                                  ? `(Casela ${c.casela})`
+                                  ? `(${c.casela})`
                                   : c.name}
                               </span>
                             </CommandItem>

@@ -13,18 +13,16 @@ import {
   fetchStockPage,
   type ApiFilterOptions,
 } from "@/helpers/stock-list.helper";
-import { useFormWithZod } from "@/hooks/use-form-with-zod";
-import { stockOutQuantitySchema } from "@/schemas/stock-out.schema";
 import { getErrorMessage } from "@/helpers/validation.helper";
 
 import { AnimatePresence, motion } from "framer-motion";
 import Pagination from "@/components/Pagination";
-import QuantityStep from "@/components/QuantityStep";
 
 import { OperationType, StockWizardSteps } from "@/utils/enums";
 import { StockItemRaw } from "@/interfaces/interfaces";
 import StepType from "@/components/StepType";
-import StepItems from "@/components/StepItens";
+import { StockOutTable } from "@/components/stock-out/StockOutTable";
+import { StockOutDrawer } from "@/components/stock-out/StockOutDrawer";
 
 import {
   Popover,
@@ -41,6 +39,12 @@ import {
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
+import {
+  buildSectorFilterOptions,
+  getEnabledSectors,
+  resolveSectorProfile,
+} from "@/helpers/tenant-sectors.helper";
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import { TableFilter } from "@/components/TableFilter";
@@ -48,7 +52,15 @@ import { TableFilter } from "@/components/TableFilter";
 const PAGE_SIZE = 24;
 
 export default function StockOut() {
-  const { uiDisplay } = useTenant();
+  const { uiDisplay, modules } = useTenant();
+  const { profilesByKey, labelByKey } = useTenantSetores();
+
+  const sectorKeys = useMemo(() => getEnabledSectors(modules), [modules]);
+
+  const sectorFilterOptions = useMemo(
+    () => buildSectorFilterOptions(sectorKeys, labelByKey),
+    [sectorKeys, labelByKey],
+  );
   const { canMovementTipo } = usePermissionMatrix();
   const canSaida = canMovementTipo("saida");
   const router = useRouter();
@@ -77,6 +89,14 @@ export default function StockOut() {
     lote: "",
   });
 
+  const setorProfileForFilters = useMemo(
+    () =>
+      filters.setor
+        ? resolveSectorProfile(filters.setor, profilesByKey)
+        : undefined,
+    [filters.setor, profilesByKey],
+  );
+
   const [debouncedNome, setDebouncedNome] = useState("");
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -103,12 +123,7 @@ export default function StockOut() {
     OperationType | "Selecione"
   >("Selecione");
   const [selected, setSelected] = useState<StockItemRaw | null>(null);
-
-  const quantityForm = useFormWithZod(stockOutQuantitySchema, {
-    defaultValues: {
-      quantity: 0,
-    },
-  });
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const itemTypeFilter =
     operationType !== "Selecione" &&
@@ -143,7 +158,11 @@ export default function StockOut() {
         const mapped = (list as Array<{ casela: number; name: string }>).map(
           (r) => ({ casela: r.casela, name: r.name }),
         );
-        if (!cancelled) setResidents(mapped);
+        if (!cancelled) {
+          setResidents(
+            mapped.sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+          );
+        }
       } catch {
         if (!cancelled) setResidents([]);
       }
@@ -158,6 +177,8 @@ export default function StockOut() {
       buildFilterOptionsFromApi(apiFilterOptions, {
         residents,
         setor: filters.setor,
+        setorProfile: setorProfileForFilters,
+        sectorFilterOptions,
         displayCasela: uiDisplay.casela,
         caselaSetor: uiDisplay.caselaSetor,
         armarioMode: uiDisplay.armario,
@@ -166,6 +187,8 @@ export default function StockOut() {
       apiFilterOptions,
       residents,
       filters.setor,
+      setorProfileForFilters,
+      sectorFilterOptions,
       uiDisplay.casela,
       uiDisplay.caselaSetor,
       uiDisplay.armario,
@@ -180,6 +203,7 @@ export default function StockOut() {
     (list: StockItemRaw[]) => {
       const q = debouncedNome.trim().toLowerCase();
       return list.filter((item) => {
+        if (Number(item.quantidade ?? 0) <= 0) return false;
         if (q && !(item.nome ?? "").toLowerCase().includes(q)) return false;
         if (filters.casela && String(item.casela_id ?? "") !== filters.casela)
           return false;
@@ -219,6 +243,7 @@ export default function StockOut() {
         setor: filters.setor || undefined,
         lote: filters.lote || undefined,
         itemType: itemTypeFilter,
+        onlyInStock: true,
       });
       setItems((data ?? []) as StockItemRaw[]);
       setTotalCount(Number(total ?? 0));
@@ -299,13 +324,10 @@ export default function StockOut() {
 
   const handleSelectItem = (item: StockItemRaw | null) => {
     setSelected(item);
-    if (item) {
-      quantityForm.reset({ quantity: 0 });
-      setStep(StockWizardSteps.QUANTIDADE);
-    }
+    setDrawerOpen(Boolean(item));
   };
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (qty: number) => {
     if (!selected) return;
     if (!canSaida) {
       toast({
@@ -316,12 +338,6 @@ export default function StockOut() {
       });
       return;
     }
-
-    const isValid = await quantityForm.trigger();
-    if (!isValid) return;
-
-    const qty = quantityForm.getValues("quantity");
-    if (!qty || qty <= 0 || qty > selected.quantidade) return;
 
     try {
       await createStockOut({
@@ -350,19 +366,6 @@ export default function StockOut() {
         duration: 3000,
       });
     }
-  };
-
-  const handleBack = () => {
-    if (step === StockWizardSteps.ITENS) setStep(StockWizardSteps.TIPO);
-    else if (step === StockWizardSteps.QUANTIDADE)
-      setStep(StockWizardSteps.ITENS);
-  };
-
-  const handleNext = () => {
-    if (step === StockWizardSteps.TIPO && operationType !== "Selecione")
-      setStep(StockWizardSteps.ITENS);
-    else if (step === StockWizardSteps.ITENS && selected)
-      setStep(StockWizardSteps.QUANTIDADE);
   };
 
   return (
@@ -570,26 +573,15 @@ export default function StockOut() {
         </div>
       </div>
 
-      <div className="relative overflow-hidden max-w-7xl mx-auto rounded-xl border border-border bg-card p-8 md:p-10 shadow-sm mt-8">
-        {step !== StockWizardSteps.TIPO && (
-          <button
-            onClick={handleBack}
-            className="absolute left-2 top-1/2 -translate-y-1/2 p-3 rounded-full border bg-white shadow"
-          >
-            ←
-          </button>
-        )}
-
-        {step !== StockWizardSteps.QUANTIDADE && (
-          <button
-            onClick={handleNext}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-3 rounded-full border bg-white shadow"
-          >
-            →
-          </button>
-        )}
-
-        <div className="min-h-[380px] flex flex-col items-center justify-center gap-4">
+      <div className="overflow-hidden max-w-7xl mx-auto rounded-xl border border-border bg-card p-8 md:p-10 shadow-sm mt-8">
+        <div
+          className={cn(
+            "min-h-[380px] flex flex-col gap-4 w-full",
+            step === StockWizardSteps.ITENS
+              ? "items-stretch"
+              : "items-center justify-center",
+          )}
+        >
           <AnimatePresence mode="wait" initial={false}>
             {step === StockWizardSteps.TIPO && (
               <motion.div
@@ -613,44 +605,25 @@ export default function StockOut() {
                 transition={{ duration: 0.22 }}
                 className="w-full"
               >
-                <>
-                  {loadingStock && (
-                    <p className="text-sm text-muted-foreground text-center">
-                      Carregando itens…
-                    </p>
-                  )}
-                  <StepItems
+                <div className="w-full min-w-0 space-y-4">
+                  <StockOutTable
                     items={items}
                     selected={selected}
-                    onSelectItem={handleSelectItem}
+                    loading={loadingStock}
+                    onSelect={handleSelectItem}
                   />
-                </>
-              </motion.div>
-            )}
 
-            {step === StockWizardSteps.QUANTIDADE && (
-              <motion.div
-                key="quantidade"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.22 }}
-                className="w-full max-w-6xl"
-              >
-                <QuantityStep
-                  item={selected}
-                  quantity={quantityForm.watch("quantity") || 0}
-                  quantityRegister={quantityForm.register("quantity", {
-                    valueAsNumber: true,
-                  })}
-                  quantityErrors={quantityForm.formState.errors}
-                  isSubmitting={quantityForm.formState.isSubmitting}
-                  onBack={() => {
-                    quantityForm.reset();
-                    setStep(StockWizardSteps.ITENS);
-                  }}
-                  onConfirm={handleConfirm}
-                />
+                  <StockOutDrawer
+                    open={drawerOpen}
+                    item={selected}
+                    submitting={false}
+                    onOpenChange={(open) => {
+                      setDrawerOpen(open);
+                      if (!open) setSelected(null);
+                    }}
+                    onConfirm={(qty) => void handleConfirm(qty)}
+                  />
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

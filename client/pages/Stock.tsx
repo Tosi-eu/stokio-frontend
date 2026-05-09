@@ -19,7 +19,7 @@ import {
   getResidents,
   getDrawers,
 } from "@/api/requests";
-import { ItemStockType, SectorType } from "@/utils/enums";
+import { ItemStockType } from "@/utils/enums";
 import { StockActionType, StockItemType } from "@/interfaces/types";
 import {
   fetchStockPage,
@@ -51,6 +51,12 @@ import {
 import { ChevronsUpDown, X } from "lucide-react";
 import { TableFilter } from "@/components/TableFilter";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
+import {
+  buildSectorFilterOptions,
+  getEnabledSectors,
+  resolveSectorProfile,
+} from "@/helpers/tenant-sectors.helper";
 import {
   getPreviewStockItems,
   PREVIEW_CABINETS,
@@ -65,12 +71,22 @@ import {
 const FILTER_LABELS: Record<string, string> = {
   belowMin: "Abaixo do estoque mínimo",
   nearMin: "Próximos do estoque mínimo",
+  noPrice: "Sem preço cadastrado",
   expired: "Vencidos",
   expiringSoon: "Vencimento próximo",
 };
 
 export default function Stock() {
-  const { uiDisplay, previewMode } = useTenant();
+  const { uiDisplay, previewMode, modules } = useTenant();
+  const { profilesByKey, labelByKey } = useTenantSetores();
+
+  const sectorKeys = useMemo(() => getEnabledSectors(modules), [modules]);
+
+  const sectorFilterOptions = useMemo(
+    () => buildSectorFilterOptions(sectorKeys, labelByKey),
+    [sectorKeys, labelByKey],
+  );
+
   const router = useRouter();
   const { can, canMovementTipo } = usePermissionMatrix();
   const canSaida = canMovementTipo("saida");
@@ -106,6 +122,14 @@ export default function Stock() {
     setor: "",
     lote: "",
   });
+
+  const setorProfileForFilters = useMemo(
+    () =>
+      filters.setor
+        ? resolveSectorProfile(filters.setor, profilesByKey)
+        : undefined,
+    [filters.setor, profilesByKey],
+  );
 
   const [debouncedNome, setDebouncedNome] = useState("");
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -222,15 +246,20 @@ export default function Stock() {
         100,
       );
       setResidents(
-        allResidents.map((r: { casela: number; name: string }) => ({
-          casela: r.casela,
-          name: r.name,
-        })),
+        allResidents
+          .map((r: { casela: number; name: string }) => ({
+            casela: r.casela,
+            name: r.name,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
       );
     } catch (err: unknown) {
       if (previewMode) {
         setResidents(
-          PREVIEW_RESIDENTS.map((r) => ({ casela: r.casela, name: r.name })),
+          PREVIEW_RESIDENTS.map((r) => ({
+            casela: r.casela,
+            name: r.name,
+          })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
         );
       } else {
         const errorMessage = getErrorMessage(
@@ -342,6 +371,8 @@ export default function Stock() {
       buildFilterOptionsFromApi(apiFilterOptions, {
         residents,
         setor: filters.setor,
+        setorProfile: setorProfileForFilters,
+        sectorFilterOptions,
         displayCasela: uiDisplay.casela,
         caselaSetor: uiDisplay.caselaSetor,
         armarioMode: uiDisplay.armario,
@@ -350,6 +381,8 @@ export default function Stock() {
       apiFilterOptions,
       residents,
       filters.setor,
+      setorProfileForFilters,
+      sectorFilterOptions,
       uiDisplay.casela,
       uiDisplay.caselaSetor,
       uiDisplay.armario,
@@ -408,6 +441,7 @@ export default function Stock() {
 
   const columns = [
     { key: "stockType", label: "Tipo", editable: false },
+    { key: "lot", label: "Lote", editable: false },
     { key: "name", label: "Nome", editable: true },
     { key: "activeSubstance", label: "Princípio Ativo", editable: true },
     { key: "description", label: "Descrição", editable: true },
@@ -422,7 +456,6 @@ export default function Stock() {
     { key: "destination", label: "Destino", editable: false },
     { key: "detail", label: "Observação", editable: false },
     { key: "status", label: "Status", editable: false },
-    { key: "lot", label: "Lote", editable: false },
   ];
 
   const requestTransferSector = (row: StockItem) => {
@@ -543,7 +576,7 @@ export default function Stock() {
     try {
       await transferStockSector({
         estoque_id: row.id,
-        setor: SectorType.ENFERMAGEM,
+        setor: "enfermagem",
         itemType: row.itemType as StockItemType,
         quantidade: quantity,
         casela_id: casela ?? null,

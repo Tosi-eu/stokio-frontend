@@ -3,7 +3,6 @@ import {
   MovementType,
   NotificationDestiny,
   OperationType,
-  SectorType,
 } from "@/utils/enums";
 import type {
   ConsumptionByItemResponse,
@@ -13,7 +12,10 @@ import type {
   TenantPgDumpImportResponse,
   UpdateTenantBrandingPayload,
 } from "@stokio/sdk";
-import { uploadTenantBrandingLogoWithProgress } from "@stokio/sdk";
+import {
+  uploadTenantBrandingLogoWithProgress,
+  StokioApiError,
+} from "@stokio/sdk";
 import { stokioClient, API_BASE_URL, readBearerToken } from "./canonical";
 import { reportClientError } from "@/helpers/error-report.helper";
 import { readPreviewModeFromStorage } from "@/helpers/preview-mode-storage";
@@ -318,16 +320,62 @@ export const getReport = (
     params as Record<string, string | number | boolean | undefined>,
   );
 
+export type ReportExportJobResponse = {
+  jobId: string;
+  workflowId: string;
+  accepted: boolean;
+};
+
+export const createReportExportJob = (
+  type: string,
+  params?: Record<string, string | number | boolean | undefined>,
+): Promise<ReportExportJobResponse> =>
+  stokioClient.post("/relatorios/jobs", undefined, {
+    params: { type, ...params },
+  });
+
+export const getReportExportJob = (jobId: string) =>
+  stokioClient.get(`/relatorios/jobs/${encodeURIComponent(jobId)}`);
+
+export const downloadReportExportBlob = (jobId: string): Promise<Blob> =>
+  stokioClient.get(`/relatorios/jobs/${encodeURIComponent(jobId)}/download`, {
+    responseType: "blob",
+  });
+
+export const downloadReportExportXlsx = downloadReportExportBlob;
+
 export { buildAdminExportParams } from "@stokio/sdk";
+
+async function waitForReportExportJob(jobId: string): Promise<void> {
+  const startedAt = Date.now();
+  while (true) {
+    const j = (await getReportExportJob(jobId)) as {
+      status?: string;
+      error?: string | null;
+    };
+    const s = String(j?.status ?? "");
+    if (s === "succeeded") return;
+    if (s === "failed") {
+      throw new Error(j?.error ?? "Falha ao gerar exportação");
+    }
+    if (Date.now() - startedAt > 5 * 60_000) {
+      throw new Error("Geração demorando demais. Tente novamente.");
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+}
 
 export async function downloadAdminExportCSV(
   queryParams: Record<string, string>,
 ): Promise<void> {
   try {
-    const blob = await stokioClient.admin.exportCsvBlob(queryParams);
-    const text = await blob.text();
-    const out = new Blob([text], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(out);
+    const job = await createReportExportJob(queryParams.type || "export", {
+      ...queryParams,
+      format: "csv",
+    });
+    await waitForReportExportJob(job.jobId);
+    const blob = await downloadReportExportBlob(job.jobId);
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
     link.download = `export-${queryParams.type || "relatorio"}-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -363,7 +411,14 @@ export async function fetchPublicTenantBrandingIfExists(
   if (!s) return null;
   const path = `/tenants/${encodeURIComponent(s)}/branding`;
   try {
-    const data = await stokioClient.public.tenantBrandingBySlug(s);
+    const data = await stokioClient.get<{
+      found: boolean;
+      slug?: string;
+      name?: string;
+      brandName?: string | null;
+      logoUrl?: string | null;
+      contractCodeMandatory?: boolean;
+    }>(`/tenants/${encodeURIComponent(s)}/branding`);
     if (!data || typeof data !== "object" || !("found" in data)) return null;
     if (!data.found) return null;
     return {
@@ -393,9 +448,15 @@ export async function fetchLoginTenantsForEmail(
 ): Promise<LoginTenantSummary[]> {
   const trimmed = login.trim();
   if (!trimmed) return [];
-  const { status, data } = await stokioClient.auth.tenantsForEmail(trimmed);
-  if (!status || status < 200 || status >= 300) {
-    if (status >= 500) {
+  let data: { tenants?: unknown[] } | null;
+  try {
+    data = await stokioClient.get<{ tenants?: unknown[] }>(
+      "/login/tenants-for-email",
+      { params: { login: trimmed } },
+    );
+  } catch (err) {
+    const status = err instanceof StokioApiError ? err.httpStatus : undefined;
+    if (status != null && status >= 500) {
       reportClientError(new Error(`login/tenants-for-email failed`), {
         httpMethod: "GET",
         httpPath: "/login/tenants-for-email",
@@ -406,12 +467,14 @@ export async function fetchLoginTenantsForEmail(
   }
   const raw = Array.isArray(data?.tenants) ? data.tenants : [];
   return raw
-    .map((t) => {
-      const slug = String(t?.slug ?? "").trim();
+    .map((t: unknown) => {
+      if (!t || typeof t !== "object") return null;
+      const row = t as Record<string, unknown>;
+      const slug = String(row.slug ?? "").trim();
       if (!slug) return null;
-      const label = String(t?.label ?? "").trim() || slug;
-      const tenantName = String(t?.tenantName ?? "").trim() || label;
-      const bn = t?.brandName != null ? String(t.brandName).trim() : "";
+      const label = String(row.label ?? "").trim() || slug;
+      const tenantName = String(row.tenantName ?? "").trim() || label;
+      const bn = row.brandName != null ? String(row.brandName).trim() : "";
       const brandName = bn.length > 0 ? bn : null;
       return { slug, label, tenantName, brandName };
     })
@@ -427,34 +490,39 @@ export async function resolveTenantByLogin(
   const trimmed = login.trim();
   if (!trimmed) return { ok: false, reason: "not_found" };
 
-  const { status, data } =
-    await stokioClient.auth.resolveTenantByLogin(trimmed);
-
-  if (
-    status >= 200 &&
-    status < 300 &&
-    data &&
-    typeof data.slug === "string" &&
-    data.slug.trim()
-  )
-    return { ok: true, slug: data.slug.trim() };
-
-  if (status === 409 && data?.tenants && Array.isArray(data.tenants))
-    return {
-      ok: false,
-      reason: "ambiguous",
-      tenants: data.tenants as LoginTenantSummary[],
-    };
-
-  if (status >= 500) {
-    reportClientError(new Error(`login/resolve-tenant ${status}`), {
-      httpMethod: "GET",
-      httpPath: "/login/resolve-tenant",
-      httpStatus: status,
-    });
+  try {
+    const data = await stokioClient.get<{ slug?: string }>(
+      "/login/resolve-tenant",
+      { params: { login: trimmed } },
+    );
+    if (data && typeof data.slug === "string" && data.slug.trim()) {
+      return { ok: true, slug: data.slug.trim() };
+    }
+    return { ok: false, reason: "not_found" };
+  } catch (err) {
+    if (err instanceof StokioApiError && err.httpStatus === 409) {
+      const body = err.responseBody as { tenants?: LoginTenantSummary[] };
+      if (body?.tenants && Array.isArray(body.tenants)) {
+        return {
+          ok: false,
+          reason: "ambiguous",
+          tenants: body.tenants,
+        };
+      }
+    }
+    if (
+      err instanceof StokioApiError &&
+      err.httpStatus != null &&
+      err.httpStatus >= 500
+    ) {
+      reportClientError(new Error(`login/resolve-tenant ${err.httpStatus}`), {
+        httpMethod: "GET",
+        httpPath: "/login/resolve-tenant",
+        httpStatus: err.httpStatus,
+      });
+    }
+    return { ok: false, reason: "not_found" };
   }
-
-  return { ok: false, reason: "not_found" };
 }
 
 export type UserPermissions = {
@@ -684,10 +752,12 @@ export const createResident = (
   nome: string,
   casela: string,
   data_nascimento?: string | null,
+  cpf?: string | null,
 ) =>
   stokioClient.post("/residentes", {
     nome,
     casela: parseInt(casela),
+    ...(cpf != null && String(cpf).trim() !== "" ? { cpf } : {}),
     ...(data_nascimento != null && String(data_nascimento).trim() !== ""
       ? { data_nascimento: String(data_nascimento).trim() }
       : {}),
@@ -736,8 +806,22 @@ export const createNotificationEvent = (payload: {
   data_prevista: Date;
   criado_por: number;
   tipo_evento: string;
-  status: EventStatus;
-}) => stokioClient.post("/notificacao", payload);
+  status?: EventStatus;
+  visto?: boolean;
+}) => {
+  const d =
+    payload.data_prevista instanceof Date ? payload.data_prevista : null;
+  const dateOnly = d ? d.toISOString().slice(0, 10) : "";
+  return stokioClient.post("/notificacao", {
+    medicamento_id: payload.medicamento_id,
+    residente_id: payload.residente_id,
+    destino: payload.destino,
+    data_prevista: dateOnly,
+    criado_por: payload.criado_por,
+    visto: payload.visto ?? false,
+    tipo_evento: payload.tipo_evento,
+  });
+};
 
 export const getNotifications = async ({
   page = 1,
@@ -792,7 +876,13 @@ export const patchNotificationEvent = (
     criado_por: number;
     status: EventStatus;
   }>,
-) => stokioClient.patch(`/notificacao/${id}`, data);
+) => {
+  const out: Record<string, unknown> = { ...data };
+  if (data.data_prevista instanceof Date) {
+    out.data_prevista = data.data_prevista.toISOString().slice(0, 10);
+  }
+  return stokioClient.patch(`/notificacao/${id}`, out);
+};
 
 export const getTodayMedicineNotifications = () =>
   getNotifications({
@@ -847,6 +937,9 @@ export const getStock = (
       params.append("itemType", String(filters.itemType));
     if (filters.stockType != null)
       params.append("stockType", String(filters.stockType));
+    if (filters.onlyInStock === true || filters.onlyInStock === "true") {
+      params.append("onlyInStock", "true");
+    }
   }
 
   if (extraFilter) {
@@ -943,7 +1036,7 @@ export const deleteStockItem = (stockId: number, type: StockItemType) =>
 
 export const transferStockSector = (payload: {
   estoque_id: number;
-  setor: SectorType;
+  setor: string;
   itemType: StockItemType;
   quantidade?: number;
   casela_id?: number;
@@ -1110,6 +1203,27 @@ export type CreateTenantSetorPayload = {
 
 export const createTenantSetor = (payload: CreateTenantSetorPayload) =>
   stokioClient.post<TenantSetorRow>("/tenant/setores", payload);
+
+export type TenantSetorStockTypesResponse = {
+  setorId: number;
+  stockTypes: Array<
+    "geral" | "individual" | "carrinho_emergencia" | "carrinho_psicotropicos"
+  >;
+};
+
+export const getTenantSetorStockTypes = (setorId: number) =>
+  stokioClient.get<TenantSetorStockTypesResponse>(
+    `/tenant/setores/${setorId}/stock-types`,
+  );
+
+export const updateTenantSetorStockTypes = (
+  setorId: number,
+  stockTypes: TenantSetorStockTypesResponse["stockTypes"],
+) =>
+  stokioClient.put<TenantSetorStockTypesResponse>(
+    `/tenant/setores/${setorId}/stock-types`,
+    { stockTypes },
+  );
 
 export const getAdminUsers = (params?: { page?: number; limit?: number }) =>
   stokioClient.get("/admin/users", { params: params ?? {} });

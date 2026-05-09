@@ -3,8 +3,8 @@ export async function fetchAllPaginated<T>(
     page: number,
     limit: number,
   ) => Promise<{
-    data: T[];
-    hasNext: boolean;
+    data?: T[] | null;
+    hasNext?: boolean;
   }>,
   limit = 100,
 ): Promise<T[]> {
@@ -14,9 +14,13 @@ export async function fetchAllPaginated<T>(
 
   while (hasNext) {
     const res = await fetchFn(page, limit);
+    const chunk = res.data ?? [];
+    all.push(...chunk);
 
-    all.push(...(res.data ?? []));
-    hasNext = res.hasNext;
+    if (res.hasNext === false) hasNext = false;
+    else if (res.hasNext === true) hasNext = true;
+    else hasNext = chunk.length >= limit;
+
     page++;
   }
 

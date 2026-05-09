@@ -283,7 +283,9 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                               ? `Casela ${selectedCasela} — ${r.name}`
                               : `Casela ${selectedCasela}`;
                           }
-                          return r?.name ?? `Casela ${selectedCasela}`;
+                          return r
+                            ? `${r.name} (${selectedCasela})`
+                            : `Casela ${selectedCasela}`;
                         })()
                       : "Selecione uma casela..."}
                     <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
@@ -317,7 +319,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                           />
                           {uiDisplay.casela === "numero"
                             ? `Casela ${resident.casela} — ${resident.name}`
-                            : resident.name}
+                            : `${resident.name} (${resident.casela})`}
                         </CommandItem>
                       ))}
                     </CommandGroup>

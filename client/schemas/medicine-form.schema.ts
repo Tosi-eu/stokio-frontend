@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { SectorType, OriginType, ItemStockType } from "@/utils/enums";
+import { SECTOR_KEY_REGEX } from "@/helpers/tenant-sectors.helper";
+import { OriginType, ItemStockType } from "@/utils/enums";
 
 export const medicineFormSchema = z
   .object({
@@ -20,9 +21,9 @@ export const medicineFormSchema = z
     cabinetId: z.number().nullable().optional(),
     drawerId: z.number().nullable().optional(),
     origin: z.nativeEnum(OriginType).nullable().optional(),
-    sector: z.nativeEnum(SectorType, {
-      required_error: "Setor é obrigatório",
-    }),
+    sector: z
+      .string({ required_error: "Setor é obrigatório" })
+      .regex(SECTOR_KEY_REGEX, "Setor inválido"),
     lot: z
       .string()
       .max(50, "Lote não pode ter mais de 50 caracteres")

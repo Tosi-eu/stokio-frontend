@@ -1,12 +1,17 @@
-# Debian/glibc para builds Node estáveis.
 FROM node:20-bookworm-slim AS build
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+WORKDIR /app/sdk
+COPY sdk/package.json sdk/package-lock.json* ./
 RUN npm install
+COPY sdk/ ./
+RUN npm run build
 
-COPY . .
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm install
+COPY frontend/ ./
 
 ARG NEXT_PUBLIC_API_BASE_URL
 ARG NEXT_PUBLIC_LOGO_URL
@@ -34,15 +39,13 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=8081
-# Next standalone: bind em todas as interfaces. Em Docker, HOSTNAME costuma ser sobrescrito pelo
-# runtime — defina HOSTNAME=0.0.0.0 também no compose (service frontend).
 ENV HOSTNAME=0.0.0.0
 
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 
-COPY --from=build /app/public ./public
-COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=build /app/frontend/public ./public
+COPY --from=build --chown=nextjs:nodejs /app/frontend/.next/standalone ./
+COPY --from=build --chown=nextjs:nodejs /app/frontend/.next/static ./.next/static
 
 USER nextjs
 

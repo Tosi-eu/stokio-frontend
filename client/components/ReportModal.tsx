@@ -21,8 +21,13 @@ import {
   AlertTriangle,
   ChevronsUpDown,
 } from "lucide-react";
-import { pdf } from "@react-pdf/renderer";
-import { getReport, getResidents } from "@/api/requests";
+import {
+  createReportExportJob,
+  downloadReportExportBlob,
+  getReportExportJob,
+  getResidents,
+} from "@/api/requests";
+import { MovementPeriod } from "@/components/StockReporter";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import {
   CommandEmpty,
@@ -36,11 +41,9 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { getReportTitle } from "@/helpers/relatorio.helper";
 import { parseYearMonthToDate } from "@/helpers/dates.helper";
-import { createStockPDF, MovementsParams } from "./StockReporter";
 import { toast } from "@/hooks/use-toast.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
-
 type StatusType = "idle" | "loading" | "success" | "error";
 
 interface ReportModalProps {
@@ -51,12 +54,9 @@ interface ReportModalProps {
 interface Resident {
   casela: number;
   name: string;
-}
-
-enum MovementPeriod {
-  DIARIO = "diario",
-  MENSAL = "mensal",
-  INTERVALO = "intervalo",
+  cpf?: string | null;
+  data_nascimento?: string | null;
+  idade?: number | null;
 }
 
 export default function ReportModal({ open, onClose }: ReportModalProps) {
@@ -115,8 +115,23 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
   const loadResidents = useCallback(async () => {
     setLoadingResidents(true);
     try {
-      const residentsList = await fetchAllPaginated<Resident>(getResidents);
-      setResidents(residentsList);
+      const residentsList = await fetchAllPaginated<Resident>((p, l) =>
+        getResidents(p, l).then((r) => ({
+          data: ((r.data ?? []) as Array<Record<string, unknown>>).map((x) => ({
+            casela: Number(x.casela),
+            name: String(x.name ?? ""),
+            cpf: x.cpf != null ? String(x.cpf) : null,
+            data_nascimento:
+              x.data_nascimento != null ? String(x.data_nascimento) : null,
+            idade:
+              typeof x.idade === "number" && Number.isFinite(x.idade)
+                ? x.idade
+                : null,
+          })),
+          hasNext: r.hasNext ?? false,
+        })),
+      );
+      setResidents(residentsList ?? []);
     } catch (error) {
       console.error("Erro ao carregar residentes:", error);
       setResidents([]);
@@ -163,6 +178,20 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
     if (value !== "residente_consumo" && value !== "medicamentos_residente") {
       setSelectedResident(null);
     }
+    // Defaults úteis pra reduzir fricção
+    if (value === "movimentacoes") {
+      setMovementPeriod(MovementPeriod.DIARIO);
+      setMovementDate((d) => d ?? new Date());
+      setMovementMonth("");
+      setStartDate(null);
+      setEndDate(null);
+    }
+    if (value === "transferencias") {
+      setMovementPeriodTransfer(MovementPeriod.DIARIO);
+      setTransferDate((d) => d ?? new Date());
+      setStartDate(null);
+      setEndDate(null);
+    }
   };
 
   const handleGenerate = async () => {
@@ -172,28 +201,25 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
     setStatus("loading");
 
     try {
-      let response;
+      const params: Record<string, string> = {};
 
       if (tipo === "movimentacoes") {
-        let params: MovementsParams;
-
         if (movementPeriod === MovementPeriod.DIARIO) {
           if (!movementDate) {
             toast({ title: "Selecione a data", variant: "error" });
             setStatus("idle");
             return;
           }
-          params = {
-            periodo: MovementPeriod.DIARIO,
-            data: movementDate.toISOString().split("T")[0],
-          };
+          params.periodo = MovementPeriod.DIARIO;
+          params.data = movementDate.toISOString().split("T")[0];
         } else if (movementPeriod === MovementPeriod.MENSAL) {
           if (!movementMonth) {
             toast({ title: "Selecione o mês", variant: "error" });
             setStatus("idle");
             return;
           }
-          params = { periodo: MovementPeriod.MENSAL, mes: movementMonth };
+          params.periodo = MovementPeriod.MENSAL;
+          params.mes = movementMonth;
         } else if (movementPeriod === MovementPeriod.INTERVALO) {
           if (!startDate || !endDate) {
             toast({
@@ -203,16 +229,20 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
             setStatus("idle");
             return;
           }
-          params = {
-            periodo: MovementPeriod.INTERVALO,
-            data_inicial: startDate.toISOString().split("T")[0],
-            data_final: endDate.toISOString().split("T")[0],
-          };
+          if (endDate.getTime() < startDate.getTime()) {
+            toast({
+              title: "Intervalo inválido",
+              description: "A data final precisa ser maior ou igual à inicial.",
+              variant: "error",
+            });
+            setStatus("idle");
+            return;
+          }
+          params.periodo = MovementPeriod.INTERVALO;
+          params.data_inicial = startDate.toISOString().split("T")[0];
+          params.data_final = endDate.toISOString().split("T")[0];
         }
-
-        response = await getReport("movimentacoes", undefined, params);
       } else if (tipo === "transferencias") {
-        let params: MovementsParams;
         if (movementPeriodTransfer === MovementPeriod.DIARIO) {
           if (!transferDate) {
             toast({
@@ -222,10 +252,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
             setStatus("idle");
             return;
           }
-          params = {
-            periodo: MovementPeriod.DIARIO,
-            data: transferDate.toISOString().split("T")[0],
-          };
+          params.data = transferDate.toISOString().split("T")[0];
         } else if (movementPeriodTransfer === MovementPeriod.INTERVALO) {
           if (!startDate || !endDate) {
             toast({
@@ -235,36 +262,75 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
             setStatus("idle");
             return;
           }
-          params = {
-            periodo: MovementPeriod.INTERVALO,
-            data_inicial: startDate.toISOString().split("T")[0],
-            data_final: endDate.toISOString().split("T")[0],
-          };
+          if (endDate.getTime() < startDate.getTime()) {
+            toast({
+              title: "Intervalo inválido",
+              description: "A data final precisa ser maior ou igual à inicial.",
+              variant: "error",
+            });
+            setStatus("idle");
+            return;
+          }
+          params.data_inicial = startDate.toISOString().split("T")[0];
+          params.data_final = endDate.toISOString().split("T")[0];
         }
-
-        response = await getReport("transferencias", undefined, params);
       } else {
         const casela =
           tipo === "residente_consumo" || tipo === "medicamentos_residente"
             ? selectedResident
             : undefined;
 
-        response = await getReport(tipo, casela);
+        if (casela != null) params.casela = String(casela);
       }
 
-      const doc = createStockPDF(tipo, response);
-      const blob = await pdf(doc).toBlob();
-      const url = URL.createObjectURL(blob);
+      const fmt = uiDisplay.defaultReportFormat ?? "pdf";
 
+      const job = await createReportExportJob(tipo, {
+        ...params,
+        format: fmt === "pdf" ? "pdf" : "xlsx",
+      });
+
+      const startedAt = Date.now();
+      while (true) {
+        const j = (await getReportExportJob(job.jobId)) as {
+          status?: string;
+          error?: string | null;
+        };
+        const s = String(j?.status ?? "");
+        if (s === "succeeded") break;
+        if (s === "failed") {
+          throw new Error(j?.error ?? "Falha ao gerar planilha");
+        }
+        if (Date.now() - startedAt > 5 * 60_000) {
+          throw new Error("Geração demorando demais. Tente novamente.");
+        }
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+
+      const blob = await downloadReportExportBlob(job.jobId);
+      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `relatorio-${tipo}.pdf`;
+      link.download = `relatorio-${tipo}.${fmt === "pdf" ? "pdf" : "xlsx"}`;
       link.click();
-
       URL.revokeObjectURL(url);
       setStatus("success");
     } catch (e) {
       console.error(e);
+      const m = e instanceof Error ? e.message : "";
+      if (m === "Data obrigatória") {
+        toast({
+          title:
+            tipo === "transferencias"
+              ? "Selecione a data da transferência"
+              : "Selecione a data",
+          variant: "error",
+        });
+      } else if (m === "Mês obrigatório") {
+        toast({ title: "Selecione o mês", variant: "error" });
+      } else if (m === "Intervalo obrigatório") {
+        toast({ title: "Selecione o intervalo de datas", variant: "error" });
+      }
       setStatus("error");
     }
   };
@@ -279,7 +345,10 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
 
   const filteredResidents = residents.filter((r) => {
     if (!residentSearch) return true;
-    return r.casela.toString().startsWith(residentSearch.trim());
+    const q = residentSearch.trim().toLowerCase();
+    if (!q) return true;
+    if (/^\d+$/.test(q)) return String(r.casela).startsWith(q);
+    return r.name.toLowerCase().includes(q);
   });
 
   return (
@@ -563,7 +632,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                                         }}
                                       >
                                         {uiDisplay.casela === "nome"
-                                          ? r.name
+                                          ? `${r.name} (${r.casela})`
                                           : `Casela ${r.casela}`}
                                       </CommandItem>
                                     ))}
@@ -594,7 +663,11 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
           {status === "loading" && (
             <div className="p-12 flex flex-col items-center gap-4">
               <Loader2 className="w-12 h-12 animate-spin text-primary" />
-              <p>Gerando relatório…</p>
+              <p>
+                {uiDisplay.defaultReportFormat === "xlsx"
+                  ? "Gerando planilha…"
+                  : "Gerando PDF…"}
+              </p>
             </div>
           )}
 

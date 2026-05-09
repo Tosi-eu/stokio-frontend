@@ -126,8 +126,12 @@ interface AdminTabResumoProps {
   }>;
   stockHistoryTotal: number;
   loadingStockHistory: boolean;
-  fetchStockHistoryByItem: (itemId: number) => void;
-  fetchStockHistoryByLote: () => void;
+  fetchStockHistoryByItem: (itemId: number, page?: number) => void;
+  fetchStockHistoryByLote: (page?: number) => void;
+  stockHistoryPage: number;
+  setStockHistoryPage: (v: number | ((p: number) => number)) => void;
+  stockHistoryLimit: number;
+  setStockHistoryLimit: (v: number) => void;
 }
 
 export function AdminTabResumo({
@@ -169,6 +173,10 @@ export function AdminTabResumo({
   loadingStockHistory,
   fetchStockHistoryByItem,
   fetchStockHistoryByLote,
+  stockHistoryPage,
+  setStockHistoryPage,
+  stockHistoryLimit,
+  setStockHistoryLimit,
 }: AdminTabResumoProps) {
   const [metricsDialog, setMetricsDialog] = useState<
     null | "activeUsers" | "movements"
@@ -179,6 +187,35 @@ export function AdminTabResumo({
 
   const [summaryListPage, setSummaryListPage] = useState(1);
   const [summaryListPageSize, setSummaryListPageSize] = useState(25);
+
+  const [consumptionPage, setConsumptionPage] = useState(1);
+  const [consumptionPageSize, setConsumptionPageSize] = useState(25);
+
+  useEffect(() => {
+    setConsumptionPage(1);
+  }, [consumptionPageSize, consumptionByItemData.items.length]);
+
+  const consumptionTotalPages = useMemo(
+    () =>
+      Math.max(
+        1,
+        Math.ceil(consumptionByItemData.items.length / consumptionPageSize),
+      ),
+    [consumptionByItemData.items.length, consumptionPageSize],
+  );
+
+  const consumptionRows = useMemo(() => {
+    const start = (consumptionPage - 1) * consumptionPageSize;
+    return consumptionByItemData.items.slice(
+      start,
+      start + consumptionPageSize,
+    );
+  }, [consumptionByItemData.items, consumptionPage, consumptionPageSize]);
+
+  const stockHistoryTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(stockHistoryTotal / stockHistoryLimit)),
+    [stockHistoryTotal, stockHistoryLimit],
+  );
 
   const [activeUsersRows, setActiveUsersRows] = useState<
     AdminActiveUserThisMonth[]
@@ -758,65 +795,119 @@ export function AdminTabResumo({
               Carregando...
             </div>
           ) : (
-            <div className="rounded-md border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Entradas</TableHead>
-                    <TableHead>Saídas</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {consumptionByItemData.items.length === 0 ? (
+            <>
+              <div className="flex items-center justify-end gap-2">
+                <Label className="text-xs text-muted-foreground">
+                  Itens por página
+                </Label>
+                <Select
+                  value={String(consumptionPageSize)}
+                  onValueChange={(v) => {
+                    setConsumptionPageSize(Number(v));
+                    setConsumptionPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-24 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell
-                        colSpan={4}
-                        className="text-center text-muted-foreground py-4"
-                      >
-                        Nenhum dado no período. Defina as datas e clique em
-                        Buscar.
-                      </TableCell>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Entradas</TableHead>
+                      <TableHead>Saídas</TableHead>
                     </TableRow>
-                  ) : (
-                    <>
-                      {consumptionByItemData.items.map((row, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell>{row.nome}</TableCell>
-                          <TableCell>
-                            {row.tipo_item === "medicamento"
-                              ? "Medicamento"
-                              : "Insumo"}
-                          </TableCell>
-                          <TableCell>{row.entrada}</TableCell>
-                          <TableCell>{row.saida}</TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow className="bg-slate-100 font-medium">
-                        <TableCell colSpan={2}>Subtotal</TableCell>
-                        <TableCell>
-                          {consumptionByItemData.subtotal.entrada}
-                        </TableCell>
-                        <TableCell>
-                          {consumptionByItemData.subtotal.saida}
+                  </TableHeader>
+                  <TableBody>
+                    {consumptionByItemData.items.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={4}
+                          className="text-center text-muted-foreground py-4"
+                        >
+                          Nenhum dado no período. Defina as datas e clique em
+                          Buscar.
                         </TableCell>
                       </TableRow>
-                    </>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                    ) : (
+                      <>
+                        {consumptionRows.map((row, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>{row.nome}</TableCell>
+                            <TableCell>
+                              {row.tipo_item === "medicamento"
+                                ? "Medicamento"
+                                : "Insumo"}
+                            </TableCell>
+                            <TableCell>{row.entrada}</TableCell>
+                            <TableCell>{row.saida}</TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="bg-slate-100 font-medium">
+                          <TableCell colSpan={2}>Subtotal</TableCell>
+                          <TableCell>
+                            {consumptionByItemData.subtotal.entrada}
+                          </TableCell>
+                          <TableCell>
+                            {consumptionByItemData.subtotal.saida}
+                          </TableCell>
+                        </TableRow>
+                      </>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {consumptionByItemData.items.length > consumptionPageSize ? (
+                <div className="flex items-center justify-center gap-2 mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={consumptionPage <= 1}
+                    onClick={() =>
+                      setConsumptionPage((p) => Math.max(1, p - 1))
+                    }
+                  >
+                    Anterior
+                  </Button>
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                    Página {consumptionPage} de {consumptionTotalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={consumptionPage >= consumptionTotalPages}
+                    onClick={() =>
+                      setConsumptionPage((p) =>
+                        Math.min(consumptionTotalPages, p + 1),
+                      )
+                    }
+                  >
+                    Próximo
+                  </Button>
+                </div>
+              ) : null}
+            </>
           )}
         </CardContent>
       </Card>
 
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle>Histórico por item ou lote (rastreabilidade)</CardTitle>
+          <CardTitle>Histórico por item ou lote</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Consulte movimentações por medicamento/insumo (busque pelo nome) ou
-            por lote.
+            Busque o produto pelo nome ou por lote.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -890,7 +981,8 @@ export function AdminTabResumo({
                               setStockHistorySelectedItem(opt);
                               setStockHistoryItemSearch("");
                               setStockHistoryItemPopoverOpen(false);
-                              fetchStockHistoryByItem(opt.id);
+                              setStockHistoryPage(1);
+                              fetchStockHistoryByItem(opt.id, 1);
                             }}
                           >
                             {opt.nome}
@@ -916,7 +1008,10 @@ export function AdminTabResumo({
                 type="button"
                 variant="secondary"
                 disabled={loadingStockHistory || !stockHistoryLote.trim()}
-                onClick={fetchStockHistoryByLote}
+                onClick={() => {
+                  setStockHistoryPage(1);
+                  fetchStockHistoryByLote(1);
+                }}
               >
                 Buscar por lote
               </Button>
@@ -930,6 +1025,34 @@ export function AdminTabResumo({
           )}
           {stockHistoryData.length > 0 && (
             <>
+              <div className="flex items-center justify-end gap-2">
+                <Label className="text-xs text-muted-foreground">
+                  Itens por página
+                </Label>
+                <Select
+                  value={String(stockHistoryLimit)}
+                  onValueChange={(v) => {
+                    const n = Number(v);
+                    setStockHistoryLimit(n);
+                    setStockHistoryPage(1);
+                    if (stockHistorySelectedItem) {
+                      fetchStockHistoryByItem(stockHistorySelectedItem.id, 1);
+                    } else if (stockHistoryLote.trim()) {
+                      fetchStockHistoryByLote(1);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-24 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -960,9 +1083,53 @@ export function AdminTabResumo({
                   </TableBody>
                 </Table>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Total: {stockHistoryTotal} registro(s).
-              </p>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={stockHistoryPage <= 1}
+                  onClick={() => {
+                    const next = Math.max(1, stockHistoryPage - 1);
+                    setStockHistoryPage(next);
+                    if (stockHistorySelectedItem) {
+                      fetchStockHistoryByItem(
+                        stockHistorySelectedItem.id,
+                        next,
+                      );
+                    } else {
+                      fetchStockHistoryByLote(next);
+                    }
+                  }}
+                >
+                  Anterior
+                </Button>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  Página {stockHistoryPage} de {stockHistoryTotalPages} • Total:{" "}
+                  {stockHistoryTotal}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={stockHistoryPage >= stockHistoryTotalPages}
+                  onClick={() => {
+                    const next = Math.min(
+                      stockHistoryTotalPages,
+                      stockHistoryPage + 1,
+                    );
+                    setStockHistoryPage(next);
+                    if (stockHistorySelectedItem) {
+                      fetchStockHistoryByItem(
+                        stockHistorySelectedItem.id,
+                        next,
+                      );
+                    } else {
+                      fetchStockHistoryByLote(next);
+                    }
+                  }}
+                >
+                  Próximo
+                </Button>
+              </div>
             </>
           )}
           {!loadingStockHistory &&

@@ -1,4 +1,11 @@
-import { useState, useEffect, useMemo, useId } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useId,
+  useCallback,
+  useRef,
+} from "react";
 import {
   Pencil,
   Trash2,
@@ -182,6 +189,85 @@ export default function EditableTable({
   const { toast } = useToast();
   const router = useRouter();
   const { can, canMovementTipo } = usePermissionMatrix();
+
+  const columnWidthStorageKey = useMemo(
+    () => `abrigo.tableWidths.${entityType ?? "default"}`,
+    [entityType],
+  );
+  const [colWidths, setColWidths] = useState<Record<string, number>>({});
+  const resizeRef = useRef<{
+    key: string;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(columnWidthStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const next: Record<string, number> = {};
+      for (const [k, v] of Object.entries(parsed ?? {})) {
+        const n = typeof v === "number" ? v : Number(v);
+        if (Number.isFinite(n) && n >= 80 && n <= 800) next[k] = n;
+      }
+      setColWidths(next);
+    } catch {
+      /* ignore */
+    }
+  }, [columnWidthStorageKey]);
+
+  const persistColWidths = useCallback(
+    (next: Record<string, number>) => {
+      if (typeof window === "undefined") return;
+      try {
+        window.localStorage.setItem(
+          columnWidthStorageKey,
+          JSON.stringify(next),
+        );
+      } catch {
+        /* ignore */
+      }
+    },
+    [columnWidthStorageKey],
+  );
+
+  const startResize = useCallback(
+    (key: string, e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const th = (e.currentTarget as HTMLElement).closest("th");
+      const startWidth =
+        colWidths[key] ??
+        (th ? Math.max(80, Math.floor(th.getBoundingClientRect().width)) : 160);
+      resizeRef.current = { key, startX: e.clientX, startWidth };
+      const onMove = (ev: MouseEvent) => {
+        const st = resizeRef.current;
+        if (!st) return;
+        const dx = ev.clientX - st.startX;
+        const nextW = Math.min(800, Math.max(80, st.startWidth + dx));
+        setColWidths((prev) => {
+          const next = { ...prev, [st.key]: nextW };
+          return next;
+        });
+      };
+      const onUp = () => {
+        const st = resizeRef.current;
+        resizeRef.current = null;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+        if (!st) return;
+        setColWidths((prev) => {
+          persistColWidths(prev);
+          return prev;
+        });
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [colWidths, persistColWidths],
+  );
 
   useEffect(() => {
     setRows(data);
@@ -440,14 +526,34 @@ export default function EditableTable({
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-max table-auto">
+          <colgroup>
+            {columns.map((col) => (
+              <col
+                key={col.key}
+                style={
+                  colWidths[col.key]
+                    ? { width: `${colWidths[col.key]}px` }
+                    : undefined
+                }
+              />
+            ))}
+            {effectiveShowAddons ? <col /> : null}
+          </colgroup>
           <thead>
             <tr className="bg-muted/80 border-b border-border/60">
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground text-center whitespace-nowrap"
+                  className="relative px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground text-center whitespace-nowrap"
                 >
                   {col.label}
+                  <span
+                    role="separator"
+                    aria-orientation="vertical"
+                    title="Arraste para redimensionar"
+                    onMouseDown={(e) => startResize(col.key, e)}
+                    className="absolute right-0 top-0 h-full w-2 cursor-col-resize select-none opacity-40 hover:opacity-100"
+                  />
                 </th>
               ))}
               {effectiveShowAddons && (
@@ -492,7 +598,14 @@ export default function EditableTable({
                             !row ? "group-hover:bg-accent/40" : ""
                           }`}
                         >
-                          <div className="max-w-[200px] mx-auto">
+                          <div
+                            className="mx-auto"
+                            style={{
+                              maxWidth: colWidths[col.key]
+                                ? `${colWidths[col.key]}px`
+                                : "200px",
+                            }}
+                          >
                             {renderCell(row, col.key)}
                           </div>
                         </td>

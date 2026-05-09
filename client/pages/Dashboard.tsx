@@ -43,7 +43,6 @@ import {
 } from "@/interfaces/interfaces";
 import StockProportionCard from "@/components/StockProportionCard";
 import { prepareStockDistributionData } from "@/helpers/estoque.helper";
-import { SectorType } from "@/utils/enums";
 import { useMaxSectionRows } from "@/hooks/use-max-selection-rows";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
@@ -63,11 +62,25 @@ import {
   DASHBOARD_WIDGET_LABELS,
   type DashboardWidgetId,
 } from "@/constants/dashboard-widgets";
-import {
-  formatTenantSectorKeyLabel,
-  getEnabledSectors,
-} from "@/helpers/tenant-sectors.helper";
+import { getEnabledSectors } from "@/helpers/tenant-sectors.helper";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
+
+type SectorProportionChartRow = {
+  key: string;
+  nome: string;
+  data: StockDistributionItem[];
+};
+
+function sortProportionChartsByEnabledOrder(
+  charts: SectorProportionChartRow[],
+  enabledOrder: string[],
+): SectorProportionChartRow[] {
+  return [...charts].sort((a, b) => {
+    const ia = enabledOrder.indexOf(a.key);
+    const ib = enabledOrder.indexOf(b.key);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+}
 
 export default function Dashboard() {
   const { uiDisplay, previewMode, modules, tenantId } = useTenant();
@@ -110,7 +123,7 @@ export default function Dashboard() {
   );
 
   const [belowMin, setBelowMin] = useState<number>(0);
-  const [nearMin, setNearMin] = useState<number>(0);
+  const [noPrice, setNoPrice] = useState<number>(0);
   const [expired, setExpired] = useState<number>(0);
   const [expiringSoonCount, setExpiringSoonCount] = useState<number>(0);
   const [cabinetStockData, setCabinetStockData] = useState<
@@ -122,11 +135,8 @@ export default function Dashboard() {
   const [nonMovementPage, setNonMovementPage] = useState(1);
   const [recentMovementsPage, setRecentMovementsPage] = useState(1);
 
-  const [nursingDistribution, setNursingDistribution] = useState<
-    StockDistributionItem[]
-  >([]);
-  const [pharmacyDistribution, setPharmacyDistribution] = useState<
-    StockDistributionItem[]
+  const [sectorProportionCharts, setSectorProportionCharts] = useState<
+    SectorProportionChartRow[]
   >([]);
 
   const [recentMovements, setRecentMovements] = useState<RecentMovement[]>([]);
@@ -209,9 +219,9 @@ export default function Dashboard() {
       setLoadingNonMovement(true);
       setLoadingRecentMovements(true);
 
-      const a = summary.alerts || {};
+      const a = summary.alerts ?? {};
       setBelowMin(a.belowMin ?? 0);
-      setNearMin(a.nearMin ?? 0);
+      setNoPrice(Number((a as Record<string, unknown>).noPrice ?? 0) || 0);
       setExpired(a.expired ?? 0);
       setExpiringSoonCount(a.expiringSoon ?? 0);
 
@@ -267,37 +277,67 @@ export default function Dashboard() {
         })),
       );
 
-      const nursingRes = summary.nursingProportion;
-      const pharmacyRes = summary.pharmacyProportion;
-      if (nursingRes) {
-        setNursingDistribution(
-          prepareStockDistributionData(nursingRes, SectorType.ENFERMAGEM).sort(
-            (a, b) => b.rawValue - a.rawValue,
-          ),
+      const sectorsEnabled = getEnabledSectors(modules ?? null);
+      const rawList = summary.sectorProportions;
+      let nextCharts: SectorProportionChartRow[] = [];
+
+      if (Array.isArray(rawList) && rawList.length > 0) {
+        for (const s of rawList) {
+          if (!sectorsEnabled.includes(s.key)) continue;
+          const profile =
+            s.proportion_profile === "enfermagem" ? "enfermagem" : "farmacia";
+          nextCharts.push({
+            key: s.key,
+            nome: s.nome,
+            data: prepareStockDistributionData(s, profile).sort(
+              (a, b) => b.rawValue - a.rawValue,
+            ),
+          });
+        }
+        nextCharts = sortProportionChartsByEnabledOrder(
+          nextCharts,
+          sectorsEnabled,
         );
       } else {
-        setNursingDistribution([]);
-      }
-      if (pharmacyRes) {
-        setPharmacyDistribution(
-          prepareStockDistributionData(pharmacyRes, SectorType.FARMACIA).sort(
-            (a, b) => b.rawValue - a.rawValue,
-          ),
+        const nursingRes = summary.nursingProportion;
+        const pharmacyRes = summary.pharmacyProportion;
+        if (sectorsEnabled.includes("enfermagem") && nursingRes) {
+          nextCharts.push({
+            key: "enfermagem",
+            nome: "Enfermagem",
+            data: prepareStockDistributionData(nursingRes, "enfermagem").sort(
+              (a, b) => b.rawValue - a.rawValue,
+            ),
+          });
+        }
+        if (sectorsEnabled.includes("farmacia") && pharmacyRes) {
+          nextCharts.push({
+            key: "farmacia",
+            nome: "Farmácia",
+            data: prepareStockDistributionData(pharmacyRes, "farmacia").sort(
+              (a, b) => b.rawValue - a.rawValue,
+            ),
+          });
+        }
+        nextCharts = sortProportionChartsByEnabledOrder(
+          nextCharts,
+          sectorsEnabled,
         );
-      } else {
-        setPharmacyDistribution([]);
       }
+      setSectorProportionCharts(nextCharts);
 
       const cabinetRes = summary.cabinetStockData;
       const drawerRes = summary.drawerStockData;
       if (cabinetRes?.data) {
         setCabinetStockData(
           cabinetRes.data.map((arm) => ({
-            label: formatArmarioDisplay(
-              arm.armario_id,
-              cabMap.get(arm.armario_id ?? 0) ?? null,
-              uiDisplay.armario,
-            ),
+            label: String(arm.armario_id ?? "-"),
+            fullLabel: (() => {
+              const num = arm.armario_id ?? null;
+              const cat = cabMap.get(arm.armario_id ?? 0) ?? null;
+              const base = formatArmarioDisplay(num, cat, "numero");
+              return cat?.trim() ? `${base} — ${cat.trim()}` : base;
+            })(),
             total: Number(arm.total_geral) || 0,
           })),
         );
@@ -305,11 +345,13 @@ export default function Dashboard() {
       if (drawerRes?.data) {
         setDrawerStockData(
           drawerRes.data.map((drawer) => ({
-            label: formatGavetaDisplay(
-              drawer.gaveta_id,
-              drwMap.get(drawer.gaveta_id ?? 0) ?? null,
-              uiDisplay.gaveta,
-            ),
+            label: String(drawer.gaveta_id ?? "-"),
+            fullLabel: (() => {
+              const num = drawer.gaveta_id ?? null;
+              const cat = drwMap.get(drawer.gaveta_id ?? 0) ?? null;
+              const base = formatGavetaDisplay(num, cat, "numero");
+              return cat?.trim() ? `${base} — ${cat.trim()}` : base;
+            })(),
             total: Number(drawer.total_geral) || 0,
           })),
         );
@@ -318,7 +360,7 @@ export default function Dashboard() {
       setLoadingNonMovement(false);
       setLoadingRecentMovements(false);
     }
-  }, [summary, uiDisplay, cabMap, drwMap]);
+  }, [summary, uiDisplay, cabMap, drwMap, modules]);
 
   const stats = useMemo(
     () => [
@@ -328,9 +370,9 @@ export default function Dashboard() {
         onClick: () => router.push("/stock?filter=belowMin"),
       },
       {
-        label: "Itens Próximos do Estoque Mínimo",
-        value: nearMin,
-        onClick: () => router.push("/stock?filter=nearMin"),
+        label: "Medicamentos e insumos sem preço",
+        value: noPrice,
+        onClick: () => router.push("/stock?filter=noPrice"),
       },
       {
         label: "Itens Vencidos",
@@ -343,7 +385,7 @@ export default function Dashboard() {
         onClick: () => router.push("/stock?filter=expiringSoon"),
       },
     ],
-    [belowMin, nearMin, expired, expiringSoonCount, router],
+    [belowMin, noPrice, expired, expiringSoonCount, router],
   );
 
   const COLORS = useMemo(
@@ -382,10 +424,26 @@ export default function Dashboard() {
   const showLeastMoved = widgetVisible("leastMoved");
   const showCabinetChart = widgetVisible("cabinetChart");
   const showDrawerChart = widgetVisible("drawerChart");
+  const chartFarmacia = sectorProportionCharts.find(
+    (c) => c.key === "farmacia",
+  );
+  const chartEnfermagem = sectorProportionCharts.find(
+    (c) => c.key === "enfermagem",
+  );
+  const chartsExtra = sectorProportionCharts.filter(
+    (c) => c.key !== "farmacia" && c.key !== "enfermagem",
+  );
+
   const showPharmacyChart =
-    showPharmacySector && widgetVisible("pharmacyProportion");
+    Boolean(chartFarmacia) &&
+    showPharmacySector &&
+    widgetVisible("pharmacyProportion") &&
+    (chartFarmacia?.data?.length ?? 0) > 0;
   const showNursingChart =
-    showNursingSector && widgetVisible("nursingProportion");
+    Boolean(chartEnfermagem) &&
+    showNursingSector &&
+    widgetVisible("nursingProportion") &&
+    (chartEnfermagem?.data?.length ?? 0) > 0;
 
   const movementGridClass =
     showNonMovement && showRecentMovements
@@ -402,10 +460,21 @@ export default function Dashboard() {
       ? "grid grid-cols-1 gap-6 lg:grid-cols-2"
       : "grid grid-cols-1 gap-6";
 
+  const extraChartsVisible = chartsExtra.filter(
+    (c) => enabledSectors.includes(c.key) && (c.data?.length ?? 0) > 0,
+  );
+
+  const showExtraSectorCharts =
+    extraChartsVisible.length > 0 && widgetVisible("customSectorProportions");
+
+  const proportionSectionCount =
+    Number(showPharmacyChart) +
+    Number(showNursingChart) +
+    Number(showExtraSectorCharts);
   const proportionGridClass =
-    showPharmacyChart && showNursingChart
-      ? "grid grid-cols-1 gap-6 lg:grid-cols-2"
-      : "grid grid-cols-1 gap-6";
+    proportionSectionCount >= 2
+      ? "grid grid-cols-1 gap-6 lg:grid-cols-2 items-stretch"
+      : "grid grid-cols-1 gap-6 items-stretch";
 
   return (
     <Layout>
@@ -416,8 +485,7 @@ export default function Dashboard() {
               Painel
             </h1>
             <p className="text-sm text-muted-foreground">
-              Resumo do estoque e movimentações. Setores ativos:{" "}
-              {enabledSectors.map(formatTenantSectorKeyLabel).join(" · ")}.
+              Resumo do estoque e movimentações
             </p>
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">
@@ -515,6 +583,130 @@ export default function Dashboard() {
               </div>
             </section>
           </DashboardWidgetShell>
+        ) : null}
+
+        {showCabinetChart || showDrawerChart ? (
+          <section className={barGridClass}>
+            {showCabinetChart ? (
+              <DashboardWidgetShell
+                id="cabinetChart"
+                editMode={dashLayout.editMode}
+                wide={dashLayout.isWide("cabinetChart")}
+                onHide={() => dashLayout.hide("cabinetChart")}
+                onToggleWide={() => dashLayout.toggleWide("cabinetChart")}
+              >
+                <Suspense fallback={<SkeletonCard />}>
+                  <DashboardChartCard
+                    title="Quantidade de Itens por Armário"
+                    data={cabinetStockData}
+                    sortByNumericLabel
+                    gradientId="barFillCabinet"
+                    gradientColors={{
+                      start: "hsl(215 52% 42%)",
+                      end: "hsl(222 48% 28%)",
+                    }}
+                  />
+                </Suspense>
+              </DashboardWidgetShell>
+            ) : null}
+
+            {showDrawerChart ? (
+              <DashboardWidgetShell
+                id="drawerChart"
+                editMode={dashLayout.editMode}
+                wide={dashLayout.isWide("drawerChart")}
+                onHide={() => dashLayout.hide("drawerChart")}
+                onToggleWide={() => dashLayout.toggleWide("drawerChart")}
+              >
+                <Suspense fallback={<SkeletonCard />}>
+                  <DashboardChartCard
+                    title="Quantidade de Itens por Gaveta"
+                    data={drawerStockData}
+                    sortByNumericLabel
+                    gradientId="barFillDrawer"
+                    gradientColors={{
+                      start: "hsl(191 72% 48%)",
+                      end: "hsl(205 55% 38%)",
+                    }}
+                  />
+                </Suspense>
+              </DashboardWidgetShell>
+            ) : null}
+          </section>
+        ) : null}
+
+        {showPharmacyChart || showNursingChart || showExtraSectorCharts ? (
+          <section className={proportionGridClass}>
+            {showPharmacyChart && chartFarmacia ? (
+              <DashboardWidgetShell
+                id="pharmacyProportion"
+                editMode={dashLayout.editMode}
+                wide={dashLayout.isWide("pharmacyProportion")}
+                onHide={() => dashLayout.hide("pharmacyProportion")}
+                onToggleWide={() => dashLayout.toggleWide("pharmacyProportion")}
+              >
+                <StockProportionCard
+                  title={`Proporção de estoque — ${chartFarmacia.nome}`}
+                  data={chartFarmacia.data}
+                  colors={COLORS}
+                />
+              </DashboardWidgetShell>
+            ) : null}
+
+            {showNursingChart && chartEnfermagem ? (
+              <DashboardWidgetShell
+                id="nursingProportion"
+                editMode={dashLayout.editMode}
+                wide={dashLayout.isWide("nursingProportion")}
+                onHide={() => dashLayout.hide("nursingProportion")}
+                onToggleWide={() => dashLayout.toggleWide("nursingProportion")}
+              >
+                <StockProportionCard
+                  title={`Proporção de estoque — ${chartEnfermagem.nome}`}
+                  data={chartEnfermagem.data}
+                  colors={COLORS}
+                />
+              </DashboardWidgetShell>
+            ) : null}
+
+            {showExtraSectorCharts ? (
+              <DashboardWidgetShell
+                id="customSectorProportions"
+                editMode={dashLayout.editMode}
+                // Sempre ocupar a linha inteira para os cards não ficarem "minúsculos"
+                wide={true}
+                allowWide={false}
+                onHide={() => dashLayout.hide("customSectorProportions")}
+                onToggleWide={() =>
+                  dashLayout.toggleWide("customSectorProportions")
+                }
+              >
+                <div
+                  className={
+                    extraChartsVisible.length > 1
+                      ? "grid grid-cols-1 gap-6 lg:grid-cols-2 items-stretch"
+                      : "grid grid-cols-1 gap-6 items-stretch"
+                  }
+                >
+                  {extraChartsVisible.map((chart, idx) => (
+                    <StockProportionCard
+                      key={chart.key}
+                      title={`Proporção de estoque — ${chart.nome}`}
+                      data={chart.data}
+                      colors={COLORS}
+                      className={
+                        extraChartsVisible.length > 1 &&
+                        extraChartsVisible.length % 2 === 1 &&
+                        idx === extraChartsVisible.length - 1
+                          ? "h-[360px] w-full lg:col-span-2"
+                          : "h-[360px] w-full"
+                      }
+                    />
+                  ))}
+                </div>
+              </DashboardWidgetShell>
+            ) : null}
+          </section>
         ) : null}
 
         {showNonMovement || showRecentMovements ? (
@@ -720,90 +912,6 @@ export default function Dashboard() {
                     />
                   </CardContent>
                 </Card>
-              </DashboardWidgetShell>
-            ) : null}
-          </section>
-        ) : null}
-
-        {showCabinetChart || showDrawerChart ? (
-          <section className={barGridClass}>
-            {showCabinetChart ? (
-              <DashboardWidgetShell
-                id="cabinetChart"
-                editMode={dashLayout.editMode}
-                wide={dashLayout.isWide("cabinetChart")}
-                onHide={() => dashLayout.hide("cabinetChart")}
-                onToggleWide={() => dashLayout.toggleWide("cabinetChart")}
-              >
-                <Suspense fallback={<SkeletonCard />}>
-                  <DashboardChartCard
-                    title="Quantidade de Itens por Armário"
-                    data={cabinetStockData}
-                    gradientId="barFillCabinet"
-                    gradientColors={{
-                      start: "hsl(215 52% 42%)",
-                      end: "hsl(222 48% 28%)",
-                    }}
-                  />
-                </Suspense>
-              </DashboardWidgetShell>
-            ) : null}
-
-            {showDrawerChart ? (
-              <DashboardWidgetShell
-                id="drawerChart"
-                editMode={dashLayout.editMode}
-                wide={dashLayout.isWide("drawerChart")}
-                onHide={() => dashLayout.hide("drawerChart")}
-                onToggleWide={() => dashLayout.toggleWide("drawerChart")}
-              >
-                <Suspense fallback={<SkeletonCard />}>
-                  <DashboardChartCard
-                    title="Quantidade de Itens por Gaveta"
-                    data={drawerStockData}
-                    gradientId="barFillDrawer"
-                    gradientColors={{
-                      start: "hsl(191 72% 48%)",
-                      end: "hsl(205 55% 38%)",
-                    }}
-                  />
-                </Suspense>
-              </DashboardWidgetShell>
-            ) : null}
-          </section>
-        ) : null}
-
-        {showPharmacyChart || showNursingChart ? (
-          <section className={proportionGridClass}>
-            {showPharmacyChart ? (
-              <DashboardWidgetShell
-                id="pharmacyProportion"
-                editMode={dashLayout.editMode}
-                wide={dashLayout.isWide("pharmacyProportion")}
-                onHide={() => dashLayout.hide("pharmacyProportion")}
-                onToggleWide={() => dashLayout.toggleWide("pharmacyProportion")}
-              >
-                <StockProportionCard
-                  title="Proporção de Estoque da Farmácia"
-                  data={pharmacyDistribution}
-                  colors={COLORS}
-                />
-              </DashboardWidgetShell>
-            ) : null}
-
-            {showNursingChart ? (
-              <DashboardWidgetShell
-                id="nursingProportion"
-                editMode={dashLayout.editMode}
-                wide={dashLayout.isWide("nursingProportion")}
-                onHide={() => dashLayout.hide("nursingProportion")}
-                onToggleWide={() => dashLayout.toggleWide("nursingProportion")}
-              >
-                <StockProportionCard
-                  title="Proporção de Estoque da Enfermagem"
-                  data={nursingDistribution}
-                  colors={COLORS}
-                />
               </DashboardWidgetShell>
             ) : null}
           </section>

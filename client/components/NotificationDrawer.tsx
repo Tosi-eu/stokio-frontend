@@ -28,10 +28,11 @@ export function NotificationDrawer() {
 
   type NotificationUiRow = NotificationListItem &
     Partial<{
-      usuario: { id: number };
+      usuario: string | { id?: number; nome?: string } | null;
       medicamento_id: number;
       residente_id: number;
       status: string;
+      criado_por: number;
       quantidade: number;
       dias_para_repor: number;
     }>;
@@ -269,10 +270,29 @@ export function NotificationDrawer() {
                           medicineName={n.medicamento_nome}
                           dateToGo={n.data_prevista}
                           destiny={n.destino}
-                          createdBy={String(
-                            (n.usuario as { id?: number } | undefined)?.id ??
-                              "-",
-                          )}
+                          createdBy={
+                            typeof n.usuario === "string" && n.usuario.trim()
+                              ? n.usuario
+                              : (n as { usuario?: { nome?: string } | null })
+                                    .usuario?.nome &&
+                                  String(
+                                    (
+                                      n as {
+                                        usuario?: { nome?: string } | null;
+                                      }
+                                    ).usuario?.nome,
+                                  ).trim()
+                                ? String(
+                                    (
+                                      n as {
+                                        usuario?: { nome?: string } | null;
+                                      }
+                                    ).usuario?.nome,
+                                  )
+                                : n.criado_por != null
+                                  ? String(n.criado_por)
+                                  : "-"
+                          }
                           onComplete={() =>
                             handleRemove(n.id, "sent", "Notificação concluída")
                           }
@@ -300,7 +320,7 @@ export function NotificationDrawer() {
                               residente_id: n.residente_id,
                               destino: n.destino,
                               data_prevista: n.data_prevista,
-                              criado_por: n.usuario?.id,
+                              criado_por: n.criado_por,
                               status: n.status,
                               id: n.id,
                             });

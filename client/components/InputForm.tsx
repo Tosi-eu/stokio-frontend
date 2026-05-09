@@ -13,7 +13,7 @@ import {
   inputFormSchema,
   type InputFormData,
 } from "@/schemas/input-form.schema";
-import { ItemStockType, StockTypeLabels, SectorType } from "@/utils/enums";
+import { ItemStockType, StockTypeLabels } from "@/utils/enums";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +31,21 @@ import {
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
+import {
+  buildSectorFilterOptions,
+  getEnabledSectors,
+  resolveSectorProfile,
+} from "@/helpers/tenant-sectors.helper";
+import { getTenantSetorStockTypes } from "@/api/requests";
+
+function normalizeText(text: string) {
+  return text
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
 
 export const InputForm = memo(function InputForm({
   inputs,
@@ -40,10 +55,22 @@ export const InputForm = memo(function InputForm({
   onSubmit,
   isLoading = false,
 }: InputFormProps) {
-  const { uiDisplay } = useTenant();
+  const { uiDisplay, modules } = useTenant();
+  const { labelByKey, profilesByKey, rows: setorRows } = useTenantSetores();
+  const sectorKeys = useMemo(() => getEnabledSectors(modules), [modules]);
+  const sectorOptions = useMemo(
+    () => buildSectorFilterOptions(sectorKeys, labelByKey),
+    [sectorKeys, labelByKey],
+  );
+  const defaultSector = sectorKeys.includes("farmacia")
+    ? "farmacia"
+    : (sectorKeys[0] ?? "farmacia");
+
   const router = useRouter();
   const [inputOpen, setInputOpen] = useState(false);
   const [caselaOpen, setCaselaOpen] = useState(false);
+  const [inputSearch, setInputSearch] = useState("");
+  const [caselaSearch, setCaselaSearch] = useState("");
 
   const {
     register,
@@ -51,6 +78,7 @@ export const InputForm = memo(function InputForm({
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors },
   } = useFormWithZod(inputFormSchema, {
     defaultValues: {
@@ -61,7 +89,7 @@ export const InputForm = memo(function InputForm({
       casela: null,
       cabinetId: null,
       drawerId: null,
-      sector: SectorType.FARMACIA,
+      sector: defaultSector,
       lot: null,
     },
   });
@@ -70,6 +98,14 @@ export const InputForm = memo(function InputForm({
   const sector = watch("sector");
   const selectedInputId = watch("inputId");
   const casela = watch("casela");
+  const [allowedStockTypes, setAllowedStockTypes] = useState<ItemStockType[]>(
+    Object.values(ItemStockType),
+  );
+
+  const nursingLike =
+    resolveSectorProfile(sector, profilesByKey) === "enfermagem";
+  const farmaciaLike =
+    resolveSectorProfile(sector, profilesByKey) === "farmacia";
 
   const selectedInput = inputs.find((i) => i.id === selectedInputId);
   const isEmergencyCart = stockType === ItemStockType.CARRINHO;
@@ -77,20 +113,90 @@ export const InputForm = memo(function InputForm({
   const isCart = isEmergencyCart || isPsychotropicCart;
   const isIndividual = stockType === ItemStockType.INDIVIDUAL;
   const selectedCasela = caselas.find((c) => c.casela === casela);
+  const setorRow = useMemo(
+    () => setorRows.find((r) => r.key === sector) ?? null,
+    [setorRows, sector],
+  );
   const caselasForSelect = useMemo(() => {
-    if (sector === SectorType.ENFERMAGEM) {
+    if (nursingLike) {
       return [...(caselas ?? [])].sort((a, b) =>
         a.name.localeCompare(b.name, "pt-BR"),
       );
     }
     return caselas ?? [];
-  }, [caselas, sector]);
+  }, [caselas, nursingLike]);
+
+  const filteredInputs = useMemo(() => {
+    const s = normalizeText(inputSearch);
+    if (!s) return inputs;
+    return inputs.filter((i) => normalizeText(i.name ?? "").includes(s));
+  }, [inputSearch, inputs]);
+
+  const filteredCaselas = useMemo(() => {
+    const s = normalizeText(caselaSearch);
+    if (!s) return caselasForSelect;
+    return caselasForSelect.filter((c) =>
+      normalizeText(`${c.casela} ${c.name}`).includes(s),
+    );
+  }, [caselaSearch, caselasForSelect]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const setorId = setorRow?.id;
+    if (!setorId) {
+      setAllowedStockTypes(Object.values(ItemStockType));
+      return;
+    }
+    void (async () => {
+      try {
+        const res = await getTenantSetorStockTypes(setorId);
+        const list = (res.stockTypes ?? []) as ItemStockType[];
+        if (!cancelled) {
+          setAllowedStockTypes(
+            list.length ? list : Object.values(ItemStockType),
+          );
+        }
+      } catch {
+        const profile =
+          resolveSectorProfile(sector, profilesByKey) === "enfermagem"
+            ? "enfermagem"
+            : "farmacia";
+        const fallback =
+          profile === "enfermagem"
+            ? [
+                ItemStockType.GERAL,
+                ItemStockType.INDIVIDUAL,
+                ItemStockType.CARRINHO,
+                ItemStockType.CARRINHO_PSICOTROPICOS,
+              ]
+            : [ItemStockType.GERAL, ItemStockType.INDIVIDUAL];
+        if (!cancelled) setAllowedStockTypes(fallback);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [setorRow?.id, sector, profilesByKey]);
+
+  useEffect(() => {
+    if (stockType && !allowedStockTypes.includes(stockType)) {
+      setValue("stockType", undefined);
+    }
+  }, [allowedStockTypes, stockType, setValue]);
 
   useEffect(() => {
     if (isCart) {
-      setValue("sector", SectorType.ENFERMAGEM);
+      setValue("sector", "enfermagem");
     }
   }, [isCart, setValue]);
+
+  useEffect(() => {
+    if (!sectorKeys.length || isCart) return;
+    const cur = getValues("sector");
+    if (!sectorKeys.includes(cur)) {
+      setValue("sector", defaultSector);
+    }
+  }, [sectorKeys, defaultSector, getValues, isCart, setValue]);
 
   useEffect(() => {
     if (isCart) {
@@ -181,11 +287,23 @@ export const InputForm = memo(function InputForm({
                   avoidCollisions={false}
                   className="w-full p-0"
                 >
-                  <Command>
-                    <CommandInput placeholder="Buscar insumo" />
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Buscar insumo"
+                      value={inputSearch}
+                      onValueChange={setInputSearch}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        if (filteredInputs.length !== 1) return;
+                        const i = filteredInputs[0]!;
+                        e.preventDefault();
+                        field.onChange(i.id);
+                        handleInputSelect(i.id);
+                      }}
+                    />
                     <CommandEmpty>Nenhum insumo encontrado.</CommandEmpty>
                     <CommandGroup>
-                      {inputs.map((i) => (
+                      {filteredInputs.map((i) => (
                         <CommandItem
                           key={i.id}
                           value={i.name}
@@ -281,9 +399,9 @@ export const InputForm = memo(function InputForm({
           <option value="" disabled hidden>
             Selecione
           </option>
-          {Object.values(SectorType).map((s) => (
-            <option key={s} value={s}>
-              {s === SectorType.FARMACIA ? "Farmácia" : "Enfermagem"}
+          {sectorOptions.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
             </option>
           ))}
         </select>
@@ -306,7 +424,7 @@ export const InputForm = memo(function InputForm({
           <option value="" disabled hidden>
             Selecione
           </option>
-          {Object.values(ItemStockType).map((t) => (
+          {allowedStockTypes.map((t) => (
             <option key={t} value={t}>
               {StockTypeLabels[t]}
             </option>
@@ -322,14 +440,12 @@ export const InputForm = memo(function InputForm({
       <div
         className={cn(
           "grid gap-6",
-          sector === SectorType.ENFERMAGEM
-            ? "grid-cols-1"
-            : "grid-cols-1 md:grid-cols-2",
+          nursingLike ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2",
         )}
       >
         <div className="grid gap-2">
           <label className="text-sm font-semibold text-slate-700">
-            {sector === SectorType.ENFERMAGEM ? "Casela (residente)" : "Casela"}
+            {nursingLike ? "Casela (residente)" : "Casela"}
           </label>
           <Controller
             name="casela"
@@ -352,7 +468,7 @@ export const InputForm = memo(function InputForm({
                     >
                       {field.value != null && selectedCasela
                         ? uiDisplay.casela === "nome"
-                          ? selectedCasela.name
+                          ? `${selectedCasela.name} (${selectedCasela.casela})`
                           : String(selectedCasela.casela)
                         : uiDisplay.casela === "nome"
                           ? "Buscar por nome do residente..."
@@ -367,24 +483,27 @@ export const InputForm = memo(function InputForm({
                     avoidCollisions={false}
                     className="w-full p-0"
                   >
-                    <Command
-                      shouldFilter={true}
-                      filter={(itemValue, search) => {
-                        if (!search?.trim()) return 1;
-                        const term = search.trim().toLowerCase();
-                        return itemValue.toLowerCase().includes(term) ? 1 : 0;
-                      }}
-                    >
+                    <Command shouldFilter={false}>
                       <CommandInput
                         placeholder={
                           uiDisplay.casela === "nome"
                             ? "Buscar por nome ou número..."
                             : "Buscar por número ou nome..."
                         }
+                        value={caselaSearch}
+                        onValueChange={setCaselaSearch}
+                        onKeyDown={(e) => {
+                          if (e.key !== "Enter") return;
+                          if (filteredCaselas.length !== 1) return;
+                          const c = filteredCaselas[0]!;
+                          e.preventDefault();
+                          field.onChange(c.casela);
+                          setCaselaOpen(false);
+                        }}
                       />
                       <CommandEmpty>Nenhuma casela encontrada.</CommandEmpty>
                       <CommandGroup>
-                        {caselasForSelect.map((c) => {
+                        {filteredCaselas.map((c) => {
                           const primary =
                             uiDisplay.casela === "nome"
                               ? c.name
@@ -410,7 +529,7 @@ export const InputForm = memo(function InputForm({
                               {primary}
                               <span className="ml-2 text-slate-500 text-xs">
                                 {uiDisplay.casela === "nome"
-                                  ? `(Casela ${c.casela})`
+                                  ? `(${c.casela})`
                                   : c.name}
                               </span>
                             </CommandItem>
@@ -429,7 +548,7 @@ export const InputForm = memo(function InputForm({
             )}
           />
         </div>
-        {sector === SectorType.FARMACIA && (
+        {farmaciaLike && (
           <div className="grid gap-2">
             <label className="text-sm font-semibold text-slate-700">
               Residente

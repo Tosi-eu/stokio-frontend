@@ -10,8 +10,20 @@ import {
 } from "@/helpers/validation.helper";
 import { getResidents, updateResident } from "@/api/requests";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
+import {
+  cpfDigitsOnly,
+  cpfInputValueFromStored,
+  cpfPayloadFromInput,
+  formatCpfForDisplay,
+  formatCpfMask,
+} from "@/helpers/cpf-format.helper";
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
+import {
+  buildSectorFilterOptions,
+  getEnabledSectors,
+} from "@/helpers/tenant-sectors.helper";
 import {
   PREVIEW_RESIDENTS,
   filterPreviewStockByCasela,
@@ -22,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { OperationType } from "@/utils/enums";
+import { DownloadJobButton } from "@/components/DownloadJobButton";
 import { ClipboardList, Pencil, Trash2, UserRound } from "lucide-react";
 import DeletePopUp from "@/components/DeletePopUp";
 import { deleteResident } from "@/api/requests";
@@ -44,6 +57,7 @@ import {
 type ResidentRow = {
   name: string;
   casela: number;
+  cpf: string | null;
   data_nascimento: string | null;
   idade: number | null;
 };
@@ -53,6 +67,8 @@ const PRONTUARIO_COLUMNS = [
   { key: "name", label: "Nome", editable: false },
   { key: "quantity", label: "Qtd.", editable: false },
   { key: "expiry", label: "Validade", editable: false },
+  { key: "entryDate", label: "Data entrada", editable: false },
+  { key: "exitDate", label: "Data saída", editable: false },
   { key: "cabinet", label: "Armário", editable: false },
   { key: "drawer", label: "Gaveta", editable: false },
   { key: "sector", label: "Setor", editable: false },
@@ -69,6 +85,8 @@ function stockToProntuarioRows(items: StockItem[]): Record<string, unknown>[] {
     name: i.name,
     quantity: i.quantity,
     expiry: i.expiry,
+    entryDate: i.entryDate?.trim() ? i.entryDate : "—",
+    exitDate: i.exitDate?.trim() ? i.exitDate : "—",
     cabinet: i.cabinet ?? "—",
     drawer: i.drawer ?? "—",
     sector: i.sector ?? "—",
@@ -84,7 +102,13 @@ function initials(name: string): string {
 }
 
 export default function Resident() {
-  const { previewMode } = useTenant();
+  const { previewMode, modules } = useTenant();
+  const { labelByKey } = useTenantSetores();
+
+  const prontuarioSectorOptions = useMemo(
+    () => buildSectorFilterOptions(getEnabledSectors(modules), labelByKey),
+    [modules, labelByKey],
+  );
   const [residents, setResidents] = useState<ResidentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -107,6 +131,7 @@ export default function Resident() {
   const [editSaving, setEditSaving] = useState(false);
   const [editNome, setEditNome] = useState("");
   const [editDataNascimento, setEditDataNascimento] = useState("");
+  const [editCpf, setEditCpf] = useState("");
 
   const loadResidents = useCallback(async () => {
     setLoading(true);
@@ -114,7 +139,11 @@ export default function Resident() {
       if (previewMode) {
         const start = (page - 1) * DEFAULT_PAGE_SIZE;
         const slice = PREVIEW_RESIDENTS.slice(start, start + DEFAULT_PAGE_SIZE);
-        setResidents(slice);
+        setResidents(
+          slice
+            .map((r) => ({ ...r, cpf: null }))
+            .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+        );
         setHasNext(start + DEFAULT_PAGE_SIZE < PREVIEW_RESIDENTS.length);
         return;
       }
@@ -123,6 +152,10 @@ export default function Resident() {
       const mapped = (Array.isArray(res.data) ? res.data : []).map((r) => ({
         name: String(r.name ?? ""),
         casela: Number(r.casela),
+        cpf:
+          (r as { cpf?: unknown }).cpf != null
+            ? String((r as { cpf?: unknown }).cpf)
+            : null,
         data_nascimento:
           r.data_nascimento != null ? String(r.data_nascimento) : null,
         idade:
@@ -304,6 +337,24 @@ export default function Resident() {
     [prontuarioItems],
   );
 
+  const prontuarioDownloadParams = useMemo(() => {
+    const params: Record<string, string> = {};
+    if (selected?.casela != null) params.casela = String(selected.casela);
+    if (prontuarioNome.trim()) params.name = prontuarioNome.trim();
+    if (prontuarioSetor !== "__all" && prontuarioSetor.trim())
+      params.sector = prontuarioSetor.trim();
+    if (prontuarioLote.trim()) params.lot = prontuarioLote.trim();
+    if (prontuarioArmario !== "__all" && prontuarioArmario.trim())
+      params.cabinet = prontuarioArmario.trim();
+    return params;
+  }, [
+    selected?.casela,
+    prontuarioNome,
+    prontuarioSetor,
+    prontuarioLote,
+    prontuarioArmario,
+  ]);
+
   const prontuarioTotalPages = useMemo(() => {
     if (previewMode) {
       return Math.max(1, Math.ceil(prontuarioTotal / PRONTUARIO_PAGE_SIZE));
@@ -328,6 +379,7 @@ export default function Resident() {
         ? selected.data_nascimento
         : "",
     );
+    setEditCpf(cpfInputValueFromStored(selected.cpf));
     setEditOpen(true);
   }, [selected, previewMode]);
 
@@ -344,11 +396,23 @@ export default function Resident() {
       return;
     }
 
+    const cpfDigits = cpfPayloadFromInput(editCpf);
+    if (cpfDigits !== null && cpfDigits.length !== 11) {
+      toast({
+        title: "CPF incompleto",
+        description: "Informe os 11 dígitos do CPF ou deixe o campo vazio.",
+        variant: "warning",
+        duration: 3500,
+      });
+      return;
+    }
+
     setEditSaving(true);
     try {
       const dn = editDataNascimento.trim();
       await updateResident(selected.casela, {
         nome: nomeTrim,
+        cpf: cpfDigits && cpfDigits.length === 11 ? cpfDigits : null,
         data_nascimento: dn === "" ? null : dn,
       });
       toast({
@@ -380,6 +444,7 @@ export default function Resident() {
     editDataNascimento,
     loadResidents,
     setEditOpen,
+    editCpf,
   ]);
 
   const handleDeleteResident = useCallback(async () => {
@@ -416,10 +481,6 @@ export default function Resident() {
     <Layout title="Residentes">
       <div className="pt-8 pb-12 px-4 sm:px-6 max-w-7xl mx-auto space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground max-w-xl">
-            Cartões por casela: toque para ver os detalhes à direita (ou abaixo,
-            em ecrãs pequenos). A busca filtra por nome ou número da casela.
-          </p>
           {!previewMode ? (
             <Button asChild className="rounded-xl">
               <Link href="/residents/register">Novo residente</Link>
@@ -587,6 +648,12 @@ export default function Resident() {
                       <dd className="font-medium mt-1">{selected.casela}</dd>
                     </div>
                     <div>
+                      <dt className="text-muted-foreground">CPF</dt>
+                      <dd className="font-medium mt-1">
+                        {formatCpfForDisplay(selected.cpf)}
+                      </dd>
+                    </div>
+                    <div>
                       <dt className="text-muted-foreground">
                         Data de nascimento
                       </dt>
@@ -607,14 +674,22 @@ export default function Resident() {
                   </dl>
 
                   <div className="border-t border-border/60 pt-6 space-y-4">
-                    <div className="flex items-center gap-2">
-                      <ClipboardList
-                        className="h-5 w-5 text-muted-foreground shrink-0"
-                        aria-hidden
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <ClipboardList
+                          className="h-5 w-5 text-muted-foreground shrink-0"
+                          aria-hidden
+                        />
+                        <h3 className="text-base font-semibold tracking-tight">
+                          Prontuário
+                        </h3>
+                      </div>
+                      <DownloadJobButton
+                        reportType="prontuario_residente"
+                        params={prontuarioDownloadParams}
+                        filenameBase={`prontuario-casela-${selected.casela}-${new Date().toISOString().slice(0, 10)}`}
+                        disabled={prontuarioLoading}
                       />
-                      <h3 className="text-base font-semibold tracking-tight">
-                        Prontuário
-                      </h3>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       Medicamentos e insumos em estoque vinculados a esta casela
@@ -649,10 +724,11 @@ export default function Resident() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__all">Todos</SelectItem>
-                            <SelectItem value="farmacia">Farmácia</SelectItem>
-                            <SelectItem value="enfermagem">
-                              Enfermagem
-                            </SelectItem>
+                            {prontuarioSectorOptions.map((s) => (
+                              <SelectItem key={s.value} value={s.value}>
+                                {s.label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -823,6 +899,28 @@ export default function Resident() {
                               className="rounded-xl bg-muted"
                             />
                           </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="resident-cpf">CPF</Label>
+                          <Input
+                            id="resident-cpf"
+                            value={editCpf}
+                            onChange={(e) =>
+                              setEditCpf(
+                                formatCpfMask(cpfDigitsOnly(e.target.value)),
+                              )
+                            }
+                            disabled={editSaving}
+                            className="rounded-xl"
+                            placeholder="000.000.000-00"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            maxLength={14}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Deixe em branco para remover.
+                          </p>
                         </div>
 
                         <div className="space-y-1">

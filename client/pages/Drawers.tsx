@@ -12,6 +12,11 @@ import {
 } from "@/helpers/validation.helper";
 import type { Drawer } from "@/interfaces/interfaces";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
+import {
+  buildSectorFilterOptions,
+  getEnabledSectors,
+} from "@/helpers/tenant-sectors.helper";
 import {
   PREVIEW_DRAWERS,
   filterPreviewStockByDrawer,
@@ -63,7 +68,13 @@ function stockItemsToDetailRows(items: StockItem[]): Record<string, unknown>[] {
 }
 
 export default function Drawers() {
-  const { previewMode } = useTenant();
+  const { previewMode, modules } = useTenant();
+  const { labelByKey } = useTenantSetores();
+
+  const sectorFilterChoices = useMemo(
+    () => buildSectorFilterOptions(getEnabledSectors(modules), labelByKey),
+    [modules, labelByKey],
+  );
   const router = useRouter();
   const [drawers, setDrawers] = useState<StorageFolderItem[]>([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -290,10 +301,6 @@ export default function Drawers() {
     <Layout title="Gavetas">
       <div className="pt-8 pb-12 px-4 sm:px-6 max-w-7xl mx-auto space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground max-w-xl">
-            Selecione uma gaveta para ver os itens de estoque associados. Filtre
-            por categoria ou busque pelo número.
-          </p>
           {!previewMode ? (
             <Button asChild className="rounded-xl">
               <Link href="/drawer/register">Nova gaveta</Link>
@@ -427,8 +434,11 @@ export default function Drawers() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__all">Todos</SelectItem>
-                      <SelectItem value="farmacia">Farmácia</SelectItem>
-                      <SelectItem value="enfermagem">Enfermagem</SelectItem>
+                      {sectorFilterChoices.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

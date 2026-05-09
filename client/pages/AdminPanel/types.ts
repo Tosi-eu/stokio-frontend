@@ -58,9 +58,20 @@ export interface AlertStockItem {
   tipo_item: string;
 }
 
+export interface AlertNoPriceItem {
+  nome: string;
+  detalhe?: string | null;
+  tipo_item: string;
+  minimo?: number;
+  tentativas_busca: number;
+}
+
 export interface ResidentOption {
   casela: number;
   name: string;
+  cpf?: string | null;
+  data_nascimento?: string | null;
+  idade?: number | null;
 }
 
 export type AuditDiffEntry = {

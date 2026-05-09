@@ -1,8 +1,11 @@
+export type TenantUiDisplayDefaultReportFormat = "pdf" | "xlsx";
+
 export type TenantUiDisplay = {
   casela: "numero" | "nome";
   caselaSetor: "farmacia" | "enfermagem" | "todos";
   armario: "numero" | "categoria";
   gaveta: "numero" | "categoria";
+  defaultReportFormat: TenantUiDisplayDefaultReportFormat;
 };
 
 export const DEFAULT_UI_DISPLAY: TenantUiDisplay = {
@@ -10,12 +13,23 @@ export const DEFAULT_UI_DISPLAY: TenantUiDisplay = {
   caselaSetor: "todos",
   armario: "numero",
   gaveta: "numero",
+  defaultReportFormat: "pdf",
 };
 
 function normalizeCaselaSetor(v: unknown): TenantUiDisplay["caselaSetor"] {
   const s = String(v ?? "").toLowerCase();
   if (s === "farmacia" || s === "enfermagem" || s === "todos") return s;
   return "todos";
+}
+
+function normalizeDefaultReportFormat(
+  v: unknown,
+): TenantUiDisplayDefaultReportFormat {
+  const s = String(v ?? "")
+    .trim()
+    .toLowerCase();
+  if (s === "xlsx") return "xlsx";
+  return "pdf";
 }
 
 export function normalizeUiDisplay(
@@ -27,6 +41,7 @@ export function normalizeUiDisplay(
     caselaSetor: normalizeCaselaSetor(raw.caselaSetor),
     armario: raw.armario === "categoria" ? "categoria" : "numero",
     gaveta: raw.gaveta === "categoria" ? "categoria" : "numero",
+    defaultReportFormat: normalizeDefaultReportFormat(raw.defaultReportFormat),
   };
 }
 

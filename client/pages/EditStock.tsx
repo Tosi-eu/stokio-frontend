@@ -20,12 +20,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { StockItem } from "@/interfaces/interfaces";
-import {
-  SectorType,
-  OriginType,
-  ItemStockType,
-  StockTypeLabels,
-} from "@/utils/enums";
+import { OriginType, ItemStockType, StockTypeLabels } from "@/utils/enums";
 import { useEditStockData } from "@/hooks/use-edit-stock-data.hook";
 import { armarioFilterLabel } from "@/helpers/ui-display.helper";
 import ConfirmActionModal from "@/components/ConfirmationActionModal";
@@ -35,9 +30,27 @@ import "react-datepicker/dist/react-datepicker.css";
 import { parseDateFromString } from "@/utils/utils";
 import { SkeletonForm } from "@/components/SkeletonForm";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
+import {
+  buildSectorFilterOptions,
+  getEnabledSectors,
+  resolveSectorProfile,
+} from "@/helpers/tenant-sectors.helper";
 
 export default function EditStock() {
-  const { uiDisplay } = useTenant();
+  const { uiDisplay, modules } = useTenant();
+  const { labelByKey, profilesByKey } = useTenantSetores();
+
+  const sectorKeys = useMemo(() => getEnabledSectors(modules), [modules]);
+
+  const sectorOptions = useMemo(
+    () => buildSectorFilterOptions(sectorKeys, labelByKey),
+    [sectorKeys, labelByKey],
+  );
+
+  const defaultSetor = sectorKeys.includes("farmacia")
+    ? "farmacia"
+    : (sectorKeys[0] ?? "farmacia");
   const router = useRouter();
   const [navState] = useState(() =>
     consumeSpaNavigationState<{ item?: StockItem }>(),
@@ -70,7 +83,7 @@ export default function EditStock() {
       gaveta_id: null,
       validade: null,
       origem: null,
-      setor: SectorType.FARMACIA,
+      setor: defaultSetor,
       lote: null,
       casela_id: null,
       tipo: ItemStockType.GERAL,
@@ -84,6 +97,7 @@ export default function EditStock() {
   const watchedGavetaId = watch("gaveta_id");
   const watchedCaselaId = watch("casela_id");
   const watchedTipo = watch("tipo");
+  const watchedSetor = watch("setor");
 
   useEffect(() => {
     if (!navState?.item || loadingData) return;
@@ -131,7 +145,12 @@ export default function EditStock() {
           origem: isMedicineItem
             ? (item.origin as OriginType) || null
             : undefined,
-          setor: (item.sector as SectorType) || SectorType.FARMACIA,
+          setor: (() => {
+            const raw = String(item.sector ?? "")
+              .trim()
+              .toLowerCase();
+            return raw && sectorKeys.includes(raw) ? raw : defaultSetor;
+          })(),
           lote: item.lot || null,
           casela_id: typeof item.casela === "number" ? item.casela : null,
           tipo: validTipo,
@@ -153,11 +172,11 @@ export default function EditStock() {
     };
 
     loadData();
-  }, [navState, loadingData, router, reset]);
+  }, [navState, loadingData, router, reset, sectorKeys, defaultSetor]);
 
   useEffect(() => {
     if (watchedGavetaId !== null) {
-      setValue("setor", SectorType.ENFERMAGEM);
+      setValue("setor", "enfermagem");
       setValue("tipo", ItemStockType.CARRINHO);
       setValue("armario_id", null);
       setValue("casela_id", null);
@@ -181,18 +200,18 @@ export default function EditStock() {
       watchedTipo === ItemStockType.CARRINHO ||
       watchedTipo === ItemStockType.CARRINHO_PSICOTROPICOS
     ) {
-      setValue("setor", SectorType.ENFERMAGEM);
+      setValue("setor", "enfermagem");
     }
   }, [watchedTipo, setValue]);
 
   const caselaResidentsList = useMemo(() => {
-    if (stockItem?.sector === "enfermagem") {
+    if (resolveSectorProfile(watchedSetor, profilesByKey) === "enfermagem") {
       return [...residents].sort((a, b) =>
         a.name.localeCompare(b.name, "pt-BR"),
       );
     }
     return residents;
-  }, [residents, stockItem?.sector]);
+  }, [residents, watchedSetor, profilesByKey]);
 
   const onSubmit = async () => {
     setConfirmOpen(true);
@@ -583,11 +602,9 @@ export default function EditStock() {
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                           <SelectContent>
-                            {Object.values(SectorType).map((sector) => (
-                              <SelectItem key={sector} value={sector}>
-                                {sector === SectorType.FARMACIA
-                                  ? "Farmácia"
-                                  : "Enfermagem"}
+                            {sectorOptions.map((s) => (
+                              <SelectItem key={s.value} value={s.value}>
+                                {s.label}
                               </SelectItem>
                             ))}
                           </SelectContent>
