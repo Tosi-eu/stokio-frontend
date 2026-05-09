@@ -285,7 +285,7 @@ export function getPreviewDashboardSummary(): DashboardSummaryResponse {
       nearMin: 3,
       expired: 0,
       expiringSoon: 1,
-      noPrice: 0,
+      noPrice: 4,
     } as DashboardSummaryResponse["alerts"],
     recentMovements: [
       {

@@ -13,18 +13,16 @@ import {
   fetchStockPage,
   type ApiFilterOptions,
 } from "@/helpers/stock-list.helper";
-import { useFormWithZod } from "@/hooks/use-form-with-zod";
-import { stockOutQuantitySchema } from "@/schemas/stock-out.schema";
 import { getErrorMessage } from "@/helpers/validation.helper";
 
 import { AnimatePresence, motion } from "framer-motion";
 import Pagination from "@/components/Pagination";
-import QuantityStep from "@/components/QuantityStep";
 
 import { OperationType, StockWizardSteps } from "@/utils/enums";
 import { StockItemRaw } from "@/interfaces/interfaces";
 import StepType from "@/components/StepType";
-import StepItems from "@/components/StepItens";
+import { StockOutTable } from "@/components/stock-out/StockOutTable";
+import { StockOutDrawer } from "@/components/stock-out/StockOutDrawer";
 
 import {
   Popover,
@@ -125,12 +123,7 @@ export default function StockOut() {
     OperationType | "Selecione"
   >("Selecione");
   const [selected, setSelected] = useState<StockItemRaw | null>(null);
-
-  const quantityForm = useFormWithZod(stockOutQuantitySchema, {
-    defaultValues: {
-      quantity: 0,
-    },
-  });
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const itemTypeFilter =
     operationType !== "Selecione" &&
@@ -210,6 +203,7 @@ export default function StockOut() {
     (list: StockItemRaw[]) => {
       const q = debouncedNome.trim().toLowerCase();
       return list.filter((item) => {
+        if (Number(item.quantidade ?? 0) <= 0) return false;
         if (q && !(item.nome ?? "").toLowerCase().includes(q)) return false;
         if (filters.casela && String(item.casela_id ?? "") !== filters.casela)
           return false;
@@ -249,6 +243,7 @@ export default function StockOut() {
         setor: filters.setor || undefined,
         lote: filters.lote || undefined,
         itemType: itemTypeFilter,
+        onlyInStock: true,
       });
       setItems((data ?? []) as StockItemRaw[]);
       setTotalCount(Number(total ?? 0));
@@ -329,12 +324,10 @@ export default function StockOut() {
 
   const handleSelectItem = (item: StockItemRaw | null) => {
     setSelected(item);
-    if (item) {
-      quantityForm.reset({ quantity: 0 });
-    }
+    setDrawerOpen(Boolean(item));
   };
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (qty: number) => {
     if (!selected) return;
     if (!canSaida) {
       toast({
@@ -345,12 +338,6 @@ export default function StockOut() {
       });
       return;
     }
-
-    const isValid = await quantityForm.trigger();
-    if (!isValid) return;
-
-    const qty = quantityForm.getValues("quantity");
-    if (!qty || qty <= 0 || qty > selected.quantidade) return;
 
     try {
       await createStockOut({
@@ -379,19 +366,6 @@ export default function StockOut() {
         duration: 3000,
       });
     }
-  };
-
-  const handleBack = () => {
-    if (step === StockWizardSteps.ITENS) {
-      setSelected(null);
-      quantityForm.reset({ quantity: 0 });
-      setStep(StockWizardSteps.TIPO);
-    }
-  };
-
-  const handleNext = () => {
-    if (step === StockWizardSteps.TIPO && operationType !== "Selecione")
-      setStep(StockWizardSteps.ITENS);
   };
 
   return (
@@ -599,29 +573,15 @@ export default function StockOut() {
         </div>
       </div>
 
-      <div className="relative overflow-hidden max-w-7xl mx-auto rounded-xl border border-border bg-card p-8 md:p-10 shadow-sm mt-8">
-        {step !== StockWizardSteps.TIPO && (
-          <button
-            onClick={handleBack}
-            className="absolute left-3 top-3 p-3 rounded-full border bg-white shadow"
-          >
-            ←
-          </button>
-        )}
-
-        {step === StockWizardSteps.TIPO ? (
-          <div className="absolute right-3 top-3">
-            <button
-              onClick={handleNext}
-              className="px-4 py-2 rounded-lg border bg-white shadow text-sm"
-              disabled={operationType === "Selecione"}
-            >
-              Avançar
-            </button>
-          </div>
-        ) : null}
-
-        <div className="min-h-[380px] flex flex-col items-center justify-center gap-4">
+      <div className="overflow-hidden max-w-7xl mx-auto rounded-xl border border-border bg-card p-8 md:p-10 shadow-sm mt-8">
+        <div
+          className={cn(
+            "min-h-[380px] flex flex-col gap-4 w-full",
+            step === StockWizardSteps.ITENS
+              ? "items-stretch"
+              : "items-center justify-center",
+          )}
+        >
           <AnimatePresence mode="wait" initial={false}>
             {step === StockWizardSteps.TIPO && (
               <motion.div
@@ -645,36 +605,25 @@ export default function StockOut() {
                 transition={{ duration: 0.22 }}
                 className="w-full"
               >
-                <>
-                  {loadingStock && (
-                    <p className="text-sm text-muted-foreground text-center">
-                      Carregando itens…
-                    </p>
-                  )}
-                  <StepItems
+                <div className="w-full min-w-0 space-y-4">
+                  <StockOutTable
                     items={items}
                     selected={selected}
-                    onSelectItem={handleSelectItem}
+                    loading={loadingStock}
+                    onSelect={handleSelectItem}
                   />
-                  {selected ? (
-                    <div className="mt-10">
-                      <QuantityStep
-                        item={selected}
-                        quantity={quantityForm.watch("quantity") || 0}
-                        quantityRegister={quantityForm.register("quantity", {
-                          valueAsNumber: true,
-                        })}
-                        quantityErrors={quantityForm.formState.errors}
-                        isSubmitting={quantityForm.formState.isSubmitting}
-                        onBack={() => {
-                          quantityForm.reset({ quantity: 0 });
-                          setSelected(null);
-                        }}
-                        onConfirm={handleConfirm}
-                      />
-                    </div>
-                  ) : null}
-                </>
+
+                  <StockOutDrawer
+                    open={drawerOpen}
+                    item={selected}
+                    submitting={false}
+                    onOpenChange={(open) => {
+                      setDrawerOpen(open);
+                      if (!open) setSelected(null);
+                    }}
+                    onConfirm={(qty) => void handleConfirm(qty)}
+                  />
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

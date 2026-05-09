@@ -19,6 +19,7 @@ export interface StockListFilters {
   lote?: string;
 
   itemType?: "medicamento" | "insumo";
+  onlyInStock?: boolean;
 }
 
 export interface StockFilterOption {
@@ -47,6 +48,7 @@ export async function fetchStockPage(
   if (filters.setor?.trim()) filterParams.sector = filters.setor.trim();
   if (filters.lote?.trim()) filterParams.lot = filters.lote.trim();
   if (filters.itemType) filterParams.itemType = filters.itemType;
+  if (filters.onlyInStock) filterParams.onlyInStock = "true";
 
   const res = await getStock(page, limit, filterParams, urlFilter ?? undefined);
   return {

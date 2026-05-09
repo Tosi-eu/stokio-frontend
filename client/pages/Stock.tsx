@@ -71,6 +71,7 @@ import {
 const FILTER_LABELS: Record<string, string> = {
   belowMin: "Abaixo do estoque mínimo",
   nearMin: "Próximos do estoque mínimo",
+  noPrice: "Sem preço cadastrado",
   expired: "Vencidos",
   expiringSoon: "Vencimento próximo",
 };

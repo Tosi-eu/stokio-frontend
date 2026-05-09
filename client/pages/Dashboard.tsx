@@ -123,7 +123,7 @@ export default function Dashboard() {
   );
 
   const [belowMin, setBelowMin] = useState<number>(0);
-  const [nearMin, setNearMin] = useState<number>(0);
+  const [noPrice, setNoPrice] = useState<number>(0);
   const [expired, setExpired] = useState<number>(0);
   const [expiringSoonCount, setExpiringSoonCount] = useState<number>(0);
   const [cabinetStockData, setCabinetStockData] = useState<
@@ -219,9 +219,9 @@ export default function Dashboard() {
       setLoadingNonMovement(true);
       setLoadingRecentMovements(true);
 
-      const a = summary.alerts || {};
+      const a = summary.alerts ?? {};
       setBelowMin(a.belowMin ?? 0);
-      setNearMin(a.nearMin ?? 0);
+      setNoPrice(Number((a as Record<string, unknown>).noPrice ?? 0) || 0);
       setExpired(a.expired ?? 0);
       setExpiringSoonCount(a.expiringSoon ?? 0);
 
@@ -370,9 +370,9 @@ export default function Dashboard() {
         onClick: () => router.push("/stock?filter=belowMin"),
       },
       {
-        label: "Itens Próximos do Estoque Mínimo",
-        value: nearMin,
-        onClick: () => router.push("/stock?filter=nearMin"),
+        label: "Medicamentos e insumos sem preço",
+        value: noPrice,
+        onClick: () => router.push("/stock?filter=noPrice"),
       },
       {
         label: "Itens Vencidos",
@@ -385,7 +385,7 @@ export default function Dashboard() {
         onClick: () => router.push("/stock?filter=expiringSoon"),
       },
     ],
-    [belowMin, nearMin, expired, expiringSoonCount, router],
+    [belowMin, noPrice, expired, expiringSoonCount, router],
   );
 
   const COLORS = useMemo(

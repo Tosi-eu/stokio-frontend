@@ -937,6 +937,9 @@ export const getStock = (
       params.append("itemType", String(filters.itemType));
     if (filters.stockType != null)
       params.append("stockType", String(filters.stockType));
+    if (filters.onlyInStock === true || filters.onlyInStock === "true") {
+      params.append("onlyInStock", "true");
+    }
   }
 
   if (extraFilter) {
