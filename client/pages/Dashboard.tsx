@@ -62,9 +62,7 @@ import {
   DASHBOARD_WIDGET_LABELS,
   type DashboardWidgetId,
 } from "@/constants/dashboard-widgets";
-import {
-  getEnabledSectors,
-} from "@/helpers/tenant-sectors.helper";
+import { getEnabledSectors } from "@/helpers/tenant-sectors.helper";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
 
 type SectorProportionChartRow = {

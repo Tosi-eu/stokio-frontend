@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Layout from "@/components/Layout";
 import { useRouter } from "next/navigation";
@@ -8,6 +8,11 @@ import {
   residentSchema,
   type ResidentFormData,
 } from "@/schemas/resident.schema";
+import {
+  cpfDigitsOnly,
+  cpfPayloadFromInput,
+  formatCpfMask,
+} from "@/helpers/cpf-format.helper";
 import { getErrorMessage } from "@/helpers/validation.helper";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -21,6 +26,7 @@ export default function RegisterResident() {
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<ResidentFormData>({
@@ -36,12 +42,12 @@ export default function RegisterResident() {
   const onSubmit = async (data: ResidentFormData) => {
     try {
       const dn = data.data_nascimento?.trim();
-      const cpf = data.cpf?.trim();
+      const cpfDigits = cpfPayloadFromInput(data.cpf ?? "");
       await createResident(
         data.name.trim(),
         data.casela,
         dn && dn !== "" ? dn : undefined,
-        cpf && cpf !== "" ? cpf : undefined,
+        cpfDigits && cpfDigits.length === 11 ? cpfDigits : undefined,
       );
 
       toast({
@@ -95,17 +101,32 @@ export default function RegisterResident() {
 
             <div className="space-y-1">
               <Label htmlFor="cpf">CPF</Label>
-              <Input
-                id="cpf"
-                {...register("cpf")}
-                placeholder="000.000.000-00"
-                disabled={isSubmitting}
-                aria-invalid={errors.cpf ? "true" : "false"}
-                inputMode="numeric"
-                autoComplete="off"
+              <Controller
+                name="cpf"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    id="cpf"
+                    placeholder="000.000.000-00"
+                    disabled={isSubmitting}
+                    aria-invalid={errors.cpf ? "true" : "false"}
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={14}
+                    value={field.value ?? ""}
+                    onBlur={field.onBlur}
+                    ref={field.ref}
+                    onChange={(e) =>
+                      field.onChange(
+                        formatCpfMask(cpfDigitsOnly(e.target.value)),
+                      )
+                    }
+                  />
+                )}
               />
               <p className="text-xs text-muted-foreground">
-                Opcional. Aceita com ou sem pontuação.
+                Opcional. Digite os 11 números; a formatação é aplicada
+                automaticamente.
               </p>
               {errors.cpf && (
                 <p className="text-sm text-red-600 mt-1">

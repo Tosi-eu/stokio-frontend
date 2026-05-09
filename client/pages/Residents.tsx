@@ -10,6 +10,13 @@ import {
 } from "@/helpers/validation.helper";
 import { getResidents, updateResident } from "@/api/requests";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
+import {
+  cpfDigitsOnly,
+  cpfInputValueFromStored,
+  cpfPayloadFromInput,
+  formatCpfForDisplay,
+  formatCpfMask,
+} from "@/helpers/cpf-format.helper";
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
@@ -372,7 +379,7 @@ export default function Resident() {
         ? selected.data_nascimento
         : "",
     );
-    setEditCpf(typeof selected.cpf === "string" ? selected.cpf : "");
+    setEditCpf(cpfInputValueFromStored(selected.cpf));
     setEditOpen(true);
   }, [selected, previewMode]);
 
@@ -389,12 +396,23 @@ export default function Resident() {
       return;
     }
 
+    const cpfDigits = cpfPayloadFromInput(editCpf);
+    if (cpfDigits !== null && cpfDigits.length !== 11) {
+      toast({
+        title: "CPF incompleto",
+        description: "Informe os 11 dígitos do CPF ou deixe o campo vazio.",
+        variant: "warning",
+        duration: 3500,
+      });
+      return;
+    }
+
     setEditSaving(true);
     try {
       const dn = editDataNascimento.trim();
       await updateResident(selected.casela, {
         nome: nomeTrim,
-        cpf: editCpf.trim() === "" ? null : editCpf.trim(),
+        cpf: cpfDigits && cpfDigits.length === 11 ? cpfDigits : null,
         data_nascimento: dn === "" ? null : dn,
       });
       toast({
@@ -632,7 +650,7 @@ export default function Resident() {
                     <div>
                       <dt className="text-muted-foreground">CPF</dt>
                       <dd className="font-medium mt-1">
-                        {selected.cpf?.trim() ? selected.cpf : "—"}
+                        {formatCpfForDisplay(selected.cpf)}
                       </dd>
                     </div>
                     <div>
@@ -888,12 +906,17 @@ export default function Resident() {
                           <Input
                             id="resident-cpf"
                             value={editCpf}
-                            onChange={(e) => setEditCpf(e.target.value)}
+                            onChange={(e) =>
+                              setEditCpf(
+                                formatCpfMask(cpfDigitsOnly(e.target.value)),
+                              )
+                            }
                             disabled={editSaving}
                             className="rounded-xl"
                             placeholder="000.000.000-00"
                             inputMode="numeric"
                             autoComplete="off"
+                            maxLength={14}
                           />
                           <p className="text-xs text-muted-foreground">
                             Deixe em branco para remover.
