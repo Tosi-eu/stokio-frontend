@@ -43,6 +43,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
 import {
   Select,
   SelectContent,
@@ -402,7 +403,7 @@ export default function Cabinets() {
         ) : null}
 
         {selectedCabinet && selectedNumero != null ? (
-          <section className="rounded-2xl border border-border/70 bg-card shadow-elevated overflow-hidden ring-1 ring-black/[0.02] dark:ring-white/[0.04]">
+          <section className={pageSurfaceCardClass}>
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 sm:p-6 border-b border-border/60 bg-muted/25">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-950 dark:bg-amber-950/40 dark:text-amber-100">
                 <span className="text-2xl font-bold">{selectedNumero}</span>

@@ -3,7 +3,9 @@ import Layout from "@/components/Layout";
 import { SkeletonTable } from "@/components/SkeletonTable";
 import { toast } from "@/hooks/use-toast.hook";
 import { getTransferReport } from "@/api/requests";
-import { Card } from "@/components/ui/card";
+import { PageSurfaceCard } from "@/components/page/PageSurfaceCard";
+import { EmptyStateCard } from "@/components/medical-record-exports/medical-record-exports.shared";
+import { ArrowLeftRight } from "lucide-react";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
@@ -86,67 +88,74 @@ export default function TransferReport() {
   }));
 
   return (
-    <Layout title="Transferências - Farmácia para Enfermaria">
-      <div className="w-full flex justify-center p-10">
-        <Card className="w-full max-w-[95%] xl:max-w-7xl bg-white border shadow-md p-8 space-y-6">
-          <div className="space-y-4">
-            <div className="text-sm text-slate-600 mb-4">
-              <p className="font-semibold">Transferências do dia atual</p>
-              <p>
-                Total: <strong>{total}</strong> transferências
-              </p>
-            </div>
+    <Layout
+      title="Transferências - Farmácia para Enfermaria"
+      description="Relação das transferências registradas no dia atual."
+    >
+      <PageSurfaceCard className="w-full space-y-6 p-6 sm:p-8">
+        <div className="space-y-1 text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">Transferências do dia</p>
+          <p>
+            Total:{" "}
+            <span className="font-medium tabular-nums text-foreground">
+              {total}
+            </span>{" "}
+            transferências
+          </p>
+        </div>
 
-            {loading ? (
-              <SkeletonTable rows={5} cols={columns.length} />
-            ) : transfers.length === 0 ? (
-              <div className="text-center py-12 text-slate-500">
-                Nenhuma transferência encontrada hoje.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-slate-100 border-b">
-                      {columns.map((col) => (
-                        <th
-                          key={col.key}
-                          className="px-4 py-3 text-left text-sm font-semibold text-slate-700"
-                        >
-                          {col.label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tableData.map((row, idx) => (
-                      <tr
-                        key={idx}
-                        className="border-b hover:bg-slate-50 transition-colors"
+        {loading ? (
+          <SkeletonTable rows={5} cols={columns.length} />
+        ) : transfers.length === 0 ? (
+          <EmptyStateCard
+            icon={ArrowLeftRight}
+            title="Nenhuma transferência hoje"
+            description="Quando houver movimentações registradas para o dia, elas aparecerão nesta tabela."
+          />
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-border/60">
+            <table className="w-full min-w-max border-collapse text-sm">
+              <thead className="sticky top-0 z-10 border-b border-border/60 bg-muted/95 shadow-sm backdrop-blur-sm">
+                <tr>
+                  {columns.map((col) => (
+                    <th
+                      key={col.key}
+                      className="px-4 py-3 text-left font-semibold text-foreground"
+                    >
+                      {col.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {tableData.map((row, idx) => (
+                  <tr
+                    key={idx}
+                    className="border-b border-border/50 transition-colors duration-200 hover:bg-muted/50"
+                  >
+                    {columns.map((col) => (
+                      <td
+                        key={col.key}
+                        className="px-4 py-3 text-foreground/90"
                       >
-                        {columns.map((col) => (
-                          <td
-                            key={col.key}
-                            className="px-4 py-3 text-sm text-slate-700"
-                          >
-                            {row[col.key as keyof typeof row] || "-"}
-                          </td>
-                        ))}
-                      </tr>
+                        {row[col.key as keyof typeof row] || "-"}
+                      </td>
                     ))}
-                  </tbody>
-                </table>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-                <div className="flex justify-between items-center mt-4">
-                  <div className="text-sm text-slate-600">
-                    Total: {total} transferências do dia
-                  </div>
-                </div>
-              </div>
-            )}
+            <div className="flex flex-wrap items-center justify-center gap-2 border-t border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+              Total do dia:{" "}
+              <span className="font-medium tabular-nums text-foreground">
+                {total}
+              </span>{" "}
+              transferências
+            </div>
           </div>
-        </Card>
-      </div>
+        )}
+      </PageSurfaceCard>
     </Layout>
   );
 }

@@ -69,6 +69,8 @@ import {
 } from "@/helpers/storage-location-display.helper";
 
 import { STOCK_FILTER_LABELS } from "@/components/stock/stock.constants";
+import { pageSurfaceSubtleClass } from "@/components/page/page-ui.constants";
+import { cn } from "@/lib/utils";
 
 export default function Stock() {
   const { uiDisplay, previewMode, modules } = useTenant();
@@ -610,9 +612,10 @@ export default function Stock() {
   return (
     <Layout
       title="Estoque de Medicamentos e Insumos"
+      description="Consulta, filtros e ações sobre itens em armários e caselas."
       breadcrumb={stockBreadcrumb}
     >
-      <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="flex w-full flex-col gap-8">
         <div className="flex flex-wrap gap-3 justify-end mt-8">
           <button
             onClick={() => {
@@ -689,10 +692,12 @@ export default function Stock() {
         )}
 
         {apiFilterOptions !== null && (
-          <div className="bg-white p-6 rounded-lg border border-gray-300 shadow-sm">
+          <div className={cn(pageSurfaceSubtleClass, "p-6")}>
             <div className="flex items-end gap-4">
               <div className="flex-1 min-w-0">
-                <label className="block text-xs text-gray-700 mb-1">Nome</label>
+                <label className="block text-xs text-muted-foreground mb-1">
+                  Nome
+                </label>
                 <TableFilter
                   placeholder="Buscar por nome"
                   onFilterChange={handleNomeFilterChange}
@@ -700,12 +705,12 @@ export default function Stock() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <label className="block text-xs text-gray-700 mb-1">
+                <label className="block text-xs text-muted-foreground mb-1">
                   Setor
                 </label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white truncate">
+                    <button className="w-full border border-border bg-background p-2 rounded-lg flex justify-between items-center truncate">
                       <span className="truncate">
                         {filters.setor
                           ? filterOptions.sectors.find(
@@ -751,12 +756,12 @@ export default function Stock() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <label className="block text-xs text-gray-700 mb-1">
+                <label className="block text-xs text-muted-foreground mb-1">
                   Armário
                 </label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white truncate">
+                    <button className="w-full border border-border bg-background p-2 rounded-lg flex justify-between items-center truncate">
                       <span className="truncate">
                         {filters.armario
                           ? (filterOptions.cabinets.find(
@@ -800,12 +805,12 @@ export default function Stock() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <label className="block text-xs text-gray-700 mb-1">
+                <label className="block text-xs text-muted-foreground mb-1">
                   Casela
                 </label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className="w-full border border-gray-300 p-2 rounded-lg flex justify-between items-center bg-white truncate">
+                    <button className="w-full border border-border bg-background p-2 rounded-lg flex justify-between items-center truncate">
                       <span className="truncate">
                         {filters.casela
                           ? (filterOptions.caselas.find(
@@ -855,7 +860,9 @@ export default function Stock() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <label className="block text-xs text-gray-700 mb-1">Lote</label>
+                <label className="block text-xs text-muted-foreground mb-1">
+                  Lote
+                </label>
                 <TableFilter
                   placeholder="Buscar por lote"
                   onFilterChange={handleLoteFilterChange}

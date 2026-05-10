@@ -46,6 +46,8 @@ export interface BreadcrumbItem {
 export interface LayoutProps {
   children: ReactNode;
   title?: string;
+  /** Optional muted subtitle under the route title (H1). */
+  description?: ReactNode;
   breadcrumb?: BreadcrumbItem[];
   minimal?: boolean;
 }

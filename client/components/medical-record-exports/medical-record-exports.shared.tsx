@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
 
 export type ExportFormat = "pdf" | "xlsx";
 
@@ -44,7 +46,12 @@ export function EmptyStateCard({
   children?: ReactNode;
 }) {
   return (
-    <Card className="border-dashed">
+    <Card
+      className={cn(
+        pageSurfaceCardClass,
+        "border-dashed border-border/70 shadow-none ring-0",
+      )}
+    >
       <CardContent className="flex flex-col items-center px-6 pb-8 pt-8 text-center">
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
           <Icon className="h-6 w-6 shrink-0" aria-hidden />

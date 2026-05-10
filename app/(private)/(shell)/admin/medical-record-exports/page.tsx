@@ -13,7 +13,7 @@ const AdminMedicalRecordExportsPage = dynamic(
 export default function AdminMedicalRecordExportsRoute() {
   return (
     <Suspense fallback={<LoadingFallback title="A carregar prontuários…" />}>
-      <ModuleRoute moduleKey="admin">
+      <ModuleRoute moduleKey="medical_record_exports">
         <AdminMedicalRecordExportsPage />
       </ModuleRoute>
     </Suspense>

@@ -11,6 +11,7 @@ export const PREVIEW_UI_MODULE_KEYS = new Set([
   "admin",
   "notifications",
   "reports",
+  "medical_record_exports",
 ]);
 
 export function isPreviewUiModuleKey(key: string): boolean {

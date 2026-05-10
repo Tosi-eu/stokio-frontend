@@ -11,7 +11,10 @@ import {
   getMedicineMovements,
   getResidents,
 } from "@/api/requests";
-import { Card } from "@/components/ui/card";
+import { PageSurfaceCard } from "@/components/page/PageSurfaceCard";
+import { PageSection } from "@/components/page/PageSection";
+import { pageStackClass } from "@/components/page/page-ui.constants";
+import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine } from "lucide-react";
 import type { Column, RawMovement } from "@/interfaces/interfaces";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { getPreviewMovementRows } from "@/helpers/preview-mock-data";
@@ -403,243 +406,241 @@ export default function InputMovements() {
   }, [transfersInputPage, transfersMedicinePage, uiDisplay, transfersFilters]);
 
   return (
-    <Layout title="Movimentações">
-      <div className="flex w-full justify-center p-10">
-        <Card className="w-full max-w-[95%] overflow-x-auto border bg-white p-8 shadow-md xl:max-w-7xl">
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold">Entradas</h2>
-              <MovementsFiltersSection
-                filters={entriesFilters}
-                uiKey="entries"
-                uiDisplay={uiDisplay}
-                cabinetOptions={cabinetOptions}
-                drawerOptions={drawerOptions}
-                sectorOptions={sectorOptions}
-                filteredResidentOptions={filteredResidentOptions}
-                residentOptions={residentOptions}
-                residentPopoverOpen={residentPopoverOpen}
-                setResidentPopoverOpen={setResidentPopoverOpen}
-                residentSearch={residentSearch}
-                setResidentSearch={setResidentSearch}
-                actions={{
-                  onProduto: makeTextSetter(
-                    setEntriesFilters,
-                    resetEntriesPaging,
-                    "produto",
-                  ),
-                  onArmario: makeTextSetter(
-                    setEntriesFilters,
-                    resetEntriesPaging,
-                    "armario",
-                  ),
-                  onGaveta: makeTextSetter(
-                    setEntriesFilters,
-                    resetEntriesPaging,
-                    "gaveta",
-                  ),
-                  onCasela: makeTextSetter(
-                    setEntriesFilters,
-                    resetEntriesPaging,
-                    "casela",
-                  ),
-                  onSetor: makeTextSetter(
-                    setEntriesFilters,
-                    resetEntriesPaging,
-                    "setor",
-                  ),
-                  onLote: makeTextSetter(
-                    setEntriesFilters,
-                    resetEntriesPaging,
-                    "lote",
-                  ),
-                  onClear: () => {
-                    setEntriesFilters(DEFAULT_MOVEMENT_FILTERS);
-                    resetEntriesPaging();
-                  },
+    <Layout
+      title="Movimentações"
+      description="Entradas, saídas e transferências de medicamentos e insumos, com filtros por localização e residente."
+    >
+      <PageSurfaceCard className="w-full overflow-x-auto p-6 sm:p-8">
+        <div className={pageStackClass}>
+          <PageSection title="Entradas" icon={ArrowDownToLine}>
+            <MovementsFiltersSection
+              filters={entriesFilters}
+              uiKey="entries"
+              uiDisplay={uiDisplay}
+              cabinetOptions={cabinetOptions}
+              drawerOptions={drawerOptions}
+              sectorOptions={sectorOptions}
+              filteredResidentOptions={filteredResidentOptions}
+              residentOptions={residentOptions}
+              residentPopoverOpen={residentPopoverOpen}
+              setResidentPopoverOpen={setResidentPopoverOpen}
+              residentSearch={residentSearch}
+              setResidentSearch={setResidentSearch}
+              actions={{
+                onProduto: makeTextSetter(
+                  setEntriesFilters,
+                  resetEntriesPaging,
+                  "produto",
+                ),
+                onArmario: makeTextSetter(
+                  setEntriesFilters,
+                  resetEntriesPaging,
+                  "armario",
+                ),
+                onGaveta: makeTextSetter(
+                  setEntriesFilters,
+                  resetEntriesPaging,
+                  "gaveta",
+                ),
+                onCasela: makeTextSetter(
+                  setEntriesFilters,
+                  resetEntriesPaging,
+                  "casela",
+                ),
+                onSetor: makeTextSetter(
+                  setEntriesFilters,
+                  resetEntriesPaging,
+                  "setor",
+                ),
+                onLote: makeTextSetter(
+                  setEntriesFilters,
+                  resetEntriesPaging,
+                  "lote",
+                ),
+                onClear: () => {
+                  setEntriesFilters(DEFAULT_MOVEMENT_FILTERS);
+                  resetEntriesPaging();
+                },
+              }}
+            />
+
+            {loadingEntries ? (
+              <SkeletonTable rows={5} cols={TABLE_COLUMNS.length} />
+            ) : (
+              <EditableTable
+                data={entries}
+                columns={TABLE_COLUMNS}
+                entityType="entries"
+                currentPage={Math.max(entriesInputPage, entriesMedicinePage)}
+                hasNextPage={entriesHasNext}
+                onNextPage={() => {
+                  setEntriesInputPage((p) => p + 1);
+                  setEntriesMedicinePage((p) => p + 1);
                 }}
-              />
-
-              {loadingEntries ? (
-                <SkeletonTable rows={5} cols={TABLE_COLUMNS.length} />
-              ) : (
-                <EditableTable
-                  data={entries}
-                  columns={TABLE_COLUMNS}
-                  entityType="entries"
-                  currentPage={Math.max(entriesInputPage, entriesMedicinePage)}
-                  hasNextPage={entriesHasNext}
-                  onNextPage={() => {
-                    setEntriesInputPage((p) => p + 1);
-                    setEntriesMedicinePage((p) => p + 1);
-                  }}
-                  onPrevPage={() => {
-                    setEntriesInputPage((p) => Math.max(1, p - 1));
-                    setEntriesMedicinePage((p) => Math.max(1, p - 1));
-                  }}
-                  showAddons={false}
-                  readOnly={previewMode}
-                />
-              )}
-            </div>
-
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold">Saídas</h2>
-              <MovementsFiltersSection
-                filters={exitsFilters}
-                uiKey="exits"
-                uiDisplay={uiDisplay}
-                cabinetOptions={cabinetOptions}
-                drawerOptions={drawerOptions}
-                sectorOptions={sectorOptions}
-                filteredResidentOptions={filteredResidentOptions}
-                residentOptions={residentOptions}
-                residentPopoverOpen={residentPopoverOpen}
-                setResidentPopoverOpen={setResidentPopoverOpen}
-                residentSearch={residentSearch}
-                setResidentSearch={setResidentSearch}
-                actions={{
-                  onProduto: makeTextSetter(
-                    setExitsFilters,
-                    resetExitsPaging,
-                    "produto",
-                  ),
-                  onArmario: makeTextSetter(
-                    setExitsFilters,
-                    resetExitsPaging,
-                    "armario",
-                  ),
-                  onGaveta: makeTextSetter(
-                    setExitsFilters,
-                    resetExitsPaging,
-                    "gaveta",
-                  ),
-                  onCasela: makeTextSetter(
-                    setExitsFilters,
-                    resetExitsPaging,
-                    "casela",
-                  ),
-                  onSetor: makeTextSetter(
-                    setExitsFilters,
-                    resetExitsPaging,
-                    "setor",
-                  ),
-                  onLote: makeTextSetter(
-                    setExitsFilters,
-                    resetExitsPaging,
-                    "lote",
-                  ),
-                  onClear: () => {
-                    setExitsFilters(DEFAULT_MOVEMENT_FILTERS);
-                    resetExitsPaging();
-                  },
+                onPrevPage={() => {
+                  setEntriesInputPage((p) => Math.max(1, p - 1));
+                  setEntriesMedicinePage((p) => Math.max(1, p - 1));
                 }}
+                showAddons={false}
+                readOnly={previewMode}
               />
+            )}
+          </PageSection>
 
-              {loadingExits ? (
-                <SkeletonTable rows={5} cols={TABLE_COLUMNS.length} />
-              ) : (
-                <EditableTable
-                  data={exits}
-                  columns={TABLE_COLUMNS}
-                  entityType="exits"
-                  currentPage={Math.max(exitsInputPage, exitsMedicinePage)}
-                  hasNextPage={exitsHasNext}
-                  onNextPage={() => {
-                    setExitsInputPage((p) => p + 1);
-                    setExitsMedicinePage((p) => p + 1);
-                  }}
-                  onPrevPage={() => {
-                    setExitsInputPage((p) => Math.max(1, p - 1));
-                    setExitsMedicinePage((p) => Math.max(1, p - 1));
-                  }}
-                  showAddons={false}
-                  readOnly={previewMode}
-                />
-              )}
-            </div>
+          <PageSection title="Saídas" icon={ArrowUpFromLine}>
+            <MovementsFiltersSection
+              filters={exitsFilters}
+              uiKey="exits"
+              uiDisplay={uiDisplay}
+              cabinetOptions={cabinetOptions}
+              drawerOptions={drawerOptions}
+              sectorOptions={sectorOptions}
+              filteredResidentOptions={filteredResidentOptions}
+              residentOptions={residentOptions}
+              residentPopoverOpen={residentPopoverOpen}
+              setResidentPopoverOpen={setResidentPopoverOpen}
+              residentSearch={residentSearch}
+              setResidentSearch={setResidentSearch}
+              actions={{
+                onProduto: makeTextSetter(
+                  setExitsFilters,
+                  resetExitsPaging,
+                  "produto",
+                ),
+                onArmario: makeTextSetter(
+                  setExitsFilters,
+                  resetExitsPaging,
+                  "armario",
+                ),
+                onGaveta: makeTextSetter(
+                  setExitsFilters,
+                  resetExitsPaging,
+                  "gaveta",
+                ),
+                onCasela: makeTextSetter(
+                  setExitsFilters,
+                  resetExitsPaging,
+                  "casela",
+                ),
+                onSetor: makeTextSetter(
+                  setExitsFilters,
+                  resetExitsPaging,
+                  "setor",
+                ),
+                onLote: makeTextSetter(
+                  setExitsFilters,
+                  resetExitsPaging,
+                  "lote",
+                ),
+                onClear: () => {
+                  setExitsFilters(DEFAULT_MOVEMENT_FILTERS);
+                  resetExitsPaging();
+                },
+              }}
+            />
 
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold">Transferências</h2>
-              <MovementsFiltersSection
-                filters={transfersFilters}
-                uiKey="transfers"
-                uiDisplay={uiDisplay}
-                cabinetOptions={cabinetOptions}
-                drawerOptions={drawerOptions}
-                sectorOptions={sectorOptions}
-                filteredResidentOptions={filteredResidentOptions}
-                residentOptions={residentOptions}
-                residentPopoverOpen={residentPopoverOpen}
-                setResidentPopoverOpen={setResidentPopoverOpen}
-                residentSearch={residentSearch}
-                setResidentSearch={setResidentSearch}
-                actions={{
-                  onProduto: makeTextSetter(
-                    setTransfersFilters,
-                    resetTransfersPaging,
-                    "produto",
-                  ),
-                  onArmario: makeTextSetter(
-                    setTransfersFilters,
-                    resetTransfersPaging,
-                    "armario",
-                  ),
-                  onGaveta: makeTextSetter(
-                    setTransfersFilters,
-                    resetTransfersPaging,
-                    "gaveta",
-                  ),
-                  onCasela: makeTextSetter(
-                    setTransfersFilters,
-                    resetTransfersPaging,
-                    "casela",
-                  ),
-                  onSetor: makeTextSetter(
-                    setTransfersFilters,
-                    resetTransfersPaging,
-                    "setor",
-                  ),
-                  onLote: makeTextSetter(
-                    setTransfersFilters,
-                    resetTransfersPaging,
-                    "lote",
-                  ),
-                  onClear: () => {
-                    setTransfersFilters(DEFAULT_MOVEMENT_FILTERS);
-                    resetTransfersPaging();
-                  },
+            {loadingExits ? (
+              <SkeletonTable rows={5} cols={TABLE_COLUMNS.length} />
+            ) : (
+              <EditableTable
+                data={exits}
+                columns={TABLE_COLUMNS}
+                entityType="exits"
+                currentPage={Math.max(exitsInputPage, exitsMedicinePage)}
+                hasNextPage={exitsHasNext}
+                onNextPage={() => {
+                  setExitsInputPage((p) => p + 1);
+                  setExitsMedicinePage((p) => p + 1);
                 }}
+                onPrevPage={() => {
+                  setExitsInputPage((p) => Math.max(1, p - 1));
+                  setExitsMedicinePage((p) => Math.max(1, p - 1));
+                }}
+                showAddons={false}
+                readOnly={previewMode}
               />
+            )}
+          </PageSection>
 
-              {loadingTransfers ? (
-                <SkeletonTable rows={5} cols={TABLE_COLUMNS.length} />
-              ) : (
-                <EditableTable
-                  data={transfers}
-                  columns={TABLE_COLUMNS}
-                  entityType="transfers"
-                  currentPage={Math.max(
-                    transfersInputPage,
-                    transfersMedicinePage,
-                  )}
-                  hasNextPage={transfersHasNext}
-                  onNextPage={() => {
-                    setTransfersInputPage((p) => p + 1);
-                    setTransfersMedicinePage((p) => p + 1);
-                  }}
-                  onPrevPage={() => {
-                    setTransfersInputPage((p) => Math.max(1, p - 1));
-                    setTransfersMedicinePage((p) => Math.max(1, p - 1));
-                  }}
-                  showAddons={false}
-                  readOnly={previewMode}
-                />
-              )}
-            </div>
-          </div>
-        </Card>
-      </div>
+          <PageSection title="Transferências" icon={ArrowLeftRight}>
+            <MovementsFiltersSection
+              filters={transfersFilters}
+              uiKey="transfers"
+              uiDisplay={uiDisplay}
+              cabinetOptions={cabinetOptions}
+              drawerOptions={drawerOptions}
+              sectorOptions={sectorOptions}
+              filteredResidentOptions={filteredResidentOptions}
+              residentOptions={residentOptions}
+              residentPopoverOpen={residentPopoverOpen}
+              setResidentPopoverOpen={setResidentPopoverOpen}
+              residentSearch={residentSearch}
+              setResidentSearch={setResidentSearch}
+              actions={{
+                onProduto: makeTextSetter(
+                  setTransfersFilters,
+                  resetTransfersPaging,
+                  "produto",
+                ),
+                onArmario: makeTextSetter(
+                  setTransfersFilters,
+                  resetTransfersPaging,
+                  "armario",
+                ),
+                onGaveta: makeTextSetter(
+                  setTransfersFilters,
+                  resetTransfersPaging,
+                  "gaveta",
+                ),
+                onCasela: makeTextSetter(
+                  setTransfersFilters,
+                  resetTransfersPaging,
+                  "casela",
+                ),
+                onSetor: makeTextSetter(
+                  setTransfersFilters,
+                  resetTransfersPaging,
+                  "setor",
+                ),
+                onLote: makeTextSetter(
+                  setTransfersFilters,
+                  resetTransfersPaging,
+                  "lote",
+                ),
+                onClear: () => {
+                  setTransfersFilters(DEFAULT_MOVEMENT_FILTERS);
+                  resetTransfersPaging();
+                },
+              }}
+            />
+
+            {loadingTransfers ? (
+              <SkeletonTable rows={5} cols={TABLE_COLUMNS.length} />
+            ) : (
+              <EditableTable
+                data={transfers}
+                columns={TABLE_COLUMNS}
+                entityType="transfers"
+                currentPage={Math.max(
+                  transfersInputPage,
+                  transfersMedicinePage,
+                )}
+                hasNextPage={transfersHasNext}
+                onNextPage={() => {
+                  setTransfersInputPage((p) => p + 1);
+                  setTransfersMedicinePage((p) => p + 1);
+                }}
+                onPrevPage={() => {
+                  setTransfersInputPage((p) => Math.max(1, p - 1));
+                  setTransfersMedicinePage((p) => Math.max(1, p - 1));
+                }}
+                showAddons={false}
+                readOnly={previewMode}
+              />
+            )}
+          </PageSection>
+        </div>
+      </PageSurfaceCard>
     </Layout>
   );
 }

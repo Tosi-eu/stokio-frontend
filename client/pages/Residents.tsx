@@ -53,6 +53,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ResidentRow } from "@/components/residents/residents.types";
+import { EmptyStateCard } from "@/components/medical-record-exports/medical-record-exports.shared";
+import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
+import { Users } from "lucide-react";
 import { RESIDENT_STOCK_CHART_COLUMNS } from "@/components/residents/residents.chart-columns";
 import {
   residentInitials,
@@ -450,8 +453,11 @@ export default function Resident() {
   }, [selected, previewMode, loadResidents]);
 
   return (
-    <Layout title="Residentes">
-      <div className="pt-8 pb-12 px-4 sm:px-6 max-w-7xl mx-auto space-y-8">
+    <Layout
+      title="Residentes"
+      description="Lista por casela, detalhe e ligação ao estoque por residente."
+    >
+      <div className="flex w-full flex-col gap-8 pb-12 pt-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {!previewMode ? (
             <Button asChild className="rounded-xl">
@@ -521,9 +527,11 @@ export default function Resident() {
               </div>
             )}
             {!loading && filtered.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                Nenhum residente corresponde à busca.
-              </p>
+              <EmptyStateCard
+                icon={Users}
+                title="Nenhum residente encontrado"
+                description="Ajuste a busca ou volte à página anterior para ver mais caselas."
+              />
             ) : null}
 
             {!loading ? (
@@ -557,7 +565,9 @@ export default function Resident() {
 
           <div className="xl:col-span-8">
             {selected ? (
-              <section className="rounded-2xl border border-border/70 bg-card shadow-elevated overflow-hidden ring-1 ring-black/[0.02] dark:ring-white/[0.04] h-full min-h-[280px]">
+              <section
+                className={cn(pageSurfaceCardClass, "h-full min-h-[280px]")}
+              >
                 <div className="p-6 sm:p-8 space-y-6">
                   <div className="flex flex-col sm:flex-row gap-6">
                     <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-3xl bg-violet-100 text-violet-950 dark:bg-violet-950/40 dark:text-violet-100">

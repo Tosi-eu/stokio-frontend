@@ -42,6 +42,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
 
 const STOCK_DETAIL_COLUMNS = [
   { key: "stockType", label: "Tipo", editable: false },
@@ -352,7 +353,7 @@ export default function Drawers() {
         ) : null}
 
         {selectedDrawer && selectedNumero != null ? (
-          <section className="rounded-2xl border border-border/70 bg-card shadow-elevated overflow-hidden ring-1 ring-black/[0.02] dark:ring-white/[0.04]">
+          <section className={pageSurfaceCardClass}>
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 sm:p-6 border-b border-border/60 bg-muted/25">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-950 dark:bg-sky-950/40 dark:text-sky-100">
                 <span className="text-2xl font-bold">{selectedNumero}</span>

@@ -9,6 +9,7 @@ export const PERMISSION_RESOURCE_KEYS = [
   "movements",
   "reports",
   "notifications",
+  "medical_record_exports",
   "cabinets",
   "drawers",
   "cabinet_categories",
@@ -34,6 +35,7 @@ export const PERMISSION_RESOURCE_LABELS: Record<PermissionResourceKey, string> =
     tenant: "Dados do abrigo (oculto)",
     imports: "Importações (oculto)",
     profile: "Perfil",
+    medical_record_exports: "Prontuários",
   };
 
 export const MOVEMENT_TIPO_KEYS = [

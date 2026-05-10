@@ -1125,6 +1125,19 @@ export const logoutRequest = () => stokioClient.post("/login/logout");
 export const getTenantConfig = () =>
   stokioClient.get<TenantConfigResponse>("/tenant/config");
 
+export type TenantModuleDefinitionRow = {
+  key: string;
+  label: string;
+};
+
+export type TenantModuleCatalogResponse = {
+  modules: TenantModuleDefinitionRow[];
+};
+
+/** Catálogo de módulos (chaves válidas + rótulos) — fonte única com GET /tenant/modules no backend. */
+export const listTenantModuleDefinitions = () =>
+  stokioClient.get<TenantModuleCatalogResponse>("/tenant/modules");
+
 export type UpdateTenantModulesPayload = {
   enabled: string[];
   automatic_price_search?: boolean;

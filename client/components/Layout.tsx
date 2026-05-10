@@ -7,10 +7,13 @@ import { useAuth } from "@/hooks/use-auth.hook";
 import { useState } from "react";
 import LogoutConfirmDialog from "./LogoutConfirmDialog";
 import { ChevronRight } from "lucide-react";
+import { pageStackClass } from "@/components/page/page-ui.constants";
+import { cn } from "@/lib/utils";
 
 export default function Layout({
   children,
   title,
+  description,
   breadcrumb,
   minimal = false,
 }: LayoutProps) {
@@ -41,7 +44,12 @@ export default function Layout({
           </button>
         </header>
         <main className="flex-1 overflow-y-auto bg-brand-mesh" role="main">
-          <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div
+            className={cn(
+              "max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-8",
+              pageStackClass,
+            )}
+          >
             {children}
           </div>
         </main>
@@ -76,12 +84,12 @@ export default function Layout({
                     {item.path ? (
                       <Link
                         href={item.path}
-                        className="rounded-md px-1 -mx-1 hover:text-primary hover:bg-primary/5 transition-colors"
+                        className="rounded-md px-1 -mx-1 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors"
                       >
                         {item.label}
                       </Link>
                     ) : (
-                      <span className="text-foreground font-medium">
+                      <span className="text-foreground font-semibold">
                         {item.label}
                       </span>
                     )}
@@ -90,10 +98,15 @@ export default function Layout({
               </nav>
             )}
             {title && (
-              <h1 className="font-display text-3xl sm:text-[1.75rem] font-semibold text-foreground tracking-tight text-balance">
+              <h1 className="font-display text-2xl sm:text-3xl font-semibold text-foreground tracking-tight text-balance">
                 {title}
               </h1>
             )}
+            {description ? (
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                {description}
+              </p>
+            ) : null}
           </div>
         </header>
       )}
@@ -102,7 +115,12 @@ export default function Layout({
         className="min-h-0 flex-1 overflow-y-auto bg-brand-mesh"
         role="main"
       >
-        <div className="max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div
+          className={cn(
+            "max-w-[1651px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8",
+            pageStackClass,
+          )}
+        >
           {children}
         </div>
       </main>
