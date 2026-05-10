@@ -62,9 +62,12 @@ import { ArrowUp, ChevronDown } from "lucide-react";
 import { ContactFormSection } from "@/components/ContactFormSection";
 import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
 import { AuthMarketingAside } from "@/components/auth/AuthMarketingAside";
+import { AuthLandingHero } from "@/components/auth/AuthLandingHero";
+import { AuthContactIntro } from "@/components/auth/AuthContactIntro";
 import { AuthMobileHeader } from "@/components/auth/AuthMobileHeader";
 import { AuthMobileAnchorBar } from "@/components/auth/AuthMobileAnchorBar";
 import { AuthSkipLinks } from "@/components/auth/AuthSkipLinks";
+import { PageLabel } from "@/components/page/PageLabel";
 
 export default function Auth({ scrollToSection = "auth" }: AuthProps) {
   const router = useRouter();
@@ -752,10 +755,13 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
             <section
               id="auth"
               aria-label="Entrar ou cadastrar"
-              className="relative flex min-h-[100dvh] snap-start scroll-mt-24 flex-col justify-center border-b border-border/40 bg-gradient-to-b from-background/50 via-brand-mesh to-muted/15 px-4 pb-20 pt-4 sm:px-6 lg:min-h-[100dvh] lg:scroll-mt-28 lg:px-10 lg:pb-28 lg:pt-8"
+              className="relative flex min-h-[100dvh] snap-start scroll-mt-24 flex-col justify-center border-b border-border/40 bg-gradient-to-b from-background via-brand-mesh to-muted/20 px-4 pb-20 pt-8 sm:px-6 lg:min-h-[100dvh] lg:scroll-mt-28 lg:px-10 lg:pb-28 lg:pt-12"
             >
-              <div className="mx-auto w-full max-w-md">
-                <header className="mb-8 space-y-3 sm:mb-10"></header>
+              <div className="relative mx-auto w-full max-w-lg">
+                <header className="mb-8 space-y-4 sm:mb-10">
+                  <PageLabel>Acesso</PageLabel>
+                  <AuthLandingHero />
+                </header>
 
                 <Card
                   id="auth-main"
@@ -1156,11 +1162,11 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
             <section
               id="contact"
               aria-label="Contacto"
-              className="relative flex min-h-[100dvh] snap-start scroll-mt-24 flex-col justify-center bg-muted/35 px-4 pb-28 pt-14 shadow-[inset_0_1px_0_0_hsl(var(--border)/0.45)] dark:bg-muted/20 sm:px-6 lg:min-h-[100dvh] lg:scroll-mt-28 lg:px-10 lg:pb-36 lg:pt-20"
+              className="relative flex min-h-[100dvh] snap-start scroll-mt-24 flex-col justify-center border-t border-border/30 bg-muted/25 px-4 pb-28 pt-14 sm:px-6 lg:min-h-[100dvh] lg:scroll-mt-28 lg:px-10 lg:pb-36 lg:pt-20"
             >
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-border/80 to-transparent" />
-
-              <div className="relative mx-auto w-full max-w-md">
+              <div className="relative mx-auto w-full max-w-lg">
+                <PageLabel className="mb-4">Contato</PageLabel>
+                <AuthContactIntro />
                 <ContactFormSection variant="embedded" />
 
                 <p className="mt-10 text-center">

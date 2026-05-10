@@ -42,6 +42,8 @@ import {
   RotateCcw,
   Upload,
 } from "lucide-react";
+import { TenantOnboardingAside } from "@/components/tenant-onboarding/TenantOnboardingAside";
+import { PageLabel } from "@/components/page/PageLabel";
 
 export function TenantOnboardingView({ vm }: { vm: TenantOnboardingPageVm }) {
   const {
@@ -89,7 +91,15 @@ export function TenantOnboardingView({ vm }: { vm: TenantOnboardingPageVm }) {
 
   return (
     <Layout minimal>
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="relative mx-auto max-w-6xl space-y-8 px-2 sm:px-4">
+        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)] lg:items-start lg:gap-10">
+          <TenantOnboardingAside
+            className="order-2 lg:order-1"
+            canManageModules={canManageModules}
+          />
+
+          <div className="order-1 min-w-0 space-y-6 lg:order-2 lg:max-w-3xl lg:justify-self-end xl:max-w-[40rem]">
+            <PageLabel>Configuração inicial</PageLabel>
         <Alert className="border-primary/25 bg-gradient-to-r from-primary/5 to-background shadow-sm">
           <ListChecks className="h-4 w-4 text-primary" />
           <AlertTitle className="text-foreground">
@@ -697,6 +707,8 @@ export function TenantOnboardingView({ vm }: { vm: TenantOnboardingPageVm }) {
             </div>
           </CardContent>
         </Card>
+          </div>
+        </div>
       </div>
     </Layout>
   );
