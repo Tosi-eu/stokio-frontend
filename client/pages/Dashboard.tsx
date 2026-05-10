@@ -36,11 +36,7 @@ const DashboardChartCard = lazy(() =>
     default: module.DashboardChartCard,
   })),
 );
-import {
-  StockDistributionItem,
-  RecentMovement,
-  MedicineRankingItem,
-} from "@/interfaces/interfaces";
+import { RecentMovement, MedicineRankingItem } from "@/interfaces/interfaces";
 import StockProportionCard from "@/components/StockProportionCard";
 import { prepareStockDistributionData } from "@/helpers/estoque.helper";
 import { useMaxSectionRows } from "@/hooks/use-max-selection-rows";
@@ -65,22 +61,10 @@ import {
 import { getEnabledSectors } from "@/helpers/tenant-sectors.helper";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
 
-type SectorProportionChartRow = {
-  key: string;
-  nome: string;
-  data: StockDistributionItem[];
-};
-
-function sortProportionChartsByEnabledOrder(
-  charts: SectorProportionChartRow[],
-  enabledOrder: string[],
-): SectorProportionChartRow[] {
-  return [...charts].sort((a, b) => {
-    const ia = enabledOrder.indexOf(a.key);
-    const ib = enabledOrder.indexOf(b.key);
-    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
-  });
-}
+import {
+  sortProportionChartsByEnabledOrder,
+  type SectorProportionChartRow,
+} from "@/components/dashboard/dashboard-proportion.utils";
 
 export default function Dashboard() {
   const { uiDisplay, previewMode, modules, tenantId } = useTenant();

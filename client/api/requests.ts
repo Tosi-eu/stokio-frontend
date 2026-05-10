@@ -17,6 +17,28 @@ import {
   StokioApiError,
 } from "@stokio/sdk";
 import { stokioClient, API_BASE_URL, readBearerToken } from "./canonical";
+
+export async function submitPublicContact(payload: {
+  name: string;
+  email: string;
+  message: string;
+}): Promise<void> {
+  const res = await fetch(`${API_BASE_URL.replace(/\/$/, "")}/public/contact`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...payload, website: "" }),
+  });
+  if (!res.ok) {
+    let msg = "Could not send the message.";
+    try {
+      const j = (await res.json()) as { error?: string };
+      if (j?.error) msg = j.error;
+    } catch {
+      /* Nothing to do */
+    }
+    throw new Error(msg);
+  }
+}
 import { reportClientError } from "@/helpers/error-report.helper";
 import { readPreviewModeFromStorage } from "@/helpers/preview-mode-storage";
 import { toast } from "@/hooks/use-toast.hook";
@@ -346,7 +368,7 @@ export const downloadReportExportXlsx = downloadReportExportBlob;
 
 export { buildAdminExportParams } from "@stokio/sdk";
 
-async function waitForReportExportJob(jobId: string): Promise<void> {
+export async function waitForReportExportJob(jobId: string): Promise<void> {
   const startedAt = Date.now();
   while (true) {
     const j = (await getReportExportJob(jobId)) as {
@@ -1227,6 +1249,80 @@ export const updateTenantSetorStockTypes = (
 
 export const getAdminUsers = (params?: { page?: number; limit?: number }) =>
   stokioClient.get("/admin/users", { params: params ?? {} });
+
+export type MedicalRecordExportJobRow = {
+  id: string;
+  createdAt: string;
+  finishedAt: string | null;
+  status: string;
+  casela: string;
+  format: string;
+  actorUserId: number;
+  actorLogin: string | null;
+  actorDisplayName: string | null;
+  error: string | null;
+  downloadCount: number;
+  lastDownloadAt: string | null;
+};
+
+/** Uma geração concluída com sucesso (mais recente = versionIndex 1). */
+export type MedicalRecordVersionRow = {
+  versionIndex: number;
+  jobId: string;
+  format: string;
+  generatedAt: string;
+  downloadCount: number;
+  lastDownloadAt: string | null;
+  actorUserId: number;
+  actorLogin: string | null;
+  actorDisplayName: string | null;
+};
+
+export type MedicalRecordExportAvailableRow = {
+  residentId: string;
+  casela: string;
+  caselaNum: number;
+  residentName: string;
+  medicineStockLines: number;
+  inputStockLines: number;
+  jobId: string | null;
+  format: string | null;
+  generatedAt: string | null;
+  downloadCount: number;
+  lastDownloadAt: string | null;
+  actorUserId: number | null;
+  actorLogin: string | null;
+  actorDisplayName: string | null;
+  versions: MedicalRecordVersionRow[];
+};
+
+export type MedicalRecordExportAvailableResponse = {
+  data: MedicalRecordExportAvailableRow[];
+};
+
+export type MedicalRecordExportJobsResponse = {
+  data: MedicalRecordExportJobRow[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  truncated?: boolean;
+};
+
+export const fetchAdminMedicalRecordExportJobs = (params?: {
+  page?: number;
+  limit?: number;
+  casela?: string;
+}) =>
+  stokioClient.get<MedicalRecordExportJobsResponse>(
+    "/admin/medical-record-export-jobs",
+    { params: params ?? {} },
+  );
+
+export const fetchAdminMedicalRecordExportAvailable = () =>
+  stokioClient.get<MedicalRecordExportAvailableResponse>(
+    "/admin/medical-record-export-available",
+  );
 
 export type CreateAdminUserPayload = {
   login: string;

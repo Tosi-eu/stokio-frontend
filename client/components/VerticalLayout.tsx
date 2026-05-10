@@ -14,6 +14,7 @@ import {
   User,
   LogOut,
   ShieldCheck,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
@@ -84,7 +85,18 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
 
   const navigationTabs = [
     ...((previewMode || user?.role === "admin") && isEnabled("admin")
-      ? [{ name: "Painel administrativo", href: "/admin", icon: ShieldCheck }]
+      ? [
+          {
+            name: "Painel administrativo",
+            href: "/admin",
+            icon: ShieldCheck,
+          },
+          {
+            name: "Prontuários",
+            href: "/admin/medical-record-exports",
+            icon: FileText,
+          },
+        ]
       : []),
     ...baseNavigationTabs.filter((t) => {
       const mod = (t as { module?: string }).module;
@@ -146,8 +158,11 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
       >
         {navigationTabs.map((item) => {
           const isActive =
-            pathname === item.href ||
-            (item.href !== homeHref && pathname.startsWith(item.href));
+            item.href === "/admin"
+              ? pathname === "/admin"
+              : pathname === item.href ||
+                (item.href !== homeHref &&
+                  pathname.startsWith(`${item.href}/`));
 
           const Icon = item.icon;
 

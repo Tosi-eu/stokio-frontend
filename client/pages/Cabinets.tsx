@@ -50,30 +50,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const STOCK_DETAIL_COLUMNS = [
-  { key: "stockType", label: "Tipo", editable: false },
-  { key: "name", label: "Nome", editable: false },
-  { key: "quantity", label: "Qtd.", editable: false },
-  { key: "expiry", label: "Validade", editable: false },
-  { key: "drawer", label: "Gaveta", editable: false },
-  { key: "casela", label: "Casela", editable: false },
-  { key: "sector", label: "Setor", editable: false },
-  { key: "lot", label: "Lote", editable: false },
-];
-
-function stockItemsToDetailRows(items: StockItem[]): Record<string, unknown>[] {
-  return items.map((i) => ({
-    stockType: i.stockType,
-    name: i.name,
-    quantity: i.quantity,
-    expiry: i.expiry,
-    drawer: i.drawer ?? "—",
-    casela: i.casela ?? "—",
-    sector: i.sector,
-    lot: i.lot ?? "—",
-  }));
-}
+import {
+  CABINET_STOCK_DETAIL_COLUMNS,
+  stockItemsToCabinetDetailRows,
+} from "@/components/cabinets/cabinets.stock-detail";
 
 export default function Cabinets() {
   const { previewMode, modules } = useTenant();
@@ -353,7 +333,7 @@ export default function Cabinets() {
   }, [previewMode, selectedNumero, loadCabinets]);
 
   const filteredDetailRows = useMemo(() => {
-    const base = stockItemsToDetailRows(stockRows);
+    const base = stockItemsToCabinetDetailRows(stockRows);
 
     return base;
   }, [stockRows]);
@@ -523,12 +503,15 @@ export default function Cabinets() {
                 </div>
               </div>
               {loadingStock ? (
-                <SkeletonTable rows={5} cols={STOCK_DETAIL_COLUMNS.length} />
+                <SkeletonTable
+                  rows={5}
+                  cols={CABINET_STOCK_DETAIL_COLUMNS.length}
+                />
               ) : (
                 <div className="space-y-4">
                   <EditableTable
                     data={filteredDetailRows}
-                    columns={STOCK_DETAIL_COLUMNS}
+                    columns={CABINET_STOCK_DETAIL_COLUMNS}
                     showAddons={false}
                     readOnly
                   />

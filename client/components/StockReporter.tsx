@@ -175,7 +175,7 @@ interface RowData {
   [key: string]: unknown;
 }
 
-type ResidentProntuarioReport = {
+type ResidentMedicalRecordReport = {
   residente: string;
   casela: number | string;
   cpf?: string | null;
@@ -391,7 +391,7 @@ export function createStockPDF(
   tipo: string,
   data:
     | RowData[]
-    | ResidentProntuarioReport
+    | ResidentMedicalRecordReport
     | ResidentesResponse
     | ResidentConsumptionReport
     | TransferReport[]
@@ -412,7 +412,7 @@ export function createStockPDF(
   const isResidentMedicines = tipo === "medicamentos_residente";
   const isExpiredMedicines = tipo === "medicamentos_vencidos";
   const isExpiringSoon = tipo === "expiringSoon";
-  const isResidentProntuario = tipo === "prontuario_residente";
+  const isResidentMedicalRecordReport = tipo === "prontuario_residente";
   const consumptionData = isResidentConsumption
     ? (data as ResidentConsumptionReport)
     : null;
@@ -431,8 +431,8 @@ export function createStockPDF(
     ? (data as ExpiringSoonReport[])
     : null;
 
-  const prontuarioData = isResidentProntuario
-    ? (data as ResidentProntuarioReport)
+  const residentMedicalRecordData = isResidentMedicalRecordReport
+    ? (data as ResidentMedicalRecordReport)
     : null;
 
   const movementsPayload = isMovementsReport
@@ -482,56 +482,66 @@ export function createStockPDF(
                       ? "MEDICAMENTOS VENCIDOS"
                       : isExpiringSoon
                         ? "MEDICAMENTOS E INSUMOS PRÓXIMOS AO VENCIMENTO"
-                        : isResidentProntuario
+                        : isResidentMedicalRecordReport
                           ? "PRONTUÁRIO DO RESIDENTE"
                           : "ESTOQUE ATUAL"}
           </Text>
         </View>
 
-        {isResidentProntuario && prontuarioData && (
+        {isResidentMedicalRecordReport && residentMedicalRecordData && (
           <>
             <View style={{ marginBottom: 15 }}>
               <Text
                 style={{ fontSize: 14, fontWeight: "bold", marginBottom: 5 }}
               >
-                Residente: {prontuarioData.residente}
+                Residente: {residentMedicalRecordData.residente}
               </Text>
               <Text style={{ fontSize: 12, color: "#666" }}>
-                Casela: {prontuarioData.casela}
+                Casela: {residentMedicalRecordData.casela}
               </Text>
-              {prontuarioData.cpf ? (
+              {residentMedicalRecordData.cpf ? (
                 <Text style={{ fontSize: 12, color: "#666" }}>
-                  CPF: {prontuarioData.cpf}
+                  CPF: {residentMedicalRecordData.cpf}
                 </Text>
               ) : null}
-              {prontuarioData.data_nascimento ? (
+              {residentMedicalRecordData.data_nascimento ? (
                 <Text style={{ fontSize: 12, color: "#666" }}>
-                  Nascimento: {formatDateToPtBr(prontuarioData.data_nascimento)}
+                  Nascimento:{" "}
+                  {formatDateToPtBr(residentMedicalRecordData.data_nascimento)}
                 </Text>
               ) : null}
-              {typeof prontuarioData.idade === "number" ? (
+              {typeof residentMedicalRecordData.idade === "number" ? (
                 <Text style={{ fontSize: 12, color: "#666" }}>
-                  Idade: {prontuarioData.idade}
+                  Idade: {residentMedicalRecordData.idade}
                 </Text>
               ) : null}
             </View>
 
-            <Text style={styles.sectionTitle}>Itens no Estoque</Text>
+            <Text style={styles.sectionTitle}>Itens em stock</Text>
 
             {renderTableWithConfig(
               [
                 { header: "Categoria", key: "categoria" },
                 { header: "Nome", key: "nome" },
-                { header: "Quantidade", key: "quantidade", isNumeric: true },
+                { header: "Qtd.", key: "quantidade", isNumeric: true },
                 { header: "Validade", key: "validade" },
-                { header: "Data Entrada", key: "data_entrada" },
-                { header: "Data Saída", key: "data_saida" },
+                { header: "Entrada", key: "data_entrada" },
+                { header: "Saída", key: "data_saida" },
                 { header: "Armário", key: "armario", isNumeric: true },
                 { header: "Gaveta", key: "gaveta", isNumeric: true },
                 { header: "Setor", key: "setor" },
                 { header: "Lote", key: "lote" },
               ],
-              (prontuarioData.itens ?? []).map(formatPdfRowDates),
+              (residentMedicalRecordData.itens ?? []).map((r) => {
+                const ext = r as RowData & { qtd?: unknown };
+                return formatPdfRowDates({
+                  ...r,
+                  quantidade:
+                    ext.quantidade != null && ext.quantidade !== ""
+                      ? ext.quantidade
+                      : ext.qtd,
+                } as RowData);
+              }),
             )}
           </>
         )}

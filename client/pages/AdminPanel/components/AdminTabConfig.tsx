@@ -17,7 +17,6 @@ import {
   forceTenantPriceBackfill,
   getTenantPriceBackfillStatus,
   uploadTenantLogoWithProgress,
-  type AdminScheduledBackupConfig,
   type TenantSetorRow,
 } from "@/api/requests";
 import { getEnabledSectors } from "@/helpers/tenant-sectors.helper";
@@ -45,33 +44,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const MODULE_OPTIONS: Array<{ key: string; label: string }> = [
-  { key: "dashboard", label: "Dashboard" },
-  { key: "residents", label: "Residentes" },
-  { key: "medicines", label: "Medicamentos" },
-  { key: "inputs", label: "Insumos" },
-  { key: "stock", label: "Estoque" },
-  { key: "cabinets", label: "Armários" },
-  { key: "drawers", label: "Gavetas" },
-  { key: "reports", label: "Relatórios" },
-  { key: "notifications", label: "Notificações" },
-  { key: "profile", label: "Perfil (conta e senha)" },
-  { key: "admin", label: "Painel administrativo" },
-];
-
-interface AdminTabConfigProps {
-  form: Record<string, string>;
-  setForm: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  loading: boolean;
-  saving: boolean;
-  onSave: () => void;
-  isSuperAdmin: boolean;
-  scheduledBackup: AdminScheduledBackupConfig;
-  setScheduledBackup: React.Dispatch<
-    React.SetStateAction<AdminScheduledBackupConfig>
-  >;
-}
+import { ADMIN_TAB_CONFIG_MODULE_OPTIONS } from "./admin-tab-config/admin-tab-config.constants";
+import type { AdminTabConfigProps } from "./admin-tab-config/admin-tab-config.types";
 
 export function AdminTabConfig({
   form,
@@ -647,7 +621,7 @@ export function AdminTabConfig({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {MODULE_OPTIONS.map((m) => {
+                {ADMIN_TAB_CONFIG_MODULE_OPTIONS.map((m) => {
                   const on = moduleEnabled.has(m.key);
                   return (
                     <label

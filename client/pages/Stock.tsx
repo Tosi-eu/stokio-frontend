@@ -68,13 +68,7 @@ import {
   formatGavetaLabel,
 } from "@/helpers/storage-location-display.helper";
 
-const FILTER_LABELS: Record<string, string> = {
-  belowMin: "Abaixo do estoque mínimo",
-  nearMin: "Próximos do estoque mínimo",
-  noPrice: "Sem preço cadastrado",
-  expired: "Vencidos",
-  expiringSoon: "Vencimento próximo",
-};
+import { STOCK_FILTER_LABELS } from "@/components/stock/stock.constants";
 
 export default function Stock() {
   const { uiDisplay, previewMode, modules } = useTenant();
@@ -96,10 +90,10 @@ export default function Stock() {
 
   const stockBreadcrumb = useMemo(
     () =>
-      filter && FILTER_LABELS[filter]
+      filter && STOCK_FILTER_LABELS[filter]
         ? [
             { label: "Estoque", path: "/stock" },
-            { label: FILTER_LABELS[filter] },
+            { label: STOCK_FILTER_LABELS[filter] },
           ]
         : undefined,
     [filter],
@@ -672,12 +666,12 @@ export default function Stock() {
           </button>
         </div>
 
-        {filter && FILTER_LABELS[filter] && (
+        {filter && STOCK_FILTER_LABELS[filter] && (
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-sm text-muted-foreground">
               Exibindo:{" "}
               <span className="font-medium text-foreground">
-                {FILTER_LABELS[filter]}
+                {STOCK_FILTER_LABELS[filter]}
               </span>
             </span>
             <button
