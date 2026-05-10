@@ -27,7 +27,12 @@ ENV NEXT_PUBLIC_APP_LOGO_URL=$NEXT_PUBLIC_APP_LOGO_URL
 ENV NEXT_PUBLIC_R2_PUBLIC_BASE_URL=$NEXT_PUBLIC_R2_PUBLIC_BASE_URL
 ENV NEXT_PUBLIC_X_API_KEY=$NEXT_PUBLIC_X_API_KEY
 
-RUN npm run build
+RUN set -eu; \
+  : "${NEXT_PUBLIC_API_BASE_URL:?required}"; \
+  : "${NEXT_PUBLIC_LOGO_URL:?required}"; \
+  : "${NEXT_PUBLIC_R2_PUBLIC_BASE_URL:?required}"; \
+  : "${NEXT_PUBLIC_X_API_KEY:?required}"; \
+  NODE_ENV=production npm run build
 
 FROM node:20-bookworm-slim AS runner
 
@@ -36,10 +41,6 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-
-ENV NODE_ENV=production
-ENV PORT=8081
-ENV HOSTNAME=0.0.0.0
 
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 

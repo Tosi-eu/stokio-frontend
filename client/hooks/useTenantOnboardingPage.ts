@@ -588,6 +588,31 @@ export function useTenantOnboardingPage() {
     let finalLogoUrl = logoUrl?.trim() || null;
     try {
       if (tenantId != null) setSkipTenantOnboarding(tenantId, false);
+
+      let contractRes: Awaited<
+        ReturnType<typeof setTenantContractCode>
+      > | null = null;
+      if (contractCode.trim()) {
+        const sessionLogin = user?.login?.trim();
+        if (!sessionLogin) {
+          toast({
+            title: "Sessão inválida",
+            description:
+              "Não foi possível gravar o código de contrato sem o e-mail da sessão. Faça login de novo.",
+            variant: "error",
+          });
+          return;
+        }
+        contractRes = await setTenantContractCode(
+          contractCode.trim(),
+          sessionLogin,
+        );
+        if (contractRes?.migrated === true && contractRes.tenantId != null) {
+          patchStoredUser({ tenantId: contractRes.tenantId, role: "admin" });
+          await refetch();
+        }
+      }
+
       const brandPayload = { brandName: brandName.trim() || null };
       if (pendingLogoFile) {
         setLogoUploadPercent(0);
@@ -625,28 +650,6 @@ export function useTenantOnboardingPage() {
         return;
       }
       await updateTenantBranding({ ...brandPayload, logoUrl: finalLogoUrl });
-      let contractRes: Awaited<
-        ReturnType<typeof setTenantContractCode>
-      > | null = null;
-      if (contractCode.trim()) {
-        const sessionLogin = user?.login?.trim();
-        if (!sessionLogin) {
-          toast({
-            title: "Sessão inválida",
-            description:
-              "Não foi possível gravar o código de contrato sem o e-mail da sessão. Faça login de novo.",
-            variant: "error",
-          });
-          return;
-        }
-        contractRes = await setTenantContractCode(
-          contractCode.trim(),
-          sessionLogin,
-        );
-      }
-      if (contractRes?.migrated === true && contractRes.tenantId != null) {
-        patchStoredUser({ tenantId: contractRes.tenantId, role: "admin" });
-      }
       if (canManageModules) {
         await updateTenantConfig({
           enabled: Array.from(enabled),

@@ -59,7 +59,13 @@ export function buildTenantLogoCandidateUrls(
   const brandSeg = normalizeBrandNameForR2Key(params.brandLabel);
   const slugSeg = normalizeSlugForR2Key(params.slug);
   const keyStem = `${brandSeg}-${slugSeg}`;
-  return LOGO_EXT_CANDIDATES.map((ext) => `${base}/${keyStem}.${ext}`);
+  const nested = LOGO_EXT_CANDIDATES.map(
+    (ext) => `${base}/${slugSeg}/${keyStem}.${ext}`,
+  );
+  const legacyFlat = LOGO_EXT_CANDIDATES.map(
+    (ext) => `${base}/${keyStem}.${ext}`,
+  );
+  return [...nested, ...legacyFlat];
 }
 
 function tryLoadImage(url: string): Promise<boolean> {
