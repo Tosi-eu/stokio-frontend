@@ -14,7 +14,8 @@ export type PermissionResourceKey =
   | "drawer_categories"
   | "tenant"
   | "imports"
-  | "profile";
+  | "profile"
+  | "medical_record_exports";
 
 export type MovementTipoKey = "entrada" | "saida" | "transferencia";
 

@@ -48,8 +48,7 @@ import {
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import { TableFilter } from "@/components/TableFilter";
-
-const PAGE_SIZE = 24;
+import { STOCK_OUT_PAGE_SIZE } from "@/components/stock-out/stock-out.constants";
 
 export default function StockOut() {
   const { uiDisplay, modules } = useTenant();
@@ -230,21 +229,25 @@ export default function StockOut() {
       const base = passedData.filter((i) => i.tipo_item === itemTypeFilter);
       const filtered = applyLocalFilters(base);
       setTotalCount(filtered.length);
-      const start = (stockPage - 1) * PAGE_SIZE;
-      setItems(filtered.slice(start, start + PAGE_SIZE));
+      const start = (stockPage - 1) * STOCK_OUT_PAGE_SIZE;
+      setItems(filtered.slice(start, start + STOCK_OUT_PAGE_SIZE));
       return;
     }
 
     setLoadingStock(true);
     try {
-      const { data, total } = await fetchStockPage(stockPage, PAGE_SIZE, {
-        nome: debouncedNome.trim() || undefined,
-        casela: filters.casela || undefined,
-        setor: filters.setor || undefined,
-        lote: filters.lote || undefined,
-        itemType: itemTypeFilter,
-        onlyInStock: true,
-      });
+      const { data, total } = await fetchStockPage(
+        stockPage,
+        STOCK_OUT_PAGE_SIZE,
+        {
+          nome: debouncedNome.trim() || undefined,
+          casela: filters.casela || undefined,
+          setor: filters.setor || undefined,
+          lote: filters.lote || undefined,
+          itemType: itemTypeFilter,
+          onlyInStock: true,
+        },
+      );
       setItems((data ?? []) as StockItemRaw[]);
       setTotalCount(Number(total ?? 0));
     } catch (err) {
@@ -305,7 +308,7 @@ export default function StockOut() {
     setSelected(null);
   }, [operationType]);
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalCount / STOCK_OUT_PAGE_SIZE));
 
   useEffect(() => {
     setStockPage((p) => Math.min(p, totalPages));
@@ -638,8 +641,8 @@ export default function StockOut() {
                 <>
                   Mostrando{" "}
                   <span className="font-medium text-foreground">
-                    {(stockPage - 1) * PAGE_SIZE + 1}–
-                    {Math.min(stockPage * PAGE_SIZE, totalCount)}
+                    {(stockPage - 1) * STOCK_OUT_PAGE_SIZE + 1}–
+                    {Math.min(stockPage * STOCK_OUT_PAGE_SIZE, totalCount)}
                   </span>{" "}
                   de{" "}
                   <span className="font-medium text-foreground">

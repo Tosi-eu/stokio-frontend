@@ -33,7 +33,6 @@ import type { StockItem } from "@/interfaces/interfaces";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { OperationType } from "@/utils/enums";
 import { DownloadJobButton } from "@/components/DownloadJobButton";
 import { ClipboardList, Pencil, Trash2, UserRound } from "lucide-react";
 import DeletePopUp from "@/components/DeletePopUp";
@@ -53,59 +52,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-type ResidentRow = {
-  name: string;
-  casela: number;
-  cpf: string | null;
-  data_nascimento: string | null;
-  idade: number | null;
-};
-
-const PRONTUARIO_COLUMNS = [
-  { key: "kind", label: "Categoria", editable: false },
-  { key: "name", label: "Nome", editable: false },
-  { key: "quantity", label: "Qtd.", editable: false },
-  { key: "expiry", label: "Validade", editable: false },
-  { key: "entryDate", label: "Data entrada", editable: false },
-  { key: "exitDate", label: "Data saída", editable: false },
-  { key: "cabinet", label: "Armário", editable: false },
-  { key: "drawer", label: "Gaveta", editable: false },
-  { key: "sector", label: "Setor", editable: false },
-  { key: "lot", label: "Lote", editable: false },
-];
-
-function itemKindLabel(item: StockItem): string {
-  return item.itemType === OperationType.MEDICINE ? "Medicamento" : "Insumo";
-}
-
-function stockToProntuarioRows(items: StockItem[]): Record<string, unknown>[] {
-  return items.map((i) => ({
-    kind: itemKindLabel(i),
-    name: i.name,
-    quantity: i.quantity,
-    expiry: i.expiry,
-    entryDate: i.entryDate?.trim() ? i.entryDate : "—",
-    exitDate: i.exitDate?.trim() ? i.exitDate : "—",
-    cabinet: i.cabinet ?? "—",
-    drawer: i.drawer ?? "—",
-    sector: i.sector ?? "—",
-    lot: i.lot ?? "—",
-  }));
-}
-
-function initials(name: string): string {
-  const p = name.trim().split(/\s+/).filter(Boolean);
-  if (p.length === 0) return "?";
-  if (p.length === 1) return p[0].slice(0, 2).toUpperCase();
-  return (p[0][0] + p[p.length - 1][0]).toUpperCase();
-}
+import type { ResidentRow } from "@/components/residents/residents.types";
+import { EmptyStateCard } from "@/components/medical-record-exports/medical-record-exports.shared";
+import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
+import { Users } from "lucide-react";
+import { RESIDENT_STOCK_CHART_COLUMNS } from "@/components/residents/residents.chart-columns";
+import {
+  residentInitials,
+  stockToResidentChartRows,
+} from "@/components/residents/residents.stock-chart";
 
 export default function Resident() {
   const { previewMode, modules } = useTenant();
   const { labelByKey } = useTenantSetores();
 
-  const prontuarioSectorOptions = useMemo(
+  const residentChartSectorOptions = useMemo(
     () => buildSectorFilterOptions(getEnabledSectors(modules), labelByKey),
     [modules, labelByKey],
   );
@@ -115,16 +76,16 @@ export default function Resident() {
   const [selectedCasela, setSelectedCasela] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
-  const [prontuarioItems, setProntuarioItems] = useState<StockItem[]>([]);
-  const [prontuarioLoading, setProntuarioLoading] = useState(false);
-  const [prontuarioPage, setProntuarioPage] = useState(1);
-  const PRONTUARIO_PAGE_SIZE = 10;
-  const [prontuarioHasNext, setProntuarioHasNext] = useState(false);
-  const [prontuarioTotal, setProntuarioTotal] = useState(0);
-  const [prontuarioNome, setProntuarioNome] = useState("");
-  const [prontuarioSetor, setProntuarioSetor] = useState("__all");
-  const [prontuarioLote, setProntuarioLote] = useState("");
-  const [prontuarioArmario, setProntuarioArmario] = useState("__all");
+  const [residentChartItems, setResidentChartItems] = useState<StockItem[]>([]);
+  const [residentChartLoading, setResidentChartLoading] = useState(false);
+  const [residentChartPage, setResidentChartPage] = useState(1);
+  const RESIDENT_CHART_PAGE_SIZE = 10;
+  const [residentChartHasNext, setResidentChartHasNext] = useState(false);
+  const [residentChartTotal, setResidentChartTotal] = useState(0);
+  const [residentChartNameFilter, setResidentChartNameFilter] = useState("");
+  const [residentChartSector, setResidentChartSector] = useState("__all");
+  const [residentChartLot, setResidentChartLot] = useState("");
+  const [residentChartCabinet, setResidentChartCabinet] = useState("__all");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -209,20 +170,20 @@ export default function Resident() {
     [residents, selectedCasela],
   );
 
-  const loadProntuario = useCallback(
+  const loadResidentChart = useCallback(
     async (casela: number) => {
-      setProntuarioLoading(true);
+      setResidentChartLoading(true);
       try {
         if (previewMode) {
           const all = filterPreviewStockByCasela(casela);
-          const nome = prontuarioNome.trim().toLowerCase();
-          const lote = prontuarioLote.trim().toLowerCase();
+          const nome = residentChartNameFilter.trim().toLowerCase();
+          const lote = residentChartLot.trim().toLowerCase();
           const setor =
-            prontuarioSetor === "__all"
+            residentChartSector === "__all"
               ? ""
-              : prontuarioSetor.trim().toLowerCase();
+              : residentChartSector.trim().toLowerCase();
           const armario =
-            prontuarioArmario === "__all" ? "" : prontuarioArmario.trim();
+            residentChartCabinet === "__all" ? "" : residentChartCabinet.trim();
 
           const filtered = all.filter((i) => {
             const okNome =
@@ -242,134 +203,148 @@ export default function Resident() {
             return okNome && okLote && okSetor && okArmario;
           });
 
-          const start = (prontuarioPage - 1) * PRONTUARIO_PAGE_SIZE;
-          const pageItems = filtered.slice(start, start + PRONTUARIO_PAGE_SIZE);
-          setProntuarioItems(pageItems);
-          setProntuarioTotal(filtered.length);
-          setProntuarioHasNext(start + PRONTUARIO_PAGE_SIZE < filtered.length);
+          const start = (residentChartPage - 1) * RESIDENT_CHART_PAGE_SIZE;
+          const pageItems = filtered.slice(
+            start,
+            start + RESIDENT_CHART_PAGE_SIZE,
+          );
+          setResidentChartItems(pageItems);
+          setResidentChartTotal(filtered.length);
+          setResidentChartHasNext(
+            start + RESIDENT_CHART_PAGE_SIZE < filtered.length,
+          );
           return;
         }
 
         const { data, hasNext, total } = await fetchStockPage(
-          prontuarioPage,
-          PRONTUARIO_PAGE_SIZE,
+          residentChartPage,
+          RESIDENT_CHART_PAGE_SIZE,
           {
             casela: String(casela),
-            nome: prontuarioNome.trim() ? prontuarioNome.trim() : undefined,
+            nome: residentChartNameFilter.trim()
+              ? residentChartNameFilter.trim()
+              : undefined,
             setor:
-              prontuarioSetor !== "__all" && prontuarioSetor.trim()
-                ? prontuarioSetor.trim()
+              residentChartSector !== "__all" && residentChartSector.trim()
+                ? residentChartSector.trim()
                 : undefined,
-            lote: prontuarioLote.trim() ? prontuarioLote.trim() : undefined,
+            lote: residentChartLot.trim() ? residentChartLot.trim() : undefined,
             armario:
-              prontuarioArmario !== "__all" && prontuarioArmario.trim()
-                ? prontuarioArmario.trim()
+              residentChartCabinet !== "__all" && residentChartCabinet.trim()
+                ? residentChartCabinet.trim()
                 : undefined,
           },
         );
-        setProntuarioItems(formatStockItems(data));
-        setProntuarioHasNext(Boolean(hasNext));
-        setProntuarioTotal(Number.isFinite(total) ? total : 0);
+        setResidentChartItems(formatStockItems(data));
+        setResidentChartHasNext(Boolean(hasNext));
+        setResidentChartTotal(Number.isFinite(total) ? total : 0);
       } catch {
         toast({
-          title: "Erro ao carregar prontuário",
+          title: "Erro ao carregar o prontuário",
           description:
             "Não foi possível listar medicamentos e insumos desta casela.",
           variant: "error",
           duration: 3000,
         });
-        setProntuarioItems([]);
-        setProntuarioHasNext(false);
-        setProntuarioTotal(0);
+        setResidentChartItems([]);
+        setResidentChartHasNext(false);
+        setResidentChartTotal(0);
       } finally {
-        setProntuarioLoading(false);
+        setResidentChartLoading(false);
       }
     },
     [
       previewMode,
-      prontuarioNome,
-      prontuarioSetor,
-      prontuarioLote,
-      prontuarioArmario,
-      prontuarioPage,
+      residentChartNameFilter,
+      residentChartSector,
+      residentChartLot,
+      residentChartCabinet,
+      residentChartPage,
     ],
   );
 
   useEffect(() => {
     if (selected == null) {
-      setProntuarioItems([]);
-      setProntuarioPage(1);
-      setProntuarioHasNext(false);
-      setProntuarioTotal(0);
+      setResidentChartItems([]);
+      setResidentChartPage(1);
+      setResidentChartHasNext(false);
+      setResidentChartTotal(0);
       return;
     }
-    setProntuarioPage(1);
+    setResidentChartPage(1);
   }, [selected]);
 
   useEffect(() => {
     if (selected == null) return;
-    setProntuarioPage(1);
+    setResidentChartPage(1);
   }, [
     selected,
     selected?.casela,
-    prontuarioNome,
-    prontuarioSetor,
-    prontuarioLote,
-    prontuarioArmario,
+    residentChartNameFilter,
+    residentChartSector,
+    residentChartLot,
+    residentChartCabinet,
   ]);
 
   useEffect(() => {
     if (selected == null) return;
-    void loadProntuario(selected.casela);
+    void loadResidentChart(selected.casela);
   }, [
     selected,
     selected?.casela,
-    prontuarioPage,
-    prontuarioNome,
-    prontuarioSetor,
-    prontuarioLote,
-    prontuarioArmario,
-    loadProntuario,
+    residentChartPage,
+    residentChartNameFilter,
+    residentChartSector,
+    residentChartLot,
+    residentChartCabinet,
+    loadResidentChart,
   ]);
 
-  const prontuarioRows = useMemo(
-    () => stockToProntuarioRows(prontuarioItems),
-    [prontuarioItems],
+  const residentChartRows = useMemo(
+    () => stockToResidentChartRows(residentChartItems),
+    [residentChartItems],
   );
 
-  const prontuarioDownloadParams = useMemo(() => {
+  const residentChartDownloadParams = useMemo(() => {
     const params: Record<string, string> = {};
     if (selected?.casela != null) params.casela = String(selected.casela);
-    if (prontuarioNome.trim()) params.name = prontuarioNome.trim();
-    if (prontuarioSetor !== "__all" && prontuarioSetor.trim())
-      params.sector = prontuarioSetor.trim();
-    if (prontuarioLote.trim()) params.lot = prontuarioLote.trim();
-    if (prontuarioArmario !== "__all" && prontuarioArmario.trim())
-      params.cabinet = prontuarioArmario.trim();
+    if (residentChartNameFilter.trim())
+      params.name = residentChartNameFilter.trim();
+    if (residentChartSector !== "__all" && residentChartSector.trim())
+      params.sector = residentChartSector.trim();
+    if (residentChartLot.trim()) params.lot = residentChartLot.trim();
+    if (residentChartCabinet !== "__all" && residentChartCabinet.trim())
+      params.cabinet = residentChartCabinet.trim();
     return params;
   }, [
     selected?.casela,
-    prontuarioNome,
-    prontuarioSetor,
-    prontuarioLote,
-    prontuarioArmario,
+    residentChartNameFilter,
+    residentChartSector,
+    residentChartLot,
+    residentChartCabinet,
   ]);
 
-  const prontuarioTotalPages = useMemo(() => {
+  const residentChartTotalPages = useMemo(() => {
     if (previewMode) {
-      return Math.max(1, Math.ceil(prontuarioTotal / PRONTUARIO_PAGE_SIZE));
+      return Math.max(
+        1,
+        Math.ceil(residentChartTotal / RESIDENT_CHART_PAGE_SIZE),
+      );
     }
-    return Math.max(1, Math.ceil(prontuarioTotal / PRONTUARIO_PAGE_SIZE));
-  }, [prontuarioTotal, previewMode]);
+    return Math.max(
+      1,
+      Math.ceil(residentChartTotal / RESIDENT_CHART_PAGE_SIZE),
+    );
+  }, [residentChartTotal, previewMode]);
 
-  const prontuarioArmarioOptions = useMemo(() => {
+  const residentChartCabinetOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const i of prontuarioItems) {
+    for (const i of residentChartItems) {
       const v = i.cabinet == null ? "" : String(i.cabinet);
       if (v.trim()) set.add(v);
     }
     return Array.from(set).sort((a, b) => Number(a) - Number(b));
-  }, [prontuarioItems]);
+  }, [residentChartItems]);
 
   const handleEditResident = useCallback(() => {
     if (!selected || previewMode) return;
@@ -478,8 +453,11 @@ export default function Resident() {
   }, [selected, previewMode, loadResidents]);
 
   return (
-    <Layout title="Residentes">
-      <div className="pt-8 pb-12 px-4 sm:px-6 max-w-7xl mx-auto space-y-8">
+    <Layout
+      title="Residentes"
+      description="Lista por casela, detalhe e ligação ao estoque por residente."
+    >
+      <div className="flex w-full flex-col gap-8 pb-12 pt-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {!previewMode ? (
             <Button asChild className="rounded-xl">
@@ -527,7 +505,7 @@ export default function Resident() {
                             : "bg-violet-100 text-violet-900 dark:bg-violet-950/50 dark:text-violet-100",
                         )}
                       >
-                        {initials(r.name)}
+                        {residentInitials(r.name)}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-semibold text-foreground truncate">
@@ -549,9 +527,11 @@ export default function Resident() {
               </div>
             )}
             {!loading && filtered.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                Nenhum residente corresponde à busca.
-              </p>
+              <EmptyStateCard
+                icon={Users}
+                title="Nenhum residente encontrado"
+                description="Ajuste a busca ou volte à página anterior para ver mais caselas."
+              />
             ) : null}
 
             {!loading ? (
@@ -585,7 +565,9 @@ export default function Resident() {
 
           <div className="xl:col-span-8">
             {selected ? (
-              <section className="rounded-2xl border border-border/70 bg-card shadow-elevated overflow-hidden ring-1 ring-black/[0.02] dark:ring-white/[0.04] h-full min-h-[280px]">
+              <section
+                className={cn(pageSurfaceCardClass, "h-full min-h-[280px]")}
+              >
                 <div className="p-6 sm:p-8 space-y-6">
                   <div className="flex flex-col sm:flex-row gap-6">
                     <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-3xl bg-violet-100 text-violet-950 dark:bg-violet-950/40 dark:text-violet-100">
@@ -686,45 +668,48 @@ export default function Resident() {
                       </div>
                       <DownloadJobButton
                         reportType="prontuario_residente"
-                        params={prontuarioDownloadParams}
+                        params={residentChartDownloadParams}
                         filenameBase={`prontuario-casela-${selected.casela}-${new Date().toISOString().slice(0, 10)}`}
-                        disabled={prontuarioLoading}
+                        disabled={residentChartLoading}
+                        label="Descarregar"
                       />
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Medicamentos e insumos em estoque vinculados a esta casela
-                      (origem: estoque).
+                      Medicamentos e insumos em stock na casela (mesmo critério
+                      do ficheiro PDF/Excel ao descarregar).
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                       <div className="space-y-1">
-                        <Label htmlFor="pront-nome" className="text-xs">
+                        <Label htmlFor="chart-name" className="text-xs">
                           Nome
                         </Label>
                         <Input
-                          id="pront-nome"
-                          value={prontuarioNome}
-                          onChange={(e) => setProntuarioNome(e.target.value)}
-                          placeholder="Ex.: Dipirona"
+                          id="chart-name"
+                          value={residentChartNameFilter}
+                          onChange={(e) =>
+                            setResidentChartNameFilter(e.target.value)
+                          }
+                          placeholder="ex.: Paracetamol"
                           className="rounded-xl"
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="pront-setor" className="text-xs">
+                        <Label htmlFor="chart-sector" className="text-xs">
                           Setor
                         </Label>
                         <Select
-                          value={prontuarioSetor}
-                          onValueChange={setProntuarioSetor}
+                          value={residentChartSector}
+                          onValueChange={setResidentChartSector}
                         >
                           <SelectTrigger
-                            id="pront-setor"
+                            id="chart-sector"
                             className="rounded-xl"
                           >
                             <SelectValue placeholder="Todos" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__all">Todos</SelectItem>
-                            {prontuarioSectorOptions.map((s) => (
+                            {residentChartSectorOptions.map((s) => (
                               <SelectItem key={s.value} value={s.value}>
                                 {s.label}
                               </SelectItem>
@@ -733,34 +718,34 @@ export default function Resident() {
                         </Select>
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="pront-lote" className="text-xs">
+                        <Label htmlFor="chart-lot" className="text-xs">
                           Lote
                         </Label>
                         <Input
-                          id="pront-lote"
-                          value={prontuarioLote}
-                          onChange={(e) => setProntuarioLote(e.target.value)}
-                          placeholder="Ex.: LT-123"
+                          id="chart-lot"
+                          value={residentChartLot}
+                          onChange={(e) => setResidentChartLot(e.target.value)}
+                          placeholder="ex.: LT-123"
                           className="rounded-xl"
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="pront-armario" className="text-xs">
+                        <Label htmlFor="chart-cabinet" className="text-xs">
                           Armário
                         </Label>
                         <Select
-                          value={prontuarioArmario}
-                          onValueChange={setProntuarioArmario}
+                          value={residentChartCabinet}
+                          onValueChange={setResidentChartCabinet}
                         >
                           <SelectTrigger
-                            id="pront-armario"
+                            id="chart-cabinet"
                             className="rounded-xl"
                           >
                             <SelectValue placeholder="Todos" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__all">Todos</SelectItem>
-                            {prontuarioArmarioOptions.map((a) => (
+                            {residentChartCabinetOptions.map((a) => (
                               <SelectItem key={a} value={a}>
                                 {a}
                               </SelectItem>
@@ -769,36 +754,38 @@ export default function Resident() {
                         </Select>
                       </div>
                     </div>
-                    {prontuarioLoading ? (
+                    {residentChartLoading ? (
                       <SkeletonTable rows={4} cols={4} />
-                    ) : prontuarioRows.length === 0 ? (
+                    ) : residentChartRows.length === 0 ? (
                       <p className="text-sm text-muted-foreground py-4 text-center rounded-xl border border-dashed border-border/70">
-                        Nenhum item vinculado a esta casela no estoque.
+                        Nenhum item em stock na casela (com os filtros atuais).
                       </p>
                     ) : (
                       <div className="space-y-3">
                         <EditableTable
-                          columns={PRONTUARIO_COLUMNS}
-                          data={prontuarioRows}
+                          columns={RESIDENT_STOCK_CHART_COLUMNS}
+                          data={residentChartRows}
                           readOnly
                           showAddons={false}
                         />
 
                         <div className="flex flex-col items-center justify-center gap-2 pt-1">
                           <p className="text-xs text-muted-foreground">
-                            Mostrando{" "}
+                            A mostrar{" "}
                             <span className="font-medium text-foreground">
-                              {prontuarioTotal === 0
+                              {residentChartTotal === 0
                                 ? 0
-                                : (prontuarioPage - 1) * PRONTUARIO_PAGE_SIZE +
+                                : (residentChartPage - 1) *
+                                    RESIDENT_CHART_PAGE_SIZE +
                                   1}
                               –
-                              {(prontuarioPage - 1) * PRONTUARIO_PAGE_SIZE +
-                                prontuarioRows.length}
+                              {(residentChartPage - 1) *
+                                RESIDENT_CHART_PAGE_SIZE +
+                                residentChartRows.length}
                             </span>{" "}
                             de{" "}
                             <span className="font-medium text-foreground">
-                              {prontuarioTotal}
+                              {residentChartTotal}
                             </span>
                           </p>
                           <div className="flex items-center justify-center gap-2">
@@ -808,14 +795,15 @@ export default function Resident() {
                               size="sm"
                               className="rounded-xl min-w-[7rem]"
                               onClick={() =>
-                                setProntuarioPage((p) => Math.max(1, p - 1))
+                                setResidentChartPage((p) => Math.max(1, p - 1))
                               }
-                              disabled={prontuarioPage <= 1}
+                              disabled={residentChartPage <= 1}
                             >
                               Anterior
                             </Button>
                             <span className="text-xs text-muted-foreground">
-                              Página {prontuarioPage} de {prontuarioTotalPages}
+                              Página {residentChartPage} de{" "}
+                              {residentChartTotalPages}
                             </span>
                             <Button
                               type="button"
@@ -823,17 +811,17 @@ export default function Resident() {
                               size="sm"
                               className="rounded-xl min-w-[7rem]"
                               onClick={() =>
-                                setProntuarioPage((p) =>
-                                  Math.min(prontuarioTotalPages, p + 1),
+                                setResidentChartPage((p) =>
+                                  Math.min(residentChartTotalPages, p + 1),
                                 )
                               }
                               disabled={
                                 previewMode
-                                  ? prontuarioPage >= prontuarioTotalPages
-                                  : !prontuarioHasNext
+                                  ? residentChartPage >= residentChartTotalPages
+                                  : !residentChartHasNext
                               }
                             >
-                              Próximo
+                              Seguinte
                             </Button>
                           </div>
                         </div>

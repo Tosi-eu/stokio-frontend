@@ -1,4 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+} from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -20,17 +26,8 @@ import {
   getErrorMessage,
   USER_FACING_RETRY_SHORT,
 } from "@/helpers/validation.helper";
-
-function formatLoginTenantChoice(t: LoginTenantSummary): string {
-  const brand = t.brandName?.trim();
-  const name = t.tenantName?.trim();
-  if (brand && name && brand !== name) {
-    return `${brand} — ${name} (${t.slug})`;
-  }
-  if (brand) return `${brand} (${t.slug})`;
-  if (name) return `${name} (${t.slug})`;
-  return `${t.label} (${t.slug})`;
-}
+import { formatLoginTenantChoice } from "@/components/auth/auth.utils";
+import type { AuthProps } from "@/components/auth/auth.types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,14 +58,23 @@ import {
   validateTextInput,
 } from "@/helpers/validation.helper";
 import { prefetchTenantBrandLogoBeforeInicioNavigation } from "@/helpers/tenant-brand-logo-prefetch.helper";
-import { BarChart3, Package, ShieldCheck } from "lucide-react";
+import { ArrowUp, ChevronDown } from "lucide-react";
+import { ContactFormSection } from "@/components/ContactFormSection";
+import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
+import { AuthMarketingAside } from "@/components/auth/AuthMarketingAside";
+import { AuthMobileHeader } from "@/components/auth/AuthMobileHeader";
+import { AuthMobileAnchorBar } from "@/components/auth/AuthMobileAnchorBar";
+import { AuthSkipLinks } from "@/components/auth/AuthSkipLinks";
 
-export default function Auth() {
+export default function Auth({ scrollToSection = "auth" }: AuthProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const { login: authLogin } = useAuth();
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  });
 
   const [isLogin, setIsLogin] = useState(true);
   const [login, setLogin] = useState("");
@@ -96,6 +102,7 @@ export default function Auth() {
   const [userContractCode, setUserContractCode] = useState("");
 
   const contractVerifyBackgroundErrorAtRef = useRef(0);
+  const authEmailRef = useRef<HTMLInputElement>(null);
   const [viewModeConfirmOpen, setViewModeConfirmOpen] = useState(false);
   const [pendingUserSignup, setPendingUserSignup] = useState<{
     login: string;
@@ -116,6 +123,23 @@ export default function Auth() {
       if (email) setLogin(email);
     }
   }, [searchParams]);
+
+  useLayoutEffect(() => {
+    if (scrollToSection !== "contact") return;
+    const scrollContactIntoView = () => {
+      const el = document.getElementById("contact");
+      if (!el) return;
+      const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      el.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "start",
+      });
+    };
+    scrollContactIntoView();
+    requestAnimationFrame(scrollContactIntoView);
+  }, [scrollToSection]);
 
   useEffect(() => {
     setPasswordStrength(null);
@@ -246,12 +270,19 @@ export default function Auth() {
   }, [isLogin, login]);
 
   useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return;
+    }
     setIsVisible(false);
     const timer = setTimeout(() => {
       setIsVisible(true);
     }, 50);
     return () => clearTimeout(timer);
   }, []);
+
+  const focusPrimaryAuthField = () => {
+    requestAnimationFrame(() => authEmailRef.current?.focus());
+  };
 
   const handlePasswordChange = (value: string) => {
     const sanitized = sanitizeInput(value);
@@ -619,16 +650,22 @@ export default function Auth() {
     setAuthHeaderImgSrc(authHeaderLogoSrc);
   }, [authHeaderLogoSrc]);
 
+  const handleAuthLogoFallback = useCallback(() => {
+    setAuthHeaderImgSrc((current) =>
+      current === "/default_logo.png" ? current : "/default_logo.png",
+    );
+  }, []);
+
   const inputFieldClass =
     "h-11 rounded-xl border-border/70 bg-background/95 shadow-sm transition-shadow focus-visible:ring-primary/30";
 
   return (
     <div
-      className="min-h-screen flex flex-col bg-brand-mesh lg:flex-row"
-      style={{
-        opacity: isVisible ? 1 : 0,
-        transition: "opacity 0.6s ease-in",
-      }}
+      className={cn(
+        "flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-brand-mesh lg:flex-row",
+        "transition-opacity duration-700 ease-in motion-reduce:transition-none",
+        !isVisible ? "opacity-0 motion-reduce:opacity-100" : "opacity-100",
+      )}
     >
       <AlertDialog
         open={viewModeConfirmOpen}
@@ -694,472 +731,452 @@ export default function Auth() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Painel de marca — desktop */}
-      <aside className="relative hidden shrink-0 overflow-hidden lg:flex lg:min-h-screen lg:w-[min(42%,480px)] lg:flex-col lg:justify-between bg-brand-strip px-10 py-12 text-primary-foreground xl:px-14">
-        <div
-          className="pointer-events-none absolute -right-24 top-1/4 h-72 w-72 rounded-full bg-white/10 blur-3xl"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute -left-16 bottom-0 h-56 w-56 rounded-full bg-cyan-300/20 blur-3xl"
-          aria-hidden
-        />
-        <div className="relative z-10 space-y-8">
-          <div className="flex w-full justify-center px-2">
-            <div className="inline-flex max-w-full items-center justify-center rounded-2xl bg-white/12 p-4 ring-1 ring-white/25 backdrop-blur-sm xl:p-5">
-              <img
-                key={`aside-${authHeaderImgSrc}`}
-                src={authHeaderImgSrc}
-                alt=""
-                className="mx-auto block h-44 w-auto max-w-[min(100%,460px)] object-contain object-center xl:h-52 xl:max-w-[min(100%,500px)] 2xl:h-56"
-                referrerPolicy="no-referrer"
-                onError={() => {
-                  setAuthHeaderImgSrc((current) =>
-                    current === "/default_logo.png"
-                      ? current
-                      : "/default_logo.png",
-                  );
-                }}
-              />
-            </div>
-          </div>
-          <div className="space-y-3">
-            <p className="font-display text-2xl font-semibold leading-tight tracking-tight xl:text-3xl">
-              Estoque do abrigo, simples e organizado.
-            </p>
-            <p className="max-w-sm text-sm leading-relaxed text-primary-foreground/85">
-              Menos planilhas. Mais controle.
-            </p>
-          </div>
-          <ul className="space-y-4 text-sm text-primary-foreground/90">
-            <li className="flex gap-3">
-              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
-                <Package className="h-4 w-4" aria-hidden />
-              </span>
-              <span className="font-medium text-white">Entradas e saídas</span>
-            </li>
-            <li className="flex gap-3">
-              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
-                <ShieldCheck className="h-4 w-4" aria-hidden />
-              </span>
-              <span className="font-medium text-white">Acesso por perfil</span>
-            </li>
-            <li className="flex gap-3">
-              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
-                <BarChart3 className="h-4 w-4" aria-hidden />
-              </span>
-              <span className="font-medium text-white">
-                Relatórios em segundos
-              </span>
-            </li>
-          </ul>
-        </div>
-        <p className="relative z-10 mx-auto w-full max-w-sm shrink-0 px-2 text-center text-xs leading-snug text-primary-foreground/65">
-          © {new Date().getFullYear()} {APP_PUBLIC_NAME}
-        </p>
-      </aside>
+      <AuthMarketingAside
+        logoSrc={authHeaderImgSrc}
+        onLogoFallback={handleAuthLogoFallback}
+      />
 
-      <div className="flex min-h-screen flex-1 flex-col">
-        <header className="shrink-0 border-b border-border/60 bg-card/80 backdrop-blur-md lg:border-0 lg:bg-transparent lg:backdrop-blur-none">
-          <div className="mx-auto flex max-w-lg items-center gap-3 px-4 py-5 sm:px-6 lg:max-w-none lg:justify-end lg:px-10 lg:py-8">
-            <img
-              key={authHeaderImgSrc}
-              src={authHeaderImgSrc}
-              alt={APP_PUBLIC_NAME}
-              className="h-10 w-auto max-w-[200px] object-contain object-left drop-shadow-sm lg:hidden"
-              referrerPolicy="no-referrer"
-              onError={() => {
-                setAuthHeaderImgSrc((current) =>
-                  current === "/default_logo.png"
-                    ? current
-                    : "/default_logo.png",
-                );
-              }}
-            />
-            <div className="min-w-0 flex-1 lg:hidden">
-              <p className="font-display truncate text-base font-semibold text-foreground">
-                {APP_PUBLIC_NAME}
-              </p>
-              <p className="mt-0.5 text-xs leading-snug text-muted-foreground line-clamp-2">
-                Medicamentos e estoque organizados para o seu abrigo.
-              </p>
-            </div>
-          </div>
-        </header>
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <AuthSkipLinks />
+        <div className="flex min-h-0 flex-1 snap-y snap-proximity flex-col overflow-y-auto scroll-smooth overscroll-y-contain motion-reduce:snap-none pb-[5.25rem] lg:pb-0">
+          <AuthMobileHeader
+            logoSrc={authHeaderImgSrc}
+            onLogoFallback={handleAuthLogoFallback}
+          />
 
-        <main className="flex flex-1 items-start justify-center px-4 pb-16 pt-2 sm:px-6 lg:items-center lg:px-10 lg:pb-20 lg:pt-0">
-          <div className="w-full max-w-md">
-            <Card className="border-border/70 bg-card/95 shadow-elevated backdrop-blur-sm">
-              <CardHeader className="space-y-1 pb-2">
-                <CardTitle className="font-display text-2xl">
-                  {isLogin ? "Entrar" : "Nova conta"}
-                </CardTitle>
-                <CardDescription>
-                  {isLogin
-                    ? "Acesse com seu e-mail e senha."
-                    : "Crie sua conta rápido ou use um convite."}
-                </CardDescription>
-              </CardHeader>
+          <main id="auth-page-main">
+            <h1 className="sr-only">
+              Iniciar sessão e contacto · {APP_PUBLIC_NAME}
+            </h1>
 
-              <CardContent className="space-y-6 pt-2">
-                <div
-                  className="grid grid-cols-2 gap-1 rounded-xl bg-muted/70 p-1 ring-1 ring-border/60"
-                  role="tablist"
-                  aria-label="Modo de acesso"
+            <section
+              id="auth"
+              aria-label="Entrar ou cadastrar"
+              className="relative flex min-h-[100dvh] snap-start scroll-mt-24 flex-col justify-center border-b border-border/40 bg-gradient-to-b from-background/50 via-brand-mesh to-muted/15 px-4 pb-20 pt-4 sm:px-6 lg:min-h-[100dvh] lg:scroll-mt-28 lg:px-10 lg:pb-28 lg:pt-8"
+            >
+              <div className="mx-auto w-full max-w-md">
+                <header className="mb-8 space-y-3 sm:mb-10"></header>
+
+                <Card
+                  id="auth-main"
+                  className={cn(
+                    pageSurfaceCardClass,
+                    "bg-card/95 backdrop-blur-sm",
+                  )}
                 >
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={isLogin}
-                    onClick={() => setIsLogin(true)}
-                    className={cn(
-                      "rounded-lg py-2.5 text-sm font-semibold transition-all",
-                      isLogin
-                        ? "bg-background text-foreground shadow-sm ring-1 ring-border/50"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    Entrar
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={!isLogin}
-                    onClick={() => setIsLogin(false)}
-                    className={cn(
-                      "rounded-lg py-2.5 text-sm font-semibold transition-all",
-                      !isLogin
-                        ? "bg-background text-foreground shadow-sm ring-1 ring-border/50"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    Cadastrar
-                  </button>
-                </div>
+                  <CardHeader className="space-y-1 pb-2">
+                    <CardTitle className="font-display text-2xl">
+                      {isLogin ? "Entrar" : "Nova conta"}
+                    </CardTitle>
+                    <CardDescription>
+                      {isLogin
+                        ? "Acesse com seu e-mail e senha."
+                        : "Crie sua conta rápido ou use um convite."}
+                    </CardDescription>
+                  </CardHeader>
 
-                <Separator className="bg-border/70" />
-
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  {!isLogin && (
-                    <div className="space-y-2">
-                      <span className="block text-sm font-medium leading-none text-foreground">
-                        Tipo
-                      </span>
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSignupFlow("user");
-                            setInviteToken("");
-                          }}
-                          className={cn(
-                            "rounded-xl border px-3 py-2.5 text-left text-sm transition-colors",
-                            signupFlow === "user"
-                              ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/30"
-                              : "border-border bg-background hover:bg-muted/50 text-muted-foreground",
-                          )}
-                        >
-                          <span className="font-medium text-foreground">
-                            Utilizador
-                          </span>
-                          <span className="mt-0.5 block text-xs text-muted-foreground">
-                            Criar conta para navegar.
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSignupFlow("join-token");
-                            setUserContractCode("");
-                          }}
-                          className={cn(
-                            "rounded-xl border px-3 py-2.5 text-left text-sm transition-colors",
-                            signupFlow === "join-token"
-                              ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/30"
-                              : "border-border bg-background hover:bg-muted/50 text-muted-foreground",
-                          )}
-                        >
-                          <span className="font-medium text-foreground">
-                            Convite
-                          </span>
-                          <span className="mt-0.5 block text-xs text-muted-foreground">
-                            Token recebido por e-mail.
-                          </span>
-                        </button>
-                      </div>
+                  <CardContent className="space-y-6 pt-2">
+                    <div
+                      className="grid grid-cols-2 gap-1 rounded-xl bg-muted/70 p-1 ring-1 ring-border/60"
+                      role="tablist"
+                      aria-label="Modo de acesso"
+                    >
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={isLogin}
+                        onClick={() => {
+                          setIsLogin(true);
+                          focusPrimaryAuthField();
+                        }}
+                        className={cn(
+                          "rounded-lg py-2.5 text-sm font-semibold transition-all",
+                          isLogin
+                            ? "bg-background text-foreground shadow-sm ring-1 ring-border/50"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        Entrar
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={!isLogin}
+                        onClick={() => {
+                          setIsLogin(false);
+                          focusPrimaryAuthField();
+                        }}
+                        className={cn(
+                          "rounded-lg py-2.5 text-sm font-semibold transition-all",
+                          !isLogin
+                            ? "bg-background text-foreground shadow-sm ring-1 ring-border/50"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        Cadastrar
+                      </button>
                     </div>
-                  )}
 
-                  {!isLogin && signupFlow === "join-token" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="invite-token">Token de entrada</Label>
-                      <Input
-                        id="invite-token"
-                        type="text"
-                        autoComplete="off"
-                        value={inviteToken}
-                        onChange={(e) => setInviteToken(e.target.value)}
-                        required
-                        className={cn(inputFieldClass, "font-mono text-xs")}
-                        placeholder="Cole o token enviado pelo administrador"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Não precisa de código de contrato — só do token único.
-                      </p>
-                    </div>
-                  )}
+                    <Separator className="bg-border/70" />
 
-                  {!isLogin && (
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="first-name">Nome</Label>
-                        <Input
-                          id="first-name"
-                          type="text"
-                          value={firstName}
-                          onChange={(e) =>
-                            setFirstName(sanitizeInput(e.target.value))
-                          }
-                          maxLength={100}
-                          className={inputFieldClass}
-                          placeholder="Fulano"
-                          required
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="last-name">Sobrenome</Label>
-                        <Input
-                          id="last-name"
-                          type="text"
-                          value={lastName}
-                          onChange={(e) =>
-                            setLastName(sanitizeInput(e.target.value))
-                          }
-                          maxLength={100}
-                          className={inputFieldClass}
-                          placeholder="Silva"
-                          required
-                        />
-                      </div>
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                    <Label htmlFor="auth-email">E-mail</Label>
-                    <Input
-                      id="auth-email"
-                      type="email"
-                      value={login}
-                      onChange={(e) => setLogin(sanitizeInput(e.target.value))}
-                      maxLength={255}
-                      className={inputFieldClass}
-                      placeholder="fulana@gmail.com"
-                      autoComplete="email"
-                      required
-                    />
-                  </div>
-
-                  {!isLogin && signupFlow === "user" ? (
-                    <div className="space-y-2">
-                      <Label htmlFor="contract-code">
-                        Código do contrato{" "}
-                        <span className="font-normal text-muted-foreground">
-                          (opcional)
-                        </span>
-                      </Label>
-                      <Input
-                        id="contract-code"
-                        type="text"
-                        autoComplete="off"
-                        value={userContractCode}
-                        onChange={(e) =>
-                          setUserContractCode(sanitizeInput(e.target.value))
-                        }
-                        maxLength={256}
-                        className={inputFieldClass}
-                        placeholder="Se você já tem, cole aqui"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Opcional. Se informar, usamos apenas para configurar o
-                        abrigo depois — não mostramos aqui se o código está
-                        correto.
-                      </p>
-                    </div>
-                  ) : null}
-
-                  {isLogin && loginEmailValid ? (
-                    <div className="space-y-2 rounded-xl border border-primary/15 bg-primary/[0.04] px-3 py-3 dark:bg-primary/10">
-                      {loginLinkedTenantsLoading ? (
-                        <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span
-                            className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border-2 border-primary/40 border-t-primary animate-spin"
-                            aria-hidden
-                          />
-                          A procurar abrigos com este e-mail registado…
-                        </p>
-                      ) : loginLinkedTenants ===
-                        null ? null : loginLinkedTenants.length === 0 ? (
-                        <p className="text-xs text-amber-800 dark:text-amber-200/90">
-                          Nenhum abrigo encontrado para este e-mail. Em
-                          Cadastro, pode criar utilizador (visualização), abrir
-                          um novo abrigo ou usar um token de entrada.
-                        </p>
-                      ) : loginLinkedTenants.length === 1 ? (
-                        <p className="text-xs text-muted-foreground">
-                          <span className="font-medium text-foreground">
-                            Abrigo:
-                          </span>{" "}
-                          {formatLoginTenantChoice(loginLinkedTenants[0]!)}
-                        </p>
-                      ) : (
-                        <div className="space-y-1.5">
-                          <Label
-                            htmlFor="tenant-slug"
-                            className="text-xs font-medium"
-                          >
-                            Onde quer entrar?
-                          </Label>
-                          <select
-                            id="tenant-slug"
-                            value={tenantSlug}
-                            onChange={(e) => setTenantSlug(e.target.value)}
-                            required
-                            className={cn(inputFieldClass, "bg-background")}
-                          >
-                            <option value="">Selecione o abrigo</option>
-                            {loginLinkedTenants.map((t) => (
-                              <option key={t.slug} value={t.slug}>
-                                {formatLoginTenantChoice(t)}
-                              </option>
-                            ))}
-                          </select>
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                      {!isLogin && (
+                        <div className="space-y-2">
+                          <span className="block text-sm font-medium leading-none text-foreground">
+                            Tipo
+                          </span>
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSignupFlow("user");
+                                setInviteToken("");
+                              }}
+                              className={cn(
+                                "rounded-xl border px-3 py-2.5 text-left text-sm transition-colors",
+                                signupFlow === "user"
+                                  ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/30"
+                                  : "border-border bg-background hover:bg-muted/50 text-muted-foreground",
+                              )}
+                            >
+                              <span className="font-medium text-foreground">
+                                Utilizador
+                              </span>
+                              <span className="mt-0.5 block text-xs text-muted-foreground">
+                                Criar conta para navegar.
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSignupFlow("join-token");
+                                setUserContractCode("");
+                              }}
+                              className={cn(
+                                "rounded-xl border px-3 py-2.5 text-left text-sm transition-colors",
+                                signupFlow === "join-token"
+                                  ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/30"
+                                  : "border-border bg-background hover:bg-muted/50 text-muted-foreground",
+                              )}
+                            >
+                              <span className="font-medium text-foreground">
+                                Convite
+                              </span>
+                              <span className="mt-0.5 block text-xs text-muted-foreground">
+                                Token recebido por e-mail.
+                              </span>
+                            </button>
+                          </div>
                         </div>
                       )}
-                    </div>
-                  ) : null}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="auth-password">Senha</Label>
-                    <Input
-                      id="auth-password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => handlePasswordChange(e.target.value)}
-                      maxLength={128}
-                      className={cn(
-                        inputFieldClass,
-                        !isLogin &&
-                          passwordValidation &&
-                          !passwordValidation.valid
-                          ? "border-destructive/80 focus-visible:ring-destructive/30"
-                          : "",
+                      {!isLogin && signupFlow === "join-token" && (
+                        <div className="space-y-2">
+                          <Label htmlFor="invite-token">Token de entrada</Label>
+                          <Input
+                            id="invite-token"
+                            type="text"
+                            autoComplete="off"
+                            value={inviteToken}
+                            onChange={(e) => setInviteToken(e.target.value)}
+                            required
+                            className={cn(inputFieldClass, "font-mono text-xs")}
+                            placeholder="Cole o token enviado pelo administrador"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Não precisa de código de contrato — só do token
+                            único.
+                          </p>
+                        </div>
                       )}
-                      placeholder="••••••••••••"
-                      autoComplete={
-                        isLogin ? "current-password" : "new-password"
-                      }
-                      required
-                    />
-                    {!isLogin && passwordValidation && (
-                      <div className="mt-1 text-xs">
-                        {passwordValidation.valid ? (
-                          <span
-                            className={
-                              passwordStrength === "strong"
-                                ? "text-primary"
-                                : passwordStrength === "medium"
-                                  ? "text-yellow-600"
-                                  : "text-orange-600"
+
+                      {!isLogin && (
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="first-name">Nome</Label>
+                            <Input
+                              id="first-name"
+                              type="text"
+                              value={firstName}
+                              onChange={(e) =>
+                                setFirstName(sanitizeInput(e.target.value))
+                              }
+                              maxLength={100}
+                              className={inputFieldClass}
+                              placeholder="Fulano"
+                              required
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="last-name">Sobrenome</Label>
+                            <Input
+                              id="last-name"
+                              type="text"
+                              value={lastName}
+                              onChange={(e) =>
+                                setLastName(sanitizeInput(e.target.value))
+                              }
+                              maxLength={100}
+                              className={inputFieldClass}
+                              placeholder="Silva"
+                              required
+                            />
+                          </div>
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <Label htmlFor="auth-email">E-mail</Label>
+                        <Input
+                          ref={authEmailRef}
+                          id="auth-email"
+                          type="email"
+                          value={login}
+                          onChange={(e) =>
+                            setLogin(sanitizeInput(e.target.value))
+                          }
+                          maxLength={255}
+                          className={inputFieldClass}
+                          placeholder="fulana@gmail.com"
+                          autoComplete="email"
+                          required
+                        />
+                      </div>
+
+                      {!isLogin && signupFlow === "user" ? (
+                        <div className="space-y-2">
+                          <Label htmlFor="contract-code">
+                            Código do contrato{" "}
+                            <span className="font-normal text-muted-foreground">
+                              (opcional)
+                            </span>
+                          </Label>
+                          <Input
+                            id="contract-code"
+                            type="text"
+                            autoComplete="off"
+                            value={userContractCode}
+                            onChange={(e) =>
+                              setUserContractCode(sanitizeInput(e.target.value))
                             }
-                          >
-                            ✓ Senha válida - Força:{" "}
-                            {passwordStrength === "strong"
-                              ? "Forte"
-                              : passwordStrength === "medium"
-                                ? "Média"
-                                : "Aceitável"}
-                          </span>
-                        ) : (
-                          <span className="text-red-600">
-                            ✗ {passwordValidation.error}
-                          </span>
+                            maxLength={256}
+                            className={inputFieldClass}
+                            placeholder="Se você já tem, cole aqui"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Opcional.
+                          </p>
+                        </div>
+                      ) : null}
+
+                      {isLogin && loginEmailValid ? (
+                        <div className="space-y-2 rounded-xl border border-primary/15 bg-primary/[0.04] px-3 py-3 dark:bg-primary/10">
+                          {loginLinkedTenantsLoading ? (
+                            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span
+                                className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border-2 border-primary/40 border-t-primary animate-spin"
+                                aria-hidden
+                              />
+                              A procurar abrigos com este e-mail registado…
+                            </p>
+                          ) : loginLinkedTenants ===
+                            null ? null : loginLinkedTenants.length === 0 ? (
+                            <p className="text-xs text-amber-800 dark:text-amber-200/90">
+                              Nenhum abrigo encontrado para este e-mail.
+                            </p>
+                          ) : loginLinkedTenants.length === 1 ? (
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium text-foreground">
+                                Abrigo:
+                              </span>{" "}
+                              {formatLoginTenantChoice(loginLinkedTenants[0]!)}
+                            </p>
+                          ) : (
+                            <div className="space-y-1.5">
+                              <Label
+                                htmlFor="tenant-slug"
+                                className="text-xs font-medium"
+                              >
+                                Onde quer entrar?
+                              </Label>
+                              <select
+                                id="tenant-slug"
+                                value={tenantSlug}
+                                onChange={(e) => setTenantSlug(e.target.value)}
+                                required
+                                className={cn(inputFieldClass, "bg-background")}
+                              >
+                                <option value="">Selecione o abrigo</option>
+                                {loginLinkedTenants.map((t) => (
+                                  <option key={t.slug} value={t.slug}>
+                                    {formatLoginTenantChoice(t)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+
+                      <div className="space-y-2">
+                        <Label htmlFor="auth-password">Senha</Label>
+                        <Input
+                          id="auth-password"
+                          type="password"
+                          value={password}
+                          onChange={(e) => handlePasswordChange(e.target.value)}
+                          maxLength={128}
+                          className={cn(
+                            inputFieldClass,
+                            !isLogin &&
+                              passwordValidation &&
+                              !passwordValidation.valid
+                              ? "border-destructive/80 focus-visible:ring-destructive/30"
+                              : "",
+                          )}
+                          placeholder="••••••••••••"
+                          autoComplete={
+                            isLogin ? "current-password" : "new-password"
+                          }
+                          required
+                        />
+                        {!isLogin && passwordValidation && (
+                          <div className="mt-1 text-xs">
+                            {passwordValidation.valid ? (
+                              <span
+                                className={
+                                  passwordStrength === "strong"
+                                    ? "text-primary"
+                                    : passwordStrength === "medium"
+                                      ? "text-yellow-600"
+                                      : "text-orange-600"
+                                }
+                              >
+                                ✓ Senha válida - Força:{" "}
+                                {passwordStrength === "strong"
+                                  ? "Forte"
+                                  : passwordStrength === "medium"
+                                    ? "Média"
+                                    : "Aceitável"}
+                              </span>
+                            ) : (
+                              <span className="text-red-600">
+                                ✗ {passwordValidation.error}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
-                    )}
-                  </div>
 
-                  {isLogin && (
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="remember-me"
-                          checked={rememberMe}
-                          onCheckedChange={(v) => setRememberMe(v === true)}
-                        />
-                        <Label
-                          htmlFor="remember-me"
-                          className="cursor-pointer text-sm font-normal text-foreground"
-                        >
-                          Lembrar de mim
-                        </Label>
-                      </div>
+                      {isLogin && (
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="remember-me"
+                              checked={rememberMe}
+                              onCheckedChange={(v) => setRememberMe(v === true)}
+                            />
+                            <Label
+                              htmlFor="remember-me"
+                              className="cursor-pointer text-sm font-normal text-foreground"
+                            >
+                              Lembrar de mim
+                            </Label>
+                          </div>
 
-                      <Link
-                        href="/user/forgot-password"
-                        className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                          <Link
+                            href="/user/forgot-password"
+                            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                          >
+                            Esqueci minha senha
+                          </Link>
+                        </div>
+                      )}
+
+                      <Button
+                        type="submit"
+                        size="lg"
+                        disabled={
+                          loading ||
+                          (!isLogin &&
+                            passwordValidation !== null &&
+                            !passwordValidation.valid)
+                        }
+                        className={cn(
+                          "h-12 w-full rounded-xl text-base font-semibold shadow-brand-glow",
+                          loading && "cursor-wait opacity-100",
+                        )}
+                        aria-busy={loading}
                       >
-                        Esqueci minha senha
-                      </Link>
-                    </div>
-                  )}
-
-                  <Button
-                    type="submit"
-                    size="lg"
-                    disabled={
-                      loading ||
-                      (!isLogin &&
+                        {loading ? (
+                          <>
+                            <span
+                              className="h-6 w-6 shrink-0 rounded-full border-2 border-primary-foreground/35 border-t-primary-foreground animate-spin"
+                              aria-hidden
+                            />
+                            <span className="sr-only">
+                              {isLogin ? "A entrar" : "A cadastrar"}
+                            </span>
+                          </>
+                        ) : isLogin ? (
+                          "Entrar"
+                        ) : (
+                          "Cadastrar"
+                        )}
+                      </Button>
+                      {!isLogin &&
                         passwordValidation !== null &&
-                        !passwordValidation.valid)
-                    }
-                    className={cn(
-                      "h-12 w-full rounded-xl text-base font-semibold shadow-brand-glow",
-                      loading && "cursor-wait opacity-100",
-                    )}
-                    aria-busy={loading}
-                  >
-                    {loading ? (
-                      <>
-                        <span
-                          className="h-6 w-6 shrink-0 rounded-full border-2 border-primary-foreground/35 border-t-primary-foreground animate-spin"
-                          aria-hidden
-                        />
-                        <span className="sr-only">
-                          {isLogin ? "A entrar" : "A cadastrar"}
-                        </span>
-                      </>
-                    ) : isLogin ? (
-                      "Entrar"
-                    ) : (
-                      "Cadastrar"
-                    )}
-                  </Button>
-                  {!isLogin &&
-                    passwordValidation !== null &&
-                    !passwordValidation.valid && (
-                      <p className="text-center text-xs text-destructive">
-                        Corrija a senha antes de continuar
-                      </p>
-                    )}
-                </form>
-              </CardContent>
-            </Card>
+                        !passwordValidation.valid && (
+                          <p className="text-center text-xs text-destructive">
+                            Corrija a senha antes de continuar
+                          </p>
+                        )}
+                      <div className="flex justify-center pt-2">
+                        <a
+                          href="#contact"
+                          className="group inline-flex items-center gap-2 rounded-xl border border-border/70 bg-muted/50 px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:border-primary/35 hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                          <span>Ir para contato</span>
+                          <ChevronDown
+                            className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-y-0.5"
+                            aria-hidden
+                          />
+                        </a>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
 
-            <p className="mt-8 text-center text-xs text-muted-foreground/80 lg:hidden">
-              © {new Date().getFullYear()} {APP_PUBLIC_NAME}
-            </p>
-          </div>
-        </main>
+                <p className="mt-8 text-center text-xs text-muted-foreground/80 lg:hidden">
+                  © {new Date().getFullYear()} {APP_PUBLIC_NAME}
+                </p>
+              </div>
+            </section>
+
+            <section
+              id="contact"
+              aria-label="Contacto"
+              className="relative flex min-h-[100dvh] snap-start scroll-mt-24 flex-col justify-center bg-muted/35 px-4 pb-28 pt-14 shadow-[inset_0_1px_0_0_hsl(var(--border)/0.45)] dark:bg-muted/20 sm:px-6 lg:min-h-[100dvh] lg:scroll-mt-28 lg:px-10 lg:pb-36 lg:pt-20"
+            >
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-border/80 to-transparent" />
+
+              <div className="relative mx-auto w-full max-w-md">
+                <ContactFormSection variant="embedded" />
+
+                <p className="mt-10 text-center">
+                  <a
+                    href="#auth"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
+                  >
+                    <ArrowUp className="h-4 w-4 shrink-0" aria-hidden />
+                    Voltar ao início de sessão
+                  </a>
+                </p>
+              </div>
+            </section>
+          </main>
+        </div>
+        <AuthMobileAnchorBar />
       </div>
     </div>
   );

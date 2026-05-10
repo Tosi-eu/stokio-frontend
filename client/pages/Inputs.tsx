@@ -1,8 +1,13 @@
 import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 import Layout from "@/components/Layout";
 import EditableTable from "@/components/EditableTable";
 import { SkeletonTable } from "@/components/SkeletonTable";
 import { TableFilter } from "@/components/TableFilter";
+import { PageSurfaceCard } from "@/components/page/PageSurfaceCard";
+import { EmptyStateCard } from "@/components/medical-record-exports/medical-record-exports.shared";
+import { Button } from "@/components/ui/button";
+import { Bandage } from "lucide-react";
 import { useToast } from "@/hooks/use-toast.hook";
 import { getInputs } from "@/api/requests";
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
@@ -78,39 +83,56 @@ export default function Inputs() {
   }, [searchFilter]);
 
   return (
-    <Layout title="Insumos">
-      <div className="pt-12">
-        <div className="max-w-6xl mx-auto mt-10 bg-white border border-slate-200 rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow">
-          <div className="mb-4">
-            <TableFilter
-              placeholder="Buscar por nome"
-              onFilterChange={setSearchFilter}
-            />
-          </div>
-          {loading ? (
-            <SkeletonTable rows={5} cols={columns.length} />
-          ) : (
-            <EditableTable
-              data={inputs}
-              columns={columns}
-              entityType="inputs"
-              readOnly={previewMode}
-              currentPage={page}
-              hasNextPage={hasNextPage}
-              onNextPage={() => {
-                if (hasNextPage) {
-                  setPage(page + 1);
-                }
-              }}
-              onPrevPage={() => {
-                if (page > 1) {
-                  setPage(page - 1);
-                }
-              }}
-            />
-          )}
+    <Layout
+      title="Insumos"
+      description="Cadastro consultável com busca e paginação."
+    >
+      <PageSurfaceCard className="w-full p-6">
+        <div className="mb-4">
+          <TableFilter
+            placeholder="Buscar por nome"
+            onFilterChange={setSearchFilter}
+          />
         </div>
-      </div>
+        {loading ? (
+          <SkeletonTable rows={5} cols={columns.length} />
+        ) : inputs.length === 0 ? (
+          <EmptyStateCard
+            icon={Bandage}
+            title="Nenhum insumo encontrado"
+            description={
+              searchFilter
+                ? "Tente outro termo de busca ou limpe o filtro."
+                : "Cadastre insumos para vê-los listados aqui."
+            }
+          >
+            {!previewMode ? (
+              <Button asChild variant="secondary" className="rounded-xl">
+                <Link href="/inputs/register">Cadastrar insumo</Link>
+              </Button>
+            ) : null}
+          </EmptyStateCard>
+        ) : (
+          <EditableTable
+            data={inputs}
+            columns={columns}
+            entityType="inputs"
+            readOnly={previewMode}
+            currentPage={page}
+            hasNextPage={hasNextPage}
+            onNextPage={() => {
+              if (hasNextPage) {
+                setPage(page + 1);
+              }
+            }}
+            onPrevPage={() => {
+              if (page > 1) {
+                setPage(page - 1);
+              }
+            }}
+          />
+        )}
+      </PageSurfaceCard>
     </Layout>
   );
 }

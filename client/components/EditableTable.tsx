@@ -33,6 +33,8 @@ import { formatDateToPtBr } from "@/helpers/dates.helper";
 import { getErrorMessage } from "@/helpers/validation.helper";
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import type { PermissionResourceKey } from "@/domain/permission-matrix.types";
+import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
+import { cn } from "@/lib/utils";
 
 import {
   deleteCabinet,
@@ -71,6 +73,7 @@ const toPermissionResourceKey = (
     "tenant",
     "imports",
     "profile",
+    "medical_record_exports",
   ] as const;
   return (allowed as readonly string[]).includes(v)
     ? (v as PermissionResourceKey)
@@ -509,7 +512,7 @@ export default function EditableTable({
   }
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-card text-card-foreground shadow-elevated overflow-hidden ring-1 ring-black/[0.02] dark:ring-white/[0.04]">
+    <div className={cn(pageSurfaceCardClass)}>
       <div className="flex justify-end px-3 sm:px-4 py-3 border-b border-border/60 bg-muted/30 backdrop-blur-[2px]">
         {effectiveShowAddons && (
           <Button
@@ -539,8 +542,8 @@ export default function EditableTable({
             ))}
             {effectiveShowAddons ? <col /> : null}
           </colgroup>
-          <thead>
-            <tr className="bg-muted/80 border-b border-border/60">
+          <thead className="sticky top-0 z-20">
+            <tr className="border-b border-border/60 bg-muted/95 shadow-sm backdrop-blur-sm">
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -557,7 +560,7 @@ export default function EditableTable({
                 </th>
               ))}
               {effectiveShowAddons && (
-                <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground sticky right-0 bg-muted/95 backdrop-blur-sm z-10 min-w-[120px] whitespace-nowrap text-center border-l border-border/40 shadow-[-8px_0_16px_-8px_rgba(0,0,0,0.06)]">
+                <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground sticky right-0 top-0 bg-muted/95 backdrop-blur-sm z-30 min-w-[120px] whitespace-nowrap text-center border-l border-border/40 shadow-[-8px_0_16px_-8px_rgba(0,0,0,0.06)]">
                   Ações
                 </th>
               )}
@@ -583,19 +586,19 @@ export default function EditableTable({
                       variants={rowVariants}
                       initial="initial"
                       animate="animate"
-                      className={`border-b border-border/50 group transition-colors ${
+                      className={`border-b border-border/50 group transition-colors duration-200 ${
                         row
                           ? row.status === "suspended"
                             ? "bg-muted/70"
-                            : "hover:bg-accent/50"
-                          : "bg-card/50 hover:bg-accent/30"
+                            : "hover:bg-muted/50"
+                          : "bg-card/50 hover:bg-muted/40"
                       }`}
                     >
                       {columns.map((col) => (
                         <td
                           key={col.key}
-                          className={`px-4 py-4 text-xs text-center align-middle ${
-                            !row ? "group-hover:bg-accent/40" : ""
+                          className={`px-4 py-3 text-xs text-center align-middle ${
+                            !row ? "group-hover:bg-muted/30" : ""
                           }`}
                         >
                           <div
@@ -617,8 +620,8 @@ export default function EditableTable({
                             row?.status === "suspended"
                               ? "bg-muted/70"
                               : row
-                                ? "bg-card group-hover:bg-accent/50"
-                                : "bg-card/80 group-hover:bg-accent/30"
+                                ? "bg-card group-hover:bg-muted/50"
+                                : "bg-card/80 group-hover:bg-muted/40"
                           }`}
                         >
                           {row && (
@@ -751,7 +754,7 @@ export default function EditableTable({
       </div>
 
       {(onNextPage || onPrevPage) && (
-        <div className="flex justify-center gap-3 py-4 px-4 border-t border-border/60 bg-muted/20">
+        <div className="flex flex-wrap items-center justify-center gap-3 py-4 px-4 border-t border-border/60 bg-muted/20">
           <Button
             type="button"
             variant="outline"

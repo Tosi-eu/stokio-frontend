@@ -1,5 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast.hook";
 import { resetPassword } from "@/api/requests";
@@ -206,6 +207,15 @@ export default function ForgotPassword() {
                 >
                   Voltar
                 </button>
+
+                <p className="text-center text-sm text-muted-foreground">
+                  <Link
+                    href="/contact"
+                    className="font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    Contact
+                  </Link>
+                </p>
               </form>
             </div>
 

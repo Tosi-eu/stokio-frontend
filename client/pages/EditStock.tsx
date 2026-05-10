@@ -36,6 +36,7 @@ import {
   getEnabledSectors,
   resolveSectorProfile,
 } from "@/helpers/tenant-sectors.helper";
+import { getEditStockFormDefaults } from "@/components/edit-stock/edit-stock.defaults";
 
 export default function EditStock() {
   const { uiDisplay, modules } = useTenant();
@@ -77,20 +78,7 @@ export default function EditStock() {
     setValue,
     formState: { errors, isSubmitting },
   } = useFormWithZod(editStockSchema, {
-    defaultValues: {
-      quantidade: 0,
-      armario_id: null,
-      gaveta_id: null,
-      validade: null,
-      origem: null,
-      setor: defaultSetor,
-      lote: null,
-      casela_id: null,
-      tipo: ItemStockType.GERAL,
-      preco: "",
-      observacao: null,
-      dias_para_repor: null,
-    },
+    defaultValues: getEditStockFormDefaults(defaultSetor),
   });
 
   const watchedArmarioId = watch("armario_id");

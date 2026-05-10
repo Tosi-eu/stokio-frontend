@@ -17,7 +17,7 @@ import {
   forceTenantPriceBackfill,
   getTenantPriceBackfillStatus,
   uploadTenantLogoWithProgress,
-  type AdminScheduledBackupConfig,
+  listTenantModuleDefinitions,
   type TenantSetorRow,
 } from "@/api/requests";
 import { getEnabledSectors } from "@/helpers/tenant-sectors.helper";
@@ -45,33 +45,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const MODULE_OPTIONS: Array<{ key: string; label: string }> = [
-  { key: "dashboard", label: "Dashboard" },
-  { key: "residents", label: "Residentes" },
-  { key: "medicines", label: "Medicamentos" },
-  { key: "inputs", label: "Insumos" },
-  { key: "stock", label: "Estoque" },
-  { key: "cabinets", label: "Armários" },
-  { key: "drawers", label: "Gavetas" },
-  { key: "reports", label: "Relatórios" },
-  { key: "notifications", label: "Notificações" },
-  { key: "profile", label: "Perfil (conta e senha)" },
-  { key: "admin", label: "Painel administrativo" },
-];
-
-interface AdminTabConfigProps {
-  form: Record<string, string>;
-  setForm: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  loading: boolean;
-  saving: boolean;
-  onSave: () => void;
-  isSuperAdmin: boolean;
-  scheduledBackup: AdminScheduledBackupConfig;
-  setScheduledBackup: React.Dispatch<
-    React.SetStateAction<AdminScheduledBackupConfig>
-  >;
-}
+import { ADMIN_TAB_CONFIG_MODULE_OPTIONS } from "./admin-tab-config/admin-tab-config.constants";
+import type { AdminTabConfigProps } from "./admin-tab-config/admin-tab-config.types";
 
 export function AdminTabConfig({
   form,
@@ -91,6 +66,9 @@ export function AdminTabConfig({
   const [moduleEnabled, setModuleEnabled] = useState<Set<string>>(
     () => new Set(),
   );
+  const [moduleCatalogOptions, setModuleCatalogOptions] = useState<
+    Array<{ key: string; label: string }>
+  >(() => [...ADMIN_TAB_CONFIG_MODULE_OPTIONS]);
   const [savingModules, setSavingModules] = useState(false);
   const [autoPriceSearch, setAutoPriceSearch] = useState(true);
   const [autoReposicaoNotifications, setAutoReposicaoNotifications] =
@@ -241,8 +219,36 @@ export function AdminTabConfig({
   );
 
   useEffect(() => {
-    setModuleEnabled(new Set(modules?.enabled ?? []));
+    const next = new Set(modules?.enabled ?? []);
+    next.add("admin");
+    setModuleEnabled(next);
   }, [modules]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await listTenantModuleDefinitions();
+        const list = res?.modules;
+        if (
+          !cancelled &&
+          Array.isArray(list) &&
+          list.length > 0 &&
+          list.every(
+            (x) =>
+              x && typeof x.key === "string" && typeof x.label === "string",
+          )
+        ) {
+          setModuleCatalogOptions(list);
+        }
+      } catch {
+        /* mantém fallback ADMIN_TAB_CONFIG_MODULE_OPTIONS */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setEnabledSectors(new Set(getEnabledSectors(modules ?? null)));
@@ -288,8 +294,10 @@ export function AdminTabConfig({
   }, [tenant?.logoUrl, tenant?.slug, tenant?.brandingUpdatedAt]);
 
   const toggleModule = useCallback((key: string) => {
+    if (key === "admin") return;
     setModuleEnabled((prev) => {
       const next = new Set(prev);
+      next.add("admin");
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
@@ -332,10 +340,14 @@ export function AdminTabConfig({
       const merged = new Set(getEnabledSectors(modules ?? null));
       merged.add(key);
 
-      const enabledList =
-        moduleEnabled.size > 0
-          ? Array.from(moduleEnabled)
-          : (modules?.enabled ?? []);
+      const enabledList = Array.from(
+        new Set([
+          ...(moduleEnabled.size > 0
+            ? Array.from(moduleEnabled)
+            : (modules?.enabled ?? [])),
+          "admin",
+        ]),
+      );
 
       if (enabledList.length > 0) {
         setEnabledSectors(merged);
@@ -488,7 +500,7 @@ export function AdminTabConfig({
     setSavingModules(true);
     try {
       await updateTenantConfig({
-        enabled: Array.from(moduleEnabled),
+        enabled: Array.from(new Set([...moduleEnabled, "admin"])),
         automatic_price_search: autoPriceSearch,
         automatic_reposicao_notifications: autoReposicaoNotifications,
         enabled_sectors: Array.from(enabledSectors),
@@ -647,20 +659,26 @@ export function AdminTabConfig({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {MODULE_OPTIONS.map((m) => {
-                  const on = moduleEnabled.has(m.key);
+                {moduleCatalogOptions.map((m) => {
+                  const lockedAdmin = m.key === "admin";
+                  const on = lockedAdmin || moduleEnabled.has(m.key);
                   return (
                     <label
                       key={m.key}
                       className={cn(
-                        "flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors",
-                        on
-                          ? "border-primary/40 bg-primary/5"
-                          : "hover:bg-muted/40",
+                        "flex items-center gap-3 rounded-lg border p-3 transition-colors",
+                        lockedAdmin
+                          ? "border-border/80 bg-muted/20 cursor-not-allowed opacity-90"
+                          : "cursor-pointer",
+                        !lockedAdmin &&
+                          (on
+                            ? "border-primary/40 bg-primary/5"
+                            : "hover:bg-muted/40"),
                       )}
                     >
                       <Checkbox
                         checked={on}
+                        disabled={lockedAdmin}
                         onCheckedChange={() => toggleModule(m.key)}
                         aria-label={m.label}
                       />

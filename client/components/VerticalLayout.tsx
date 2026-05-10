@@ -14,6 +14,7 @@ import {
   User,
   LogOut,
   ShieldCheck,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
@@ -82,9 +83,27 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
     : sidebarLogoSrc;
   const sidebarLogoReady = isViewerTenant ? true : isLogoResolved;
 
+  const showAdminNavItems =
+    (previewMode || user?.role === "admin") && isEnabled("admin");
+
   const navigationTabs = [
-    ...((previewMode || user?.role === "admin") && isEnabled("admin")
-      ? [{ name: "Painel administrativo", href: "/admin", icon: ShieldCheck }]
+    ...(showAdminNavItems
+      ? [
+          {
+            name: "Painel administrativo",
+            href: "/admin",
+            icon: ShieldCheck,
+          },
+        ]
+      : []),
+    ...(showAdminNavItems && isEnabled("medical_record_exports")
+      ? [
+          {
+            name: "Prontuários",
+            href: "/admin/medical-record-exports",
+            icon: FileText,
+          },
+        ]
       : []),
     ...baseNavigationTabs.filter((t) => {
       const mod = (t as { module?: string }).module;
@@ -146,8 +165,11 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
       >
         {navigationTabs.map((item) => {
           const isActive =
-            pathname === item.href ||
-            (item.href !== homeHref && pathname.startsWith(item.href));
+            item.href === "/admin"
+              ? pathname === "/admin"
+              : pathname === item.href ||
+                (item.href !== homeHref &&
+                  pathname.startsWith(`${item.href}/`));
 
           const Icon = item.icon;
 
@@ -155,15 +177,19 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
             <Link
               key={item.name}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+              className={`flex min-h-[44px] items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
                 ${
                   isActive
-                    ? "bg-primary/12 text-primary shadow-sm border border-primary/15"
-                    : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm border border-sidebar-border"
+                    : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground"
                 }`}
               aria-current={isActive ? "page" : undefined}
             >
-              <Icon className="h-4 w-4" aria-hidden="true" />
+              <Icon
+                className={`h-4 w-4 shrink-0 ${isActive ? "opacity-100" : "opacity-90"}`}
+                aria-hidden="true"
+                strokeWidth={isActive ? 2.25 : 2}
+              />
               <span>{item.name}</span>
             </Link>
           );

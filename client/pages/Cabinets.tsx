@@ -43,6 +43,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
 import {
   Select,
   SelectContent,
@@ -50,30 +51,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const STOCK_DETAIL_COLUMNS = [
-  { key: "stockType", label: "Tipo", editable: false },
-  { key: "name", label: "Nome", editable: false },
-  { key: "quantity", label: "Qtd.", editable: false },
-  { key: "expiry", label: "Validade", editable: false },
-  { key: "drawer", label: "Gaveta", editable: false },
-  { key: "casela", label: "Casela", editable: false },
-  { key: "sector", label: "Setor", editable: false },
-  { key: "lot", label: "Lote", editable: false },
-];
-
-function stockItemsToDetailRows(items: StockItem[]): Record<string, unknown>[] {
-  return items.map((i) => ({
-    stockType: i.stockType,
-    name: i.name,
-    quantity: i.quantity,
-    expiry: i.expiry,
-    drawer: i.drawer ?? "—",
-    casela: i.casela ?? "—",
-    sector: i.sector,
-    lot: i.lot ?? "—",
-  }));
-}
+import {
+  CABINET_STOCK_DETAIL_COLUMNS,
+  stockItemsToCabinetDetailRows,
+} from "@/components/cabinets/cabinets.stock-detail";
 
 export default function Cabinets() {
   const { previewMode, modules } = useTenant();
@@ -353,7 +334,7 @@ export default function Cabinets() {
   }, [previewMode, selectedNumero, loadCabinets]);
 
   const filteredDetailRows = useMemo(() => {
-    const base = stockItemsToDetailRows(stockRows);
+    const base = stockItemsToCabinetDetailRows(stockRows);
 
     return base;
   }, [stockRows]);
@@ -422,7 +403,7 @@ export default function Cabinets() {
         ) : null}
 
         {selectedCabinet && selectedNumero != null ? (
-          <section className="rounded-2xl border border-border/70 bg-card shadow-elevated overflow-hidden ring-1 ring-black/[0.02] dark:ring-white/[0.04]">
+          <section className={pageSurfaceCardClass}>
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 sm:p-6 border-b border-border/60 bg-muted/25">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-950 dark:bg-amber-950/40 dark:text-amber-100">
                 <span className="text-2xl font-bold">{selectedNumero}</span>
@@ -523,12 +504,15 @@ export default function Cabinets() {
                 </div>
               </div>
               {loadingStock ? (
-                <SkeletonTable rows={5} cols={STOCK_DETAIL_COLUMNS.length} />
+                <SkeletonTable
+                  rows={5}
+                  cols={CABINET_STOCK_DETAIL_COLUMNS.length}
+                />
               ) : (
                 <div className="space-y-4">
                   <EditableTable
                     data={filteredDetailRows}
-                    columns={STOCK_DETAIL_COLUMNS}
+                    columns={CABINET_STOCK_DETAIL_COLUMNS}
                     showAddons={false}
                     readOnly
                   />

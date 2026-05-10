@@ -11,170 +11,36 @@ import {
   getMedicineMovements,
   getResidents,
 } from "@/api/requests";
-import { Card } from "@/components/ui/card";
-import type { RawMovement } from "@/interfaces/interfaces";
+import { PageSurfaceCard } from "@/components/page/PageSurfaceCard";
+import { PageSection } from "@/components/page/PageSection";
+import { pageStackClass } from "@/components/page/page-ui.constants";
+import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine } from "lucide-react";
+import type { Column, RawMovement } from "@/interfaces/interfaces";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { getPreviewMovementRows } from "@/helpers/preview-mock-data";
 import { MovementType } from "@/utils/enums";
-import {
-  formatCaselaLabel,
-  formatGavetaLabel,
-} from "@/helpers/storage-location-display.helper";
-import { formatDateToPtBr } from "@/helpers/dates.helper";
 import { getErrorMessage } from "@/helpers/validation.helper";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { ChevronsUpDown } from "lucide-react";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
 import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
 import {
   buildSectorFilterOptions,
   getEnabledSectors,
 } from "@/helpers/tenant-sectors.helper";
+import type {
+  MovementFilters,
+  MovementRow,
+} from "@/components/movements/movements.types";
+import { DEFAULT_MOVEMENT_FILTERS } from "@/components/movements/movements.types";
+import {
+  MOVEMENTS_REQUEST_LIMIT,
+  MOVEMENTS_TABLE_LIMIT,
+} from "@/components/movements/movements.constants";
+import { MOVEMENTS_TABLE_COLUMNS } from "@/components/movements/movements.table-columns";
+import { applyMovementFilters } from "@/components/movements/movements.filters";
+import { normalizeMovement } from "@/components/movements/movements.normalize";
+import { MovementsFiltersSection } from "@/components/movements/MovementsFiltersSection";
 
-const TABLE_LIMIT = 10;
-const REQUEST_LIMIT = 5;
-
-function SearchableSelect<T extends { value: string; label: string }>({
-  label,
-  placeholder,
-  value,
-  onChange,
-  options,
-  triggerClassName,
-  searchPlaceholder = "Buscar...",
-}: {
-  label: string;
-  placeholder?: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: T[];
-  triggerClassName?: string;
-  searchPlaceholder?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-
-  const selectedLabel = useMemo(() => {
-    if (!value) return "";
-    return options.find((o) => o.value === value)?.label ?? "";
-  }, [options, value]);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter((o) => o.label.toLowerCase().includes(q));
-  }, [options, search]);
-
-  return (
-    <div className="min-w-[150px]">
-      <Label className="text-xs">{label}</Label>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            role="combobox"
-            className={`w-full justify-between mt-1 h-8 px-2 text-xs ${triggerClassName ?? ""}`}
-          >
-            <span className="truncate">
-              {selectedLabel || placeholder || "Selecione"}
-            </span>
-            <ChevronsUpDown className="h-4 w-4 opacity-60" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-          <Command shouldFilter={false}>
-            <CommandInput
-              placeholder={searchPlaceholder}
-              value={search}
-              onValueChange={setSearch}
-            />
-            <CommandEmpty>Nenhum resultado.</CommandEmpty>
-            <CommandGroup>
-              <CommandItem
-                value="all"
-                onSelect={() => {
-                  onChange("");
-                  setSearch("");
-                  setOpen(false);
-                }}
-              >
-                Todos
-              </CommandItem>
-              {filtered.map((o) => (
-                <CommandItem
-                  key={o.value}
-                  value={o.value}
-                  onSelect={() => {
-                    onChange(o.value);
-                    setSearch("");
-                    setOpen(false);
-                  }}
-                >
-                  {o.label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </Command>
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-}
-
-type MovementRow = {
-  id: number | undefined;
-  name: string | undefined;
-  additionalData: string | null | undefined;
-  quantity: number | undefined;
-  operator: string | undefined;
-  movementDate: string;
-  _movementDateSort: number;
-  cabinet: number | string;
-  cabinetNumber: number | null;
-  cabinetCategory: string | null;
-  drawerDisplay: string;
-  drawerNumber: number | null;
-  drawerCategory: string | null;
-  resident: string;
-  residentCasela: number | null;
-  residentName: string | null;
-  type: string | undefined;
-  sector: string;
-  lot: string;
-};
-
-type MovementFilters = {
-  produto: string;
-  armario: string;
-  gaveta: string;
-  casela: string;
-  setor: string;
-  lote: string;
-};
-
-const DEFAULT_FILTERS: MovementFilters = {
-  produto: "",
-  armario: "",
-  gaveta: "",
-  casela: "",
-  setor: "",
-  lote: "",
-};
+const TABLE_COLUMNS = MOVEMENTS_TABLE_COLUMNS as unknown as Column[];
 
 export default function InputMovements() {
   const { uiDisplay, previewMode, modules } = useTenant();
@@ -217,12 +83,13 @@ export default function InputMovements() {
     Array<{ numero: number; categoria: string }>
   >([]);
 
-  const [entriesFilters, setEntriesFilters] =
-    useState<MovementFilters>(DEFAULT_FILTERS);
-  const [exitsFilters, setExitsFilters] =
-    useState<MovementFilters>(DEFAULT_FILTERS);
-  const [transfersFilters, setTransfersFilters] =
-    useState<MovementFilters>(DEFAULT_FILTERS);
+  const [entriesFilters, setEntriesFilters] = useState(
+    DEFAULT_MOVEMENT_FILTERS,
+  );
+  const [exitsFilters, setExitsFilters] = useState(DEFAULT_MOVEMENT_FILTERS);
+  const [transfersFilters, setTransfersFilters] = useState(
+    DEFAULT_MOVEMENT_FILTERS,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -284,28 +151,11 @@ export default function InputMovements() {
   const filteredResidentOptions = useMemo(() => {
     const q = residentSearch.trim().toLowerCase();
     if (!q) return residentOptions;
-    if (/^\\d+$/.test(q)) {
+    if (/^\d+$/.test(q)) {
       return residentOptions.filter((r) => String(r.casela).startsWith(q));
     }
     return residentOptions.filter((r) => r.name.toLowerCase().includes(q));
   }, [residentOptions, residentSearch]);
-
-  function parseMovementDateMs(raw: unknown): number {
-    const s = String(raw ?? "").trim();
-    if (!s) return 0;
-    // "YYYY-MM-DD" (sem horário) costuma virar UTC; forçamos data local.
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-    if (m) {
-      const y = Number(m[1]);
-      const mo = Number(m[2]) - 1;
-      const d = Number(m[3]);
-      return new Date(y, mo, d, 12, 0, 0, 0).getTime();
-    }
-    const ms = Date.parse(s);
-    if (Number.isFinite(ms)) return ms;
-    const ms2 = Date.parse(s.replace(" ", "T"));
-    return Number.isFinite(ms2) ? ms2 : 0;
-  }
 
   const resetEntriesPaging = useCallback(() => {
     setEntriesInputPage(1);
@@ -336,151 +186,11 @@ export default function InputMovements() {
     [],
   );
 
-  const columnsBase = [
-    { key: "name", label: "Produto", editable: false },
-    { key: "additionalData", label: "Complemento", editable: false },
-    { key: "quantity", label: "Quantidade", editable: false },
-    { key: "operator", label: "Usuário", editable: false },
-    { key: "movementDate", label: "Data", editable: false },
-    { key: "cabinet", label: "Armário", editable: false },
-    { key: "drawerDisplay", label: "Gaveta", editable: false },
-    { key: "resident", label: "Casela", editable: false },
-    { key: "sector", label: "Setor", editable: false },
-    { key: "lot", label: "Lote", editable: false },
-  ];
-
-  const applyFilters = useCallback(
-    (rows: MovementRow[], filters: MovementFilters): MovementRow[] => {
-      const produto = filters.produto.trim().toLowerCase();
-      const armario = filters.armario.trim();
-      const gaveta = filters.gaveta.trim();
-      const casela = filters.casela.trim();
-      const setor = filters.setor.trim().toLowerCase();
-      const lote = filters.lote.trim().toLowerCase();
-
-      return rows.filter((r) => {
-        if (produto) {
-          const name = String(r.name ?? "").toLowerCase();
-          const add = String(r.additionalData ?? "").toLowerCase();
-          if (!name.includes(produto) && !add.includes(produto)) return false;
-        }
-
-        if (armario) {
-          const n = Number(armario);
-          if (!Number.isNaN(n)) {
-            if (r.cabinetNumber !== n) return false;
-          } else {
-            const cat = String(r.cabinetCategory ?? "").toLowerCase();
-            if (!cat.includes(armario.toLowerCase())) return false;
-          }
-        }
-
-        if (gaveta) {
-          if (uiDisplay.gaveta === "numero") {
-            const n = Number(gaveta);
-            if (Number.isNaN(n) || r.drawerNumber !== n) return false;
-          } else {
-            const cat = String(r.drawerCategory ?? "").toLowerCase();
-            if (!cat.includes(gaveta.toLowerCase())) return false;
-          }
-        }
-
-        if (casela) {
-          const n = Number(casela);
-          if (Number.isNaN(n) || r.residentCasela !== n) return false;
-        }
-
-        if (setor) {
-          if (String(r.sector ?? "").toLowerCase() !== setor) return false;
-        }
-
-        if (lote) {
-          if (
-            !String(r.lot ?? "")
-              .toLowerCase()
-              .includes(lote)
-          )
-            return false;
-        }
-
-        return true;
-      });
-    },
-    [uiDisplay.gaveta],
+  const normalizeMovementRow = useCallback(
+    (item: RawMovement) =>
+      normalizeMovement(item, { uiDisplay, cabinetOptions }),
+    [uiDisplay, cabinetOptions],
   );
-
-  function normalizeMovement(item: RawMovement): MovementRow {
-    const isMedicine = item.medicamento_id != null;
-    const gavetaCat = item.DrawerModel?.DrawerCategoryModel?.nome;
-
-    const sortMs = parseMovementDateMs(item.data);
-    const residentName = item.ResidentModel?.nome ?? null;
-    const residentCasela =
-      typeof item.ResidentModel?.num_casela === "number"
-        ? item.ResidentModel?.num_casela
-        : item.ResidentModel?.num_casela != null
-          ? Number(item.ResidentModel?.num_casela)
-          : null;
-    const cabinetNumber =
-      typeof item.armario_id === "number"
-        ? item.armario_id
-        : item.armario_id != null
-          ? Number(item.armario_id)
-          : null;
-    const drawerNumber =
-      typeof item.gaveta_id === "number"
-        ? item.gaveta_id
-        : item.gaveta_id != null
-          ? Number(item.gaveta_id)
-          : null;
-    const drawerCategory = gavetaCat?.trim() ? String(gavetaCat).trim() : null;
-    const cabinetCategory =
-      (cabinetNumber != null
-        ? cabinetOptions.find((c) => c.numero === cabinetNumber)?.categoria
-        : null) ?? null;
-    const cabinetDisplay =
-      uiDisplay.armario === "categoria"
-        ? cabinetCategory?.trim()
-          ? cabinetCategory.trim()
-          : cabinetNumber != null
-            ? `Armário ${cabinetNumber}`
-            : "—"
-        : cabinetNumber != null
-          ? cabinetNumber
-          : "—";
-    return {
-      id: item.id,
-      name: isMedicine ? item.MedicineModel?.nome : item.InputModel?.nome,
-      additionalData: isMedicine
-        ? item.MedicineModel?.principio_ativo
-        : (item.InputModel?.descricao ?? "-"),
-      quantity: item.quantidade,
-      operator: item.LoginModel?.first_name,
-      movementDate: formatDateToPtBr(item.data as string),
-      _movementDateSort: Number.isFinite(sortMs) ? sortMs : 0,
-      cabinet: cabinetDisplay,
-      cabinetNumber,
-      cabinetCategory: cabinetCategory?.trim() ? cabinetCategory.trim() : null,
-      drawerDisplay: formatGavetaLabel(uiDisplay.gaveta, {
-        gavetaId: drawerNumber,
-        categoriaNome: gavetaCat,
-      }),
-      drawerNumber,
-      drawerCategory,
-      resident: formatCaselaLabel(uiDisplay.casela, {
-        caselaId: residentCasela,
-        residentName,
-      }),
-      residentCasela:
-        residentCasela != null && Number.isFinite(residentCasela)
-          ? residentCasela
-          : null,
-      residentName: residentName?.trim() ? residentName.trim() : null,
-      type: item.tipo,
-      sector: item.setor ?? "",
-      lot: item.lote ?? "",
-    };
-  }
 
   async function fetchEntries() {
     const requestId = +entriesRequestId.current;
@@ -490,12 +200,12 @@ export default function InputMovements() {
       const [insumos, medicamentos] = await Promise.all([
         getInputMovements({
           type: MovementType.IN,
-          limit: REQUEST_LIMIT,
+          limit: MOVEMENTS_REQUEST_LIMIT,
           page: entriesInputPage,
         }),
         getMedicineMovements({
           type: MovementType.IN,
-          limit: REQUEST_LIMIT,
+          limit: MOVEMENTS_REQUEST_LIMIT,
           page: entriesMedicinePage,
         }),
       ]);
@@ -503,12 +213,16 @@ export default function InputMovements() {
       if (requestId !== entriesRequestId.current) return;
 
       const merged = [
-        ...insumos.data.map(normalizeMovement),
-        ...medicamentos.data.map(normalizeMovement),
+        ...insumos.data.map(normalizeMovementRow),
+        ...medicamentos.data.map(normalizeMovementRow),
       ].sort((a, b) => b._movementDateSort - a._movementDateSort);
 
-      const filtered = applyFilters(merged, entriesFilters);
-      const slice = filtered.slice(0, TABLE_LIMIT);
+      const filtered = applyMovementFilters(
+        merged,
+        entriesFilters,
+        uiDisplay.gaveta,
+      );
+      const slice = filtered.slice(0, MOVEMENTS_TABLE_LIMIT);
       if (previewMode && slice.length === 0) {
         setEntries(getPreviewMovementRows("entrada") as MovementRow[]);
         setEntriesHasNext(false);
@@ -517,7 +231,7 @@ export default function InputMovements() {
         setEntriesHasNext(
           insumos.hasNext ||
             medicamentos.hasNext ||
-            filtered.length > TABLE_LIMIT,
+            filtered.length > MOVEMENTS_TABLE_LIMIT,
         );
       }
     } catch (err: unknown) {
@@ -552,12 +266,12 @@ export default function InputMovements() {
       const [insumos, medicamentos] = await Promise.all([
         getInputMovements({
           type: MovementType.OUT,
-          limit: REQUEST_LIMIT,
+          limit: MOVEMENTS_REQUEST_LIMIT,
           page: exitsInputPage,
         }),
         getMedicineMovements({
           type: MovementType.OUT,
-          limit: REQUEST_LIMIT,
+          limit: MOVEMENTS_REQUEST_LIMIT,
           page: exitsMedicinePage,
         }),
       ]);
@@ -565,12 +279,16 @@ export default function InputMovements() {
       if (requestId !== exitsRequestId.current) return;
 
       const merged = [
-        ...insumos.data.map(normalizeMovement),
-        ...medicamentos.data.map(normalizeMovement),
+        ...insumos.data.map(normalizeMovementRow),
+        ...medicamentos.data.map(normalizeMovementRow),
       ].sort((a, b) => b._movementDateSort - a._movementDateSort);
 
-      const filtered = applyFilters(merged, exitsFilters);
-      const slice = filtered.slice(0, TABLE_LIMIT);
+      const filtered = applyMovementFilters(
+        merged,
+        exitsFilters,
+        uiDisplay.gaveta,
+      );
+      const slice = filtered.slice(0, MOVEMENTS_TABLE_LIMIT);
       if (previewMode && slice.length === 0) {
         setExits(getPreviewMovementRows("saida") as MovementRow[]);
         setExitsHasNext(false);
@@ -579,7 +297,7 @@ export default function InputMovements() {
         setExitsHasNext(
           insumos.hasNext ||
             medicamentos.hasNext ||
-            filtered.length > TABLE_LIMIT,
+            filtered.length > MOVEMENTS_TABLE_LIMIT,
         );
       }
     } catch (err: unknown) {
@@ -614,12 +332,12 @@ export default function InputMovements() {
       const [insumos, medicamentos] = await Promise.all([
         getInputMovements({
           type: MovementType.TRANSFER,
-          limit: REQUEST_LIMIT,
+          limit: MOVEMENTS_REQUEST_LIMIT,
           page: transfersInputPage,
         }),
         getMedicineMovements({
           type: MovementType.TRANSFER,
-          limit: REQUEST_LIMIT,
+          limit: MOVEMENTS_REQUEST_LIMIT,
           page: transfersMedicinePage,
         }),
       ]);
@@ -627,12 +345,16 @@ export default function InputMovements() {
       if (requestId !== transfersRequestId.current) return;
 
       const merged = [
-        ...insumos.data.map(normalizeMovement),
-        ...medicamentos.data.map(normalizeMovement),
+        ...insumos.data.map(normalizeMovementRow),
+        ...medicamentos.data.map(normalizeMovementRow),
       ].sort((a, b) => b._movementDateSort - a._movementDateSort);
 
-      const filtered = applyFilters(merged, transfersFilters);
-      const slice = filtered.slice(0, TABLE_LIMIT);
+      const filtered = applyMovementFilters(
+        merged,
+        transfersFilters,
+        uiDisplay.gaveta,
+      );
+      const slice = filtered.slice(0, MOVEMENTS_TABLE_LIMIT);
       if (previewMode && slice.length === 0) {
         setTransfers(getPreviewMovementRows("transferencia") as MovementRow[]);
         setTransfersHasNext(false);
@@ -641,7 +363,7 @@ export default function InputMovements() {
         setTransfersHasNext(
           insumos.hasNext ||
             medicamentos.hasNext ||
-            filtered.length > TABLE_LIMIT,
+            filtered.length > MOVEMENTS_TABLE_LIMIT,
         );
       }
     } catch (err: unknown) {
@@ -683,244 +405,71 @@ export default function InputMovements() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchTransfers stable
   }, [transfersInputPage, transfersMedicinePage, uiDisplay, transfersFilters]);
 
-  const filtersHeader = useCallback(
-    (
-      title: string,
-      filters: MovementFilters,
-      uiKey: "entries" | "exits" | "transfers",
-      actions: {
-        onProduto: (v: string) => void;
-        onArmario: (v: string) => void;
-        onGaveta: (v: string) => void;
-        onCasela: (v: string) => void;
-        onSetor: (v: string) => void;
-        onLote: (v: string) => void;
-        onClear: () => void;
-      },
-    ) => {
-      const cabinetSelectOptions = cabinetOptions
-        .slice()
-        .sort((a, b) => a.numero - b.numero)
-        .map((c) => ({
-          value: String(c.numero),
-          label:
-            uiDisplay.armario === "categoria" && c.categoria?.trim()
-              ? c.categoria
-              : `Armário ${c.numero}`,
-        }));
-
-      const drawerSelectOptions = drawerOptions
-        .slice()
-        .sort((a, b) => a.numero - b.numero)
-        .map((d) => ({
-          value: String(d.numero),
-          label: formatGavetaLabel(uiDisplay.gaveta, {
-            gavetaId: d.numero,
-            categoriaNome: d.categoria,
-          }),
-        }));
-
-      return (
-        <div className="grid gap-2">
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="min-w-[220px] flex-1 max-w-[360px]">
-              <Label className="text-xs">Produto</Label>
-              <Input
-                value={filters.produto}
-                onChange={(e) => actions.onProduto(e.target.value)}
-                placeholder="Nome do produto"
-                className="mt-1 h-8 px-2 text-xs"
-              />
-            </div>
-            <SearchableSelect
-              label="Armário"
-              value={filters.armario}
-              onChange={actions.onArmario}
-              options={cabinetSelectOptions}
-              searchPlaceholder="Buscar armário..."
-            />
-            <SearchableSelect
-              label={uiDisplay.gaveta === "categoria" ? "Categoria" : "Gaveta"}
-              value={filters.gaveta}
-              onChange={actions.onGaveta}
-              options={drawerSelectOptions}
-              searchPlaceholder="Buscar gaveta..."
-            />
-            <div className="min-w-[220px] max-w-[320px]">
-              <Label className="text-xs">Casela</Label>
-              <Popover
-                open={residentPopoverOpen[uiKey]}
-                onOpenChange={(next) =>
-                  setResidentPopoverOpen((p) => ({ ...p, [uiKey]: next }))
-                }
-              >
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    role="combobox"
-                    className="w-full justify-between mt-1 h-8 px-2 text-xs"
-                  >
-                    <span className="truncate">
-                      {filters.casela
-                        ? formatCaselaLabel(uiDisplay.casela, {
-                            caselaId: Number(filters.casela),
-                            residentName:
-                              residentOptions.find(
-                                (r) => r.casela === Number(filters.casela),
-                              )?.name ?? null,
-                          })
-                        : "Selecione"}
-                    </span>
-                    <ChevronsUpDown className="h-4 w-4 opacity-60" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                  <Command shouldFilter={false}>
-                    <CommandInput
-                      placeholder="Buscar casela ou nome..."
-                      value={residentSearch}
-                      onValueChange={setResidentSearch}
-                    />
-                    <CommandEmpty>Nenhum residente encontrado.</CommandEmpty>
-                    <CommandGroup>
-                      <CommandItem
-                        value="all"
-                        onSelect={() => {
-                          actions.onCasela("");
-                          setResidentSearch("");
-                          setResidentPopoverOpen((p) => ({
-                            ...p,
-                            [uiKey]: false,
-                          }));
-                        }}
-                      >
-                        Todos
-                      </CommandItem>
-                      {filteredResidentOptions.map((r) => (
-                        <CommandItem
-                          key={r.casela}
-                          value={String(r.casela)}
-                          onSelect={() => {
-                            actions.onCasela(String(r.casela));
-                            setResidentSearch("");
-                            setResidentPopoverOpen((p) => ({
-                              ...p,
-                              [uiKey]: false,
-                            }));
-                          }}
-                        >
-                          {uiDisplay.casela === "nome"
-                            ? `${r.name} (Casela ${r.casela})`
-                            : `Casela ${r.casela} — ${r.name}`}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-            <SearchableSelect
-              label="Setor"
-              value={filters.setor}
-              onChange={actions.onSetor}
-              options={sectorOptions}
-              searchPlaceholder="Buscar setor..."
-            />
-            <div className="min-w-[180px] max-w-[240px]">
-              <Label className="text-xs">Lote</Label>
-              <Input
-                value={filters.lote}
-                onChange={(e) => actions.onLote(e.target.value)}
-                placeholder="Ex.: ABC123"
-                className="mt-1 h-8 px-2 text-xs"
-              />
-            </div>
-
-            <div className="flex gap-2 justify-end ml-auto">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={actions.onClear}
-                disabled={
-                  !filters.produto.trim() &&
-                  !filters.armario.trim() &&
-                  !filters.gaveta.trim() &&
-                  !filters.casela.trim() &&
-                  !filters.setor.trim() &&
-                  !filters.lote.trim()
-                }
-              >
-                Limpar filtros
-              </Button>
-            </div>
-          </div>
-        </div>
-      );
-    },
-    [
-      cabinetOptions,
-      drawerOptions,
-      filteredResidentOptions,
-      residentOptions,
-      residentPopoverOpen,
-      residentSearch,
-      sectorOptions,
-      uiDisplay.armario,
-      uiDisplay.casela,
-      uiDisplay.gaveta,
-    ],
-  );
-
   return (
-    <Layout title="Movimentações">
-      <div className="w-full flex justify-center p-10">
-        <Card className="w-full max-w-[95%] xl:max-w-7xl bg-white border shadow-md p-8 space-y-6 overflow-x-auto">
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Entradas</h2>
-            {filtersHeader("Entradas", entriesFilters, "entries", {
-              onProduto: makeTextSetter(
-                setEntriesFilters,
-                resetEntriesPaging,
-                "produto",
-              ),
-              onArmario: makeTextSetter(
-                setEntriesFilters,
-                resetEntriesPaging,
-                "armario",
-              ),
-              onGaveta: makeTextSetter(
-                setEntriesFilters,
-                resetEntriesPaging,
-                "gaveta",
-              ),
-              onCasela: makeTextSetter(
-                setEntriesFilters,
-                resetEntriesPaging,
-                "casela",
-              ),
-              onSetor: makeTextSetter(
-                setEntriesFilters,
-                resetEntriesPaging,
-                "setor",
-              ),
-              onLote: makeTextSetter(
-                setEntriesFilters,
-                resetEntriesPaging,
-                "lote",
-              ),
-              onClear: () => {
-                setEntriesFilters(DEFAULT_FILTERS);
-                resetEntriesPaging();
-              },
-            })}
+    <Layout
+      title="Movimentações"
+      description="Entradas, saídas e transferências de medicamentos e insumos, com filtros por localização e residente."
+    >
+      <PageSurfaceCard className="w-full overflow-x-auto p-6 sm:p-8">
+        <div className={pageStackClass}>
+          <PageSection title="Entradas" icon={ArrowDownToLine}>
+            <MovementsFiltersSection
+              filters={entriesFilters}
+              uiKey="entries"
+              uiDisplay={uiDisplay}
+              cabinetOptions={cabinetOptions}
+              drawerOptions={drawerOptions}
+              sectorOptions={sectorOptions}
+              filteredResidentOptions={filteredResidentOptions}
+              residentOptions={residentOptions}
+              residentPopoverOpen={residentPopoverOpen}
+              setResidentPopoverOpen={setResidentPopoverOpen}
+              residentSearch={residentSearch}
+              setResidentSearch={setResidentSearch}
+              actions={{
+                onProduto: makeTextSetter(
+                  setEntriesFilters,
+                  resetEntriesPaging,
+                  "produto",
+                ),
+                onArmario: makeTextSetter(
+                  setEntriesFilters,
+                  resetEntriesPaging,
+                  "armario",
+                ),
+                onGaveta: makeTextSetter(
+                  setEntriesFilters,
+                  resetEntriesPaging,
+                  "gaveta",
+                ),
+                onCasela: makeTextSetter(
+                  setEntriesFilters,
+                  resetEntriesPaging,
+                  "casela",
+                ),
+                onSetor: makeTextSetter(
+                  setEntriesFilters,
+                  resetEntriesPaging,
+                  "setor",
+                ),
+                onLote: makeTextSetter(
+                  setEntriesFilters,
+                  resetEntriesPaging,
+                  "lote",
+                ),
+                onClear: () => {
+                  setEntriesFilters(DEFAULT_MOVEMENT_FILTERS);
+                  resetEntriesPaging();
+                },
+              }}
+            />
 
             {loadingEntries ? (
-              <SkeletonTable rows={5} cols={columnsBase.length} />
+              <SkeletonTable rows={5} cols={TABLE_COLUMNS.length} />
             ) : (
               <EditableTable
                 data={entries}
-                columns={columnsBase}
+                columns={TABLE_COLUMNS}
                 entityType="entries"
                 currentPage={Math.max(entriesInputPage, entriesMedicinePage)}
                 hasNextPage={entriesHasNext}
@@ -936,49 +485,66 @@ export default function InputMovements() {
                 readOnly={previewMode}
               />
             )}
-          </div>
+          </PageSection>
 
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Saídas</h2>
-            {filtersHeader("Saídas", exitsFilters, "exits", {
-              onProduto: makeTextSetter(
-                setExitsFilters,
-                resetExitsPaging,
-                "produto",
-              ),
-              onArmario: makeTextSetter(
-                setExitsFilters,
-                resetExitsPaging,
-                "armario",
-              ),
-              onGaveta: makeTextSetter(
-                setExitsFilters,
-                resetExitsPaging,
-                "gaveta",
-              ),
-              onCasela: makeTextSetter(
-                setExitsFilters,
-                resetExitsPaging,
-                "casela",
-              ),
-              onSetor: makeTextSetter(
-                setExitsFilters,
-                resetExitsPaging,
-                "setor",
-              ),
-              onLote: makeTextSetter(setExitsFilters, resetExitsPaging, "lote"),
-              onClear: () => {
-                setExitsFilters(DEFAULT_FILTERS);
-                resetExitsPaging();
-              },
-            })}
+          <PageSection title="Saídas" icon={ArrowUpFromLine}>
+            <MovementsFiltersSection
+              filters={exitsFilters}
+              uiKey="exits"
+              uiDisplay={uiDisplay}
+              cabinetOptions={cabinetOptions}
+              drawerOptions={drawerOptions}
+              sectorOptions={sectorOptions}
+              filteredResidentOptions={filteredResidentOptions}
+              residentOptions={residentOptions}
+              residentPopoverOpen={residentPopoverOpen}
+              setResidentPopoverOpen={setResidentPopoverOpen}
+              residentSearch={residentSearch}
+              setResidentSearch={setResidentSearch}
+              actions={{
+                onProduto: makeTextSetter(
+                  setExitsFilters,
+                  resetExitsPaging,
+                  "produto",
+                ),
+                onArmario: makeTextSetter(
+                  setExitsFilters,
+                  resetExitsPaging,
+                  "armario",
+                ),
+                onGaveta: makeTextSetter(
+                  setExitsFilters,
+                  resetExitsPaging,
+                  "gaveta",
+                ),
+                onCasela: makeTextSetter(
+                  setExitsFilters,
+                  resetExitsPaging,
+                  "casela",
+                ),
+                onSetor: makeTextSetter(
+                  setExitsFilters,
+                  resetExitsPaging,
+                  "setor",
+                ),
+                onLote: makeTextSetter(
+                  setExitsFilters,
+                  resetExitsPaging,
+                  "lote",
+                ),
+                onClear: () => {
+                  setExitsFilters(DEFAULT_MOVEMENT_FILTERS);
+                  resetExitsPaging();
+                },
+              }}
+            />
 
             {loadingExits ? (
-              <SkeletonTable rows={5} cols={columnsBase.length} />
+              <SkeletonTable rows={5} cols={TABLE_COLUMNS.length} />
             ) : (
               <EditableTable
                 data={exits}
-                columns={columnsBase}
+                columns={TABLE_COLUMNS}
                 entityType="exits"
                 currentPage={Math.max(exitsInputPage, exitsMedicinePage)}
                 hasNextPage={exitsHasNext}
@@ -994,53 +560,66 @@ export default function InputMovements() {
                 readOnly={previewMode}
               />
             )}
-          </div>
+          </PageSection>
 
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Transferências</h2>
-            {filtersHeader("Transferências", transfersFilters, "transfers", {
-              onProduto: makeTextSetter(
-                setTransfersFilters,
-                resetTransfersPaging,
-                "produto",
-              ),
-              onArmario: makeTextSetter(
-                setTransfersFilters,
-                resetTransfersPaging,
-                "armario",
-              ),
-              onGaveta: makeTextSetter(
-                setTransfersFilters,
-                resetTransfersPaging,
-                "gaveta",
-              ),
-              onCasela: makeTextSetter(
-                setTransfersFilters,
-                resetTransfersPaging,
-                "casela",
-              ),
-              onSetor: makeTextSetter(
-                setTransfersFilters,
-                resetTransfersPaging,
-                "setor",
-              ),
-              onLote: makeTextSetter(
-                setTransfersFilters,
-                resetTransfersPaging,
-                "lote",
-              ),
-              onClear: () => {
-                setTransfersFilters(DEFAULT_FILTERS);
-                resetTransfersPaging();
-              },
-            })}
+          <PageSection title="Transferências" icon={ArrowLeftRight}>
+            <MovementsFiltersSection
+              filters={transfersFilters}
+              uiKey="transfers"
+              uiDisplay={uiDisplay}
+              cabinetOptions={cabinetOptions}
+              drawerOptions={drawerOptions}
+              sectorOptions={sectorOptions}
+              filteredResidentOptions={filteredResidentOptions}
+              residentOptions={residentOptions}
+              residentPopoverOpen={residentPopoverOpen}
+              setResidentPopoverOpen={setResidentPopoverOpen}
+              residentSearch={residentSearch}
+              setResidentSearch={setResidentSearch}
+              actions={{
+                onProduto: makeTextSetter(
+                  setTransfersFilters,
+                  resetTransfersPaging,
+                  "produto",
+                ),
+                onArmario: makeTextSetter(
+                  setTransfersFilters,
+                  resetTransfersPaging,
+                  "armario",
+                ),
+                onGaveta: makeTextSetter(
+                  setTransfersFilters,
+                  resetTransfersPaging,
+                  "gaveta",
+                ),
+                onCasela: makeTextSetter(
+                  setTransfersFilters,
+                  resetTransfersPaging,
+                  "casela",
+                ),
+                onSetor: makeTextSetter(
+                  setTransfersFilters,
+                  resetTransfersPaging,
+                  "setor",
+                ),
+                onLote: makeTextSetter(
+                  setTransfersFilters,
+                  resetTransfersPaging,
+                  "lote",
+                ),
+                onClear: () => {
+                  setTransfersFilters(DEFAULT_MOVEMENT_FILTERS);
+                  resetTransfersPaging();
+                },
+              }}
+            />
 
             {loadingTransfers ? (
-              <SkeletonTable rows={5} cols={columnsBase.length} />
+              <SkeletonTable rows={5} cols={TABLE_COLUMNS.length} />
             ) : (
               <EditableTable
                 data={transfers}
-                columns={columnsBase}
+                columns={TABLE_COLUMNS}
                 entityType="transfers"
                 currentPage={Math.max(
                   transfersInputPage,
@@ -1059,9 +638,9 @@ export default function InputMovements() {
                 readOnly={previewMode}
               />
             )}
-          </div>
-        </Card>
-      </div>
+          </PageSection>
+        </div>
+      </PageSurfaceCard>
     </Layout>
   );
 }
