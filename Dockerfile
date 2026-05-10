@@ -32,7 +32,7 @@ RUN set -eu; \
   : "${NEXT_PUBLIC_LOGO_URL:?required}"; \
   : "${NEXT_PUBLIC_R2_PUBLIC_BASE_URL:?required}"; \
   : "${NEXT_PUBLIC_X_API_KEY:?required}"; \
-  NODE_ENV=production npm run build
+  npm run build
 
 FROM node:20-bookworm-slim AS runner
 
