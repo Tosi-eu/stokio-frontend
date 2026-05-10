@@ -34,7 +34,7 @@ export function TenantOnboardingAside({
           : "Só a identidade do abrigo. O menu é definido pelo administrador."}
       </p>
       <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
-        {items.map(t => (
+        {items.map((t) => (
           <li key={t}>{t}</li>
         ))}
       </ol>
