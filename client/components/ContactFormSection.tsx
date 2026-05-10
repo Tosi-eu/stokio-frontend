@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast.hook";
 import { submitPublicContact } from "@/api/requests";
 import { cn } from "@/lib/utils";
+import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
 
 export type ContactFormSectionProps = {
   /** `embedded`: sem cabeçalho duplicado (título fica na secção pai). */
@@ -58,13 +59,7 @@ export function ContactFormSection({
   }
 
   return (
-    <Card
-      className={cn(
-        "border-border/70 bg-card/95 shadow-elevated backdrop-blur-sm",
-        embedded &&
-          "rounded-2xl border-border/60 shadow-md ring-1 ring-border/40",
-      )}
-    >
+    <Card className={cn(pageSurfaceCardClass, "bg-card/95 backdrop-blur-sm")}>
       {!embedded && (
         <CardHeader className="space-y-1">
           <CardTitle className="font-display text-2xl">Contacto</CardTitle>
