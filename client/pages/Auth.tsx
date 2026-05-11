@@ -4,6 +4,7 @@ import {
   useLayoutEffect,
   useRef,
   useCallback,
+  useMemo,
 } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -26,7 +27,7 @@ import {
   getErrorMessage,
   USER_FACING_RETRY_SHORT,
 } from "@/helpers/validation.helper";
-import { formatLoginTenantChoice } from "@/components/auth/auth.utils";
+import { loginTenantDisplayLabel } from "@/helpers/tenant-display.helper";
 import type { AuthProps } from "@/components/auth/auth.types";
 import {
   AlertDialog,
@@ -58,7 +59,7 @@ import {
   validateTextInput,
 } from "@/helpers/validation.helper";
 import { prefetchTenantBrandLogoBeforeInicioNavigation } from "@/helpers/tenant-brand-logo-prefetch.helper";
-import { ArrowUp, ChevronDown } from "lucide-react";
+import { ArrowUp, Check, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { ContactFormSection } from "@/components/ContactFormSection";
 import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
 import { AuthMarketingAside } from "@/components/auth/AuthMarketingAside";
@@ -68,6 +69,19 @@ import { AuthMobileHeader } from "@/components/auth/AuthMobileHeader";
 import { AuthMobileAnchorBar } from "@/components/auth/AuthMobileAnchorBar";
 import { AuthSkipLinks } from "@/components/auth/AuthSkipLinks";
 import { PageLabel } from "@/components/page/PageLabel";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 export default function Auth({ scrollToSection = "auth" }: AuthProps) {
   const router = useRouter();
@@ -83,6 +97,8 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [tenantSlug, setTenantSlug] = useState("");
+  const [tenantPickerOpen, setTenantPickerOpen] = useState(false);
+  const [tenantPickerQuery, setTenantPickerQuery] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginLinkedTenants, setLoginLinkedTenants] = useState<
@@ -648,6 +664,32 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
   const loginEmailTrim = sanitizeInput(login).trim();
   const loginEmailValid = validateEmail(loginEmailTrim).valid;
 
+  const sortedLoginTenants = useMemo(() => {
+    if (!loginLinkedTenants?.length) return [];
+    return [...loginLinkedTenants].sort((a, b) =>
+      loginTenantDisplayLabel(a).localeCompare(
+        loginTenantDisplayLabel(b),
+        undefined,
+        { sensitivity: "base" },
+      ),
+    );
+  }, [loginLinkedTenants]);
+
+  const filteredLoginTenants = useMemo(() => {
+    const q = tenantPickerQuery.trim().toLowerCase();
+    if (!q) return sortedLoginTenants;
+    return sortedLoginTenants.filter((t) =>
+      loginTenantDisplayLabel(t).toLowerCase().includes(q),
+    );
+  }, [sortedLoginTenants, tenantPickerQuery]);
+
+  const selectedLoginTenant = loginLinkedTenants?.find(
+    (t) => t.slug === tenantSlug,
+  );
+  const loginTenantTriggerLabel = selectedLoginTenant
+    ? loginTenantDisplayLabel(selectedLoginTenant)
+    : "Selecione o abrigo";
+
   const [authHeaderImgSrc, setAuthHeaderImgSrc] = useState(authHeaderLogoSrc);
   useEffect(() => {
     setAuthHeaderImgSrc(authHeaderLogoSrc);
@@ -995,30 +1037,92 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
                               <span className="font-medium text-foreground">
                                 Abrigo:
                               </span>{" "}
-                              {formatLoginTenantChoice(loginLinkedTenants[0]!)}
+                              {loginTenantDisplayLabel(loginLinkedTenants[0]!)}
                             </p>
                           ) : (
                             <div className="space-y-1.5">
-                              <Label
-                                htmlFor="tenant-slug"
-                                className="text-xs font-medium"
-                              >
+                              <Label className="text-xs font-medium">
                                 Onde quer entrar?
                               </Label>
-                              <select
-                                id="tenant-slug"
-                                value={tenantSlug}
-                                onChange={(e) => setTenantSlug(e.target.value)}
-                                required
-                                className={cn(inputFieldClass, "bg-background")}
+                              <Popover
+                                open={tenantPickerOpen}
+                                onOpenChange={(open) => {
+                                  setTenantPickerOpen(open);
+                                  if (!open) setTenantPickerQuery("");
+                                }}
                               >
-                                <option value="">Selecione o abrigo</option>
-                                {loginLinkedTenants.map((t) => (
-                                  <option key={t.slug} value={t.slug}>
-                                    {formatLoginTenantChoice(t)}
-                                  </option>
-                                ))}
-                              </select>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={tenantPickerOpen}
+                                    id="tenant-login-picker"
+                                    className={cn(
+                                      inputFieldClass,
+                                      "w-full justify-between font-normal px-3",
+                                    )}
+                                  >
+                                    <span className="truncate text-left">
+                                      {loginTenantTriggerLabel}
+                                    </span>
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  className="w-[var(--radix-popover-trigger-width)] min-w-[16rem] max-w-[min(24rem,calc(100vw-2rem))] p-0"
+                                  align="start"
+                                >
+                                  <Command shouldFilter={false}>
+                                    <CommandInput
+                                      placeholder="Pesquisar por nome…"
+                                      value={tenantPickerQuery}
+                                      onValueChange={setTenantPickerQuery}
+                                    />
+                                    <CommandList className="max-h-[260px]">
+                                      <CommandEmpty>
+                                        Nenhum abrigo encontrado.
+                                      </CommandEmpty>
+                                      <CommandGroup>
+                                        {filteredLoginTenants.map((t) => {
+                                          const label =
+                                            loginTenantDisplayLabel(t);
+                                          const selected =
+                                            t.slug === tenantSlug;
+                                          return (
+                                            <CommandItem
+                                              key={t.slug}
+                                              value={`${t.slug}\t${label}`}
+                                              onSelect={() => {
+                                                setTenantSlug(t.slug);
+                                                setTenantPickerOpen(false);
+                                                setTenantPickerQuery("");
+                                              }}
+                                            >
+                                              <Check
+                                                className={cn(
+                                                  "mr-2 h-4 w-4 shrink-0",
+                                                  selected
+                                                    ? "opacity-100"
+                                                    : "opacity-0",
+                                                )}
+                                              />
+                                              <span className="truncate">
+                                                {label}
+                                              </span>
+                                            </CommandItem>
+                                          );
+                                        })}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                              {!tenantSlug.trim() ? (
+                                <p className="text-xs text-muted-foreground">
+                                  Escolha o abrigo em que deseja entrar.
+                                </p>
+                              ) : null}
                             </div>
                           )}
                         </div>

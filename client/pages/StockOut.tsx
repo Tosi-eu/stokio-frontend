@@ -174,9 +174,7 @@ export default function StockOut() {
           (r) => ({ casela: r.casela, name: r.name }),
         );
         if (!cancelled) {
-          setResidents(
-            mapped.sort(compareResidentsByNameThenCasela),
-          );
+          setResidents(mapped.sort(compareResidentsByNameThenCasela));
         }
       } catch {
         if (!cancelled) setResidents([]);

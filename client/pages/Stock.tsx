@@ -72,14 +72,14 @@ import {
   formatCaselaLabel,
   formatGavetaLabel,
 } from "@/helpers/storage-location-display.helper";
+import { tenantProfileLabel } from "@/helpers/tenant-display.helper";
 
 import { STOCK_FILTER_LABELS } from "@/components/stock/stock.constants";
 import { pageSurfaceSubtleClass } from "@/components/page/page-ui.constants";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
 
 export default function Stock() {
-  const { uiDisplay, previewMode, modules } = useTenant();
+  const { uiDisplay, previewMode, modules, tenant } = useTenant();
   const { profilesByKey, labelByKey } = useTenantSetores();
 
   const sectorKeys = useMemo(() => getEnabledSectors(modules), [modules]);
@@ -641,16 +641,22 @@ export default function Stock() {
     setActionLoading(true);
 
     try {
+      const { destTenantDisplayLabel, ...interPayload } = payload;
       await transferMedicineInterTenant({
-        ...payload,
+        ...interPayload,
         tipo_item: row.itemType === "insumo" ? "insumo" : "medicamento",
         sourceEstoqueId: row.id,
       });
 
       await loadStock(page);
 
-      const messages = actionMessages.transfer(row);
-      toast({ title: messages.success, variant: "success", duration: 3000 });
+      const from = tenantProfileLabel(tenant);
+      const to = destTenantDisplayLabel?.trim() || interPayload.destTenantSlug;
+      toast({
+        title: `Transferência de ${from} para ${to} concluída com sucesso.`,
+        variant: "success",
+        duration: 3000,
+      });
     } catch (err: unknown) {
       const errorMessage = getErrorMessage(
         err,
@@ -658,9 +664,11 @@ export default function Stock() {
         "Stock:transfer-inter-tenant",
       );
 
-      const messages = actionMessages.transfer(row);
+      const from = tenantProfileLabel(tenant);
+      const to =
+        payload.destTenantDisplayLabel?.trim() || payload.destTenantSlug;
       toast({
-        title: messages.error,
+        title: `Não foi possível transferir de ${from} para ${to}.`,
         description: errorMessage,
         variant: "error",
         duration: 3000,
@@ -682,15 +690,6 @@ export default function Stock() {
     >
       <div className="flex w-full flex-col gap-8">
         <div className="flex flex-wrap gap-3 justify-end mt-8 items-center">
-          {canInterTenant && !previewMode ? (
-            <Link
-              href="/stock/inter-tenant"
-              className="mr-auto text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            >
-              Transferência entre abrigos (página completa)
-            </Link>
-          ) : null}
-
           <button
             onClick={() => {
               if (!canSaida) {

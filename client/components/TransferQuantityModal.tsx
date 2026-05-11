@@ -30,6 +30,9 @@ import {
   getDaysForReplacementForNursing,
   listAccessibleTenants,
   listTenantSetoresInTenantContext,
+  getCabinetsInTenantContext,
+  getDrawersInTenantContext,
+  getResidentsInTenantContext,
   type AccessibleTenantRow,
   type TenantSetorRow,
   type InterTenantMedicineTransferPayload,
@@ -40,12 +43,18 @@ import {
   compareResidentsByCaselaThenName,
   compareResidentsByNameThenCasela,
 } from "@/helpers/resident-sort.helper";
-import { ItemStockType } from "@/utils/enums";
+import { ItemStockType, StockTypeLabels } from "@/utils/enums";
+import type { Drawer } from "@/interfaces/interfaces";
+import { accessibleTenantLabel } from "@/helpers/tenant-display.helper";
+import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 
 export type InterTenantTransferModalPayload = Omit<
   InterTenantMedicineTransferPayload,
   "sourceEstoqueId"
->;
+> & {
+  /** Apenas UI (toast); não enviar na API. */
+  destTenantDisplayLabel?: string;
+};
 
 interface TransferQuantityModalProps {
   open: boolean;
@@ -118,8 +127,18 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
   const [destTipoLocal, setDestTipoLocal] = useState<string>(
     ItemStockType.GERAL,
   );
-  const [destArmarioStr, setDestArmarioStr] = useState("");
-  const [destGavetaStr, setDestGavetaStr] = useState("");
+  const [destArmarioSel, setDestArmarioSel] = useState("");
+  const [destGavetaSel, setDestGavetaSel] = useState("");
+  const [destCabinets, setDestCabinets] = useState<
+    { numero: number; categoria: string }[]
+  >([]);
+  const [destDrawers, setDestDrawers] = useState<Drawer[]>([]);
+  const [destLocLoading, setDestLocLoading] = useState(false);
+  const [destResidents, setDestResidents] = useState<
+    Array<{ casela: number; name: string }>
+  >([]);
+  const [destResidentsLoading, setDestResidentsLoading] = useState(false);
+  const [destInterCasela, setDestInterCasela] = useState("");
 
   const allowInterTenantFlow =
     Boolean(enableInterTenant) &&
@@ -150,8 +169,13 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
       setDestSetores([]);
       setDestSetorKey("");
       setDestTipoLocal(item?.tipo ?? ItemStockType.GERAL);
-      setDestArmarioStr("");
-      setDestGavetaStr("");
+      setDestArmarioSel("");
+      setDestGavetaSel("");
+      setDestCabinets([]);
+      setDestDrawers([]);
+      setDestResidents([]);
+      setDestInterCasela("");
+      setDestResidentsLoading(false);
     }, 0);
     return () => clearTimeout(id);
   }, [open, item?.daysToReplacement, item?.tipo]);
@@ -206,6 +230,102 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
       cancelled = true;
     };
   }, [destSlug]);
+
+  useEffect(() => {
+    setDestArmarioSel("");
+    setDestGavetaSel("");
+    setDestInterCasela("");
+  }, [destSlug]);
+
+  useEffect(() => {
+    if (destTipoLocal === ItemStockType.INDIVIDUAL) {
+      setDestArmarioSel("");
+      setDestGavetaSel("");
+    } else {
+      setDestInterCasela("");
+    }
+  }, [destTipoLocal]);
+
+  useEffect(() => {
+    if (
+      !open ||
+      !sendToOtherTenant ||
+      !allowInterTenantFlow ||
+      !destSlug.trim() ||
+      destTipoLocal === ItemStockType.INDIVIDUAL
+    ) {
+      setDestCabinets([]);
+      setDestDrawers([]);
+      setDestLocLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setDestLocLoading(true);
+    Promise.all([
+      getCabinetsInTenantContext(destSlug.trim(), 1, 500),
+      getDrawersInTenantContext(destSlug.trim(), 1, 500),
+    ])
+      .then(([cab, dr]) => {
+        if (cancelled) return;
+        setDestCabinets(
+          [...(cab.data ?? [])].sort((a, b) => a.numero - b.numero),
+        );
+        setDestDrawers(
+          [...(dr.data ?? [])].sort((a, b) => a.numero - b.numero),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDestCabinets([]);
+          setDestDrawers([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDestLocLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, allowInterTenantFlow, sendToOtherTenant, destSlug, destTipoLocal]);
+
+  useEffect(() => {
+    if (
+      !open ||
+      !sendToOtherTenant ||
+      !allowInterTenantFlow ||
+      !destSlug.trim() ||
+      destTipoLocal !== ItemStockType.INDIVIDUAL
+    ) {
+      setDestResidents([]);
+      setDestResidentsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setDestResidentsLoading(true);
+    fetchAllPaginated(
+      (p, l) => getResidentsInTenantContext(destSlug.trim(), p, l),
+      150,
+    )
+      .then((rows) => {
+        if (cancelled) return;
+        const mapped = (Array.isArray(rows) ? rows : []).map(
+          (r: { casela?: unknown; name?: unknown }) => ({
+            casela: Number(r.casela),
+            name: String(r.name ?? ""),
+          }),
+        );
+        setDestResidents(mapped.sort(compareResidentsByNameThenCasela));
+      })
+      .catch(() => {
+        if (!cancelled) setDestResidents([]);
+      })
+      .finally(() => {
+        if (!cancelled) setDestResidentsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, allowInterTenantFlow, sendToOtherTenant, destSlug, destTipoLocal]);
 
   useEffect(() => {
     if (
@@ -288,11 +408,40 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
       (isMedicamentoGeral && (isGeneralUse || hasCaselaSelected)) ||
       (isInsumoGeral && (hasCaselaSelected || hasDestination)));
 
-  const armarioNum = destArmarioStr.trim() ? Number(destArmarioStr) : NaN;
-  const gavetaNum = destGavetaStr.trim() ? Number(destGavetaStr) : NaN;
-  const hasDestLocation =
-    (Number.isFinite(armarioNum) && armarioNum > 0) ||
-    (Number.isFinite(gavetaNum) && gavetaNum > 0);
+  const destIsInterIndividual = destTipoLocal === ItemStockType.INDIVIDUAL;
+  const armarioNum = destArmarioSel.trim() ? Number(destArmarioSel) : NaN;
+  const gavetaNum = destGavetaSel.trim() ? Number(destGavetaSel) : NaN;
+  const armarioSel =
+    Number.isFinite(armarioNum) && armarioNum > 0 ? armarioNum : 0;
+  const gavetaSel = Number.isFinite(gavetaNum) && gavetaNum > 0 ? gavetaNum : 0;
+  const armarioOk =
+    !destIsInterIndividual &&
+    armarioSel > 0 &&
+    gavetaSel === 0 &&
+    destCabinets.some((c) => c.numero === armarioSel);
+  const gavetaOk =
+    !destIsInterIndividual &&
+    gavetaSel > 0 &&
+    armarioSel === 0 &&
+    destDrawers.some((d) => d.numero === gavetaSel);
+  const interCaselaNum = destInterCasela.trim() ? Number(destInterCasela) : NaN;
+  const interCaselaOk =
+    destIsInterIndividual &&
+    Number.isFinite(interCaselaNum) &&
+    interCaselaNum > 0 &&
+    destResidents.some((r) => r.casela === interCaselaNum);
+
+  const hasDestLocation = destIsInterIndividual
+    ? interCaselaOk
+    : armarioOk || gavetaOk;
+
+  const hasDestChoices = destIsInterIndividual
+    ? destResidents.length > 0
+    : destCabinets.length > 0 || destDrawers.length > 0;
+
+  const destLocationLoading = destIsInterIndividual
+    ? destResidentsLoading
+    : destLocLoading;
 
   const canConfirmInter =
     isValidQuantity &&
@@ -300,6 +449,8 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
     Boolean(destSetorKey.trim()) &&
     destSetores.some((s) => s.key === destSetorKey) &&
     Boolean(destTipoLocal.trim()) &&
+    !destLocationLoading &&
+    hasDestChoices &&
     hasDestLocation;
 
   const handleConfirmSector = () => {
@@ -337,17 +488,38 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
     if (!canConfirmInter || !onConfirmInterTenant) return;
 
     const arm =
-      Number.isFinite(armarioNum) && armarioNum > 0 ? armarioNum : undefined;
+      !destIsInterIndividual &&
+      Number.isFinite(armarioNum) &&
+      armarioNum > 0 &&
+      gavetaSel === 0
+        ? armarioNum
+        : undefined;
     const gav =
-      Number.isFinite(gavetaNum) && gavetaNum > 0 ? gavetaNum : undefined;
+      !destIsInterIndividual &&
+      Number.isFinite(gavetaNum) &&
+      gavetaNum > 0 &&
+      armarioSel === 0
+        ? gavetaNum
+        : undefined;
+    const cas =
+      destIsInterIndividual &&
+      Number.isFinite(interCaselaNum) &&
+      interCaselaNum > 0
+        ? interCaselaNum
+        : undefined;
+
+    const destRow = accessibleTenants.find((t) => t.slug === destSlug.trim());
+    const destLbl = destRow ? accessibleTenantLabel(destRow) : destSlug.trim();
 
     onConfirmInterTenant({
       destTenantSlug: destSlug.trim(),
       quantidade: quantityNum,
       destTipo: destTipoLocal.trim(),
       destSetor: destSetorKey.trim() || undefined,
+      destCaselaId: cas ?? null,
       destArmarioId: arm ?? null,
       destGavetaId: gav ?? null,
+      destTenantDisplayLabel: destLbl,
     });
   };
 
@@ -451,9 +623,15 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
           {sendToOtherTenant && allowInterTenantFlow ? (
             <div className="space-y-4 rounded-lg border border-border/70 bg-muted/20 p-4">
               <p className="text-xs text-muted-foreground">
-                No destino, o sistema procura o mesmo produto no catálogo
-                (medicamento: nome, princípio, dosagem e unidade; insumo: nome e
-                descrição). Validade e lote seguem a linha de origem.
+                No destino, o catálogo é reutilizado quando já existir o mesmo
+                medicamento ou insumo; caso contrário, o registo é criado
+                automaticamente a partir da origem. Validade e lote seguem a
+                linha de origem. Para tipos{" "}
+                <strong className="text-foreground">não individuais</strong>,
+                escolha <strong className="text-foreground">apenas</strong>{" "}
+                armário <strong className="text-foreground">ou</strong> gaveta.
+                Para <strong className="text-foreground">individual</strong>,
+                escolha o residente (casela) no abrigo destino.
               </p>
               <div className="space-y-2">
                 <Label>Abrigo destino</Label>
@@ -470,7 +648,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                     <SelectContent>
                       {accessibleTenants.map((t) => (
                         <SelectItem key={t.id} value={t.slug}>
-                          {t.name}
+                          {accessibleTenantLabel(t)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -507,38 +685,134 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                   <SelectContent>
                     {STOCK_TYPES.map((k) => (
                       <SelectItem key={k} value={k}>
-                        {k}
+                        {StockTypeLabels[k] ?? k}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Armário destino</Label>
-                  <Input
-                    inputMode="numeric"
-                    placeholder="Nº armário"
-                    value={destArmarioStr}
-                    onChange={(e) => setDestArmarioStr(e.target.value)}
-                    disabled={loading}
-                  />
+              {destIsInterIndividual && destResidentsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> A carregar
+                  residentes do destino…
                 </div>
-                <div className="space-y-2">
-                  <Label>Gaveta destino</Label>
-                  <Input
-                    inputMode="numeric"
-                    placeholder="Nº gaveta"
-                    value={destGavetaStr}
-                    onChange={(e) => setDestGavetaStr(e.target.value)}
-                    disabled={loading}
-                  />
+              ) : null}
+
+              {!destIsInterIndividual && destLocLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> A carregar
+                  armários e gavetas do destino…
                 </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Informe pelo menos um: armário ou gaveta no destino.
-              </p>
+              ) : null}
+
+              {destIsInterIndividual &&
+              !destResidentsLoading &&
+              destSlug.trim() &&
+              !hasDestChoices ? (
+                <p className="text-sm text-amber-800 dark:text-amber-200 rounded-md border border-amber-300/60 bg-amber-50 dark:bg-amber-950/40 px-3 py-2">
+                  Não há residentes (caselas) cadastrados neste abrigo destino.
+                  Cadastre residentes antes de transferir estoque individual.
+                </p>
+              ) : null}
+
+              {!destIsInterIndividual &&
+              !destLocLoading &&
+              destSlug.trim() &&
+              !hasDestChoices ? (
+                <p className="text-sm text-amber-800 dark:text-amber-200 rounded-md border border-amber-300/60 bg-amber-50 dark:bg-amber-950/40 px-3 py-2">
+                  Este abrigo não tem armários nem gavetas cadastrados. Cadastre
+                  pelo menos um local físico no destino para este tipo de
+                  estoque.
+                </p>
+              ) : null}
+
+              {destIsInterIndividual ? (
+                <div className="space-y-2">
+                  <Label>Residente (casela) no destino</Label>
+                  <Select
+                    value={destInterCasela || "__none__"}
+                    onValueChange={(v) =>
+                      setDestInterCasela(v === "__none__" ? "" : v)
+                    }
+                    disabled={
+                      loading ||
+                      destResidentsLoading ||
+                      !destSlug.trim() ||
+                      destResidents.length === 0
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecionar casela" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— Selecionar</SelectItem>
+                      {destResidents.map((r) => (
+                        <SelectItem key={r.casela} value={String(r.casela)}>
+                          Casela {r.casela} — {r.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Armário destino</Label>
+                    <Select
+                      value={destArmarioSel || "__none__"}
+                      onValueChange={(v) => {
+                        const next = v === "__none__" ? "" : v;
+                        setDestArmarioSel(next);
+                        if (next) setDestGavetaSel("");
+                      }}
+                      disabled={loading || destLocLoading || !destSlug.trim()}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="—" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Nenhum</SelectItem>
+                        {destCabinets.map((c) => (
+                          <SelectItem key={c.numero} value={String(c.numero)}>
+                            Armário {c.numero} — {c.categoria}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Gaveta destino</Label>
+                    <Select
+                      value={destGavetaSel || "__none__"}
+                      onValueChange={(v) => {
+                        const next = v === "__none__" ? "" : v;
+                        setDestGavetaSel(next);
+                        if (next) setDestArmarioSel("");
+                      }}
+                      disabled={loading || destLocLoading || !destSlug.trim()}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="—" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Nenhum</SelectItem>
+                        {destDrawers.map((g) => (
+                          <SelectItem key={g.numero} value={String(g.numero)}>
+                            Gaveta {g.numero} — {g.categoria}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+              {!destIsInterIndividual ? (
+                <p className="text-xs text-muted-foreground">
+                  Selecione <strong>apenas</strong> armário <strong>ou</strong>{" "}
+                  gaveta (não ambos).
+                </p>
+              ) : null}
             </div>
           ) : (
             <>

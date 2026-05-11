@@ -181,6 +181,32 @@ export const getCabinets = (page = 1, limit = 10) =>
     },
   );
 
+export const getCabinetsInTenantContext = (
+  tenantSlug: string,
+  page = 1,
+  limit = 500,
+) => {
+  const slug = tenantSlug.trim();
+  return stokioClient.get<
+    PaginatedResponse<{ numero: number; categoria: string }>
+  >("/armarios", {
+    params: { page, limit },
+    headers: { "X-Tenant": slug },
+  });
+};
+
+export const getDrawersInTenantContext = (
+  tenantSlug: string,
+  page = 1,
+  limit = 500,
+) => {
+  const slug = tenantSlug.trim();
+  return stokioClient.get<PaginatedResponse<Drawer>>("/gavetas", {
+    params: { page, limit },
+    headers: { "X-Tenant": slug },
+  });
+};
+
 export const getNonMovementProducts = () =>
   stokioClient.get("/movimentacoes/produtos-parados");
 
@@ -307,6 +333,18 @@ export const getResidents = (page = 1, limit = 20) =>
   stokioClient.get<PaginatedResponse<ResidentListItem>>("/residentes", {
     params: { page, limit },
   });
+
+export const getResidentsInTenantContext = (
+  tenantSlug: string,
+  page = 1,
+  limit = 100,
+) => {
+  const slug = tenantSlug.trim();
+  return stokioClient.get<PaginatedResponse<ResidentListItem>>("/residentes", {
+    params: { page, limit },
+    headers: { "X-Tenant": slug },
+  });
+};
 
 export const getResidentByCasela = (casela: string | number) =>
   stokioClient.get<ResidentListItem>(`/residentes/${casela}`);
@@ -1316,6 +1354,7 @@ export type InterTenantMedicineTransferPayload = {
   validade?: string;
   destTipo: string;
   destSetor?: string;
+  destCaselaId?: number | null;
   destArmarioId?: number | null;
   destGavetaId?: number | null;
   destLote?: string | null;
