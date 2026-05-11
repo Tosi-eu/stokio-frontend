@@ -67,7 +67,7 @@ export default function Profile() {
           password: "",
         });
       } catch (error) {
-        console.error("Erro ao carregar usuário logado", error);
+        console.error("Failed to load current user", error);
       }
     };
 

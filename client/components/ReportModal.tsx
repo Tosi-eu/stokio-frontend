@@ -133,7 +133,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
       );
       setResidents(residentsList ?? []);
     } catch (error) {
-      console.error("Erro ao carregar residentes:", error);
+      console.error("Failed to load residents:", error);
       setResidents([]);
     } finally {
       setLoadingResidents(false);
