@@ -201,6 +201,44 @@ export const getMedicines = (
     params: { page, limit, ...(name ? { name } : {}) },
   });
 
+export const getMedicinesInTenantContext = (
+  tenantSlug: string,
+  page = 1,
+  limit = 15,
+  name?: string,
+): Promise<PaginatedResponse<RawStockMedicine>> => {
+  const slug = tenantSlug.trim();
+  return stokioClient.get<PaginatedResponse<RawStockMedicine>>(
+    "/medicamentos",
+    {
+      params: {
+        page,
+        limit,
+        ...(name?.trim() ? { name: name.trim() } : {}),
+      },
+      headers: { "X-Tenant": slug },
+    },
+  );
+};
+
+export const getInputsInTenantContext = (
+  tenantSlug: string,
+  page = 1,
+  limit = 20,
+  name?: string,
+): Promise<PaginatedResponse<RawStockInput>> => {
+  const slug = tenantSlug.trim();
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+  if (name?.trim()) params.set("name", name.trim());
+  return stokioClient.get<PaginatedResponse<RawStockInput>>(
+    `/insumos?${params.toString()}`,
+    { headers: { "X-Tenant": slug } },
+  );
+};
+
 export const deleteMedicine = (id: number) =>
   stokioClient.delete(`/medicamentos/${id}`);
 
@@ -1247,6 +1285,76 @@ export const logoutRequest = () => stokioClient.post("/login/logout");
 export const getTenantConfig = () =>
   stokioClient.get<TenantConfigResponse>("/tenant/config");
 
+export type AccessibleTenantRow = {
+  id: number;
+  slug: string;
+  name: string;
+  brandName: string | null;
+  isPrimary: boolean;
+};
+
+export type AccessibleTenantsResponse = {
+  tenants: AccessibleTenantRow[];
+};
+
+export const listAccessibleTenants = () =>
+  stokioClient.get<AccessibleTenantsResponse>("/tenant/accessible-tenants");
+
+export async function grantTenantMembership(targetLoginId: number) {
+  return stokioClient.post<{ ok: boolean }>("/tenant/memberships", {
+    targetLoginId,
+  });
+}
+
+export type InterTenantMedicineTransferPayload = {
+  tipo_item?: "medicamento" | "insumo";
+  destTenantSlug: string;
+  sourceEstoqueId: number;
+  destMedicamentoId?: number;
+  destInsumoId?: number;
+  quantidade: number;
+  validade?: string;
+  destTipo: string;
+  destSetor?: string;
+  destArmarioId?: number | null;
+  destGavetaId?: number | null;
+  destLote?: string | null;
+};
+
+export const transferMedicineInterTenant = (
+  payload: InterTenantMedicineTransferPayload,
+) =>
+  stokioClient.post<{ correlationId: string }>(
+    "/estoque/transferencia-inter-abrigo",
+    payload,
+  );
+
+export type InterTenantMovementRow = {
+  id: number;
+  data: string;
+  tipo: string;
+  quantidade: number;
+  medicamento_id: number | null;
+  insumo_id: number | null;
+  observacao: string | null;
+  setor: string;
+  armario_id: number | null;
+  gaveta_id: number | null;
+  lote: string | null;
+};
+
+export const listInterTenantMovements = (params?: {
+  page?: number;
+  limit?: number;
+}) =>
+  stokioClient.get<{
+    data: InterTenantMovementRow[];
+    total: number;
+    page: number;
+    limit: number;
+    hasNext: boolean;
+  }>("/movimentacoes/inter-tenant", { params });
+
 export type TenantModuleDefinitionRow = {
   key: string;
   label: string;
@@ -1355,6 +1463,11 @@ export type CreateTenantSetorPayload = {
   nome: string;
   proportionProfile?: "farmacia" | "enfermagem";
 };
+
+export const listTenantSetoresInTenantContext = (tenantSlug: string) =>
+  stokioClient.get<{ data: TenantSetorRow[] }>("/tenant/setores", {
+    headers: { "X-Tenant": tenantSlug.trim() },
+  });
 
 export const createTenantSetor = (payload: CreateTenantSetorPayload) =>
   stokioClient.post<TenantSetorRow>("/tenant/setores", payload);

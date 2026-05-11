@@ -16,6 +16,7 @@ import {
   resumeInputFromStock,
   suspendInputFromStock,
   transferStockSector,
+  transferMedicineInterTenant,
   getResidents,
   getDrawers,
 } from "@/api/requests";
@@ -27,7 +28,9 @@ import {
   buildFilterOptionsFromApi,
 } from "@/helpers/stock-list.helper";
 import ConfirmActionModal from "@/components/ConfirmationActionModal";
-import TransferQuantityModal from "@/components/TransferQuantityModal";
+import TransferQuantityModal, {
+  type InterTenantTransferModalPayload,
+} from "@/components/TransferQuantityModal";
 import {
   actionConfig,
   actionMessages,
@@ -72,6 +75,7 @@ import {
 import { STOCK_FILTER_LABELS } from "@/components/stock/stock.constants";
 import { pageSurfaceSubtleClass } from "@/components/page/page-ui.constants";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 export default function Stock() {
   const { uiDisplay, previewMode, modules } = useTenant();
@@ -88,6 +92,7 @@ export default function Stock() {
   const { can, canMovementTipo } = usePermissionMatrix();
   const canSaida = canMovementTipo("saida");
   const canReports = can("reports", "read");
+  const canInterTenant = canMovementTipo("transferencia");
   const searchParams = useSearchParams();
   const filter = searchParams.get("filter");
 
@@ -585,9 +590,11 @@ export default function Stock() {
     setActionLoading(true);
 
     try {
+      const destSetor = row.sector === "farmacia" ? "enfermagem" : "farmacia";
+
       await transferStockSector({
         estoque_id: row.id,
-        setor: "enfermagem",
+        setor: destSetor,
         itemType: row.itemType as StockItemType,
         quantidade: quantity,
         casela_id: casela ?? null,
@@ -624,6 +631,48 @@ export default function Stock() {
     }
   };
 
+  const handleInterTenantTransferConfirm = async (
+    payload: InterTenantTransferModalPayload,
+  ) => {
+    if (!pendingAction.row || pendingAction.type !== "transfer") return;
+
+    const { row } = pendingAction;
+    setActionLoading(true);
+
+    try {
+      await transferMedicineInterTenant({
+        ...payload,
+        tipo_item: row.itemType === "insumo" ? "insumo" : "medicamento",
+        sourceEstoqueId: row.id,
+      });
+
+      await loadStock(page);
+
+      const messages = actionMessages.transfer(row);
+      toast({ title: messages.success, variant: "success", duration: 3000 });
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(
+        err,
+        "Não foi possível transferir o item. Tente novamente.",
+        "Stock:transfer-inter-tenant",
+      );
+
+      const messages = actionMessages.transfer(row);
+      toast({
+        title: messages.error,
+        description: errorMessage,
+        variant: "error",
+        duration: 3000,
+      });
+
+      await loadStock(page);
+    } finally {
+      setActionLoading(false);
+      setTransferModalOpen(false);
+      setPendingAction({ type: null, row: null });
+    }
+  };
+
   return (
     <Layout
       title="Estoque de Medicamentos e Insumos"
@@ -631,7 +680,16 @@ export default function Stock() {
       breadcrumb={stockBreadcrumb}
     >
       <div className="flex w-full flex-col gap-8">
-        <div className="flex flex-wrap gap-3 justify-end mt-8">
+        <div className="flex flex-wrap gap-3 justify-end mt-8 items-center">
+          {canInterTenant && !previewMode ? (
+            <Link
+              href="/stock/inter-tenant"
+              className="mr-auto text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Transferência entre abrigos (página completa)
+            </Link>
+          ) : null}
+
           <button
             onClick={() => {
               if (!canSaida) {
@@ -965,11 +1023,19 @@ export default function Stock() {
                 casela: pendingAction.row.casela ?? null,
                 daysToReplacement: pendingAction.row.daysToReplacement ?? null,
                 medicamentoId: pendingAction.row.medicamentoId ?? null,
+                estoqueId: pendingAction.row.id,
+                tipo: pendingAction.row.tipo ?? undefined,
+                expiry: pendingAction.row.expiry,
+                lot: pendingAction.row.lot ?? null,
               }
             : null
         }
         residents={residents}
         onConfirm={handleTransferConfirm}
+        onConfirmInterTenant={
+          canInterTenant ? handleInterTenantTransferConfirm : undefined
+        }
+        enableInterTenant={canInterTenant}
         onCancel={() => {
           setTransferModalOpen(false);
           setPendingAction({ type: null, row: null });

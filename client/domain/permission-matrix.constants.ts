@@ -16,6 +16,7 @@ export const PERMISSION_RESOURCE_KEYS = [
   "cabinet_categories",
   "drawer_categories",
   "profile",
+  "tenant_context",
 ] as const satisfies readonly PermissionResourceKey[];
 
 export const PERMISSION_RESOURCE_LABELS: Record<PermissionResourceKey, string> =
@@ -35,6 +36,7 @@ export const PERMISSION_RESOURCE_LABELS: Record<PermissionResourceKey, string> =
     cabinet_categories: "Categorias de armário",
     drawer_categories: "Categorias de gaveta",
     tenant: "Dados do abrigo (oculto)",
+    tenant_context: "Alternar contexto entre abrigos",
     imports: "Importações (oculto)",
     profile: "Perfil",
     medical_record_exports: "Prontuários",

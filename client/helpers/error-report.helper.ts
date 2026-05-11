@@ -3,6 +3,7 @@ import {
   type CanonicalErrorPayload,
   type ToCanonicalDefaults,
 } from "@stokio/sdk";
+import { readActiveTenantSlug } from "@/helpers/active-tenant-slug.helper";
 
 function resolveApiBaseUrl(): string {
   return (
@@ -29,12 +30,14 @@ export function reportCanonicalClientError(
   const base = resolveApiBaseUrl();
   if (!base || typeof window === "undefined") return;
   const token = readBearerTokenSafe();
+  const slug = readActiveTenantSlug();
   void fetch(`${base.replace(/\/$/, "")}/internal/errors`, {
     method: "POST",
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(slug?.trim() ? { "X-Tenant": slug.trim() } : {}),
     },
     body: JSON.stringify(payload),
   }).catch(() => undefined);

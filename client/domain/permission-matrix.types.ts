@@ -13,6 +13,7 @@ export type PermissionResourceKey =
   | "cabinet_categories"
   | "drawer_categories"
   | "tenant"
+  | "tenant_context"
   | "imports"
   | "profile"
   | "medical_record_exports"

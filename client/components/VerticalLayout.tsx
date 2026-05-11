@@ -15,7 +15,6 @@ import {
   LogOut,
   ShieldCheck,
   FileText,
-  ClipboardList,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
@@ -54,12 +53,6 @@ const baseNavigationTabs = [
     href: "/drawers",
     icon: Grid,
     module: "drawers",
-  },
-  {
-    name: "Auditoria",
-    href: "/audit",
-    icon: ClipboardList,
-    module: "audit",
   },
   { name: "Perfil", href: "/user/profile", icon: User, module: "profile" },
 ];

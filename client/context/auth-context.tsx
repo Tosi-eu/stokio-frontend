@@ -9,6 +9,7 @@ import {
 import { AuthContextType, LoggedUser } from "@/interfaces/interfaces";
 import {
   getCurrentUser,
+  listAccessibleTenants,
   login as apiLogin,
   logoutRequest,
 } from "@/api/requests";
@@ -16,6 +17,11 @@ import { cleanupSessionTimeout } from "@/helpers/session-timeout.helper";
 import { isSuperAdminUser } from "@/helpers/auth-roles.helper";
 import { authStorage } from "@/helpers/auth.helper";
 import { setPreviewModeStorage } from "@/helpers/preview-mode-storage";
+import {
+  clearActiveTenantSlug,
+  readActiveTenantSlug,
+  writeActiveTenantSlug,
+} from "@/helpers/active-tenant-slug.helper";
 
 export const AuthContext = createContext<AuthContextType | undefined>(
   undefined,
@@ -64,6 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       sessionStorage.removeItem("user");
       sessionStorage.removeItem("authToken");
+      clearActiveTenantSlug();
       setPreviewModeStorage(false);
       cleanupSessionTimeout();
     }
@@ -79,6 +86,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const fresh = await getCurrentUser();
           if (cancelled) return;
           if (fresh && typeof fresh.id === "number") {
+            if (!readActiveTenantSlug()) {
+              try {
+                const acc = await listAccessibleTenants();
+                const rows = acc?.tenants ?? [];
+                const primary = rows.find((t) => t.isPrimary);
+                const pick = primary ?? rows[0];
+                const s = pick?.slug?.trim();
+                if (s) writeActiveTenantSlug(s);
+              } catch {
+                /* ignore */
+              }
+            }
             const next = normalizeSessionUser(fresh as LoggedUser);
             setUser(next);
             if (next) {
@@ -135,6 +154,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const response = data as { user?: LoggedUser; token?: string };
       const loggedUser = response.user ?? (data as LoggedUser);
       const normalized = normalizeSessionUser(loggedUser);
+
+      const slug = tenantSlug.trim();
+      if (slug) {
+        writeActiveTenantSlug(slug);
+      }
 
       setUser(normalized);
 

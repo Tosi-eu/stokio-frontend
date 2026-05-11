@@ -1,4 +1,5 @@
 import { createStokioClient, StokioApiError } from "@stokio/sdk";
+import { readActiveTenantSlug } from "@/helpers/active-tenant-slug.helper";
 import { readPreviewModeFromStorage } from "@/helpers/preview-mode-storage";
 import { sanitizeUserFacingMessage } from "@/helpers/user-facing-error.helper";
 import { reportClientError } from "@/helpers/error-report.helper";
@@ -148,6 +149,13 @@ function handleHttpError(err: StokioApiError): never {
 export const stokioClient = createStokioClient({
   baseUrl: API_BASE_URL,
   getToken: readBearerToken,
+  getExtraHeaders: () => {
+    const slug = readActiveTenantSlug();
+    if (slug && slug.trim()) {
+      return { "X-Tenant": slug.trim() };
+    }
+    return {};
+  },
   onBeforeRequest: async ({ path, method, body }) => {
     const m = method.toUpperCase();
     if (

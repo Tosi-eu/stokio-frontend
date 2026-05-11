@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/use-auth.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { useNotifications } from "@/hooks/use-notification.hook";
 import { VerticalLayout } from "@/components/VerticalLayout";
+import { TenantSwitcherBar } from "@/components/tenant/TenantSwitcherBar";
 import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
 import { NotificationButton } from "@/components/NotificationButton";
 import { NotificationDrawer } from "@/components/NotificationDrawer";
@@ -14,7 +15,7 @@ import { GlobalNotificationModals } from "@/components/GlobalNotificationModals"
 
 export function AppShellLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const { isEnabled, previewMode } = useTenant();
   const { setOpen: setNotificationsOpen } = useNotifications();
   const showNotificationsUi = previewMode || isEnabled("notifications");
@@ -54,6 +55,11 @@ export function AppShellLayout({ children }: { children: ReactNode }) {
                 aqui
               </Link>
               .
+            </div>
+          ) : null}
+          {user ? (
+            <div className="shrink-0 flex flex-wrap items-center justify-end gap-3 px-4 py-2 border-b border-border/50 bg-card/50 backdrop-blur-sm">
+              <TenantSwitcherBar />
             </div>
           ) : null}
           {children}

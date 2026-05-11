@@ -181,6 +181,15 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("ui-display-updated", onUiDisplayUpdated);
   }, [refetch]);
 
+  useEffect(() => {
+    const onTenantSlug = () => {
+      void refetch();
+    };
+    window.addEventListener("stokio-active-tenant-changed", onTenantSlug);
+    return () =>
+      window.removeEventListener("stokio-active-tenant-changed", onTenantSlug);
+  }, [refetch]);
+
   const effectiveEnabled = useMemo(
     () => modulesPreview ?? modules?.enabled ?? [],
     [modulesPreview, modules],
