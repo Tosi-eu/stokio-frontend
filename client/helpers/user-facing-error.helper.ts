@@ -22,10 +22,7 @@ export function logSanitizedError(
   sanitized: string,
 ): void {
   if (shouldLogSanitization(rawMessage, sanitized)) {
-    console.error(
-      `[${context}] Internal error`,
-      err,
-    );
+    console.error(`[${context}] Internal error`, err);
   }
 }
 
