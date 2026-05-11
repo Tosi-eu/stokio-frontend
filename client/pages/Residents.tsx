@@ -767,6 +767,7 @@ export default function Resident() {
                           data={residentChartRows}
                           readOnly
                           showAddons={false}
+                          columnWidthKey="residents.stockChart"
                         />
 
                         <div className="flex flex-col items-center justify-center gap-2 pt-1">

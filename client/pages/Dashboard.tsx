@@ -724,6 +724,7 @@ export default function Dashboard() {
                       showAddons={false}
                       minRows={minRowsMovements}
                       loading={loadingNonMovement}
+                      columnWidthKey="dashboard.nonMovement"
                     />
                     <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
                       <span className="text-sm text-muted-foreground">
@@ -795,6 +796,7 @@ export default function Dashboard() {
                       minRows={minRowsMovements}
                       showAddons={false}
                       loading={loadingRecentMovements}
+                      columnWidthKey="dashboard.recentMovements"
                     />
                     <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
                       <span className="text-sm text-muted-foreground">
@@ -860,6 +862,7 @@ export default function Dashboard() {
                       ]}
                       data={mostMovData as unknown as Record<string, unknown>[]}
                       showAddons={false}
+                      columnWidthKey="dashboard.mostMoved"
                     />
                   </CardContent>
                 </Card>
@@ -893,6 +896,7 @@ export default function Dashboard() {
                         leastMovData as unknown as Record<string, unknown>[]
                       }
                       showAddons={false}
+                      columnWidthKey="dashboard.leastMoved"
                     />
                   </CardContent>
                 </Card>

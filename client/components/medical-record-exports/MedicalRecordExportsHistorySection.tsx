@@ -1,6 +1,6 @@
 "use client";
 
-import type { Dispatch, SetStateAction } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import type { MedicalRecordExportJobRow } from "@/api/requests";
 import {
   Card,
@@ -21,13 +21,24 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Download, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsUpDown,
+  Inbox,
+} from "lucide-react";
 import { TABLE_HEAD } from "@/components/medical-record-exports/medical-record-exports.constants";
 import {
   EmptyStateCard,
@@ -36,6 +47,7 @@ import {
   StatusLabel,
 } from "@/components/medical-record-exports/medical-record-exports.shared";
 import { formatDateTimePtBr } from "@/helpers/dates.helper";
+import { cn } from "@/lib/utils";
 
 export type MedicalRecordExportsHistorySectionProps = {
   historyLoading: boolean;
@@ -74,6 +86,36 @@ export function MedicalRecordExportsHistorySection(
     downloadingId,
   } = props;
 
+  const [caselaOpen, setCaselaOpen] = useState(false);
+  const [caselaSearch, setCaselaSearch] = useState("");
+
+  const filteredCaselaOptions = useMemo(() => {
+    const opts = historyCaselaOptions;
+    const raw = caselaSearch.trim();
+    if (!raw) return opts;
+    const term = raw.toLowerCase();
+    return opts.filter(
+      (o) => o.casela.startsWith(raw) || o.label.toLowerCase().includes(term),
+    );
+  }, [caselaSearch, historyCaselaOptions]);
+
+  const showTodasOption = useMemo(() => {
+    const q = caselaSearch.trim().toLowerCase();
+    if (!q) return true;
+    return "todas".startsWith(q);
+  }, [caselaSearch]);
+
+  const selectedCaselaLabel = !caselaFilter.trim()
+    ? "Todas"
+    : (historyCaselaOptions.find((o) => o.casela === caselaFilter.trim())
+        ?.label ?? `Casela ${caselaFilter.trim()}`);
+
+  const applyCasela = (value: string) => {
+    setCaselaFilterAndResetPage(value === "__all" ? "__all" : value);
+    setCaselaSearch("");
+    setCaselaOpen(false);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -88,25 +130,76 @@ export function MedicalRecordExportsHistorySection(
           <div className="flex flex-wrap items-end gap-4">
             <div className="grid min-w-[220px] max-w-md flex-1 gap-2">
               <Label htmlFor="history-casela-filter">Casela</Label>
-              <Select
-                value={caselaFilter.trim() ? caselaFilter.trim() : "__all"}
-                onValueChange={setCaselaFilterAndResetPage}
+              <Popover
+                open={caselaOpen}
+                onOpenChange={(open) => {
+                  setCaselaOpen(open);
+                  if (!open) setCaselaSearch("");
+                }}
               >
-                <SelectTrigger
-                  id="history-casela-filter"
-                  className="rounded-xl bg-background"
+                <PopoverTrigger asChild>
+                  <button
+                    id="history-casela-filter"
+                    type="button"
+                    role="combobox"
+                    aria-expanded={caselaOpen}
+                    className={cn(
+                      "flex h-10 w-full items-center justify-between rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background",
+                      "placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                    )}
+                  >
+                    <span className="truncate text-left">
+                      {selectedCaselaLabel}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-[var(--radix-popover-trigger-width)] p-0"
+                  align="start"
                 >
-                  <SelectValue placeholder="Todas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all">Todas</SelectItem>
-                  {historyCaselaOptions.map(({ casela, label }) => (
-                    <SelectItem key={casela} value={casela}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Casela ou nome do residente"
+                      value={caselaSearch}
+                      onValueChange={setCaselaSearch}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        if (filteredCaselaOptions.length !== 1) return;
+                        e.preventDefault();
+                        applyCasela(filteredCaselaOptions[0].casela);
+                      }}
+                    />
+                    <CommandList>
+                      <CommandGroup>
+                        {showTodasOption ? (
+                          <CommandItem
+                            value="__all"
+                            onSelect={() => applyCasela("__all")}
+                          >
+                            Todas
+                          </CommandItem>
+                        ) : null}
+                        {filteredCaselaOptions.map(({ casela, label }) => (
+                          <CommandItem
+                            key={casela}
+                            value={`${casela}-${label}`}
+                            onSelect={() => applyCasela(casela)}
+                          >
+                            {label}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                      {!showTodasOption &&
+                      filteredCaselaOptions.length === 0 ? (
+                        <div className="py-6 text-center text-sm text-muted-foreground">
+                          Nenhuma casela corresponde à pesquisa.
+                        </div>
+                      ) : null}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>

@@ -31,6 +31,7 @@ export interface EditableTableProps {
   data: Record<string, unknown>[];
   columns: Column[];
   entityType?: string;
+  columnWidthKey?: string;
   showAddons?: boolean;
   minRows?: number;
   onAdd?: (newRow: Record<string, unknown>) => void;
@@ -46,7 +47,6 @@ export interface BreadcrumbItem {
 export interface LayoutProps {
   children: ReactNode;
   title?: string;
-  /** Optional muted subtitle under the route title (H1). */
   description?: ReactNode;
   breadcrumb?: BreadcrumbItem[];
   minimal?: boolean;

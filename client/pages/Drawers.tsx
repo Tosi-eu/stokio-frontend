@@ -465,6 +465,7 @@ export default function Drawers() {
                     columns={STOCK_DETAIL_COLUMNS}
                     showAddons={false}
                     readOnly
+                    columnWidthKey="drawers.detailStock"
                   />
 
                   <div className="flex flex-col items-center justify-center gap-2 pt-1">

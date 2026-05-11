@@ -515,6 +515,7 @@ export default function Cabinets() {
                     columns={CABINET_STOCK_DETAIL_COLUMNS}
                     showAddons={false}
                     readOnly
+                    columnWidthKey="cabinets.detailStock"
                   />
 
                   <div className="flex flex-col items-center justify-center gap-2 pt-1">

@@ -10,6 +10,8 @@ import { useTenant } from "@/hooks/use-tenant.hook";
 import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
 import { getErrorMessage } from "@/helpers/validation.helper";
+import { usePersistedColumnWidths } from "@/hooks/use-persisted-column-widths";
+import { cn } from "@/lib/utils";
 
 const columns = [
   { key: "medicamento", label: "Medicamento", editable: false },
@@ -20,7 +22,9 @@ const columns = [
   { key: "armario", label: "Armário", editable: false },
   { key: "casela", label: "Casela", editable: false },
   { key: "residente", label: "Residente", editable: false },
-];
+] as const;
+
+const TRANSFER_REPORT_WIDTH_KEY = "transferReport";
 
 interface TransferData {
   data: string;
@@ -42,6 +46,8 @@ export default function TransferReport() {
   const [transfers, setTransfers] = useState<TransferData[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const { colWidths, startResize, resetColumnWidth, hasCustomWidths } =
+    usePersistedColumnWidths(TRANSFER_REPORT_WIDTH_KEY);
 
   async function fetchTransfers() {
     setLoading(true);
@@ -114,15 +120,40 @@ export default function TransferReport() {
           />
         ) : (
           <div className="overflow-x-auto rounded-lg border border-border/60">
-            <table className="w-full min-w-max border-collapse text-sm">
+            <table
+              className={cn(
+                "w-full min-w-max border-collapse text-sm",
+                hasCustomWidths ? "table-fixed" : "table-auto",
+              )}
+            >
+              <colgroup>
+                {columns.map((col) => (
+                  <col
+                    key={col.key}
+                    style={
+                      colWidths[col.key]
+                        ? { width: `${colWidths[col.key]}px` }
+                        : undefined
+                    }
+                  />
+                ))}
+              </colgroup>
               <thead className="sticky top-0 z-10 border-b border-border/60 bg-muted/95 shadow-sm backdrop-blur-sm">
                 <tr>
                   {columns.map((col) => (
                     <th
                       key={col.key}
-                      className="px-4 py-3 text-left font-semibold text-foreground"
+                      className="relative px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-foreground"
                     >
                       {col.label}
+                      <span
+                        role="separator"
+                        aria-orientation="vertical"
+                        title="Arraste para redimensionar. Duplo clique para repor."
+                        onMouseDown={(e) => startResize(col.key, e)}
+                        onDoubleClick={(e) => resetColumnWidth(col.key, e)}
+                        className="absolute right-0 top-0 z-[1] h-full w-2 cursor-col-resize select-none opacity-40 hover:opacity-100"
+                      />
                     </th>
                   ))}
                 </tr>
@@ -136,9 +167,18 @@ export default function TransferReport() {
                     {columns.map((col) => (
                       <td
                         key={col.key}
-                        className="px-4 py-3 text-foreground/90"
+                        className="px-4 py-3 text-foreground/90 align-top"
                       >
-                        {row[col.key as keyof typeof row] || "-"}
+                        <div
+                          className="min-w-0 max-w-full break-words"
+                          style={{
+                            maxWidth: colWidths[col.key]
+                              ? `${colWidths[col.key]}px`
+                              : "240px",
+                          }}
+                        >
+                          {row[col.key as keyof typeof row] || "-"}
+                        </div>
                       </td>
                     ))}
                   </tr>
