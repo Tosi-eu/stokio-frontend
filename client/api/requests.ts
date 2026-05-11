@@ -308,6 +308,139 @@ export const getExpiringItems = (
     params: { days, page, limit },
   });
 
+export type MedicineAbcBundleRow = {
+  medicamento_id: number;
+  nome: string;
+  principio_ativo: string;
+  qtd: number;
+  share_of_total: number;
+  cumulative_share: number;
+  class: "A" | "B" | "C";
+};
+
+export type MedicineAbcBundleSection = {
+  total_movimentado: number;
+  rows: MedicineAbcBundleRow[];
+};
+
+export type AdminMedicineAbcBundleResponse = {
+  period: { start: string; end: string };
+  entrada: MedicineAbcBundleSection;
+  saida: MedicineAbcBundleSection;
+  transferencia: MedicineAbcBundleSection;
+};
+
+export const getAdminMedicineAbcBundle = (days?: number) =>
+  stokioClient.get<AdminMedicineAbcBundleResponse>("/admin/medicine-abc", {
+    params: days != null ? { days } : undefined,
+  });
+
+export type ComplianceAuditInsights = {
+  created: number;
+  updated: number;
+  deleted: number;
+  total: number;
+  totalFiltered: number;
+  events: Array<{
+    id: number;
+    user_id: number | null;
+    method: string;
+    path: string;
+    operation_type: string;
+    resource: string | null;
+    status_code: number;
+    duration_ms: number | null;
+    created_at: string;
+    old_value: Record<string, unknown> | null;
+    new_value: Record<string, unknown> | null;
+  }>;
+};
+
+export function getComplianceAuditEvents(params: {
+  days?: number;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  limit?: number;
+  operationType?: string;
+  resource?: string;
+  userId?: number;
+}) {
+  return stokioClient.get<ComplianceAuditInsights>("/audit/events", {
+    params: params as Record<string, unknown>,
+  });
+}
+
+export function getComplianceLoginLog(params: {
+  days?: number;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  limit?: number;
+  userId?: number;
+  login?: string;
+  success?: boolean;
+}) {
+  return stokioClient.get<{
+    data: Array<{
+      id: number;
+      user_id: number | null;
+      login: string;
+      success: boolean;
+      ip: string | null;
+      user_agent: string | null;
+      created_at: string | Date;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+  }>("/audit/login-log", {
+    params: params as Record<string, unknown>,
+  });
+}
+export async function downloadComplianceCsv(
+  kind: "events" | "login" | "movements",
+  query: Record<string, string>,
+): Promise<void> {
+  const token = readBearerToken();
+  if (!token) throw new Error("Sessão não encontrada.");
+  const path =
+    kind === "events"
+      ? "/audit/export/events.csv"
+      : kind === "login"
+        ? "/audit/export/login-log.csv"
+        : "/audit/export/movements.csv";
+  const base = API_BASE_URL.replace(/\/$/, "");
+  const url = new URL(base + path);
+  Object.entries(query).forEach(([k, v]) => {
+    if (v !== "") url.searchParams.set(k, v);
+  });
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
+  });
+  if (!res.ok) {
+    let msg = "Não foi possível gerar o ficheiro.";
+    try {
+      const j = (await res.json()) as { error?: string };
+      if (j?.error) msg = j.error;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg);
+  }
+  const blob = await res.blob();
+  const cd = res.headers.get("Content-Disposition");
+  let filename = "export.csv";
+  const m = cd?.match(/filename="([^"]+)"/);
+  if (m?.[1]) filename = m[1];
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 export type { ConsumptionPeriodItem } from "@stokio/sdk";
 
 export const getConsumptionByPeriod = (
@@ -700,23 +833,12 @@ export const verifySignupContractCode = (
   signupEmail?: string,
 ) => stokioClient.public.verifySignupContractCode(contractCode, signupEmail);
 
-function superAdminApiKeyHeaders(): HeadersInit | undefined {
-  const k = process.env.NEXT_PUBLIC_X_API_KEY;
-  if (k == null || String(k).trim() === "") return undefined;
-  return { "X-API-Key": String(k).trim() };
-}
-
 export const adminSetTenantContractCodeBySlug = (
   slug: string,
   payload:
     | { contract_code: string; bound_login: string }
     | { clear_contract_code: true },
-) =>
-  stokioClient.admin.setTenantContractCodeBySlug(
-    slug,
-    payload,
-    superAdminApiKeyHeaders(),
-  );
+) => stokioClient.admin.setTenantContractCodeBySlug(slug, payload);
 
 export const updateInput = (id: number, data: Record<string, unknown>) =>
   stokioClient.put(`/insumos/${id}`, data);
@@ -1133,8 +1255,6 @@ export type TenantModuleDefinitionRow = {
 export type TenantModuleCatalogResponse = {
   modules: TenantModuleDefinitionRow[];
 };
-
-/** Catálogo de módulos (chaves válidas + rótulos) — fonte única com GET /tenant/modules no backend. */
 export const listTenantModuleDefinitions = () =>
   stokioClient.get<TenantModuleCatalogResponse>("/tenant/modules");
 
@@ -1277,8 +1397,6 @@ export type MedicalRecordExportJobRow = {
   downloadCount: number;
   lastDownloadAt: string | null;
 };
-
-/** Uma geração concluída com sucesso (mais recente = versionIndex 1). */
 export type MedicalRecordVersionRow = {
   versionIndex: number;
   jobId: string;
@@ -1540,26 +1658,25 @@ export type {
 export type { AdminNotificationItem } from "@stokio/sdk";
 
 export const getAdminTenants = (params?: { page?: number; limit?: number }) =>
-  stokioClient.admin.tenants.list(params, superAdminApiKeyHeaders());
+  stokioClient.admin.tenants.list(params);
 export const createAdminTenant = (data: {
   slug: string;
   name: string;
   contract_code?: string;
-}) => stokioClient.admin.tenants.create(data, superAdminApiKeyHeaders());
+}) => stokioClient.admin.tenants.create(data);
 export const updateAdminTenant = (
   id: number,
   data: Partial<{ slug: string; name: string; contract_code?: string }>,
-) => stokioClient.admin.tenants.update(id, data, superAdminApiKeyHeaders());
+) => stokioClient.admin.tenants.update(id, data);
 export const deleteAdminTenant = (id: number) =>
-  stokioClient.admin.tenants.remove(id, superAdminApiKeyHeaders());
+  stokioClient.admin.tenants.remove(id);
 
 export const getAdminTenantConfig = (id: number) =>
-  stokioClient.admin.tenants.getConfig(id, superAdminApiKeyHeaders());
+  stokioClient.admin.tenants.getConfig(id);
 export const setAdminTenantConfig = (
   id: number,
   modules: { enabled: string[] },
-) =>
-  stokioClient.admin.tenants.setConfig(id, modules, superAdminApiKeyHeaders());
+) => stokioClient.admin.tenants.setConfig(id, modules);
 
 export const restoreBackup = (file: File) =>
   stokioClient.admin.restoreBackup(file);

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import Layout from "@/components/Layout";
 import { toast } from "@/hooks/use-toast.hook";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { consumeSpaNavigationState } from "@/helpers/spa-navigation-state.helper";
 import {
   createStockOut,
@@ -63,6 +63,7 @@ export default function StockOut() {
   const { canMovementTipo } = usePermissionMatrix();
   const canSaida = canMovementTipo("saida");
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [initialNav] = useState(() =>
     consumeSpaNavigationState<{ data?: StockItemRaw[] }>(),
   );
@@ -86,7 +87,21 @@ export default function StockOut() {
     casela: "",
     setor: "",
     lote: "",
+    armario: "",
+    gaveta: "",
   });
+
+  useEffect(() => {
+    const cab = searchParams.get("cabinet");
+    const drw = searchParams.get("drawer");
+    if (cab || drw) {
+      setFilters((prev) => ({
+        ...prev,
+        ...(cab ? { armario: cab } : {}),
+        ...(drw ? { gaveta: drw } : {}),
+      }));
+    }
+  }, [searchParams]);
 
   const setorProfileForFilters = useMemo(
     () =>
@@ -206,12 +221,29 @@ export default function StockOut() {
         if (q && !(item.nome ?? "").toLowerCase().includes(q)) return false;
         if (filters.casela && String(item.casela_id ?? "") !== filters.casela)
           return false;
+        if (
+          filters.armario &&
+          String(item.armario_id ?? "") !== filters.armario.trim()
+        )
+          return false;
+        if (
+          filters.gaveta &&
+          String(item.gaveta_id ?? "") !== filters.gaveta.trim()
+        )
+          return false;
         if (filters.setor && (item.setor ?? "") !== filters.setor) return false;
         if (filters.lote && (item.lote ?? "") !== filters.lote) return false;
         return true;
       });
     },
-    [debouncedNome, filters.casela, filters.setor, filters.lote],
+    [
+      debouncedNome,
+      filters.casela,
+      filters.armario,
+      filters.gaveta,
+      filters.setor,
+      filters.lote,
+    ],
   );
 
   const loadStock = useCallback(async () => {
@@ -244,6 +276,8 @@ export default function StockOut() {
           casela: filters.casela || undefined,
           setor: filters.setor || undefined,
           lote: filters.lote || undefined,
+          armario: filters.armario.trim() || undefined,
+          gaveta: filters.gaveta.trim() || undefined,
           itemType: itemTypeFilter,
           onlyInStock: true,
         },
@@ -271,6 +305,8 @@ export default function StockOut() {
     stockPage,
     debouncedNome,
     filters.casela,
+    filters.armario,
+    filters.gaveta,
     filters.setor,
     filters.lote,
     step,

@@ -236,6 +236,10 @@ export default function AdminPanel() {
             setStockHistoryPage={resumoExtras.setStockHistoryPage}
             stockHistoryLimit={resumoExtras.stockHistoryLimit}
             setStockHistoryLimit={resumoExtras.setStockHistoryLimit}
+            abcDays={resumoExtras.abcDays}
+            setAbcDays={resumoExtras.setAbcDays}
+            abcBundle={resumoExtras.abcBundle}
+            loadingAbc={resumoExtras.loadingAbc}
           />
         </TabsContent>
 

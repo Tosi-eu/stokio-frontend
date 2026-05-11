@@ -5,11 +5,15 @@ import {
   getAdminStockHistory,
   getMedicines,
   getInputs,
+  getAdminMedicineAbcBundle,
 } from "@/api/requests";
+import type { AdminMedicineAbcBundleResponse } from "@/api/requests";
 import type { ExpiringItem, ConsumptionByItemRow } from "@/api/requests";
 import type { StockHistoryEntry } from "@/api/requests";
+import { useTenant } from "@/hooks/use-tenant.hook";
 
 export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
+  const { tenantId } = useTenant();
   const [expiringDays, setExpiringDays] = useState<30 | 60 | 90>(30);
   const [expiringItems, setExpiringItems] = useState<ExpiringItem[]>([]);
   const [expiringItemsTotal, setExpiringItemsTotal] = useState(0);
@@ -55,6 +59,11 @@ export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
   const [stockHistoryPage, setStockHistoryPage] = useState(1);
   const [stockHistoryLimit, setStockHistoryLimit] = useState(25);
 
+  const [abcDays, setAbcDays] = useState(90);
+  const [abcBundle, setAbcBundle] =
+    useState<AdminMedicineAbcBundleResponse | null>(null);
+  const [loadingAbc, setLoadingAbc] = useState(false);
+
   useEffect(() => {
     if (!isAdmin || !enabled) return;
     let cancelled = false;
@@ -78,7 +87,7 @@ export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, enabled, expiringDays, expiringItemsPage]);
+  }, [isAdmin, enabled, expiringDays, expiringItemsPage, tenantId]);
 
   function fetchConsumptionByItem() {
     setLoadingConsumptionByItem(true);
@@ -96,7 +105,7 @@ export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
   useEffect(() => {
     if (isAdmin && enabled) fetchConsumptionByItem();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchConsumptionByItem stable
-  }, [isAdmin, enabled]);
+  }, [isAdmin, enabled, tenantId]);
 
   useEffect(() => {
     if (!stockHistoryItemSearch.trim() || stockHistoryItemSearch.length < 2) {
@@ -175,6 +184,25 @@ export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
   }
 
   useEffect(() => {
+    if (!isAdmin || !enabled) return;
+    let cancelled = false;
+    setLoadingAbc(true);
+    getAdminMedicineAbcBundle(abcDays)
+      .then((data) => {
+        if (!cancelled) setAbcBundle(data);
+      })
+      .catch(() => {
+        if (!cancelled) setAbcBundle(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingAbc(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, enabled, abcDays, tenantId]);
+
+  useEffect(() => {
     setStockHistoryPage(1);
   }, [stockHistoryLimit]);
 
@@ -215,5 +243,9 @@ export function useAdminResumoExtras(isAdmin: boolean, enabled = true) {
     setStockHistoryPage,
     stockHistoryLimit,
     setStockHistoryLimit,
+    abcDays,
+    setAbcDays,
+    abcBundle,
+    loadingAbc,
   };
 }

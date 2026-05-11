@@ -1,6 +1,9 @@
 import type { ExecutiveSummary } from "../../types";
 import type { SummaryListKind } from "../../hooks/useAdminSummary";
-import type { AdminMetricsResponse } from "@/api/requests";
+import type {
+  AdminMedicineAbcBundleResponse,
+  AdminMetricsResponse,
+} from "@/api/requests";
 
 export interface AdminTabResumoProps {
   metrics?: AdminMetricsResponse | null;
@@ -71,4 +74,8 @@ export interface AdminTabResumoProps {
   setStockHistoryPage: (v: number | ((p: number) => number)) => void;
   stockHistoryLimit: number;
   setStockHistoryLimit: (v: number) => void;
+  abcDays: number;
+  setAbcDays: (v: number) => void;
+  abcBundle: AdminMedicineAbcBundleResponse | null;
+  loadingAbc: boolean;
 }

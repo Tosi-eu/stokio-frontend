@@ -18,8 +18,6 @@ export function assertFrontendEnvAtBuild() {
     NEXT_PUBLIC_API_BASE_URL: z
       .string({ required_error: "NEXT_PUBLIC_API_BASE_URL é obrigatório" })
       .min(1, "NEXT_PUBLIC_API_BASE_URL não pode ser vazio"),
-
-    NEXT_PUBLIC_X_API_KEY: z.string().optional(),
   });
 
   const parsed = schema.safeParse(process.env);

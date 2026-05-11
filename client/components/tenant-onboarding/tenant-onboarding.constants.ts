@@ -13,6 +13,7 @@ import {
   User,
   Users,
   Warehouse,
+  ClipboardList,
 } from "lucide-react";
 
 export const TENANT_ONBOARDING_MODULES: Array<{
@@ -74,6 +75,12 @@ export const TENANT_ONBOARDING_MODULES: Array<{
     label: "Relatórios",
     hint: "Relatórios e exportações",
     icon: BarChart3,
+  },
+  {
+    key: "audit",
+    label: "Auditoria",
+    hint: "Trilhas de alterações e log de acessos",
+    icon: ClipboardList,
   },
   {
     key: "notifications",

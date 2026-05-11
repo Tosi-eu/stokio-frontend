@@ -178,7 +178,6 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
     if (value !== "residente_consumo" && value !== "medicamentos_residente") {
       setSelectedResident(null);
     }
-    // Defaults úteis pra reduzir fricção
     if (value === "movimentacoes") {
       setMovementPeriod(MovementPeriod.DIARIO);
       setMovementDate((d) => d ?? new Date());

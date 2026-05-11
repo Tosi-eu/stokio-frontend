@@ -50,6 +50,7 @@ import {
 } from "@/components/ui/command";
 import { ChevronsUpDown, X } from "lucide-react";
 import { TableFilter } from "@/components/TableFilter";
+import { Input } from "@/components/ui/input";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
 import {
@@ -90,6 +91,18 @@ export default function Stock() {
   const searchParams = useSearchParams();
   const filter = searchParams.get("filter");
 
+  useEffect(() => {
+    const cab = searchParams.get("cabinet");
+    const drw = searchParams.get("drawer");
+    if (cab || drw) {
+      setFilters((prev) => ({
+        ...prev,
+        ...(cab ? { armario: cab } : {}),
+        ...(drw ? { gaveta: drw } : {}),
+      }));
+    }
+  }, [searchParams]);
+
   const stockBreadcrumb = useMemo(
     () =>
       filter && STOCK_FILTER_LABELS[filter]
@@ -115,6 +128,7 @@ export default function Stock() {
     nome: "",
     casela: "",
     armario: "",
+    gaveta: "",
     setor: "",
     lote: "",
   });
@@ -329,6 +343,7 @@ export default function Stock() {
       prevFiltersRef.current.nome !== effectiveFilters.nome ||
       prevFiltersRef.current.casela !== effectiveFilters.casela ||
       prevFiltersRef.current.armario !== effectiveFilters.armario ||
+      prevFiltersRef.current.gaveta !== effectiveFilters.gaveta ||
       prevFiltersRef.current.setor !== effectiveFilters.setor ||
       prevFiltersRef.current.lote !== effectiveFilters.lote;
 
@@ -802,6 +817,26 @@ export default function Stock() {
                     </Command>
                   </PopoverContent>
                 </Popover>
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <label className="block text-xs text-muted-foreground mb-1">
+                  Gaveta
+                </label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  className="rounded-lg"
+                  placeholder="Nº"
+                  value={filters.gaveta}
+                  onChange={(e) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      gaveta: e.target.value.replace(/\D/g, ""),
+                    }))
+                  }
+                  aria-label="Filtrar por número da gaveta"
+                />
               </div>
 
               <div className="flex-1 min-w-0">

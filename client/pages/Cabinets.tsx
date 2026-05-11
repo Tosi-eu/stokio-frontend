@@ -417,7 +417,27 @@ export default function Cabinets() {
                 </p>
               </div>
               {!previewMode ? (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button
+                    asChild
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-xl"
+                  >
+                    <Link href={`/stock?cabinet=${selectedNumero}`}>
+                      Ver no estoque
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-xl"
+                  >
+                    <Link href={`/stock/out?cabinet=${selectedNumero}`}>
+                      Saída rápida
+                    </Link>
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"

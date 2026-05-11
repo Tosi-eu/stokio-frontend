@@ -65,8 +65,6 @@ export default function CreateNotificationForm({
     [NotificationDestiny.PHARMACY]: "Farmácia",
     [NotificationDestiny.STOCK]: "Estoque",
   };
-
-  /** Destinos permitidos para notificação de receita (sem Estoque — só automático/reposição). */
   const receitaDestinoOptions: NotificationDestiny[] = [
     NotificationDestiny.SUS,
     NotificationDestiny.FAMILY,

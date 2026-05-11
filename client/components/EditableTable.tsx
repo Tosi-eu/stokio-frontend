@@ -48,8 +48,6 @@ const toPermissionResourceKey = (
   v: string | null | undefined,
 ): PermissionResourceKey | null => {
   if (!v) return null;
-  // EditableTable recebe `entityType` e alguns aliases internos. Mantemos aqui
-  // a whitelist de chaves válidas do permission matrix.
   const allowed: readonly PermissionResourceKey[] = [
     "dashboard",
     "residents",

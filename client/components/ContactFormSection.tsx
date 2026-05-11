@@ -17,10 +17,7 @@ import { submitPublicContact } from "@/api/requests";
 import { cn } from "@/lib/utils";
 import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
 
-export type ContactFormSectionProps = {
-  /** `embedded`: sem cabeçalho duplicado (título fica na secção pai). */
-  variant?: "standalone" | "embedded";
-};
+export type ContactFormSectionProps = { variant?: "standalone" | "embedded" };
 
 export function ContactFormSection({
   variant = "standalone",

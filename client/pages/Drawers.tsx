@@ -28,6 +28,7 @@ import {
 import { fetchStockPage, formatStockItems } from "@/helpers/stock-list.helper";
 import type { StockItem } from "@/interfaces/interfaces";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TableFilter } from "@/components/TableFilter";
 import { Pencil, Trash2 } from "lucide-react";
 import DeletePopUp from "@/components/DeletePopUp";
@@ -97,6 +98,13 @@ export default function Drawers() {
   const STOCK_PAGE_SIZE = 10;
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [checkedStockIds, setCheckedStockIds] = useState<Set<number>>(
+    () => new Set(),
+  );
+
+  useEffect(() => {
+    setCheckedStockIds(new Set());
+  }, [selectedNumero]);
 
   const loadDrawers = useCallback(async () => {
     setLoadingList(true);
@@ -367,7 +375,27 @@ export default function Drawers() {
                 </p>
               </div>
               {!previewMode ? (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button
+                    asChild
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-xl"
+                  >
+                    <Link href={`/stock?drawer=${selectedNumero}`}>
+                      Ver no estoque
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-xl"
+                  >
+                    <Link href={`/stock/out?drawer=${selectedNumero}`}>
+                      Saída rápida
+                    </Link>
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
@@ -467,6 +495,40 @@ export default function Drawers() {
                     readOnly
                     columnWidthKey="drawers.detailStock"
                   />
+
+                  {stockRows.length > 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/70 p-4 space-y-2">
+                      <p className="text-sm font-medium">
+                        Conferência (esta sessão)
+                      </p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-2">
+                        {stockRows.map((row) => {
+                          const id = Number(row.id);
+                          return (
+                            <label
+                              key={id}
+                              className="flex items-center gap-2 text-sm cursor-pointer"
+                            >
+                              <Checkbox
+                                checked={checkedStockIds.has(id)}
+                                onCheckedChange={(c) => {
+                                  setCheckedStockIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (c === true) next.add(id);
+                                    else next.delete(id);
+                                    return next;
+                                  });
+                                }}
+                              />
+                              <span className="truncate max-w-[220px]">
+                                {row.name}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div className="flex flex-col items-center justify-center gap-2 pt-1">
                     <p className="text-xs text-muted-foreground">

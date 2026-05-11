@@ -55,7 +55,6 @@ export function AdminTabConfig({
   saving,
   onSave,
   isSuperAdmin: _isSuperAdmin,
-  // backups são geridos fora do sistema (mantemos props por compatibilidade)
   scheduledBackup: _scheduledBackup,
   setScheduledBackup: _setScheduledBackup,
 }: AdminTabConfigProps) {

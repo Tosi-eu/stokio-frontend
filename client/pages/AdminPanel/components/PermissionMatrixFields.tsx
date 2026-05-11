@@ -100,17 +100,21 @@ export function PermissionMatrixFields({ value, onChange, disabled }: Props) {
                     <td key={action} className="p-2 text-center align-middle">
                       <Checkbox
                         checked={
-                          rk === "reports" && action !== "read"
+                          (rk === "reports" || rk === "audit") &&
+                          action !== "read"
                             ? Boolean(value.resources[rk]?.read)
                             : Boolean(value.resources[rk]?.[action])
                         }
                         disabled={
-                          disabled || (rk === "reports" && action !== "read")
+                          disabled ||
+                          ((rk === "reports" || rk === "audit") &&
+                            action !== "read")
                         }
                         onCheckedChange={(c) =>
                           patchResource(
                             rk,
-                            rk === "reports" && action === "read"
+                            (rk === "reports" || rk === "audit") &&
+                              action === "read"
                               ? ({
                                   read: Boolean(c),
                                   create: Boolean(c),

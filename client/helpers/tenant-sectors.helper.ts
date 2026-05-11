@@ -41,8 +41,6 @@ export function resolveSectorProfile(
   if (p) return p;
   return k === "enfermagem" ? "enfermagem" : "farmacia";
 }
-
-/** Labels for selects/filters: prefer catalog nome, else formatted key. */
 export function buildSectorFilterOptions(
   enabledKeys: string[],
   labelByKey: Map<string, string>,

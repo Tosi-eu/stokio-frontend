@@ -11,6 +11,7 @@ import {
   getDrawers,
 } from "@/api/requests";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
+import { useTenant } from "@/hooks/use-tenant.hook";
 import type { ExecutiveSummary } from "../types";
 
 export type SummaryListKind =
@@ -21,6 +22,7 @@ export type SummaryListKind =
   | "drawers";
 
 export function useAdminSummary(isAdmin: boolean, enabled = true) {
+  const { tenantId } = useTenant();
   const [summary, setSummary] = useState<ExecutiveSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [expandedSummary, setExpandedSummary] =
@@ -115,7 +117,7 @@ export function useAdminSummary(isAdmin: boolean, enabled = true) {
 
   useEffect(() => {
     if (isAdmin && enabled) loadSummary();
-  }, [isAdmin, enabled]);
+  }, [isAdmin, enabled, tenantId]);
 
   return {
     summary,

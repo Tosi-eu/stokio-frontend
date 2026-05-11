@@ -23,8 +23,6 @@ function readBearerTokenSafe(): string | null {
     return null;
   }
 }
-
-/** Envia payload canónico para ingestão no backend (cookies + Bearer). Ignora falhas. */
 export function reportCanonicalClientError(
   payload: CanonicalErrorPayload,
 ): void {

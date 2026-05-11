@@ -28,7 +28,6 @@ interface DashboardChartCardProps {
   gradientId: string;
   gradientColors: { start: string; end: string };
   maxItems?: number;
-  /** Ordena por número do label (armário/gaveta), não por quantidade */
   sortByNumericLabel?: boolean;
 }
 

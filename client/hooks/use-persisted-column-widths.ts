@@ -31,11 +31,6 @@ function parseStoredWidths(raw: string | null): Record<string, number> {
     return {};
   }
 }
-
-/**
- * Persisted per-column widths (localStorage). Drag the vertical separator on
- * headers to resize; double-click the separator to reset that column.
- */
 export function usePersistedColumnWidths(storageSuffix: string) {
   const storageKey = `${STORAGE_PREFIX}${storageSuffix}`;
 

@@ -657,7 +657,6 @@ export default function Dashboard() {
               <DashboardWidgetShell
                 id="customSectorProportions"
                 editMode={dashLayout.editMode}
-                // Sempre ocupar a linha inteira para os cards não ficarem "minúsculos"
                 wide={true}
                 allowWide={false}
                 onHide={() => dashLayout.hide("customSectorProportions")}

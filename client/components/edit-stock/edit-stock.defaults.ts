@@ -1,6 +1,4 @@
 import { ItemStockType } from "@/utils/enums";
-
-/** Valores iniciais do formulário de edição de estoque (useForm defaultValues). */
 export function getEditStockFormDefaults(defaultSetor: string) {
   return {
     quantidade: 0,
