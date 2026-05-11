@@ -16,6 +16,7 @@ import {
   USER_FACING_RETRY_SHORT,
 } from "@/helpers/validation.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
 
 async function waitForReportExportJob(jobId: string): Promise<void> {
   const startedAt = Date.now();
@@ -72,10 +73,12 @@ export function useAdminReports(enabled = true) {
 
   const filteredReportResidents = useMemo(
     () =>
-      reportResidents.filter((r) => {
-        if (!reportResidentSearch.trim()) return true;
-        return r.casela.toString().startsWith(reportResidentSearch.trim());
-      }),
+      reportResidents
+        .filter((r) => {
+          if (!reportResidentSearch.trim()) return true;
+          return r.casela.toString().startsWith(reportResidentSearch.trim());
+        })
+        .sort(compareResidentsByNameThenCasela),
     [reportResidents, reportResidentSearch],
   );
 

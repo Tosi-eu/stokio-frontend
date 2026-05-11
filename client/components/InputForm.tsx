@@ -37,6 +37,7 @@ import {
   getEnabledSectors,
   resolveSectorProfile,
 } from "@/helpers/tenant-sectors.helper";
+import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
 import { getTenantSetorStockTypes } from "@/api/requests";
 
 function normalizeText(text: string) {
@@ -119,9 +120,7 @@ export const InputForm = memo(function InputForm({
   );
   const caselasForSelect = useMemo(() => {
     if (nursingLike) {
-      return [...(caselas ?? [])].sort((a, b) =>
-        a.name.localeCompare(b.name, "pt-BR"),
-      );
+      return [...(caselas ?? [])].sort(compareResidentsByNameThenCasela);
     }
     return caselas ?? [];
   }, [caselas, nursingLike]);

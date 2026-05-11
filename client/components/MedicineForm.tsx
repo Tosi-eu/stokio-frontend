@@ -37,6 +37,10 @@ import {
   getEnabledSectors,
 } from "@/helpers/tenant-sectors.helper";
 import { caselaModeForContext } from "@/helpers/ui-display.helper";
+import {
+  compareResidentsByCaselaThenName,
+  compareResidentsByNameThenCasela,
+} from "@/helpers/resident-sort.helper";
 import { getTenantSetorStockTypes } from "@/api/requests";
 
 function normalizeText(text: string) {
@@ -112,9 +116,9 @@ export const MedicineForm = memo(function MedicineForm({
   const caselasForSelect = useMemo(() => {
     const list = [...(caselas ?? [])];
     if (effectiveCaselaMode === "nome") {
-      return list.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+      return list.sort(compareResidentsByNameThenCasela);
     }
-    return list.sort((a, b) => a.casela - b.casela);
+    return list.sort(compareResidentsByCaselaThenName);
   }, [caselas, effectiveCaselaMode]);
 
   const filteredMedicines = useMemo(() => {

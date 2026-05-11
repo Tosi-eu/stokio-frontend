@@ -8,6 +8,10 @@ import {
   type UiDisplayCasela,
   type UiDisplayCaselaSetor,
 } from "@/helpers/ui-display.helper";
+import {
+  compareResidentsByCaselaThenName,
+  compareResidentsByNameThenCasela,
+} from "@/helpers/resident-sort.helper";
 import { formatValidityDate } from "@/helpers/dates.helper";
 
 export interface StockListFilters {
@@ -201,8 +205,8 @@ export function buildFilterOptions(
     ? [...options!.residents!]
         .sort((a, b) =>
           effEnf === "nome"
-            ? a.name.localeCompare(b.name, "pt-BR")
-            : a.casela - b.casela,
+            ? compareResidentsByNameThenCasela(a, b)
+            : compareResidentsByCaselaThenName(a, b),
         )
         .map((r) => ({
           value: String(r.casela),
@@ -222,11 +226,12 @@ export function buildFilterOptions(
       )
         .sort((a, b) => {
           if (effFarm === "nome" && (options?.residents?.length ?? 0) > 0) {
-            const na =
-              options!.residents!.find((r) => r.casela === a)?.name ?? "";
-            const nb =
-              options!.residents!.find((r) => r.casela === b)?.name ?? "";
-            return na.localeCompare(nb, "pt-BR");
+            const ra = options!.residents!.find((r) => r.casela === a);
+            const rb = options!.residents!.find((r) => r.casela === b);
+            return compareResidentsByNameThenCasela(
+              { name: ra?.name ?? "", casela: a },
+              { name: rb?.name ?? "", casela: b },
+            );
           }
           return a - b;
         })
@@ -301,8 +306,8 @@ export function buildFilterOptionsFromApi(
     ? [...options!.residents!]
         .sort((a, b) =>
           effEnf === "nome"
-            ? a.name.localeCompare(b.name, "pt-BR")
-            : a.casela - b.casela,
+            ? compareResidentsByNameThenCasela(a, b)
+            : compareResidentsByCaselaThenName(a, b),
         )
         .map((r) => ({
           value: String(r.casela),
@@ -314,11 +319,12 @@ export function buildFilterOptionsFromApi(
     : (apiOptions?.caselas ?? [])
         .sort((a, b) => {
           if (effFarm === "nome" && (options?.residents?.length ?? 0) > 0) {
-            const na =
-              options!.residents!.find((r) => r.casela === a)?.name ?? "";
-            const nb =
-              options!.residents!.find((r) => r.casela === b)?.name ?? "";
-            return na.localeCompare(nb, "pt-BR");
+            const ra = options!.residents!.find((r) => r.casela === a);
+            const rb = options!.residents!.find((r) => r.casela === b);
+            return compareResidentsByNameThenCasela(
+              { name: ra?.name ?? "", casela: a },
+              { name: rb?.name ?? "", casela: b },
+            );
           }
           return a - b;
         })

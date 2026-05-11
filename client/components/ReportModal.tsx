@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Dialog,
@@ -44,6 +44,7 @@ import { parseYearMonthToDate } from "@/helpers/dates.helper";
 import { toast } from "@/hooks/use-toast.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
+import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
 type StatusType = "idle" | "loading" | "success" | "error";
 
 interface ReportModalProps {
@@ -342,13 +343,16 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
 
   const iconSize = 140;
 
-  const filteredResidents = residents.filter((r) => {
-    if (!residentSearch) return true;
-    const q = residentSearch.trim().toLowerCase();
-    if (!q) return true;
-    if (/^\d+$/.test(q)) return String(r.casela).startsWith(q);
-    return r.name.toLowerCase().includes(q);
-  });
+  const filteredResidents = useMemo(() => {
+    const list = residents.filter((r) => {
+      if (!residentSearch) return true;
+      const q = residentSearch.trim().toLowerCase();
+      if (!q) return true;
+      if (/^\d+$/.test(q)) return String(r.casela).startsWith(q);
+      return r.name.toLowerCase().includes(q);
+    });
+    return [...list].sort(compareResidentsByNameThenCasela);
+  }, [residents, residentSearch]);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>

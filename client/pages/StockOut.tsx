@@ -47,6 +47,7 @@ import {
 } from "@/helpers/tenant-sectors.helper";
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
+import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
 import { TableFilter } from "@/components/TableFilter";
 import { STOCK_OUT_PAGE_SIZE } from "@/components/stock-out/stock-out.constants";
 
@@ -174,7 +175,7 @@ export default function StockOut() {
         );
         if (!cancelled) {
           setResidents(
-            mapped.sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+            mapped.sort(compareResidentsByNameThenCasela),
           );
         }
       } catch {

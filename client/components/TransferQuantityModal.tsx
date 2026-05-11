@@ -36,6 +36,10 @@ import {
 } from "@/api/requests";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { caselaModeForContext } from "@/helpers/ui-display.helper";
+import {
+  compareResidentsByCaselaThenName,
+  compareResidentsByNameThenCasela,
+} from "@/helpers/resident-sort.helper";
 import { ItemStockType } from "@/utils/enums";
 
 export type InterTenantTransferModalPayload = Omit<
@@ -355,8 +359,8 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
     );
     return [...(residents ?? [])].sort((a, b) =>
       eff === "nome"
-        ? a.name.localeCompare(b.name, "pt-BR")
-        : a.casela - b.casela,
+        ? compareResidentsByNameThenCasela(a, b)
+        : compareResidentsByCaselaThenName(a, b),
     );
   }, [residents, uiDisplay.casela, uiDisplay.caselaSetor]);
 

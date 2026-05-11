@@ -18,6 +18,7 @@ import {
   formatCpfMask,
 } from "@/helpers/cpf-format.helper";
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
+import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
 import {
@@ -100,11 +101,7 @@ export default function Resident() {
       if (previewMode) {
         const start = (page - 1) * DEFAULT_PAGE_SIZE;
         const slice = PREVIEW_RESIDENTS.slice(start, start + DEFAULT_PAGE_SIZE);
-        setResidents(
-          slice
-            .map((r) => ({ ...r, cpf: null }))
-            .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
-        );
+        setResidents(slice.map((r) => ({ ...r, cpf: null })));
         setHasNext(start + DEFAULT_PAGE_SIZE < PREVIEW_RESIDENTS.length);
         return;
       }
@@ -158,11 +155,14 @@ export default function Resident() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return residents;
-    return residents.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) || String(r.casela).includes(q.trim()),
-    );
+    const list = !q
+      ? residents
+      : residents.filter(
+          (r) =>
+            r.name.toLowerCase().includes(q) ||
+            String(r.casela).includes(q.trim()),
+        );
+    return [...list].sort(compareResidentsByNameThenCasela);
   }, [residents, search]);
 
   const selected = useMemo(

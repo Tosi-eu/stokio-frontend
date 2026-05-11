@@ -26,6 +26,7 @@ import {
 } from "@/api/requests";
 import { useRouter } from "next/navigation";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
+import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
 import {
   Select,
   SelectTrigger,
@@ -73,9 +74,7 @@ export default function StockIn() {
 
         setMedicines(medicinesRes);
         setInputs(inputsRes);
-        setCaselas(
-          [...residents].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
-        );
+        setCaselas([...residents].sort(compareResidentsByNameThenCasela));
         setCabinets([...cabinets].sort((a, b) => b.numero - a.numero));
         setDrawers([...drawers].sort((a, b) => b.numero - a.numero));
       } catch (err: unknown) {

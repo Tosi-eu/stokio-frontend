@@ -36,6 +36,7 @@ import {
   getEnabledSectors,
   resolveSectorProfile,
 } from "@/helpers/tenant-sectors.helper";
+import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
 import { getEditStockFormDefaults } from "@/components/edit-stock/edit-stock.defaults";
 
 export default function EditStock() {
@@ -194,9 +195,7 @@ export default function EditStock() {
 
   const caselaResidentsList = useMemo(() => {
     if (resolveSectorProfile(watchedSetor, profilesByKey) === "enfermagem") {
-      return [...residents].sort((a, b) =>
-        a.name.localeCompare(b.name, "pt-BR"),
-      );
+      return [...residents].sort(compareResidentsByNameThenCasela);
     }
     return residents;
   }, [residents, watchedSetor, profilesByKey]);

@@ -40,6 +40,7 @@ import { getErrorMessage } from "@/helpers/validation.helper";
 import { toast } from "@/hooks/use-toast.hook";
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
+import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
 import {
   Popover,
   PopoverContent,
@@ -266,7 +267,7 @@ export default function Stock() {
             casela: r.casela,
             name: r.name,
           }))
-          .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+          .sort(compareResidentsByNameThenCasela),
       );
     } catch (err: unknown) {
       if (previewMode) {
@@ -274,7 +275,7 @@ export default function Stock() {
           PREVIEW_RESIDENTS.map((r) => ({
             casela: r.casela,
             name: r.name,
-          })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+          })).sort(compareResidentsByNameThenCasela),
         );
       } else {
         const errorMessage = getErrorMessage(
