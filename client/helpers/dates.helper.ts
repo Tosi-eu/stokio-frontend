@@ -2,6 +2,28 @@ function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
+const SAO_PAULO_TZ = "America/Sao_Paulo";
+
+function formatDatePartsSaoPaulo(d: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: SAO_PAULO_TZ,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(d);
+}
+
+function formatTimePartsSaoPaulo(d: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: SAO_PAULO_TZ,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+    .format(d)
+    .replace(", ", "");
+}
+
 export function formatDateToPtBr(
   input: string | Date | undefined | null,
 ): string {
@@ -9,7 +31,7 @@ export function formatDateToPtBr(
 
   if (input instanceof Date) {
     if (isNaN(input.getTime())) return "";
-    return `${pad2(input.getDate())}/${pad2(input.getMonth() + 1)}/${input.getFullYear()}`;
+    return formatDatePartsSaoPaulo(input);
   }
 
   const str = String(input).trim();
@@ -27,14 +49,15 @@ export function formatDateToPtBr(
 
   const parsed = new Date(str);
   if (!isNaN(parsed.getTime())) {
-    return `${pad2(parsed.getDate())}/${pad2(parsed.getMonth() + 1)}/${parsed.getFullYear()}`;
+    return formatDatePartsSaoPaulo(parsed);
   }
 
   return str;
 }
 
 export function formatTimePtBr(d: Date): string {
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  if (isNaN(d.getTime())) return "";
+  return formatTimePartsSaoPaulo(d);
 }
 
 export function formatDateTimePtBr(
@@ -43,7 +66,7 @@ export function formatDateTimePtBr(
   if (input === undefined || input === null) return "";
   const d = input instanceof Date ? input : new Date(input);
   if (isNaN(d.getTime())) return String(input);
-  return `${formatDateToPtBr(d)} ${formatTimePtBr(d)}`;
+  return `${formatDatePartsSaoPaulo(d)} ${formatTimePartsSaoPaulo(d)}`;
 }
 
 export function formatDateOrDateTimePtBr(

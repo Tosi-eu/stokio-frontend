@@ -246,46 +246,62 @@ const styles = StyleSheet.create({
 
   tableHeader: {
     flexDirection: "row",
-    backgroundColor: "#e5e5e5",
-    paddingVertical: 4,
+    backgroundColor: "#0f172a",
+    paddingVertical: 6,
+    paddingHorizontal: 2,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: "#000",
-    fontWeight: "bold",
-    textAlign: "center",
-    fontSize: 8,
+    borderColor: "#0f172a",
+    alignItems: "flex-start",
   },
 
   tableRow: {
     flexDirection: "row",
-    paddingVertical: 5,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
     borderBottomWidth: 0.5,
-    borderBottomColor: "#ccc",
+    borderBottomColor: "#e2e8f0",
+    alignItems: "flex-start",
   },
 
   striped: {
-    backgroundColor: "#f2f2f2",
+    backgroundColor: "#f1f5f9",
   },
 
-  cell: {
-    flex: 1,
-    paddingHorizontal: 2,
-    fontSize: 8,
-    textAlign: "center",
-    justifyContent: "center",
-    alignItems: "center",
-    flexWrap: "wrap",
-    overflow: "hidden",
+  cellShell: {
+    minWidth: 0,
+    paddingHorizontal: 3,
+    paddingVertical: 2,
   },
-  cellNumeric: {
-    flex: 0.5,
-    paddingHorizontal: 2,
-    fontSize: 8,
+
+  cellText: {
+    fontSize: 7,
+    color: "#0f172a",
+    lineHeight: 1.35,
     textAlign: "center",
-    justifyContent: "center",
-    alignItems: "center",
-    flexWrap: "wrap",
-    overflow: "hidden",
+  },
+
+  cellTextNumeric: {
+    fontSize: 7,
+    color: "#0f172a",
+    lineHeight: 1.35,
+    textAlign: "center",
+  },
+
+  headerCellText: {
+    fontSize: 7,
+    fontWeight: "bold",
+    color: "#f8fafc",
+    lineHeight: 1.35,
+    textAlign: "center",
+  },
+
+  headerCellTextNumeric: {
+    fontSize: 7,
+    fontWeight: "bold",
+    color: "#f8fafc",
+    lineHeight: 1.35,
+    textAlign: "center",
   },
 
   footer: {
@@ -301,6 +317,24 @@ interface ColumnConfig {
   header: string;
   key: string;
   isNumeric?: boolean;
+  /** Peso horizontal da coluna (nome/descrição maiores que código). */
+  flex?: number;
+}
+
+function defaultFlexForKey(normalizedKey: string, isNumeric: boolean): number {
+  if (isNumeric) return 0.62;
+  const k = normalizedKey.toLowerCase();
+  if (
+    /nome|descricao|medicamento|insumo|residente|principio|observacao|destino|complemento|detalhe/.test(
+      k,
+    )
+  ) {
+    return 2;
+  }
+  if (/data|tipo|validade|setor|lote|categoria/.test(k)) {
+    return 1.05;
+  }
+  return 1;
 }
 
 function renderTableWithConfig(
@@ -315,14 +349,21 @@ function renderTableWithConfig(
   return (
     <>
       <View style={styles.tableHeader}>
-        {columns.map((col, i) => (
-          <Text
-            key={i}
-            style={col.isNumeric ? styles.cellNumeric : styles.cell}
-          >
-            {col.header}
-          </Text>
-        ))}
+        {columns.map((col, i) => {
+          const flex = col.flex ?? defaultFlexForKey(col.key, !!col.isNumeric);
+          const isNum = !!col.isNumeric;
+          return (
+            <View key={i} style={[styles.cellShell, { flex }]}>
+              <Text
+                style={
+                  isNum ? styles.headerCellTextNumeric : styles.headerCellText
+                }
+              >
+                {col.header}
+              </Text>
+            </View>
+          );
+        })}
       </View>
 
       {rows.map((row, idx) => (
@@ -331,8 +372,14 @@ function renderTableWithConfig(
           style={[styles.tableRow, idx % 2 === 0 ? styles.striped : undefined]}
         >
           {columns.map((col, i) => {
+            const flex =
+              col.flex ?? defaultFlexForKey(col.key, !!col.isNumeric);
             if (customCellRenderer) {
-              return <View key={i}>{customCellRenderer(row, col, i)}</View>;
+              return (
+                <View key={i} style={[styles.cellShell, { flex }]}>
+                  {customCellRenderer(row, col, i)}
+                </View>
+              );
             }
 
             const key = col.key
@@ -344,12 +391,15 @@ function renderTableWithConfig(
             const value = (row[key as keyof RowData] ?? "") as string | number;
 
             return (
-              <Text
-                key={i}
-                style={col.isNumeric ? styles.cellNumeric : styles.cell}
-              >
-                {value}
-              </Text>
+              <View key={i} style={[styles.cellShell, { flex }]}>
+                <Text
+                  style={
+                    col.isNumeric ? styles.cellTextNumeric : styles.cellText
+                  }
+                >
+                  {value}
+                </Text>
+              </View>
             );
           })}
         </View>
@@ -377,10 +427,13 @@ function renderTable(headers: string[], rows: RowData[]) {
       "item",
     ];
 
+    const isNumeric = numericColumns.includes(normalized);
+
     return {
       header: h,
       key: normalized,
-      isNumeric: numericColumns.includes(normalized),
+      isNumeric,
+      flex: defaultFlexForKey(normalized, isNumeric),
     };
   });
 
@@ -579,9 +632,19 @@ export function createStockPDF(
             {consumptionData.medicamentos.length > 0 ? (
               <>
                 <View style={styles.tableHeader}>
-                  <Text style={styles.cell}>Nome do Medicamento</Text>
-                  <Text style={styles.cell}>Preço Unitário (R$)</Text>
-                  <Text style={styles.cell}>Observação</Text>
+                  <View style={[styles.cellShell, { flex: 2.2 }]}>
+                    <Text style={styles.headerCellText}>
+                      Nome do Medicamento
+                    </Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 1 }]}>
+                    <Text style={styles.headerCellTextNumeric}>
+                      Preço Unitário (R$)
+                    </Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 1.6 }]}>
+                    <Text style={styles.headerCellText}>Observação</Text>
+                  </View>
                 </View>
                 {consumptionData.medicamentos.map((med, idx) => {
                   return (
@@ -592,11 +655,19 @@ export function createStockPDF(
                         idx % 2 === 0 ? styles.striped : undefined,
                       ]}
                     >
-                      <Text style={styles.cell}>{med.nome || "-"}</Text>
-                      <Text style={styles.cell}>
-                        {med.preco_formatado || "-"}
-                      </Text>
-                      <Text style={styles.cell}>{med.observacao || "-"}</Text>
+                      <View style={[styles.cellShell, { flex: 2.2 }]}>
+                        <Text style={styles.cellText}>{med.nome || "-"}</Text>
+                      </View>
+                      <View style={[styles.cellShell, { flex: 1 }]}>
+                        <Text style={styles.cellTextNumeric}>
+                          {med.preco_formatado || "-"}
+                        </Text>
+                      </View>
+                      <View style={[styles.cellShell, { flex: 1.6 }]}>
+                        <Text style={styles.cellText}>
+                          {med.observacao || "-"}
+                        </Text>
+                      </View>
                     </View>
                   );
                 })}
@@ -611,9 +682,17 @@ export function createStockPDF(
             {consumptionData.insumos.length > 0 ? (
               <>
                 <View style={styles.tableHeader}>
-                  <Text style={styles.cell}>Nome do Insumo</Text>
-                  <Text style={styles.cell}>Descrição</Text>
-                  <Text style={styles.cell}>Preço Unitário (R$)</Text>
+                  <View style={[styles.cellShell, { flex: 1.4 }]}>
+                    <Text style={styles.headerCellText}>Nome do Insumo</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 2 }]}>
+                    <Text style={styles.headerCellText}>Descrição</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 1 }]}>
+                    <Text style={styles.headerCellTextNumeric}>
+                      Preço Unitário (R$)
+                    </Text>
+                  </View>
                 </View>
                 {consumptionData.insumos.map((input, idx) => (
                   <View
@@ -623,11 +702,19 @@ export function createStockPDF(
                       idx % 2 === 0 ? styles.striped : undefined,
                     ]}
                   >
-                    <Text style={styles.cell}>{input.nome || "-"}</Text>
-                    <Text style={styles.cell}>{input.descricao || "-"}</Text>
-                    <Text style={styles.cell}>
-                      {input.preco_formatado || "-"}
-                    </Text>
+                    <View style={[styles.cellShell, { flex: 1.4 }]}>
+                      <Text style={styles.cellText}>{input.nome || "-"}</Text>
+                    </View>
+                    <View style={[styles.cellShell, { flex: 2 }]}>
+                      <Text style={styles.cellText}>
+                        {input.descricao || "-"}
+                      </Text>
+                    </View>
+                    <View style={[styles.cellShell, { flex: 1 }]}>
+                      <Text style={styles.cellTextNumeric}>
+                        {input.preco_formatado || "-"}
+                      </Text>
+                    </View>
                   </View>
                 ))}
               </>
@@ -643,10 +730,24 @@ export function createStockPDF(
             {consumptionData.custos_medicamentos.length > 0 ? (
               <>
                 <View style={styles.tableHeader}>
-                  <Text style={styles.cell}>Item</Text>
-                  <Text style={styles.cell}>Nome do Medicamento</Text>
-                  <Text style={styles.cell}>Custo Mensal (R$)</Text>
-                  <Text style={styles.cell}>Custo Anual (R$)</Text>
+                  <View style={[styles.cellShell, { flex: 0.75 }]}>
+                    <Text style={styles.headerCellText}>Item</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 2 }]}>
+                    <Text style={styles.headerCellText}>
+                      Nome do Medicamento
+                    </Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 1 }]}>
+                    <Text style={styles.headerCellTextNumeric}>
+                      Custo Mensal (R$)
+                    </Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 1 }]}>
+                    <Text style={styles.headerCellTextNumeric}>
+                      Custo Anual (R$)
+                    </Text>
+                  </View>
                 </View>
                 {consumptionData.custos_medicamentos.map((custo, idx) => (
                   <View
@@ -656,14 +757,22 @@ export function createStockPDF(
                       idx % 2 === 0 ? styles.striped : undefined,
                     ]}
                   >
-                    <Text style={styles.cell}>{custo.item || "-"}</Text>
-                    <Text style={styles.cell}>{custo.nome || "-"}</Text>
-                    <Text style={styles.cell}>
-                      {custo.custo_mensal_formatado || "-"}
-                    </Text>
-                    <Text style={styles.cell}>
-                      {custo.custo_anual_formatado || "-"}
-                    </Text>
+                    <View style={[styles.cellShell, { flex: 0.75 }]}>
+                      <Text style={styles.cellText}>{custo.item || "-"}</Text>
+                    </View>
+                    <View style={[styles.cellShell, { flex: 2 }]}>
+                      <Text style={styles.cellText}>{custo.nome || "-"}</Text>
+                    </View>
+                    <View style={[styles.cellShell, { flex: 1 }]}>
+                      <Text style={styles.cellTextNumeric}>
+                        {custo.custo_mensal_formatado || "-"}
+                      </Text>
+                    </View>
+                    <View style={[styles.cellShell, { flex: 1 }]}>
+                      <Text style={styles.cellTextNumeric}>
+                        {custo.custo_anual_formatado || "-"}
+                      </Text>
+                    </View>
                   </View>
                 ))}
               </>
@@ -677,10 +786,22 @@ export function createStockPDF(
             {consumptionData.custos_insumos.length > 0 ? (
               <>
                 <View style={styles.tableHeader}>
-                  <Text style={styles.cell}>Item</Text>
-                  <Text style={styles.cell}>Nome do Insumo</Text>
-                  <Text style={styles.cell}>Custo Mensal (R$)</Text>
-                  <Text style={styles.cell}>Custo Anual (R$)</Text>
+                  <View style={[styles.cellShell, { flex: 0.75 }]}>
+                    <Text style={styles.headerCellText}>Item</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 2 }]}>
+                    <Text style={styles.headerCellText}>Nome do Insumo</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 1 }]}>
+                    <Text style={styles.headerCellTextNumeric}>
+                      Custo Mensal (R$)
+                    </Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 1 }]}>
+                    <Text style={styles.headerCellTextNumeric}>
+                      Custo Anual (R$)
+                    </Text>
+                  </View>
                 </View>
                 {consumptionData.custos_insumos.map((custo, idx) => (
                   <View
@@ -690,14 +811,22 @@ export function createStockPDF(
                       idx % 2 === 0 ? styles.striped : undefined,
                     ]}
                   >
-                    <Text style={styles.cell}>{custo.item || "-"}</Text>
-                    <Text style={styles.cell}>{custo.nome || "-"}</Text>
-                    <Text style={styles.cell}>
-                      {custo.custo_mensal_formatado || "-"}
-                    </Text>
-                    <Text style={styles.cell}>
-                      {custo.custo_anual_formatado || "-"}
-                    </Text>
+                    <View style={[styles.cellShell, { flex: 0.75 }]}>
+                      <Text style={styles.cellText}>{custo.item || "-"}</Text>
+                    </View>
+                    <View style={[styles.cellShell, { flex: 2 }]}>
+                      <Text style={styles.cellText}>{custo.nome || "-"}</Text>
+                    </View>
+                    <View style={[styles.cellShell, { flex: 1 }]}>
+                      <Text style={styles.cellTextNumeric}>
+                        {custo.custo_mensal_formatado || "-"}
+                      </Text>
+                    </View>
+                    <View style={[styles.cellShell, { flex: 1 }]}>
+                      <Text style={styles.cellTextNumeric}>
+                        {custo.custo_anual_formatado || "-"}
+                      </Text>
+                    </View>
                   </View>
                 ))}
               </>
@@ -958,24 +1087,35 @@ export function createStockPDF(
               <>
                 {renderTableWithConfig(
                   [
-                    { header: "Data/Hora", key: "data" },
-                    { header: "Tipo", key: "tipo_movimentacao" },
-                    { header: "Item", key: "nome" },
-                    { header: "Complemento", key: "complemento" },
+                    { header: "Data/Hora", key: "data", flex: 1.2 },
+                    {
+                      header: "Tipo",
+                      key: "tipo_movimentacao",
+                      flex: 0.82,
+                    },
+                    { header: "Item", key: "nome", flex: 1.95 },
+                    { header: "Complemento", key: "complemento", flex: 1.75 },
                     {
                       header: "Quantidade",
                       key: "quantidade",
                       isNumeric: true,
+                      flex: 0.58,
                     },
-                    { header: "Setor", key: "setor" },
-                    { header: "Casela", key: "casela", isNumeric: true },
+                    { header: "Setor", key: "setor", flex: 0.95 },
+                    {
+                      header: "Casela",
+                      key: "casela",
+                      isNumeric: true,
+                      flex: 0.52,
+                    },
                     {
                       header: showCabinetColumn ? "Armário" : "Gaveta",
                       key: showCabinetColumn ? "armario" : "gaveta",
                       isNumeric: true,
+                      flex: 0.52,
                     },
-                    { header: "Lote", key: "lote" },
-                    { header: "Destino", key: "destino" },
+                    { header: "Lote", key: "lote", flex: 0.85 },
+                    { header: "Destino", key: "destino", flex: 0.95 },
                   ],
                   movementsData.map((movement) => ({
                     data: movement.data

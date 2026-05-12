@@ -1104,24 +1104,52 @@ export const patchNotificationEvent = (
   return stokioClient.patch(`/notificacao/${id}`, out);
 };
 
-export const getTodayMedicineNotifications = () =>
-  getNotifications({
+const REMINDER_PAGE_SIZE = 100;
+const REMINDER_MAX_PAGES = 80;
+
+/**
+ * Carrega todas as notificações que combinam com o filtro (paginando),
+ * para lembretes no login não cortarem itens após "OK" + refresh.
+ */
+async function fetchAllNotificationsMatching(
+  base: Omit<Parameters<typeof getNotifications>[0], "page" | "limit">,
+): Promise<{
+  items: Awaited<ReturnType<typeof getNotifications>>["items"];
+}> {
+  const acc: Awaited<ReturnType<typeof getNotifications>>["items"] = [];
+  for (let page = 1; page <= REMINDER_MAX_PAGES; page++) {
+    const res = await getNotifications({
+      ...base,
+      page,
+      limit: REMINDER_PAGE_SIZE,
+    });
+    acc.push(...res.items);
+    if (!res.hasNext || res.items.length === 0) break;
+  }
+  return { items: acc };
+}
+
+export const getTodayMedicineNotifications = async () => {
+  const { items } = await fetchAllNotificationsMatching({
     type: "medicamento",
     date: "today",
     status: EventStatus.PENDENTE,
     visto: false,
   });
+  return { items, total: items.length, hasNext: false };
+};
 
 export const getTomorrowReplacementNotifications = async () => {
-  const res = await getNotifications({
+  const { items } = await fetchAllNotificationsMatching({
     type: "reposicao_estoque",
     date: "tomorrow",
     status: EventStatus.PENDENTE,
     visto: false,
   });
   return {
-    ...res,
-    items: res.items as StockReplacementItem[],
+    items: items as StockReplacementItem[],
+    total: items.length,
+    hasNext: false,
   };
 };
 

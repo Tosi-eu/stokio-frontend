@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { toast } from "@/hooks/use-toast.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
@@ -11,13 +11,8 @@ import type { NotificationListItem } from "@/api/types";
 import type { StockReplacementItem } from "@/components/StockReplacementModal";
 import { getErrorMessage } from "@/helpers/validation.helper";
 
-const NotificationReminderModal = lazy(() =>
-  import("@/components/NotificationModal").then((m) => ({
-    default: m.default,
-  })),
-);
-const StockReplacementModal = lazy(() =>
-  import("@/components/StockReplacementModal").then((m) => ({
+const StartupRemindersModal = lazy(() =>
+  import("@/components/StartupRemindersModal").then((m) => ({
     default: m.default,
   })),
 );
@@ -32,12 +27,12 @@ export function GlobalNotificationModals() {
     return can("notifications", "read");
   }, [can, isEnabled, previewMode]);
 
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [notifList, setNotifList] = useState<NotificationListItem[]>([]);
-  const [replacementOpen, setReplacementOpen] = useState(false);
-  const [replacementItems, setReplacementItems] = useState<
+  const [startupOpen, setStartupOpen] = useState(false);
+  const [medicineList, setMedicineList] = useState<NotificationListItem[]>([]);
+  const [replacementList, setReplacementList] = useState<
     StockReplacementItem[]
   >([]);
+
   useEffect(() => {
     if (!canFetch) return;
     let cancelled = false;
@@ -48,12 +43,11 @@ export function GlobalNotificationModals() {
       ]);
       if (cancelled) return;
 
+      let med: NotificationListItem[] = [];
+      let rep: StockReplacementItem[] = [];
+
       if (todayOutcome.status === "fulfilled") {
-        const res = todayOutcome.value;
-        if (res.items.length > 0) {
-          setNotifList(res.items);
-          setNotifOpen(true);
-        }
+        med = todayOutcome.value.items;
       } else {
         const err = todayOutcome.reason;
         const errorMessage = getErrorMessage(
@@ -69,12 +63,16 @@ export function GlobalNotificationModals() {
         });
       }
 
-      if (
-        tomorrowOutcome.status === "fulfilled" &&
-        tomorrowOutcome.value.items.length > 0
-      ) {
-        setReplacementItems(tomorrowOutcome.value.items);
-        setReplacementOpen(true);
+      if (tomorrowOutcome.status === "fulfilled") {
+        rep = tomorrowOutcome.value.items;
+      }
+
+      if (cancelled) return;
+
+      if (med.length > 0 || rep.length > 0) {
+        setMedicineList(med);
+        setReplacementList(rep);
+        setStartupOpen(true);
       }
     }
     void loadStartupReminders();
@@ -83,33 +81,28 @@ export function GlobalNotificationModals() {
     };
   }, [canFetch]);
 
+  const markAllSeenAndClose = () => {
+    const ids = [
+      ...new Set([
+        ...medicineList.map((n) => n.id),
+        ...replacementList.map((n) => n.id),
+      ]),
+    ];
+    if (ids.length > 0) {
+      Promise.all(
+        ids.map((id) => updateNotification(id, { visto: true })),
+      ).catch(() => {});
+    }
+    setStartupOpen(false);
+  };
+
   return (
     <Suspense fallback={null}>
-      <NotificationReminderModal
-        open={notifOpen}
-        events={notifList}
-        onClose={() => {
-          if (notifList.length > 0) {
-            Promise.all(
-              notifList.map((n) => updateNotification(n.id, { visto: true })),
-            ).catch(() => {});
-          }
-          setNotifOpen(false);
-        }}
-      />
-      <StockReplacementModal
-        open={replacementOpen}
-        items={replacementItems}
-        onClose={() => {
-          if (replacementItems.length > 0) {
-            Promise.all(
-              replacementItems.map((n) =>
-                updateNotification(n.id, { visto: true }),
-              ),
-            ).catch(() => {});
-          }
-          setReplacementOpen(false);
-        }}
+      <StartupRemindersModal
+        open={startupOpen}
+        medicineEvents={medicineList}
+        replacementItems={replacementList}
+        onClose={markAllSeenAndClose}
       />
     </Suspense>
   );
