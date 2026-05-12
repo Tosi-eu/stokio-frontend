@@ -1,4 +1,5 @@
 import type { DashboardSummaryResponse } from "@/api/types";
+import type { ResidentIssuedMedicalRecord } from "@/api/requests";
 import type {
   StockItem,
   StockProportionResponse,
@@ -252,6 +253,96 @@ export function filterPreviewStockByDrawer(drawerNum: number): StockItem[] {
 export function filterPreviewStockByCasela(casela: number): StockItem[] {
   return getPreviewStockItems().filter(
     (s) => s.casela != null && Number(s.casela) === Number(casela),
+  );
+}
+
+function compareExpiryIso(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { numeric: true });
+}
+
+/** Agrega linhas de preview por nome+categoria (simula stock ativo por fármaco/insumo). */
+export function getPreviewProntuarioAtivoForCasela(
+  casela: number,
+): ResidentIssuedMedicalRecord[] {
+  type Agg = {
+    categoria: "medicamento" | "insumo";
+    nome: string;
+    detalhe: string;
+    validades: string[];
+    setores: Set<string>;
+    observacoes: Set<string>;
+  };
+
+  const byKey = new Map<string, Agg>();
+
+  for (const i of filterPreviewStockByCasela(casela)) {
+    if (String(i.status ?? "").toLowerCase() !== "active") continue;
+    const q = Number(i.quantity);
+    if (!Number.isFinite(q) || q <= 0) continue;
+
+    const categoria: "medicamento" | "insumo" =
+      i.itemType === OperationType.MEDICINE ? "medicamento" : "insumo";
+    const nome = String(i.name ?? "").trim() || "—";
+    const key = `${categoria}:${nome.toLowerCase()}`;
+
+    const detalhe =
+      categoria === "medicamento"
+        ? String(i.activeSubstance ?? "")
+            .trim()
+            .replace(/^—$/, "")
+        : String(i.description ?? "")
+            .trim()
+            .replace(/^—$/, "");
+
+    const setor = String(i.sector ?? "").trim();
+    const obs = String(i.detail ?? "")
+      .trim()
+      .replace(/^—$/, "");
+
+    const cur = byKey.get(key);
+    if (!cur) {
+      byKey.set(key, {
+        categoria,
+        nome,
+        detalhe,
+        validades: i.expiry ? [i.expiry] : [],
+        setores: new Set(setor ? [setor] : []),
+        observacoes: new Set(obs ? [obs] : []),
+      });
+    } else {
+      if (i.expiry) cur.validades.push(i.expiry);
+      if (setor) cur.setores.add(setor);
+      if (obs) cur.observacoes.add(obs);
+    }
+  }
+
+  const rows: ResidentIssuedMedicalRecord[] = [];
+  for (const a of byKey.values()) {
+    const validadeRaw =
+      a.validades.length > 0
+        ? ([...a.validades].sort(compareExpiryIso)[0] ?? null)
+        : null;
+    const validade =
+      validadeRaw != null && String(validadeRaw).trim() !== ""
+        ? formatDateToPtBr(String(validadeRaw))
+        : null;
+    const setorJoined =
+      [...a.setores].filter(Boolean).sort().join(", ") || null;
+    const obsJoined =
+      [...a.observacoes].filter(Boolean).sort().join("; ") || null;
+
+    rows.push({
+      categoria: a.categoria,
+      nome: a.nome,
+      detalhe: a.detalhe,
+      validade,
+      setor: setorJoined,
+      observacao: obsJoined,
+    });
+  }
+
+  return rows.sort((x, y) =>
+    x.nome.localeCompare(y.nome, "pt", { sensitivity: "base" }),
   );
 }
 

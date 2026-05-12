@@ -51,7 +51,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { APP_PUBLIC_NAME } from "@/constants/app-branding";
+import {
+  APP_PUBLIC_NAME,
+  getNextBrandLogoFallback,
+} from "@/constants/app-branding";
+import { usePublicDefaultLogoUrl } from "@/hooks/use-public-default-logo.hook";
 import {
   validateEmail,
   validatePassword,
@@ -130,7 +134,7 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
     lastName: string;
   } | null>(null);
 
-  const authHeaderLogoSrc = "/default_logo.png";
+  const publicBrandLogoUrl = usePublicDefaultLogoUrl();
 
   useEffect(() => {
     const invite = (searchParams.get("invite") ?? "").trim();
@@ -690,15 +694,16 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
     ? loginTenantDisplayLabel(selectedLoginTenant)
     : "Selecione o abrigo";
 
-  const [authHeaderImgSrc, setAuthHeaderImgSrc] = useState(authHeaderLogoSrc);
+  const [authHeaderImgSrc, setAuthHeaderImgSrc] = useState(publicBrandLogoUrl);
   useEffect(() => {
-    setAuthHeaderImgSrc(authHeaderLogoSrc);
-  }, [authHeaderLogoSrc]);
+    setAuthHeaderImgSrc(publicBrandLogoUrl);
+  }, [publicBrandLogoUrl]);
 
   const handleAuthLogoFallback = useCallback(() => {
-    setAuthHeaderImgSrc((current) =>
-      current === "/default_logo.png" ? current : "/default_logo.png",
-    );
+    setAuthHeaderImgSrc((current) => {
+      const next = getNextBrandLogoFallback(current);
+      return next ?? current;
+    });
   }, []);
 
   const inputFieldClass =

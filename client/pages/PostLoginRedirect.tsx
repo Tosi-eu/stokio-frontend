@@ -8,6 +8,7 @@ import type { PermissionResourceKey } from "@/domain/permission-matrix.types";
 import { getDefaultHomePath } from "@/helpers/default-home-route.helper";
 import { APP_PUBLIC_NAME } from "@/constants/app-branding";
 import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
+import { usePublicDefaultLogoUrl } from "@/hooks/use-public-default-logo.hook";
 import { prefetchTenantBrandLogoBeforeInicioNavigation } from "@/helpers/tenant-brand-logo-prefetch.helper";
 
 const POST_LOGIN_MIN_VISIBLE_MS = 6000;
@@ -17,6 +18,7 @@ export default function PostLoginRedirect() {
   const { user } = useAuth();
   const { can } = usePermissionMatrix();
   const router = useRouter();
+  const publicDefaultBrandLogo = usePublicDefaultLogoUrl();
 
   const userId = user?.id;
   const userRole = user?.role;
@@ -67,7 +69,7 @@ export default function PostLoginRedirect() {
   );
 
   const [imageFailed, setImageFailed] = useState(false);
-  const effectiveLogoSrc = previewMode ? "/default_logo.png" : logoSrc;
+  const effectiveLogoSrc = previewMode ? publicDefaultBrandLogo : logoSrc;
   const effectiveIsLogoResolved = previewMode ? true : isLogoResolved;
 
   return (

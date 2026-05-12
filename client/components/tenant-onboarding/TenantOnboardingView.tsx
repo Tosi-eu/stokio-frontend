@@ -13,7 +13,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Accordion,
   AccordionContent,
@@ -21,18 +20,11 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { FadeInAvatarImage } from "@/components/FadeInAvatarImage";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { tenantImportTotalForKey } from "@/api/requests";
 import { cn } from "@/lib/utils";
 import { sanitizeUserFacingMessage } from "@/helpers/user-facing-error.helper";
-import { TENANT_ONBOARDING_MODULES } from "@/components/tenant-onboarding/tenant-onboarding.constants";
 import type { TenantOnboardingPageVm } from "@/hooks/useTenantOnboardingPage";
 import {
   Check,
@@ -53,7 +45,6 @@ export function TenantOnboardingView({ vm }: { vm: TenantOnboardingPageVm }) {
     previewMode,
     tenantId,
     tenant,
-    selectedCount,
     contractCode,
     setContractCode,
     contractValidated,
@@ -78,8 +69,6 @@ export function TenantOnboardingView({ vm }: { vm: TenantOnboardingPageVm }) {
     handleImportXlsx,
     importingXlsx,
     importResult,
-    toggle,
-    enabled,
     sectorUiRows,
     toggleSector,
     enabledSectors,
@@ -107,8 +96,8 @@ export function TenantOnboardingView({ vm }: { vm: TenantOnboardingPageVm }) {
               </AlertTitle>
               <AlertDescription className="text-muted-foreground leading-relaxed">
                 {canManageModules
-                  ? "Defina como o sistema aparece para sua equipe (nome e logo) e quais áreas ficam disponíveis no menu. Você pode alterar isso depois no painel administrativo."
-                  : "Defina o nome e o logo do abrigo. Quais módulos aparecem no menu são definidos pelo administrador do painel — não é possível alterar aqui."}
+                  ? "Defina nome, logo, setores de estoque e importação opcional. As entradas do menu lateral são definidas na aplicação Admin Desktop (chave de API)."
+                  : "Defina o nome e o logo do abrigo. O menu lateral é definido pelo suporte na aplicação Admin Desktop — não é possível alterar aqui."}
               </AlertDescription>
             </Alert>
 
@@ -148,7 +137,7 @@ export function TenantOnboardingView({ vm }: { vm: TenantOnboardingPageVm }) {
                     </CardTitle>
                     <CardDescription className="text-base text-muted-foreground">
                       {canManageModules
-                        ? "Duas etapas rápidas: identidade visual e módulos ativos."
+                        ? "Identidade visual, setores ativos e importação opcional."
                         : "Identidade visual do abrigo (nome e logo)."}
                     </CardDescription>
                   </div>
@@ -156,41 +145,8 @@ export function TenantOnboardingView({ vm }: { vm: TenantOnboardingPageVm }) {
               </CardHeader>
 
               <CardContent className="pt-6">
-                <Tabs defaultValue="brand" className="w-full">
-                  <TabsList
-                    className={cn(
-                      "grid w-full gap-1 rounded-xl bg-muted p-1.5 h-auto",
-                      canManageModules ? "grid-cols-2" : "grid-cols-1",
-                    )}
-                  >
-                    <TabsTrigger
-                      value="brand"
-                      className="rounded-lg py-2.5 data-[state=active]:shadow-sm"
-                    >
-                      Marca & logo
-                    </TabsTrigger>
-                    {canManageModules ? (
-                      <TabsTrigger
-                        value="modules"
-                        className="rounded-lg py-2.5 data-[state=active]:shadow-sm"
-                      >
-                        Módulos
-                        {selectedCount > 0 ? (
-                          <Badge
-                            variant="secondary"
-                            className="ml-2 h-5 min-w-[1.25rem] px-1.5 tabular-nums"
-                          >
-                            {selectedCount}
-                          </Badge>
-                        ) : null}
-                      </TabsTrigger>
-                    ) : null}
-                  </TabsList>
-
-                  <TabsContent
-                    value="brand"
-                    className="mt-6 space-y-6 outline-none"
-                  >
+                <div className="w-full space-y-8">
+                  <div className="space-y-6 outline-none">
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2 sm:col-span-2">
                         <Label htmlFor="contract_code">
@@ -381,246 +337,181 @@ export function TenantOnboardingView({ vm }: { vm: TenantOnboardingPageVm }) {
                         </div>
                       </div>
                     </div>
-                  </TabsContent>
+                  </div>
 
-                  <TabsContent
-                    value="modules"
-                    className="mt-6 space-y-4 outline-none"
-                  >
-                    <Card className="border-border/70">
-                      <CardHeader className="space-y-1">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <ListChecks className="h-4 w-4 text-primary" />
-                          Importar dados por planilha
-                        </CardTitle>
-                        <CardDescription>
-                          Se você já tem uma lista de itens, dá para trazer tudo
-                          de uma vez. Linhas com erro não travam o restante.
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            disabled={previewMode || importingXlsx}
-                            onClick={() => void handleDownloadImportTemplate()}
-                          >
-                            Baixar template
-                          </Button>
-                          <input
-                            ref={importFileInputRef}
-                            type="file"
-                            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                            className="sr-only"
-                            onChange={handleImportXlsx}
-                          />
-                          <Button
-                            type="button"
-                            className="gap-2"
-                            disabled={previewMode || importingXlsx || saving}
-                            onClick={() => importFileInputRef.current?.click()}
-                          >
-                            {importingXlsx ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Upload className="h-4 w-4" />
-                            )}
-                            {importingXlsx ? "Importando…" : "Enviar planilha"}
-                          </Button>
-                        </div>
-
-                        {previewMode ? (
-                          <p className="text-xs text-muted-foreground">
-                            No modo demonstração, a importação fica
-                            desabilitada.
-                          </p>
-                        ) : null}
-
-                        {importResult ? (
-                          <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
-                            <div className="flex flex-wrap gap-3">
-                              <span>
-                                <span className="font-medium">Criados:</span>{" "}
-                                {tenantImportTotalForKey(
-                                  importResult.summary,
-                                  "created",
+                  {canManageModules ? (
+                    <>
+                      <Separator />
+                      <div className="space-y-4 outline-none">
+                        <Card className="border-border/70">
+                          <CardHeader className="space-y-1">
+                            <CardTitle className="text-base flex items-center gap-2">
+                              <ListChecks className="h-4 w-4 text-primary" />
+                              Importar dados por planilha
+                            </CardTitle>
+                            <CardDescription>
+                              Se você já tem uma lista de itens, dá para trazer
+                              tudo de uma vez. Linhas com erro não travam o
+                              restante.
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                disabled={previewMode || importingXlsx}
+                                onClick={() =>
+                                  void handleDownloadImportTemplate()
+                                }
+                              >
+                                Baixar template
+                              </Button>
+                              <input
+                                ref={importFileInputRef}
+                                type="file"
+                                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                className="sr-only"
+                                onChange={handleImportXlsx}
+                              />
+                              <Button
+                                type="button"
+                                className="gap-2"
+                                disabled={
+                                  previewMode || importingXlsx || saving
+                                }
+                                onClick={() =>
+                                  importFileInputRef.current?.click()
+                                }
+                              >
+                                {importingXlsx ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Upload className="h-4 w-4" />
                                 )}
-                              </span>
-                              <span>
-                                <span className="font-medium">
-                                  Atualizados:
-                                </span>{" "}
-                                {tenantImportTotalForKey(
-                                  importResult.summary,
-                                  "updated",
-                                )}
-                              </span>
-                              <span>
-                                <span className="font-medium">Erros:</span>{" "}
-                                {importResult.errors.length}
-                              </span>
+                                {importingXlsx
+                                  ? "Importando…"
+                                  : "Enviar planilha"}
+                              </Button>
                             </div>
-                            {importResult.errors.length > 0 ? (
-                              <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                                {importResult.errors
-                                  .slice(0, 5)
-                                  .map((e, idx) => (
-                                    <div key={`${e.sheet}:${e.row}:${idx}`}>
-                                      {e.sheet} — linha {e.row}
-                                      {e.field ? ` (${e.field})` : ""}:{" "}
-                                      {sanitizeUserFacingMessage(e.message)}
-                                    </div>
-                                  ))}
-                                {importResult.errors.length > 5 ? (
-                                  <div>
-                                    … e mais {importResult.errors.length - 5}.
+
+                            {previewMode ? (
+                              <p className="text-xs text-muted-foreground">
+                                No modo demonstração, a importação fica
+                                desabilitada.
+                              </p>
+                            ) : null}
+
+                            {importResult ? (
+                              <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                                <div className="flex flex-wrap gap-3">
+                                  <span>
+                                    <span className="font-medium">
+                                      Criados:
+                                    </span>{" "}
+                                    {tenantImportTotalForKey(
+                                      importResult.summary,
+                                      "created",
+                                    )}
+                                  </span>
+                                  <span>
+                                    <span className="font-medium">
+                                      Atualizados:
+                                    </span>{" "}
+                                    {tenantImportTotalForKey(
+                                      importResult.summary,
+                                      "updated",
+                                    )}
+                                  </span>
+                                  <span>
+                                    <span className="font-medium">Erros:</span>{" "}
+                                    {importResult.errors.length}
+                                  </span>
+                                </div>
+                                {importResult.errors.length > 0 ? (
+                                  <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                    {importResult.errors
+                                      .slice(0, 5)
+                                      .map((e, idx) => (
+                                        <div key={`${e.sheet}:${e.row}:${idx}`}>
+                                          {e.sheet} — linha {e.row}
+                                          {e.field ? ` (${e.field})` : ""}:{" "}
+                                          {sanitizeUserFacingMessage(e.message)}
+                                        </div>
+                                      ))}
+                                    {importResult.errors.length > 5 ? (
+                                      <div>
+                                        … e mais{" "}
+                                        {importResult.errors.length - 5}.
+                                      </div>
+                                    ) : null}
                                   </div>
                                 ) : null}
                               </div>
                             ) : null}
-                          </div>
-                        ) : null}
-                      </CardContent>
-                    </Card>
+                          </CardContent>
+                        </Card>
 
-                    <p className="text-sm text-muted-foreground">
-                      Marque apenas o que for usar agora — os demais podem ser
-                      ativados depois em{" "}
-                      <span className="font-medium text-foreground">
-                        Painel administrativo → Config
-                      </span>
-                      .
-                    </p>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      {TENANT_ONBOARDING_MODULES.map((m) => {
-                        const Icon = m.icon;
-                        const isOn = enabled.has(m.key);
-                        return (
-                          <Tooltip key={m.key}>
-                            <TooltipTrigger asChild>
-                              <div
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => toggle(m.key)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
-                                    toggle(m.key);
-                                  }
-                                }}
-                                className={cn(
-                                  "group relative flex cursor-pointer items-start gap-3 rounded-xl border p-4 text-left transition-all outline-none",
-                                  "hover:border-primary/35 hover:bg-accent/50",
-                                  "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                                  isOn
-                                    ? "border-primary/45 bg-accent/60 shadow-sm ring-1 ring-primary/20"
-                                    : "border-border bg-card",
-                                )}
-                              >
-                                <div
+                        <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              Setores de estoque
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Informe em quais setores o abrigo trabalha. Isso
+                              define gráficos de proporção no painel e combina
+                              com as opções de estoque. É necessário manter{" "}
+                              <span className="font-medium text-foreground">
+                                pelo menos um setor
+                              </span>
+                              .
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            {sectorUiRows.map((s) => {
+                              const Icon = s.icon;
+                              const isOn = enabledSectors.has(s.key);
+                              return (
+                                <label
+                                  key={s.key}
                                   className={cn(
-                                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors",
+                                    "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
                                     isOn
-                                      ? "bg-primary text-primary-foreground"
-                                      : "bg-muted text-muted-foreground group-hover:bg-muted/80",
+                                      ? "border-primary/40 bg-primary/5"
+                                      : "hover:bg-muted/40",
                                   )}
                                 >
-                                  <Icon className="h-5 w-5" aria-hidden />
-                                </div>
-                                <div className="min-w-0 flex-1 pt-0.5">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="font-medium leading-tight">
-                                      {m.label}
+                                  <Checkbox
+                                    checked={isOn}
+                                    disabled={
+                                      isOn &&
+                                      enabledSectors.size === 1 &&
+                                      enabledSectors.has(s.key)
+                                    }
+                                    onCheckedChange={() => toggleSector(s.key)}
+                                    aria-label={s.label}
+                                  />
+                                  <Icon
+                                    className="h-5 w-5 shrink-0 text-muted-foreground mt-0.5"
+                                    aria-hidden
+                                  />
+                                  <span className="text-sm">
+                                    <span className="font-medium block">
+                                      {s.label}
                                     </span>
-                                    <span
-                                      className="inline-flex"
-                                      onClick={(e) => e.stopPropagation()}
-                                      onMouseDown={(e) => e.stopPropagation()}
-                                    >
-                                      <Checkbox
-                                        checked={isOn}
-                                        onCheckedChange={() => toggle(m.key)}
-                                        className="shrink-0 data-[state=checked]:border-primary data-[state=checked]:bg-primary"
-                                        aria-label={`Ativar ${m.label}`}
-                                      />
+                                    <span className="text-xs text-muted-foreground leading-snug">
+                                      {s.hint}
                                     </span>
-                                  </div>
-                                  <p className="mt-1 text-xs text-muted-foreground leading-snug">
-                                    {m.hint}
-                                  </p>
-                                </div>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="top"
-                              className="max-w-[220px]"
-                            >
-                              {m.hint}
-                            </TooltipContent>
-                          </Tooltip>
-                        );
-                      })}
-                    </div>
-
-                    <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
-                          Setores de estoque
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Informe em quais setores o abrigo trabalha. Isso
-                          define gráficos de proporção no painel e combina com
-                          as opções de estoque. É necessário manter{" "}
-                          <span className="font-medium text-foreground">
-                            pelo menos um setor
-                          </span>
-                          .
-                        </p>
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {sectorUiRows.map((s) => {
-                          const Icon = s.icon;
-                          const isOn = enabledSectors.has(s.key);
-                          return (
-                            <label
-                              key={s.key}
-                              className={cn(
-                                "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
-                                isOn
-                                  ? "border-primary/40 bg-primary/5"
-                                  : "hover:bg-muted/40",
-                              )}
-                            >
-                              <Checkbox
-                                checked={isOn}
-                                disabled={
-                                  isOn &&
-                                  enabledSectors.size === 1 &&
-                                  enabledSectors.has(s.key)
-                                }
-                                onCheckedChange={() => toggleSector(s.key)}
-                                aria-label={s.label}
-                              />
-                              <Icon
-                                className="h-5 w-5 shrink-0 text-muted-foreground mt-0.5"
-                                aria-hidden
-                              />
-                              <span className="text-sm">
-                                <span className="font-medium block">
-                                  {s.label}
-                                </span>
-                                <span className="text-xs text-muted-foreground leading-snug">
-                                  {s.hint}
-                                </span>
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                    </>
+                  ) : null}
+                </div>
 
                 <Separator className="my-8" />
 
@@ -662,14 +553,13 @@ export function TenantOnboardingView({ vm }: { vm: TenantOnboardingPageVm }) {
                 <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                     {canManageModules ? (
-                      <Badge variant="outline" className="font-normal">
-                        {selectedCount} módulo{selectedCount === 1 ? "" : "s"}{" "}
-                        ativo
-                        {selectedCount === 1 ? "" : "s"}
-                      </Badge>
+                      <span className="text-xs sm:text-sm">
+                        Setores e importação: ajustáveis aqui. Menu lateral:
+                        Admin Desktop.
+                      </span>
                     ) : (
                       <span className="text-xs sm:text-sm">
-                        Módulos do menu: definidos pelo administrador
+                        Menu lateral: definido na aplicação Admin Desktop
                       </span>
                     )}
                     {brandName.trim() ? (

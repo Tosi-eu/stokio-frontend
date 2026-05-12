@@ -18,28 +18,38 @@ export const profileSchema = z
 
     lastName: z
       .string()
-      .min(1, "Sobrenome é obrigatório")
-      .max(45, "Sobrenome deve ter no máximo 45 caracteres"),
+      .min(1, "Apelido é obrigatório")
+      .max(45, "Apelido deve ter no máximo 45 caracteres"),
 
     currentLogin: z.string().optional(),
 
-    currentPassword: z.string().optional(),
-
-    login: z
+    /** Obrigatória em qualquer guardar — o backend exige para PUT /login. */
+    currentPassword: z
       .string()
-      .email("Login deve ser um e-mail válido")
-      .max(255, "Login deve ter no máximo 255 caracteres")
-      .optional()
-      .or(z.literal("")),
+      .min(1, "Informe a senha atual para guardar as alterações"),
+
+    login: z.union([
+      z.literal(""),
+      z
+        .string()
+        .email("Novo e-mail deve ser válido")
+        .max(255, "E-mail demasiado longo"),
+    ]),
 
     password: z
       .string()
       .optional()
       .transform((val) => (val === "" ? undefined : val))
       .pipe(strongPasswordSchema.optional()),
+
+    confirmPassword: z.string().optional(),
   })
   .superRefine((data, ctx) => {
-    const wantsToChangeLogin = !!data.login && data.login.trim() !== "";
+    const wantsToChangeLogin =
+      !!data.login &&
+      data.login.trim() !== "" &&
+      data.login.trim().toLowerCase() !==
+        (data.currentLogin ?? "").trim().toLowerCase();
     const wantsToChangePassword =
       !!data.password && data.password.trim() !== "";
 
@@ -52,15 +62,10 @@ export const profileSchema = z
         });
       }
 
-      if (!data.currentPassword) {
-        ctx.addIssue({
-          path: ["currentPassword"],
-          message: "Informe a senha atual para alterar o e-mail",
-          code: z.ZodIssueCode.custom,
-        });
-      }
-
-      if (data.currentLogin === data.login) {
+      if (
+        (data.currentLogin ?? "").trim().toLowerCase() ===
+        data.login.trim().toLowerCase()
+      ) {
         ctx.addIssue({
           path: ["login"],
           message: "O novo e-mail deve ser diferente do atual",
@@ -69,12 +74,21 @@ export const profileSchema = z
       }
     }
 
-    if (wantsToChangePassword && !data.currentPassword) {
-      ctx.addIssue({
-        path: ["currentPassword"],
-        message: "Informe a senha atual para alterar a senha",
-        code: z.ZodIssueCode.custom,
-      });
+    if (wantsToChangePassword) {
+      const c = (data.confirmPassword ?? "").trim();
+      if (!c) {
+        ctx.addIssue({
+          path: ["confirmPassword"],
+          message: "Confirme a nova senha",
+          code: z.ZodIssueCode.custom,
+        });
+      } else if (c !== data.password) {
+        ctx.addIssue({
+          path: ["confirmPassword"],
+          message: "As senhas não coincidem",
+          code: z.ZodIssueCode.custom,
+        });
+      }
     }
   });
 

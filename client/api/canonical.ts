@@ -45,6 +45,7 @@ const PREVIEW_MUTATION_ALLOW_PREFIXES = [
   "/login/register-account",
   "/login/register-user",
   "/login/join-by-token",
+  "/login/forgot-password",
   "/login/reset-password",
   "/tenant/",
 ];
@@ -102,13 +103,25 @@ function handleHttpError(err: StokioApiError): never {
   }
 
   if (err.httpStatus === 403) {
-    if (!err.silentInsufficientPrivileges) {
+    const dataObj =
+      data && typeof data === "object" && !Array.isArray(data)
+        ? (data as Record<string, unknown>)
+        : null;
+    const bodyCode =
+      dataObj && typeof dataObj.code === "string" ? dataObj.code.trim() : "";
+    const errorText =
+      dataObj && typeof dataObj.error === "string" ? dataObj.error.trim() : "";
+    const isModuleDisabled =
+      bodyCode === "MODULE_DISABLED" ||
+      errorText.includes("Módulo desabilitado");
+
+    if (!err.silentInsufficientPrivileges && !isModuleDisabled) {
       window.dispatchEvent(
         new CustomEvent("insufficient-privileges", {
           detail: {
             message:
-              (data && typeof data === "object" && "error" in data
-                ? String((data as { error?: string }).error)
+              (dataObj && typeof dataObj.error === "string"
+                ? dataObj.error
                 : null) ||
               rawMsg ||
               INSUFFICIENT_PRIVILEGES_MESSAGE,
@@ -117,9 +130,7 @@ function handleHttpError(err: StokioApiError): never {
       );
     }
     const forbidden = new Error(
-      (data && typeof data === "object" && "error" in data
-        ? String((data as { error?: string }).error)
-        : null) ||
+      (dataObj && typeof dataObj.error === "string" ? dataObj.error : null) ||
         rawMsg ||
         INSUFFICIENT_PRIVILEGES_MESSAGE,
     );

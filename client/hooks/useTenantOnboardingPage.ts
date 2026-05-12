@@ -13,8 +13,12 @@ import {
   importTenantXlsx,
   tenantImportTotalForKey,
   type TenantImportXlsxResponse,
+  dismissTenantOnboarding,
 } from "@/api/requests";
-import { getEnabledSectors } from "@/helpers/tenant-sectors.helper";
+import {
+  getEnabledSectors,
+  tenantEnabledKeysForConfigPatch,
+} from "@/helpers/tenant-sectors.helper";
 import { setSkipTenantOnboarding } from "@/context/tenant-context";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -45,7 +49,6 @@ export function useTenantOnboardingPage() {
   const canManageModules =
     user?.role === "admin" || isSuperAdminUser(user ?? null);
 
-  const [enabled, setEnabled] = useState<Set<string>>(new Set());
   const [enabledSectors, setEnabledSectors] = useState<Set<string>>(
     () => new Set(["farmacia", "enfermagem"]),
   );
@@ -73,8 +76,24 @@ export function useTenantOnboardingPage() {
   const [importResult, setImportResult] =
     useState<TenantImportXlsxResponse | null>(null);
 
-  const confirmSkipOnboarding = () => {
+  const confirmSkipOnboarding = async () => {
     if (tenantId == null) return;
+    try {
+      await dismissTenantOnboarding();
+    } catch (err) {
+      const message = getErrorMessage(
+        err,
+        "Não foi possível concluir. Tente novamente.",
+        "TenantOnboarding:dismiss",
+      );
+      toast({
+        title: "Não foi possível pular",
+        description: message,
+        variant: "error",
+        duration: 5000,
+      });
+      return;
+    }
     setSkipTenantOnboarding(tenantId, true);
     router.replace("/loading");
   };
@@ -178,7 +197,6 @@ export function useTenantOnboardingPage() {
         setContractValidated(false);
       }
     }
-    setEnabled(new Set(modules?.enabled ?? []));
     setEnabledSectors(new Set(getEnabledSectors(modules ?? null)));
     setBrandName(tenant?.brandName ?? tenant?.name ?? "");
     const serverLogo = tenant?.logoUrl?.trim() || null;
@@ -234,16 +252,14 @@ export function useTenantOnboardingPage() {
     () =>
       JSON.stringify(
         {
-          enabled: Array.from(enabled),
           enabled_sectors: Array.from(enabledSectors),
         },
         null,
         2,
       ),
-    [enabled, enabledSectors],
+    [enabledSectors],
   );
 
-  const selectedCount = enabled.size;
   const initials = useMemo(() => {
     const n = brandName.trim() || tenant?.name?.trim() || "A";
     return n
@@ -254,15 +270,6 @@ export function useTenantOnboardingPage() {
       .toUpperCase()
       .slice(0, 2);
   }, [brandName, tenant?.name]);
-
-  const toggle = (key: string) => {
-    setEnabled((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
 
   const toggleSector = (key: string) => {
     setEnabledSectors((prev) => {
@@ -519,7 +526,6 @@ export function useTenantOnboardingPage() {
 
   const resetForm = () => {
     clearPendingLogo();
-    setEnabled(new Set(modules?.enabled ?? []));
     setEnabledSectors(new Set(getEnabledSectors(modules ?? null)));
     setBrandName(tenant?.brandName ?? tenant?.name ?? "");
     setContractCode("");
@@ -552,16 +558,9 @@ export function useTenantOnboardingPage() {
       toast({
         title: "Modo de visualização",
         description:
-          "Use «Concluir configuração» no aviso acima para guardar nome, logo e módulos.",
+          "Use «Concluir configuração» no aviso acima para guardar nome e logo.",
         variant: "warning",
         duration: 6000,
-      });
-      return;
-    }
-    if (canManageModules && enabled.size === 0) {
-      toast({
-        title: "Selecione ao menos um módulo",
-        variant: "error",
       });
       return;
     }
@@ -652,8 +651,11 @@ export function useTenantOnboardingPage() {
       await updateTenantBranding({ ...brandPayload, logoUrl: finalLogoUrl });
       if (canManageModules) {
         await updateTenantConfig({
-          enabled: Array.from(enabled),
+          enabled: tenantEnabledKeysForConfigPatch(modules?.enabled),
           enabled_sectors: Array.from(enabledSectors),
+          automatic_price_search: modules?.automatic_price_search !== false,
+          automatic_reposicao_notifications:
+            modules?.automatic_reposicao_notifications !== false,
         });
       }
       toast({
@@ -698,7 +700,6 @@ export function useTenantOnboardingPage() {
     previewMode,
     tenantId,
     tenant,
-    selectedCount,
     contractCode,
     setContractCode,
     contractValidated,
@@ -723,8 +724,6 @@ export function useTenantOnboardingPage() {
     handleImportXlsx,
     importingXlsx,
     importResult,
-    toggle,
-    enabled,
     sectorUiRows,
     toggleSector,
     enabledSectors,

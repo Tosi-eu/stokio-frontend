@@ -20,10 +20,13 @@ import { useAuth } from "@/hooks/use-auth.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import type { PermissionResourceKey } from "@/domain/permission-matrix.types";
-import { APP_PUBLIC_NAME } from "@/constants/app-branding";
+import {
+  APP_PUBLIC_NAME,
+  getNextBrandLogoFallback,
+} from "@/constants/app-branding";
 import { getDefaultHomePath } from "@/helpers/default-home-route.helper";
 import { useTenantBrandLogoSrc } from "@/hooks/use-tenant-brand-logo-src.hook";
-import { LocalBrandLogoImage } from "@/components/LocalBrandLogoImage";
+import { usePublicDefaultLogoUrl } from "@/hooks/use-public-default-logo.hook";
 
 const baseNavigationTabs = [
   {
@@ -72,6 +75,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
     loading: tenantLoading,
     previewMode,
   } = useTenant();
+  const publicDefaultBrandLogo = usePublicDefaultLogoUrl();
   const { displaySrc: sidebarLogoSrc, isLogoResolved } = useTenantBrandLogoSrc(
     tenant,
     { tenantConfigLoading: tenantLoading },
@@ -79,7 +83,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
   const isViewerTenant =
     (tenant?.slug ?? "").toLowerCase() === "viewer" || previewMode;
   const sidebarLogoToShow = isViewerTenant
-    ? "/default_logo.png"
+    ? publicDefaultBrandLogo
     : sidebarLogoSrc;
   const sidebarLogoReady = isViewerTenant ? true : isLogoResolved;
 
@@ -134,25 +138,18 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
           aria-label="Ir para o início"
         >
           {sidebarLogoReady && sidebarLogoToShow ? (
-            sidebarLogoToShow === "/default_logo.png" ? (
-              <LocalBrandLogoImage
-                key={sidebarLogoToShow}
-                alt={tenant?.brandName || tenant?.name || APP_PUBLIC_NAME}
-              />
-            ) : (
-              <img
-                key={sidebarLogoToShow}
-                src={sidebarLogoToShow}
-                alt={tenant?.brandName || tenant?.name || APP_PUBLIC_NAME}
-                className="h-32 w-auto max-w-[200px] object-contain drop-shadow-sm"
-                referrerPolicy="no-referrer"
-                onError={(e) => {
-                  const target = e.currentTarget;
-                  if (target.src.endsWith("/default_logo.png")) return;
-                  target.src = "/default_logo.png";
-                }}
-              />
-            )
+            <img
+              key={sidebarLogoToShow}
+              src={sidebarLogoToShow}
+              alt={tenant?.brandName || tenant?.name || APP_PUBLIC_NAME}
+              className="h-32 w-auto max-w-[200px] object-contain drop-shadow-sm"
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                const target = e.currentTarget;
+                const next = getNextBrandLogoFallback(target.src);
+                if (next) target.src = next;
+              }}
+            />
           ) : (
             <div className="h-32 w-[200px] shrink-0" aria-busy={true} />
           )}

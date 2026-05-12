@@ -1,4 +1,4 @@
-import { getReport } from "@/api/requests";
+import { getReport, getResidentProntuarioAtivo } from "@/api/requests";
 import { MovementPeriod, MovementsParams } from "@/components/StockReporter";
 
 export type StockReportResidentMeta = {
@@ -76,6 +76,13 @@ export async function fetchStockReportPayloadForPdf(
       };
     }
     return getReport("transferencias", undefined, params);
+  }
+
+  if (tipo === "prontuario_residente") {
+    if (selectedResident == null) {
+      throw new Error("Selecione um residente para o prontuário");
+    }
+    return getResidentProntuarioAtivo(selectedResident);
   }
 
   const casela =

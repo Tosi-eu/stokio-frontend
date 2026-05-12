@@ -4,6 +4,14 @@ const DEFAULT = ["farmacia", "enfermagem"] as const;
 
 export const SECTOR_KEY_REGEX = /^[a-z0-9_]{1,64}$/;
 
+/** Preserva a lista de módulos do servidor ao gravar só setores/automações no painel web. */
+export function tenantEnabledKeysForConfigPatch(
+  modulesEnabled: readonly string[] | null | undefined,
+): string[] {
+  const base = Array.isArray(modulesEnabled) ? [...modulesEnabled] : [];
+  return base.includes("admin") ? base : [...base, "admin"];
+}
+
 export function getEnabledSectors(
   modules: Pick<TenantModules, "enabled_sectors"> | null,
 ): string[] {

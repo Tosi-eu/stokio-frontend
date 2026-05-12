@@ -1,11 +1,18 @@
+"use client";
+
 import { getBackendHealthCheck } from "@/api/requests";
-import { APP_PUBLIC_NAME } from "@/constants/app-branding";
+import {
+  APP_PUBLIC_NAME,
+  getNextBrandLogoFallback,
+} from "@/constants/app-branding";
+import { usePublicDefaultLogoUrl } from "@/hooks/use-public-default-logo.hook";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoadingScreen() {
-  const [progress, setProgress] = useState(0);
   const router = useRouter();
+  const brandLogoSrc = usePublicDefaultLogoUrl();
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const checkBackend = async () => {
@@ -31,9 +38,15 @@ export default function LoadingScreen() {
   return (
     <div className="h-screen w-screen flex flex-col justify-center items-center bg-brand-mesh px-6">
       <img
-        src="/default_logo.png"
+        src={brandLogoSrc}
         alt={APP_PUBLIC_NAME}
         className="w-48 h-auto max-h-32 object-contain mb-4 drop-shadow-md"
+        referrerPolicy="no-referrer"
+        onError={(e) => {
+          const t = e.currentTarget;
+          const next = getNextBrandLogoFallback(t.src);
+          if (next) t.src = next;
+        }}
       />
       <h1 className="font-display text-foreground font-semibold text-3xl mb-6 tracking-tight text-center">
         {APP_PUBLIC_NAME}

@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 
 const stepsAdmin = [
   "Nome e logo do abrigo",
-  "Quais áreas do sistema ficam no menu",
-  "Importar planilha (se quiser)",
+  "Setores de estoque (opcional)",
+  "Importar planilha (opcional)",
 ] as const;
 
 const stepsViewer = ["Nome e logo do abrigo"] as const;
@@ -30,8 +30,8 @@ export function TenantOnboardingAside({
       <p className="text-sm font-medium text-foreground">O que fazer aqui</p>
       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
         {canManageModules
-          ? "Leva poucos minutos. Você pode mudar depois no painel."
-          : "Só a identidade do abrigo. O menu é definido pelo administrador."}
+          ? "Leva poucos minutos. Setores e importação podem ser ajustados aqui; o menu lateral é tratado no Admin Desktop."
+          : "Só a identidade do abrigo. O menu lateral é definido no Admin Desktop."}
       </p>
       <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
         {items.map((t) => (

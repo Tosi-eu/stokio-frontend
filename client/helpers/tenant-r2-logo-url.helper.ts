@@ -120,8 +120,33 @@ export async function resolveTenantR2LogoUrl(params: {
   const slug = params.slug?.trim();
   const trimmedApi = params.logoUrlFromApi?.trim() || null;
   const rev = params.brandingUpdatedAt ?? null;
+  const base = normalizeR2PublicBaseUrl(params.r2PublicBaseUrl);
+  const brandLabel = params.brandName?.trim() || params.name?.trim() || "logo";
 
-  if (slug && trimmedApi) {
+  // 1) URL guardada na API (após upload é o público HTTPS do R2) — preferir ao proxy da API.
+  if (trimmedApi) {
+    const apiUrl = appendLogoRevision(trimmedApi, rev);
+    const ok = await tryLoadImage(apiUrl);
+    if (params.isCancelled()) return null;
+    if (ok) return apiUrl;
+  }
+
+  // 2) Convenção de chaves no bucket público R2 (sem passar pelo backend).
+  if (base && slug) {
+    const candidates = buildTenantLogoCandidateUrls(base, {
+      slug,
+      brandLabel,
+    }).map((u) => appendLogoRevision(u, rev));
+    const fromCandidates = await probeFirstResolvableTenantLogoUrl(
+      candidates,
+      params.isCancelled,
+    );
+    if (params.isCancelled()) return null;
+    if (fromCandidates) return fromCandidates;
+  }
+
+  // 3) Proxy público: backend resolve/stream a partir do R2 (útil se logo_url ainda vazio).
+  if (slug) {
     const proxyBase = buildTenantLogoProxyUrl(slug);
     if (proxyBase) {
       const proxyUrl = appendLogoRevision(proxyBase, rev);
@@ -131,20 +156,5 @@ export async function resolveTenantR2LogoUrl(params: {
     }
   }
 
-  if (trimmedApi) {
-    const apiUrl = appendLogoRevision(trimmedApi, rev);
-    const ok = await tryLoadImage(apiUrl);
-    if (params.isCancelled()) return null;
-    if (ok) return apiUrl;
-  }
-
-  const base = normalizeR2PublicBaseUrl(params.r2PublicBaseUrl);
-  const brandLabel = params.brandName?.trim() || params.name?.trim() || "logo";
-  if (!base || !slug) return null;
-
-  const candidates = buildTenantLogoCandidateUrls(base, {
-    slug,
-    brandLabel,
-  }).map((u) => appendLogoRevision(u, rev));
-  return probeFirstResolvableTenantLogoUrl(candidates, params.isCancelled);
+  return null;
 }

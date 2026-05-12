@@ -161,7 +161,11 @@ import type {
   DashboardSummaryResponse,
   AdminInsightsResponse,
 } from "./types";
-import { StockItemType, UpdateUserPayload } from "@/interfaces/types";
+import {
+  StockItemType,
+  UpdateUserPayload,
+  UpdateUserResponse,
+} from "@/interfaces/types";
 import { MovementsParams } from "@/components/StockReporter";
 import type { StockReplacementItem } from "@/components/StockReplacementModal";
 import type {
@@ -348,6 +352,27 @@ export const getResidentsInTenantContext = (
 
 export const getResidentByCasela = (casela: string | number) =>
   stokioClient.get<ResidentListItem>(`/residentes/${casela}`);
+
+/** Medicação e insumos ativos na casela (lista qualitativa; sem quantidade — não há posologia). */
+export type ResidentIssuedMedicalRecord = {
+  categoria: "medicamento" | "insumo";
+  nome: string;
+  detalhe: string;
+  validade: string | null;
+  setor: string | null;
+  observacao: string | null;
+};
+
+export type ResidentIssuedMedicalRecordResponse = {
+  residente: string;
+  casela: number;
+  itens: ResidentIssuedMedicalRecord[];
+};
+
+export const getResidentProntuarioAtivo = (casela: string | number) =>
+  stokioClient.get<ResidentIssuedMedicalRecordResponse>(
+    `/residentes/${casela}/prontuario-ativo`,
+  );
 
 export const getResidentsCount = () => stokioClient.get("/residentes/count");
 export const getCabinetsCount = () => stokioClient.get("/armarios/count");
@@ -925,16 +950,18 @@ export const updateCabinet = (id: number, data: Record<string, unknown>) =>
 export const updateMedicine = (id: number, data: Record<string, unknown>) =>
   stokioClient.put(`/medicamentos/${id}`, data);
 
+/** Redefinição sem sessão (página Esqueci a senha). */
 export const resetPassword = (login: string, newPassword: string) =>
-  stokioClient.post(`/login/reset-password`, { login, newPassword });
+  stokioClient.post(`/login/forgot-password`, { login, newPassword });
 
 export const updateResident = (
   casela: string | number,
   data: Record<string, unknown>,
 ) => stokioClient.put(`/residentes/${casela}`, data);
 
-export const updateUser = (payload: UpdateUserPayload) =>
-  stokioClient.put("/login", payload);
+export const updateUser = (
+  payload: UpdateUserPayload,
+): Promise<UpdateUserResponse> => stokioClient.put("/login", payload);
 
 export const createCabinet = (numero: number, categoria_id: number) =>
   stokioClient.post("/armarios", { numero, categoria_id });
@@ -1351,6 +1378,13 @@ export const logoutRequest = () => stokioClient.post("/login/logout");
 export const getTenantConfig = () =>
   stokioClient.get<TenantConfigResponse>("/tenant/config");
 
+export const dismissTenantOnboarding = () =>
+  stokioClient.post<{
+    tenantId: number;
+    tenant: TenantConfigResponse["tenant"];
+    alreadyComplete?: boolean;
+  }>("/tenant/onboarding/dismiss", {});
+
 export type AccessibleTenantRow = {
   id: number;
   slug: string;
@@ -1421,17 +1455,6 @@ export const listInterTenantMovements = (params?: {
     limit: number;
     hasNext: boolean;
   }>("/movimentacoes/inter-tenant", { params });
-
-export type TenantModuleDefinitionRow = {
-  key: string;
-  label: string;
-};
-
-export type TenantModuleCatalogResponse = {
-  modules: TenantModuleDefinitionRow[];
-};
-export const listTenantModuleDefinitions = () =>
-  stokioClient.get<TenantModuleCatalogResponse>("/tenant/modules");
 
 export type UpdateTenantModulesPayload = {
   enabled: string[];

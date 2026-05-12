@@ -536,7 +536,7 @@ export function createStockPDF(
                       : isExpiringSoon
                         ? "MEDICAMENTOS E INSUMOS PRÓXIMOS AO VENCIMENTO"
                         : isResidentMedicalRecordReport
-                          ? "PRONTUÁRIO DO RESIDENTE"
+                          ? "MEDICAÇÃO E INSUMOS ATIVOS NA CASELA"
                           : "ESTOQUE ATUAL"}
           </Text>
         </View>
@@ -570,31 +570,22 @@ export function createStockPDF(
               ) : null}
             </View>
 
-            <Text style={styles.sectionTitle}>Itens em stock</Text>
+            <Text style={styles.sectionTitle}>
+              Medicação e insumos ativos (lista na casela)
+            </Text>
 
             {renderTableWithConfig(
               [
                 { header: "Categoria", key: "categoria" },
                 { header: "Nome", key: "nome" },
-                { header: "Qtd.", key: "quantidade", isNumeric: true },
+                { header: "Detalhe", key: "detalhe" },
                 { header: "Validade", key: "validade" },
-                { header: "Entrada", key: "data_entrada" },
-                { header: "Saída", key: "data_saida" },
-                { header: "Armário", key: "armario", isNumeric: true },
-                { header: "Gaveta", key: "gaveta", isNumeric: true },
                 { header: "Setor", key: "setor" },
-                { header: "Lote", key: "lote" },
+                { header: "Observação", key: "observacao" },
               ],
-              (residentMedicalRecordData.itens ?? []).map((r) => {
-                const ext = r as RowData & { qtd?: unknown };
-                return formatPdfRowDates({
-                  ...r,
-                  quantidade:
-                    ext.quantidade != null && ext.quantidade !== ""
-                      ? ext.quantidade
-                      : ext.qtd,
-                } as RowData);
-              }),
+              (residentMedicalRecordData.itens ?? []).map((r) =>
+                formatPdfRowDates({ ...r } as RowData),
+              ),
             )}
           </>
         )}
