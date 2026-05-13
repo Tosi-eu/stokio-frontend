@@ -383,12 +383,18 @@ export default function Stock() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadStock is stable, intentional deps
   }, [page, effectiveFilters, filter]);
 
-  const handleNomeFilterChange = useCallback((value: string) => {
-    setFilters((prev) => ({ ...prev, nome: value }));
-  }, [setFilters]);
-  const handleLoteFilterChange = useCallback((value: string) => {
-    setFilters((prev) => ({ ...prev, lote: value }));
-  }, [setFilters]);
+  const handleNomeFilterChange = useCallback(
+    (value: string) => {
+      setFilters((prev) => ({ ...prev, nome: value }));
+    },
+    [setFilters],
+  );
+  const handleLoteFilterChange = useCallback(
+    (value: string) => {
+      setFilters((prev) => ({ ...prev, lote: value }));
+    },
+    [setFilters],
+  );
 
   const filterOptions = useMemo(
     () =>
