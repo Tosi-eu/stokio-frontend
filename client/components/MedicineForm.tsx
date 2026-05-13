@@ -41,6 +41,7 @@ import {
   compareResidentsByCaselaThenName,
   compareResidentsByNameThenCasela,
 } from "@/helpers/resident-sort.helper";
+import { formatResidentCaselaAutocompleteLabel } from "@/helpers/resident-casela-autocomplete.helper";
 import { getTenantSetorStockTypes } from "@/api/requests";
 
 function normalizeText(text: string) {
@@ -475,9 +476,7 @@ export const MedicineForm = memo(function MedicineForm({
                       )}
                     >
                       {field.value != null && selectedCasela
-                        ? uiDisplay.casela === "nome"
-                          ? `${selectedCasela.name} (${selectedCasela.casela})`
-                          : String(selectedCasela.casela)
+                        ? formatResidentCaselaAutocompleteLabel(selectedCasela)
                         : uiDisplay.casela === "nome"
                           ? "Buscar por nome do residente..."
                           : "Buscar por número da casela..."}
@@ -512,10 +511,6 @@ export const MedicineForm = memo(function MedicineForm({
                       <CommandEmpty>Nenhuma casela encontrada.</CommandEmpty>
                       <CommandGroup>
                         {filteredCaselas.map((c) => {
-                          const primary =
-                            uiDisplay.casela === "nome"
-                              ? c.name
-                              : String(c.casela);
                           const searchValue = `${c.casela} ${c.name}`;
                           return (
                             <CommandItem
@@ -534,12 +529,7 @@ export const MedicineForm = memo(function MedicineForm({
                                     : "opacity-0",
                                 )}
                               />
-                              {primary}
-                              <span className="ml-2 text-slate-500 text-xs">
-                                {uiDisplay.casela === "nome"
-                                  ? `(${c.casela})`
-                                  : c.name}
-                              </span>
+                              {formatResidentCaselaAutocompleteLabel(c)}
                             </CommandItem>
                           );
                         })}

@@ -110,10 +110,10 @@ export function StockOutTable({
                 const status = deriveItemStatus(item);
 
                 const caselaText = item.casela_id
-                  ? `Casela ${formatCaselaLabel(uiDisplay.casela, {
+                  ? formatCaselaLabel(uiDisplay.casela, {
                       caselaId: item.casela_id,
                       residentName: item.paciente,
-                    })}`
+                    })
                   : null;
 
                 const gavetaText = formatGavetaLabel(uiDisplay.gaveta, {

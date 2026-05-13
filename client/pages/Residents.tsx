@@ -26,11 +26,6 @@ import {
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
 import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
-import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
-import {
-  buildSectorFilterOptions,
-  getEnabledSectors,
-} from "@/helpers/tenant-sectors.helper";
 import {
   PREVIEW_RESIDENTS,
   getPreviewProntuarioAtivoForCasela,
@@ -49,13 +44,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { ResidentRow } from "@/components/residents/residents.types";
 import { EmptyStateCard } from "@/components/medical-record-exports/medical-record-exports.shared";
 import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
@@ -67,13 +55,7 @@ import {
 } from "@/components/residents/residents.stock-chart";
 
 export default function Resident() {
-  const { previewMode, modules } = useTenant();
-  const { labelByKey } = useTenantSetores();
-
-  const residentChartSectorOptions = useMemo(
-    () => buildSectorFilterOptions(getEnabledSectors(modules), labelByKey),
-    [modules, labelByKey],
-  );
+  const { previewMode } = useTenant();
   const [residents, setResidents] = useState<ResidentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -87,7 +69,6 @@ export default function Resident() {
   const [residentChartPage, setResidentChartPage] = useState(1);
   const RESIDENT_CHART_PAGE_SIZE = 10;
   const [residentChartNameFilter, setResidentChartNameFilter] = useState("");
-  const [residentChartSector, setResidentChartSector] = useState("__all");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -185,7 +166,7 @@ export default function Resident() {
         toast({
           title: "Erro ao carregar o prontuário",
           description:
-            "Não foi possível obter medicamentos e insumos ativos em stock nesta casela.",
+            "Não foi possível obter a lista de medicação e insumos em uso nesta casela.",
           variant: "error",
           duration: 3000,
         });
@@ -209,7 +190,7 @@ export default function Resident() {
   useEffect(() => {
     if (selected == null) return;
     setResidentChartPage(1);
-  }, [selected, residentChartNameFilter, residentChartSector]);
+  }, [selected, residentChartNameFilter]);
 
   useEffect(() => {
     if (selected == null) return;
@@ -226,12 +207,8 @@ export default function Resident() {
           (i.detalhe && i.detalhe.toLowerCase().includes(nome)),
       );
     }
-    if (residentChartSector !== "__all" && residentChartSector.trim()) {
-      const sk = residentChartSector.trim().toLowerCase();
-      list = list.filter((i) => (i.setor ?? "").toLowerCase().includes(sk));
-    }
     return list;
-  }, [residentChartItems, residentChartNameFilter, residentChartSector]);
+  }, [residentChartItems, residentChartNameFilter]);
 
   const residentProntuarioPageSlice = useMemo(() => {
     const start = (residentChartPage - 1) * RESIDENT_CHART_PAGE_SIZE;
@@ -425,7 +402,7 @@ export default function Resident() {
                           {r.name}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Casela {r.casela}
+                          ({r.casela})
                           {r.idade != null ? (
                             <span className="text-foreground/90">
                               {" "}
@@ -588,13 +565,9 @@ export default function Resident() {
                       />
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Lista de medicação e insumos com stock ativo na casela
-                      (nome, validade mais próxima, setor e observações). Não
-                      inclui quantidades: sem posologia no sistema, o número de
-                      unidades não interpreta uso clínico — para consumo, use os
-                      relatórios de consumo.
+                      O que o residente utiliza
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 max-w-md">
                       <div className="space-y-1">
                         <Label htmlFor="chart-name" className="text-xs">
                           Nome ou detalhe
@@ -608,30 +581,6 @@ export default function Resident() {
                           placeholder="ex.: Paracetamol"
                           className="rounded-xl"
                         />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="chart-sector" className="text-xs">
-                          Setor
-                        </Label>
-                        <Select
-                          value={residentChartSector}
-                          onValueChange={setResidentChartSector}
-                        >
-                          <SelectTrigger
-                            id="chart-sector"
-                            className="rounded-xl"
-                          >
-                            <SelectValue placeholder="Todos" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__all">Todos</SelectItem>
-                            {residentChartSectorOptions.map((s) => (
-                              <SelectItem key={s.value} value={s.value}>
-                                {s.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
                       </div>
                     </div>
                     {residentChartLoading ? (

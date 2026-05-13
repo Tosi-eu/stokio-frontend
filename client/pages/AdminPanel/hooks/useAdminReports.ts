@@ -17,6 +17,7 @@ import {
 } from "@/helpers/validation.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
+import { matchesResidentCaselaSearch } from "@/helpers/resident-casela-autocomplete.helper";
 
 async function waitForReportExportJob(jobId: string): Promise<void> {
   const startedAt = Date.now();
@@ -74,10 +75,7 @@ export function useAdminReports(enabled = true) {
   const filteredReportResidents = useMemo(
     () =>
       reportResidents
-        .filter((r) => {
-          if (!reportResidentSearch.trim()) return true;
-          return r.casela.toString().startsWith(reportResidentSearch.trim());
-        })
+        .filter((r) => matchesResidentCaselaSearch(r, reportResidentSearch))
         .sort(compareResidentsByNameThenCasela),
     [reportResidents, reportResidentSearch],
   );

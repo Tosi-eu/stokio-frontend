@@ -127,35 +127,38 @@ interface PsicotropicosReport {
 interface ResidentConsumptionReport {
   residente: string;
   casela: number;
+  periodo_movimentacao_referencia: string;
   cpf?: string | null;
   data_nascimento?: string | null;
   idade?: number | null;
   medicamentos: {
     nome: string;
     principio_ativo: string;
-    preco_formatado: string;
+    preco_unitario_formatado: string;
     quantidade_estoque: number;
+    valor_em_estoque_formatado: string;
+    consumo_mensal_unidades: number;
+    custo_mensal_inferido_formatado: string;
+    custo_anual_projetado_formatado: string;
     observacao?: string | null;
   }[];
   insumos: {
     nome: string;
     descricao: string | null;
-    preco_formatado: string;
+    preco_unitario_formatado: string;
     quantidade_estoque: number;
+    valor_em_estoque_formatado: string;
+    consumo_mensal_unidades: number;
+    custo_mensal_inferido_formatado: string;
+    custo_anual_projetado_formatado: string;
   }[];
-  custos_medicamentos: {
-    item: string;
-    nome: string;
-    custo_mensal_formatado: string;
-    custo_anual_formatado: string;
-  }[];
-  custos_insumos: {
-    item: string;
-    nome: string;
-    custo_mensal_formatado: string;
-    custo_anual_formatado: string;
-  }[];
-  total_estimado_formatado: string;
+  totais: {
+    medicamentos_formatado: string;
+    insumos_formatado: string;
+    geral_formatado: string;
+    custo_mensal_inferido_total_formatado: string;
+    custo_anual_projetado_total_formatado: string;
+  };
 }
 
 interface RowData {
@@ -536,7 +539,7 @@ export function createStockPDF(
                       : isExpiringSoon
                         ? "MEDICAMENTOS E INSUMOS PRÓXIMOS AO VENCIMENTO"
                         : isResidentMedicalRecordReport
-                          ? "MEDICAÇÃO E INSUMOS ATIVOS NA CASELA"
+                          ? "PRONTU\u00c1RIO DO RESIDENTE"
                           : "ESTOQUE ATUAL"}
           </Text>
         </View>
@@ -571,7 +574,7 @@ export function createStockPDF(
             </View>
 
             <Text style={styles.sectionTitle}>
-              Medicação e insumos ativos (lista na casela)
+              Medicação e insumos (lista na casela)
             </Text>
 
             {renderTableWithConfig(
@@ -579,8 +582,6 @@ export function createStockPDF(
                 { header: "Categoria", key: "categoria" },
                 { header: "Nome", key: "nome" },
                 { header: "Detalhe", key: "detalhe" },
-                { header: "Validade", key: "validade" },
-                { header: "Setor", key: "setor" },
                 { header: "Observação", key: "observacao" },
               ],
               (residentMedicalRecordData.itens ?? []).map((r) =>
@@ -601,6 +602,12 @@ export function createStockPDF(
               <Text style={{ fontSize: 12, color: "#666" }}>
                 Casela: {consumptionData.casela}
               </Text>
+              <Text style={{ fontSize: 10, color: "#64748b", marginTop: 6 }}>
+                Custos inferidos usam o recebimento na casela no período
+                calculado automaticamente (entradas administrativas e
+                transferências da farmácia). O estoque nas tabelas é sempre o
+                saldo atual na casela.
+              </Text>
               {consumptionData.cpf ? (
                 <Text style={{ fontSize: 12, color: "#666" }}>
                   CPF: {consumptionData.cpf}
@@ -619,22 +626,27 @@ export function createStockPDF(
               ) : null}
             </View>
 
-            <Text style={styles.sectionTitle}>1. Medicamentos e Uso</Text>
+            <Text style={styles.sectionTitle}>1. Medicamentos na casela</Text>
             {consumptionData.medicamentos.length > 0 ? (
               <>
                 <View style={styles.tableHeader}>
-                  <View style={[styles.cellShell, { flex: 2.2 }]}>
-                    <Text style={styles.headerCellText}>
-                      Nome do Medicamento
-                    </Text>
+                  <View style={[styles.cellShell, { flex: 1.9 }]}>
+                    <Text style={styles.headerCellText}>Medicamento</Text>
                   </View>
-                  <View style={[styles.cellShell, { flex: 1 }]}>
-                    <Text style={styles.headerCellTextNumeric}>
-                      Preço Unitário (R$)
-                    </Text>
+                  <View style={[styles.cellShell, { flex: 1.05 }]}>
+                    <Text style={styles.headerCellText}>Princípio ativo</Text>
                   </View>
-                  <View style={[styles.cellShell, { flex: 1.6 }]}>
-                    <Text style={styles.headerCellText}>Observação</Text>
+                  <View style={[styles.cellShell, { flex: 0.72 }]}>
+                    <Text style={styles.headerCellTextNumeric}>P. unit.</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 0.45 }]}>
+                    <Text style={styles.headerCellTextNumeric}>Qtd</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 0.68 }]}>
+                    <Text style={styles.headerCellTextNumeric}>V. estq.</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 1.35 }]}>
+                    <Text style={styles.headerCellText}>Obs.</Text>
                   </View>
                 </View>
                 {consumptionData.medicamentos.map((med, idx) => {
@@ -646,15 +658,30 @@ export function createStockPDF(
                         idx % 2 === 0 ? styles.striped : undefined,
                       ]}
                     >
-                      <View style={[styles.cellShell, { flex: 2.2 }]}>
+                      <View style={[styles.cellShell, { flex: 1.9 }]}>
                         <Text style={styles.cellText}>{med.nome || "-"}</Text>
                       </View>
-                      <View style={[styles.cellShell, { flex: 1 }]}>
-                        <Text style={styles.cellTextNumeric}>
-                          {med.preco_formatado || "-"}
+                      <View style={[styles.cellShell, { flex: 1.05 }]}>
+                        <Text style={styles.cellText}>
+                          {med.principio_ativo || "-"}
                         </Text>
                       </View>
-                      <View style={[styles.cellShell, { flex: 1.6 }]}>
+                      <View style={[styles.cellShell, { flex: 0.72 }]}>
+                        <Text style={styles.cellTextNumeric}>
+                          {med.preco_unitario_formatado || "-"}
+                        </Text>
+                      </View>
+                      <View style={[styles.cellShell, { flex: 0.45 }]}>
+                        <Text style={styles.cellTextNumeric}>
+                          {med.quantidade_estoque ?? "-"}
+                        </Text>
+                      </View>
+                      <View style={[styles.cellShell, { flex: 0.68 }]}>
+                        <Text style={styles.cellTextNumeric}>
+                          {med.valor_em_estoque_formatado || "-"}
+                        </Text>
+                      </View>
+                      <View style={[styles.cellShell, { flex: 1.35 }]}>
                         <Text style={styles.cellText}>
                           {med.observacao || "-"}
                         </Text>
@@ -669,20 +696,24 @@ export function createStockPDF(
               </Text>
             )}
 
-            <Text style={styles.sectionTitle}>2. Insumos</Text>
+            <Text style={styles.sectionTitle}>2. Insumos na casela</Text>
             {consumptionData.insumos.length > 0 ? (
               <>
                 <View style={styles.tableHeader}>
-                  <View style={[styles.cellShell, { flex: 1.4 }]}>
-                    <Text style={styles.headerCellText}>Nome do Insumo</Text>
+                  <View style={[styles.cellShell, { flex: 1.65 }]}>
+                    <Text style={styles.headerCellText}>Insumo</Text>
                   </View>
-                  <View style={[styles.cellShell, { flex: 2 }]}>
+                  <View style={[styles.cellShell, { flex: 1.35 }]}>
                     <Text style={styles.headerCellText}>Descrição</Text>
                   </View>
-                  <View style={[styles.cellShell, { flex: 1 }]}>
-                    <Text style={styles.headerCellTextNumeric}>
-                      Preço Unitário (R$)
-                    </Text>
+                  <View style={[styles.cellShell, { flex: 0.72 }]}>
+                    <Text style={styles.headerCellTextNumeric}>P. unit.</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 0.45 }]}>
+                    <Text style={styles.headerCellTextNumeric}>Qtd</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 0.68 }]}>
+                    <Text style={styles.headerCellTextNumeric}>V. estq.</Text>
                   </View>
                 </View>
                 {consumptionData.insumos.map((input, idx) => (
@@ -693,17 +724,27 @@ export function createStockPDF(
                       idx % 2 === 0 ? styles.striped : undefined,
                     ]}
                   >
-                    <View style={[styles.cellShell, { flex: 1.4 }]}>
+                    <View style={[styles.cellShell, { flex: 1.65 }]}>
                       <Text style={styles.cellText}>{input.nome || "-"}</Text>
                     </View>
-                    <View style={[styles.cellShell, { flex: 2 }]}>
+                    <View style={[styles.cellShell, { flex: 1.35 }]}>
                       <Text style={styles.cellText}>
                         {input.descricao || "-"}
                       </Text>
                     </View>
-                    <View style={[styles.cellShell, { flex: 1 }]}>
+                    <View style={[styles.cellShell, { flex: 0.72 }]}>
                       <Text style={styles.cellTextNumeric}>
-                        {input.preco_formatado || "-"}
+                        {input.preco_unitario_formatado || "-"}
+                      </Text>
+                    </View>
+                    <View style={[styles.cellShell, { flex: 0.45 }]}>
+                      <Text style={styles.cellTextNumeric}>
+                        {input.quantidade_estoque ?? "-"}
+                      </Text>
+                    </View>
+                    <View style={[styles.cellShell, { flex: 0.68 }]}>
+                      <Text style={styles.cellTextNumeric}>
+                        {input.valor_em_estoque_formatado || "-"}
                       </Text>
                     </View>
                   </View>
@@ -716,137 +757,114 @@ export function createStockPDF(
             )}
 
             <Text style={styles.sectionTitle}>
-              Custos Estimados - Medicamentos
+              3. Totais e custos inferidos
             </Text>
-            {consumptionData.custos_medicamentos.length > 0 ? (
-              <>
-                <View style={styles.tableHeader}>
-                  <View style={[styles.cellShell, { flex: 0.75 }]}>
-                    <Text style={styles.headerCellText}>Item</Text>
-                  </View>
-                  <View style={[styles.cellShell, { flex: 2 }]}>
-                    <Text style={styles.headerCellText}>
-                      Nome do Medicamento
-                    </Text>
-                  </View>
-                  <View style={[styles.cellShell, { flex: 1 }]}>
-                    <Text style={styles.headerCellTextNumeric}>
-                      Custo Mensal (R$)
-                    </Text>
-                  </View>
-                  <View style={[styles.cellShell, { flex: 1 }]}>
-                    <Text style={styles.headerCellTextNumeric}>
-                      Custo Anual (R$)
-                    </Text>
-                  </View>
-                </View>
-                {consumptionData.custos_medicamentos.map((custo, idx) => (
-                  <View
-                    key={idx}
-                    style={[
-                      styles.tableRow,
-                      idx % 2 === 0 ? styles.striped : undefined,
-                    ]}
-                  >
-                    <View style={[styles.cellShell, { flex: 0.75 }]}>
-                      <Text style={styles.cellText}>{custo.item || "-"}</Text>
-                    </View>
-                    <View style={[styles.cellShell, { flex: 2 }]}>
-                      <Text style={styles.cellText}>{custo.nome || "-"}</Text>
-                    </View>
-                    <View style={[styles.cellShell, { flex: 1 }]}>
-                      <Text style={styles.cellTextNumeric}>
-                        {custo.custo_mensal_formatado || "-"}
-                      </Text>
-                    </View>
-                    <View style={[styles.cellShell, { flex: 1 }]}>
-                      <Text style={styles.cellTextNumeric}>
-                        {custo.custo_anual_formatado || "-"}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </>
-            ) : (
-              <Text style={{ fontSize: 10, marginTop: 10, color: "#666" }}>
-                Nenhum custo de medicamento encontrado.
-              </Text>
-            )}
-
-            <Text style={styles.sectionTitle}>Custos Estimados - Insumos</Text>
-            {consumptionData.custos_insumos.length > 0 ? (
-              <>
-                <View style={styles.tableHeader}>
-                  <View style={[styles.cellShell, { flex: 0.75 }]}>
-                    <Text style={styles.headerCellText}>Item</Text>
-                  </View>
-                  <View style={[styles.cellShell, { flex: 2 }]}>
-                    <Text style={styles.headerCellText}>Nome do Insumo</Text>
-                  </View>
-                  <View style={[styles.cellShell, { flex: 1 }]}>
-                    <Text style={styles.headerCellTextNumeric}>
-                      Custo Mensal (R$)
-                    </Text>
-                  </View>
-                  <View style={[styles.cellShell, { flex: 1 }]}>
-                    <Text style={styles.headerCellTextNumeric}>
-                      Custo Anual (R$)
-                    </Text>
-                  </View>
-                </View>
-                {consumptionData.custos_insumos.map((custo, idx) => (
-                  <View
-                    key={idx}
-                    style={[
-                      styles.tableRow,
-                      idx % 2 === 0 ? styles.striped : undefined,
-                    ]}
-                  >
-                    <View style={[styles.cellShell, { flex: 0.75 }]}>
-                      <Text style={styles.cellText}>{custo.item || "-"}</Text>
-                    </View>
-                    <View style={[styles.cellShell, { flex: 2 }]}>
-                      <Text style={styles.cellText}>{custo.nome || "-"}</Text>
-                    </View>
-                    <View style={[styles.cellShell, { flex: 1 }]}>
-                      <Text style={styles.cellTextNumeric}>
-                        {custo.custo_mensal_formatado || "-"}
-                      </Text>
-                    </View>
-                    <View style={[styles.cellShell, { flex: 1 }]}>
-                      <Text style={styles.cellTextNumeric}>
-                        {custo.custo_anual_formatado || "-"}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </>
-            ) : (
-              <Text style={{ fontSize: 10, marginTop: 10, color: "#666" }}>
-                Nenhum custo de insumo encontrado.
-              </Text>
-            )}
-
             <View
               style={{
-                marginTop: 20,
-                padding: 10,
-                backgroundColor: "#f0f0f0",
-                borderRadius: 4,
+                marginTop: 8,
+                borderRadius: 6,
                 borderWidth: 1,
-                borderColor: "#000",
+                borderColor: "#cbd5e1",
+                overflow: "hidden",
               }}
             >
-              <Text
+              <View style={{ padding: 12, backgroundColor: "#f8fafc" }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "bold",
+                    marginBottom: 8,
+                    color: "#0f172a",
+                  }}
+                >
+                  Valor em estoque (hoje)
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 9,
+                    color: "#64748b",
+                    marginBottom: 8,
+                    lineHeight: 1.35,
+                  }}
+                >
+                  Soma do preço unitário × quantidade atual em cada item na
+                  casela.
+                </Text>
+                <Text
+                  style={{ fontSize: 10, marginBottom: 4, color: "#334155" }}
+                >
+                  <Text style={{ fontWeight: "bold" }}>Medicamentos: </Text>
+                  {consumptionData.totais?.medicamentos_formatado ?? "-"}
+                </Text>
+                <Text
+                  style={{ fontSize: 10, marginBottom: 4, color: "#334155" }}
+                >
+                  <Text style={{ fontWeight: "bold" }}>Insumos: </Text>
+                  {consumptionData.totais?.insumos_formatado ?? "-"}
+                </Text>
+                <Text
+                  style={{ fontSize: 10, marginBottom: 0, color: "#334155" }}
+                >
+                  <Text style={{ fontWeight: "bold" }}>Geral: </Text>
+                  {consumptionData.totais?.geral_formatado ?? "-"}
+                </Text>
+              </View>
+              <View
                 style={{
-                  fontSize: 14,
-                  fontWeight: "bold",
-                  textAlign: "center",
+                  padding: 12,
+                  backgroundColor: "#f1f5f9",
+                  borderTopWidth: 1,
+                  borderTopColor: "#e2e8f0",
                 }}
               >
-                Total Estimado Anual: R${" "}
-                {consumptionData.total_estimado_formatado || "-"}
-              </Text>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "bold",
+                    marginBottom: 8,
+                    color: "#0f172a",
+                  }}
+                >
+                  Custos inferidos (período automático)
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 9,
+                    color: "#64748b",
+                    marginBottom: 8,
+                    lineHeight: 1.35,
+                  }}
+                >
+                  Baseado no recebimento na casela nesse período (entradas +
+                  transferências da farmácia) × preço unitário. Anual = mensal ×
+                  12.
+                </Text>
+                <Text
+                  style={{ fontSize: 10, marginBottom: 4, color: "#334155" }}
+                >
+                  <Text style={{ fontWeight: "bold" }}>
+                    Custo mensal total:{" "}
+                  </Text>
+                  {consumptionData.totais
+                    ?.custo_mensal_inferido_total_formatado ?? "-"}
+                </Text>
+                <Text
+                  style={{ fontSize: 10, marginBottom: 8, color: "#334155" }}
+                >
+                  <Text style={{ fontWeight: "bold" }}>
+                    Custo anual projetado:{" "}
+                  </Text>
+                  {consumptionData.totais
+                    ?.custo_anual_projetado_total_formatado ?? "-"}
+                </Text>
+                <Text
+                  style={{ fontSize: 8, color: "#64748b", lineHeight: 1.4 }}
+                >
+                  Pode haver estoque sem custo inferido no período (ex.: lote
+                  antigo, migração de dados ou ajuste manual). Nesse caso o
+                  valor em estoque acima continua refletindo o saldo atual.
+                </Text>
+              </View>
             </View>
           </>
         )}

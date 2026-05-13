@@ -353,13 +353,10 @@ export const getResidentsInTenantContext = (
 export const getResidentByCasela = (casela: string | number) =>
   stokioClient.get<ResidentListItem>(`/residentes/${casela}`);
 
-/** Medicação e insumos ativos na casela (lista qualitativa; sem quantidade — não há posologia). */
 export type ResidentIssuedMedicalRecord = {
   categoria: "medicamento" | "insumo";
   nome: string;
   detalhe: string;
-  validade: string | null;
-  setor: string | null;
   observacao: string | null;
 };
 

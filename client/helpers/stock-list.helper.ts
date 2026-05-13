@@ -3,7 +3,6 @@ import { StockItem, StockItemRaw } from "@/interfaces/interfaces";
 import { ItemStockType, StockTypeLabels } from "@/utils/enums";
 import {
   armarioFilterLabel,
-  caselaFilterLabel,
   caselaModeForContext,
   type UiDisplayCasela,
   type UiDisplayCaselaSetor,
@@ -12,6 +11,7 @@ import {
   compareResidentsByCaselaThenName,
   compareResidentsByNameThenCasela,
 } from "@/helpers/resident-sort.helper";
+import { formatResidentCaselaAutocompleteLabel } from "@/helpers/resident-casela-autocomplete.helper";
 import { formatValidityDate } from "@/helpers/dates.helper";
 
 export interface StockListFilters {
@@ -210,10 +210,7 @@ export function buildFilterOptions(
         )
         .map((r) => ({
           value: String(r.casela),
-          label:
-            effEnf === "nome"
-              ? r.name
-              : caselaFilterLabel(r.casela, r.name, uiCasela, "enfermagem"),
+          label: formatResidentCaselaAutocompleteLabel(r),
         }))
     : Array.from(
         new Set(
@@ -237,14 +234,12 @@ export function buildFilterOptions(
         })
         .map((id) => {
           const r = options?.residents?.find((x) => x.casela === id);
+          const nm = r?.name?.trim();
           return {
             value: String(id),
-            label: caselaFilterLabel(
-              id,
-              r?.name ?? null,
-              uiCasela,
-              sectorForFarmaciaList,
-            ),
+            label: nm
+              ? formatResidentCaselaAutocompleteLabel({ name: nm, casela: id })
+              : `Casela ${id}`,
           };
         });
 
@@ -311,10 +306,7 @@ export function buildFilterOptionsFromApi(
         )
         .map((r) => ({
           value: String(r.casela),
-          label:
-            effEnf === "nome"
-              ? r.name
-              : caselaFilterLabel(r.casela, r.name, uiCasela, "enfermagem"),
+          label: formatResidentCaselaAutocompleteLabel(r),
         }))
     : (apiOptions?.caselas ?? [])
         .sort((a, b) => {
@@ -330,14 +322,12 @@ export function buildFilterOptionsFromApi(
         })
         .map((id) => {
           const r = options?.residents?.find((x) => x.casela === id);
+          const nm = r?.name?.trim();
           return {
             value: String(id),
-            label: caselaFilterLabel(
-              id,
-              r?.name ?? null,
-              uiCasela,
-              sectorForFarmaciaList,
-            ),
+            label: nm
+              ? formatResidentCaselaAutocompleteLabel({ name: nm, casela: id })
+              : `Casela ${id}`,
           };
         });
 

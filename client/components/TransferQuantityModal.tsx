@@ -43,6 +43,7 @@ import {
   compareResidentsByCaselaThenName,
   compareResidentsByNameThenCasela,
 } from "@/helpers/resident-sort.helper";
+import { formatResidentCaselaAutocompleteLabel } from "@/helpers/resident-casela-autocomplete.helper";
 import { ItemStockType, StockTypeLabels } from "@/utils/enums";
 import type { Drawer } from "@/interfaces/interfaces";
 import { accessibleTenantLabel } from "@/helpers/tenant-display.helper";
@@ -749,7 +750,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                       <SelectItem value="__none__">— Selecionar</SelectItem>
                       {destResidents.map((r) => (
                         <SelectItem key={r.casela} value={String(r.casela)}>
-                          Casela {r.casela} — {r.name}
+                          {formatResidentCaselaAutocompleteLabel(r)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -833,13 +834,8 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                               const r = residents.find(
                                 (x) => x.casela === Number(selectedCasela),
                               );
-                              if (uiDisplay.casela === "numero") {
-                                return r
-                                  ? `Casela ${selectedCasela} — ${r.name}`
-                                  : `Casela ${selectedCasela}`;
-                              }
                               return r
-                                ? `${r.name} (${selectedCasela})`
+                                ? formatResidentCaselaAutocompleteLabel(r)
                                 : `Casela ${selectedCasela}`;
                             })()
                           : "Selecione uma casela..."}
@@ -872,9 +868,7 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
                                     : "opacity-0"
                                 }`}
                               />
-                              {uiDisplay.casela === "numero"
-                                ? `Casela ${resident.casela} — ${resident.name}`
-                                : `${resident.name} (${resident.casela})`}
+                              {formatResidentCaselaAutocompleteLabel(resident)}
                             </CommandItem>
                           ))}
                         </CommandGroup>

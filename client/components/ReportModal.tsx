@@ -35,6 +35,7 @@ import {
   CommandGroup,
   CommandItem,
   Command,
+  CommandList,
 } from "./ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import DatePicker from "react-datepicker";
@@ -43,7 +44,10 @@ import { getReportTitle } from "@/helpers/relatorio.helper";
 import { parseYearMonthToDate } from "@/helpers/dates.helper";
 import { toast } from "@/hooks/use-toast.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
-import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
+import {
+  formatResidentCaselaAutocompleteLabel,
+  matchesResidentCaselaSearch,
+} from "@/helpers/resident-casela-autocomplete.helper";
 import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
 type StatusType = "idle" | "loading" | "success" | "error";
 
@@ -78,6 +82,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
   const [movementPeriodTransfer, setMovementPeriodTransfer] =
     useState<MovementPeriod>(MovementPeriod.DIARIO);
   const [residentSearch, setResidentSearch] = useState("");
+  const [residentPopoverOpen, setResidentPopoverOpen] = useState(false);
 
   const reportOptions = [
     { value: "insumos", label: "Insumos", icon: Bandage },
@@ -156,6 +161,7 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
     setSelectedReports([]);
     setSelectedResident(null);
     setResidentSearch("");
+    setResidentPopoverOpen(false);
     setMovementDate(null);
     setStartDate(null);
     setEndDate(null);
@@ -198,6 +204,19 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
     if (!selectedReports.length) return;
 
     const tipo = selectedReports[0];
+
+    if (
+      (tipo === "residente_consumo" || tipo === "medicamentos_residente") &&
+      selectedResident == null
+    ) {
+      toast({
+        title: "Selecione o residente",
+        description: "Escolha um residente na lista para gerar o relatório.",
+        variant: "error",
+      });
+      return;
+    }
+
     setStatus("loading");
 
     try {
@@ -330,6 +349,12 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
         toast({ title: "Selecione o mês", variant: "error" });
       } else if (m === "Intervalo obrigatório") {
         toast({ title: "Selecione o intervalo de datas", variant: "error" });
+      } else {
+        toast({
+          title: "Não foi possível gerar o relatório",
+          description: m || "Tente novamente.",
+          variant: "error",
+        });
       }
       setStatus("error");
     }
@@ -344,18 +369,19 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
   const iconSize = 140;
 
   const filteredResidents = useMemo(() => {
-    const list = residents.filter((r) => {
-      if (!residentSearch) return true;
-      const q = residentSearch.trim().toLowerCase();
-      if (!q) return true;
-      if (/^\d+$/.test(q)) return String(r.casela).startsWith(q);
-      return r.name.toLowerCase().includes(q);
-    });
+    const list = residents.filter((r) =>
+      matchesResidentCaselaSearch(r, residentSearch),
+    );
     return [...list].sort(compareResidentsByNameThenCasela);
   }, [residents, residentSearch]);
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) handleClose();
+      }}
+    >
       <DialogContent className="p-0 bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden">
         <AnimatePresence mode="wait">
           {status === "idle" && (
@@ -587,7 +613,11 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                               <Loader2 className="animate-spin text-primary" />
                             </div>
                           ) : (
-                            <Popover>
+                            <Popover
+                              modal={false}
+                              open={residentPopoverOpen}
+                              onOpenChange={setResidentPopoverOpen}
+                            >
                               <PopoverTrigger asChild>
                                 <Button
                                   variant="outline"
@@ -595,12 +625,16 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                                   className="w-full justify-between text-sm"
                                 >
                                   {selectedResident != null
-                                    ? formatCaselaLabel(uiDisplay.casela, {
-                                        caselaId: selectedResident,
-                                        residentName: residents.find(
-                                          (r) => r.casela === selectedResident,
-                                        )?.name,
-                                      })
+                                    ? (() => {
+                                        const r = residents.find(
+                                          (x) => x.casela === selectedResident,
+                                        );
+                                        return r
+                                          ? formatResidentCaselaAutocompleteLabel(
+                                              r,
+                                            )
+                                          : `Casela ${selectedResident}`;
+                                      })()
                                     : "Selecionar residente"}
                                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
@@ -611,35 +645,36 @@ export default function ReportModal({ open, onClose }: ReportModalProps) {
                                 align="start"
                                 sideOffset={4}
                                 avoidCollisions={false}
-                                className="w-full p-0"
+                                className="z-[60] min-w-[var(--radix-popover-trigger-width)] max-w-[min(90vw,28rem)] p-0"
                               >
                                 <Command shouldFilter={false}>
                                   <CommandInput
-                                    placeholder="Buscar residente"
+                                    placeholder="Buscar por nome ou casela…"
                                     value={residentSearch}
                                     onValueChange={setResidentSearch}
                                   />
-                                  <CommandEmpty>
-                                    Nenhum residente encontrado.
-                                  </CommandEmpty>
-                                  <CommandGroup>
-                                    {filteredResidents.map((r) => (
-                                      <CommandItem
-                                        key={r.casela}
-                                        value={
-                                          r.casela?.toString() + " - " + r.name
-                                        }
-                                        onSelect={() => {
-                                          setSelectedResident(r.casela);
-                                          setResidentSearch("");
-                                        }}
-                                      >
-                                        {uiDisplay.casela === "nome"
-                                          ? `${r.name} (${r.casela})`
-                                          : `Casela ${r.casela}`}
-                                      </CommandItem>
-                                    ))}
-                                  </CommandGroup>
+                                  <CommandList>
+                                    <CommandEmpty>
+                                      Nenhum residente encontrado.
+                                    </CommandEmpty>
+                                    <CommandGroup>
+                                      {filteredResidents.map((r) => (
+                                        <CommandItem
+                                          key={r.casela}
+                                          value={`${r.casela}-${r.name}`}
+                                          onSelect={() => {
+                                            setSelectedResident(r.casela);
+                                            setResidentSearch("");
+                                            setResidentPopoverOpen(false);
+                                          }}
+                                        >
+                                          {formatResidentCaselaAutocompleteLabel(
+                                            r,
+                                          )}
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </CommandList>
                                 </Command>
                               </PopoverContent>
                             </Popover>

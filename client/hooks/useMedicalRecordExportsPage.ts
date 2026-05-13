@@ -67,7 +67,8 @@ export function useMedicalRecordExportsPage() {
       const c = String(r.casela ?? "").trim();
       if (!c) continue;
       if (!map.has(c)) {
-        map.set(c, `Casela ${c} — ${r.residentName}`);
+        const name = String(r.residentName ?? "").trim();
+        map.set(c, name ? `${name} (${c})` : `Casela ${c}`);
       }
     }
     for (const row of rows) {

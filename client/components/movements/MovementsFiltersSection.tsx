@@ -16,14 +16,13 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList,
 } from "@/components/ui/command";
 import type { TenantUiDisplay } from "@/helpers/storage-location-display.helper";
-import {
-  formatCaselaLabel,
-  formatGavetaLabel,
-} from "@/helpers/storage-location-display.helper";
+import { formatGavetaLabel } from "@/helpers/storage-location-display.helper";
 import type { MovementFilters } from "@/components/movements/movements.types";
 import { MovementsSearchableSelect } from "@/components/movements/MovementsSearchableSelect";
+import { formatResidentCaselaAutocompleteLabel } from "@/helpers/resident-casela-autocomplete.helper";
 
 type FiltersActions = {
   onProduto: (v: string) => void;
@@ -114,6 +113,7 @@ export function MovementsFiltersSection({
         </div>
         <MovementsSearchableSelect
           label="Armário"
+          placeholder="Todos os armários"
           value={filters.armario}
           onChange={actions.onArmario}
           options={cabinetSelectOptions}
@@ -121,6 +121,11 @@ export function MovementsFiltersSection({
         />
         <MovementsSearchableSelect
           label={uiDisplay.gaveta === "categoria" ? "Categoria" : "Gaveta"}
+          placeholder={
+            uiDisplay.gaveta === "categoria"
+              ? "Todas as categorias"
+              : "Todas as gavetas"
+          }
           value={filters.gaveta}
           onChange={actions.onGaveta}
           options={drawerSelectOptions}
@@ -141,16 +146,23 @@ export function MovementsFiltersSection({
                 role="combobox"
                 className="mt-1 h-8 w-full justify-between px-2 text-xs"
               >
-                <span className="truncate">
+                <span
+                  className={
+                    filters.casela
+                      ? "truncate"
+                      : "truncate text-muted-foreground"
+                  }
+                >
                   {filters.casela
-                    ? formatCaselaLabel(uiDisplay.casela, {
-                        caselaId: Number(filters.casela),
-                        residentName:
-                          residentOptions.find(
-                            (r) => r.casela === Number(filters.casela),
-                          )?.name ?? null,
-                      })
-                    : "Selecione"}
+                    ? (() => {
+                        const r = residentOptions.find(
+                          (x) => x.casela === Number(filters.casela),
+                        );
+                        return r
+                          ? formatResidentCaselaAutocompleteLabel(r)
+                          : `Casela ${filters.casela}`;
+                      })()
+                    : "Todas as caselas"}
                 </span>
                 <ChevronsUpDown className="h-4 w-4 opacity-60" />
               </Button>
@@ -162,46 +174,38 @@ export function MovementsFiltersSection({
                   value={residentSearch}
                   onValueChange={setResidentSearch}
                 />
-                <CommandEmpty>Nenhum residente encontrado.</CommandEmpty>
-                <CommandGroup>
-                  <CommandItem
-                    value="all"
-                    onSelect={() => {
-                      actions.onCasela("");
-                      setResidentSearch("");
-                      setResidentPopoverOpen((p) => ({
-                        ...p,
-                        [uiKey]: false,
-                      }));
-                    }}
-                  >
-                    Todos
-                  </CommandItem>
-                  {filteredResidentOptions.map((r) => (
-                    <CommandItem
-                      key={r.casela}
-                      value={String(r.casela)}
-                      onSelect={() => {
-                        actions.onCasela(String(r.casela));
-                        setResidentSearch("");
-                        setResidentPopoverOpen((p) => ({
-                          ...p,
-                          [uiKey]: false,
-                        }));
-                      }}
-                    >
-                      {uiDisplay.casela === "nome"
-                        ? `${r.name} (Casela ${r.casela})`
-                        : `Casela ${r.casela} — ${r.name}`}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
+                <CommandList>
+                  <CommandEmpty>Nenhum residente encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {filteredResidentOptions.map((r) => (
+                      <CommandItem
+                        key={r.casela}
+                        value={`${r.casela}-${r.name}`}
+                        onSelect={() => {
+                          const next =
+                            String(r.casela) === filters.casela
+                              ? ""
+                              : String(r.casela);
+                          actions.onCasela(next);
+                          setResidentSearch("");
+                          setResidentPopoverOpen((p) => ({
+                            ...p,
+                            [uiKey]: false,
+                          }));
+                        }}
+                      >
+                        {formatResidentCaselaAutocompleteLabel(r)}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
               </Command>
             </PopoverContent>
           </Popover>
         </div>
         <MovementsSearchableSelect
           label="Setor"
+          placeholder="Todos os setores"
           value={filters.setor}
           onChange={actions.onSetor}
           options={sectorOptions}

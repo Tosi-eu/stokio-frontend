@@ -56,7 +56,7 @@ export function formatCaselaLabel(
   if (id == null) return "—";
   if (mode === "numero") return String(id);
   const name = String(opts.residentName ?? "").trim();
-  if (name) return name;
+  if (name) return `${name} (${id})`;
   return `Casela ${id}`;
 }
 

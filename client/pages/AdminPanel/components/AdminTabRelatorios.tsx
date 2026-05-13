@@ -26,7 +26,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { MovementPeriod } from "@/components/StockReporter";
 import { REPORT_OPTIONS } from "../constants";
 import { useTenant } from "@/hooks/use-tenant.hook";
-import { formatCaselaLabel } from "@/helpers/storage-location-display.helper";
+import { formatResidentCaselaAutocompleteLabel } from "@/helpers/resident-casela-autocomplete.helper";
 
 interface AdminTabRelatoriosProps {
   selectedReportType: string;
@@ -149,19 +149,21 @@ export function AdminTabRelatorios({
                     className="w-full max-w-md justify-between"
                   >
                     {selectedReportResident != null
-                      ? formatCaselaLabel(uiDisplay.casela, {
-                          caselaId: selectedReportResident,
-                          residentName: reportResidents.find(
-                            (r) => r.casela === selectedReportResident,
-                          )?.name,
-                        })
+                      ? (() => {
+                          const r = reportResidents.find(
+                            (x) => x.casela === selectedReportResident,
+                          );
+                          return r
+                            ? formatResidentCaselaAutocompleteLabel(r)
+                            : `Casela ${selectedReportResident}`;
+                        })()
                       : "Selecione o residente"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                  <Command>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[280px] p-0">
+                  <Command shouldFilter={false}>
                     <CommandInput
-                      placeholder="Buscar por casela..."
+                      placeholder="Buscar por nome ou casela…"
                       value={reportResidentSearch}
                       onValueChange={setReportResidentSearch}
                     />
@@ -170,11 +172,13 @@ export function AdminTabRelatorios({
                       {filteredReportResidents.map((r) => (
                         <CommandItem
                           key={r.casela}
-                          onSelect={() => setSelectedReportResident(r.casela)}
+                          value={`${r.casela}-${r.name}`}
+                          onSelect={() => {
+                            setSelectedReportResident(r.casela);
+                            setReportResidentSearch("");
+                          }}
                         >
-                          {uiDisplay.casela === "nome"
-                            ? r.name
-                            : `Casela ${r.casela} — ${r.name}`}
+                          {formatResidentCaselaAutocompleteLabel(r)}
                         </CommandItem>
                       ))}
                     </CommandGroup>

@@ -42,6 +42,11 @@ import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
 import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
 import {
+  formatResidentCaselaAutocompleteLabel,
+  matchesResidentCaselaSearch,
+} from "@/helpers/resident-casela-autocomplete.helper";
+import { MovementsSearchableSelect } from "@/components/movements/MovementsSearchableSelect";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -51,10 +56,10 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList,
 } from "@/components/ui/command";
 import { ChevronsUpDown, X } from "lucide-react";
 import { TableFilter } from "@/components/TableFilter";
-import { Input } from "@/components/ui/input";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
 import {
@@ -151,6 +156,7 @@ export default function Stock() {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [armarioSearch, setArmarioSearch] = useState("");
   const [caselaSearch, setCaselaSearch] = useState("");
+  const [setorSearch, setSetorSearch] = useState("");
 
   useEffect(() => {
     if (debounceTimerRef.current) {
@@ -447,14 +453,40 @@ export default function Stock() {
   }, [armarioSearch, filterOptions.cabinets]);
 
   const filteredCaselas = useMemo(() => {
-    if (!caselaSearch) return filterOptions.caselas;
-    const term = caselaSearch.trim().toLowerCase();
-    return filterOptions.caselas.filter(
-      (c) =>
-        c.value.startsWith(caselaSearch.trim()) ||
-        c.label.toLowerCase().includes(term),
+    if (!caselaSearch.trim()) return filterOptions.caselas;
+    const q = caselaSearch.trim();
+    const ql = q.toLowerCase();
+    return filterOptions.caselas.filter((c) => {
+      if (c.label.toLowerCase().includes(ql) || c.value.includes(q.trim())) {
+        return true;
+      }
+      const r = residents.find((x) => String(x.casela) === c.value);
+      return r ? matchesResidentCaselaSearch(r, q) : false;
+    });
+  }, [caselaSearch, filterOptions.caselas, residents]);
+
+  const filteredSectors = useMemo(() => {
+    if (!setorSearch.trim()) return filterOptions.sectors;
+    const q = setorSearch.trim().toLowerCase();
+    return filterOptions.sectors.filter(
+      (s) =>
+        s.label.toLowerCase().includes(q) || s.value.toLowerCase().includes(q),
     );
-  }, [caselaSearch, filterOptions.caselas]);
+  }, [setorSearch, filterOptions.sectors]);
+
+  const drawerSelectOptions = useMemo(
+    () =>
+      [...drawerCategoryByNum.keys()]
+        .sort((a, b) => a - b)
+        .map((num) => ({
+          value: String(num),
+          label: formatGavetaLabel(uiDisplay.gaveta, {
+            gavetaId: num,
+            categoriaNome: drawerCategoryByNum.get(num),
+          }),
+        })),
+    [drawerCategoryByNum, uiDisplay.gaveta],
+  );
 
   const columns = [
     { key: "stockType", label: "Tipo", editable: false },
@@ -784,45 +816,51 @@ export default function Stock() {
                 <Popover>
                   <PopoverTrigger asChild>
                     <button className="w-full border border-border bg-background p-2 rounded-lg flex justify-between items-center truncate">
-                      <span className="truncate">
+                      <span
+                        className={
+                          filters.setor
+                            ? "truncate"
+                            : "truncate text-muted-foreground"
+                        }
+                      >
                         {filters.setor
                           ? filterOptions.sectors.find(
                               (s) => s.value === filters.setor,
                             )?.label || filters.setor
-                          : "Selecione"}
+                          : "Todos os setores"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0">
-                    <Command>
-                      <CommandGroup>
-                        <CommandItem
-                          value=""
-                          onSelect={() =>
-                            setFilters((prev) => ({ ...prev, setor: "" }))
-                          }
-                        >
-                          Todos
-                        </CommandItem>
-                        {filterOptions.sectors.map((sector) => (
-                          <CommandItem
-                            key={sector.value}
-                            value={sector.value}
-                            onSelect={() =>
-                              setFilters((prev) => ({
-                                ...prev,
-                                setor:
-                                  prev.setor === sector.value
-                                    ? ""
-                                    : sector.value,
-                              }))
-                            }
-                          >
-                            {sector.label}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Buscar setor"
+                        value={setorSearch}
+                        onValueChange={setSetorSearch}
+                      />
+                      <CommandList>
+                        <CommandGroup>
+                          {filteredSectors.map((sector) => (
+                            <CommandItem
+                              key={sector.value}
+                              value={sector.value}
+                              onSelect={() => {
+                                setFilters((prev) => ({
+                                  ...prev,
+                                  setor:
+                                    prev.setor === sector.value
+                                      ? ""
+                                      : sector.value,
+                                }));
+                                setSetorSearch("");
+                              }}
+                            >
+                              {sector.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
                     </Command>
                   </PopoverContent>
                 </Popover>
@@ -835,12 +873,18 @@ export default function Stock() {
                 <Popover>
                   <PopoverTrigger asChild>
                     <button className="w-full border border-border bg-background p-2 rounded-lg flex justify-between items-center truncate">
-                      <span className="truncate">
+                      <span
+                        className={
+                          filters.armario
+                            ? "truncate"
+                            : "truncate text-muted-foreground"
+                        }
+                      >
                         {filters.armario
                           ? (filterOptions.cabinets.find(
                               (c) => c.value === filters.armario,
                             )?.label ?? `Armário ${filters.armario}`)
-                          : "Selecione"}
+                          : "Todos os armários"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
                     </button>
@@ -852,48 +896,50 @@ export default function Stock() {
                         value={armarioSearch}
                         onValueChange={setArmarioSearch}
                       />
-                      <CommandGroup>
-                        {filteredCabinets.map((cabinet) => (
-                          <CommandItem
-                            key={cabinet.value}
-                            value={cabinet.value}
-                            onSelect={() => {
-                              setFilters((prev) => ({
-                                ...prev,
-                                armario:
-                                  prev.armario === cabinet.value
-                                    ? ""
-                                    : cabinet.value,
-                              }));
-                              setArmarioSearch("");
-                            }}
-                          >
-                            {cabinet.label}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
+                      <CommandList>
+                        <CommandGroup>
+                          {filteredCabinets.map((cabinet) => (
+                            <CommandItem
+                              key={cabinet.value}
+                              value={cabinet.value}
+                              onSelect={() => {
+                                setFilters((prev) => ({
+                                  ...prev,
+                                  armario:
+                                    prev.armario === cabinet.value
+                                      ? ""
+                                      : cabinet.value,
+                                }));
+                                setArmarioSearch("");
+                              }}
+                            >
+                              {cabinet.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
                     </Command>
                   </PopoverContent>
                 </Popover>
               </div>
 
               <div className="flex-1 min-w-0">
-                <label className="block text-xs text-muted-foreground mb-1">
-                  Gaveta
-                </label>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  className="rounded-lg"
-                  placeholder="Nº"
-                  value={filters.gaveta}
-                  onChange={(e) =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      gaveta: e.target.value.replace(/\D/g, ""),
-                    }))
+                <MovementsSearchableSelect
+                  label={
+                    uiDisplay.gaveta === "categoria" ? "Categoria" : "Gaveta"
                   }
-                  aria-label="Filtrar por número da gaveta"
+                  placeholder={
+                    uiDisplay.gaveta === "categoria"
+                      ? "Todas as categorias"
+                      : "Todas as gavetas"
+                  }
+                  value={filters.gaveta}
+                  onChange={(v) =>
+                    setFilters((prev) => ({ ...prev, gaveta: v }))
+                  }
+                  options={drawerSelectOptions}
+                  searchPlaceholder="Buscar por número ou categoria…"
+                  triggerClassName="rounded-lg"
                 />
               </div>
 
@@ -904,18 +950,26 @@ export default function Stock() {
                 <Popover>
                   <PopoverTrigger asChild>
                     <button className="w-full border border-border bg-background p-2 rounded-lg flex justify-between items-center truncate">
-                      <span className="truncate">
+                      <span
+                        className={
+                          filters.casela
+                            ? "truncate"
+                            : "truncate text-muted-foreground"
+                        }
+                      >
                         {filters.casela
-                          ? (filterOptions.caselas.find(
-                              (c) => c.value === filters.casela,
-                            )?.label ??
-                            formatCaselaLabel(uiDisplay.casela, {
-                              caselaId: Number(filters.casela),
-                              residentName: residents.find(
-                                (r) => r.casela === Number(filters.casela),
-                              )?.name,
-                            }))
-                          : "Selecione"}
+                          ? (() => {
+                              const found = filterOptions.caselas.find(
+                                (c) => c.value === filters.casela,
+                              );
+                              if (found?.label) return found.label;
+                              const id = Number(filters.casela);
+                              const r = residents.find((x) => x.casela === id);
+                              return r
+                                ? formatResidentCaselaAutocompleteLabel(r)
+                                : `Casela ${filters.casela}`;
+                            })()
+                          : "Todas as caselas"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
                     </button>
@@ -927,26 +981,28 @@ export default function Stock() {
                         value={caselaSearch}
                         onValueChange={setCaselaSearch}
                       />
-                      <CommandGroup>
-                        {filteredCaselas.map((casela) => (
-                          <CommandItem
-                            key={casela.value}
-                            value={casela.value}
-                            onSelect={() => {
-                              setFilters((prev) => ({
-                                ...prev,
-                                casela:
-                                  prev.casela === casela.value
-                                    ? ""
-                                    : casela.value,
-                              }));
-                              setCaselaSearch("");
-                            }}
-                          >
-                            {casela.label}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
+                      <CommandList>
+                        <CommandGroup>
+                          {filteredCaselas.map((casela) => (
+                            <CommandItem
+                              key={casela.value}
+                              value={casela.value}
+                              onSelect={() => {
+                                setFilters((prev) => ({
+                                  ...prev,
+                                  casela:
+                                    prev.casela === casela.value
+                                      ? ""
+                                      : casela.value,
+                                }));
+                                setCaselaSearch("");
+                              }}
+                            >
+                              {casela.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
                     </Command>
                   </PopoverContent>
                 </Popover>

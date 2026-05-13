@@ -30,6 +30,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { parseDateFromString } from "@/utils/utils";
 import { SkeletonForm } from "@/components/SkeletonForm";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { formatResidentCaselaAutocompleteLabel } from "@/helpers/resident-casela-autocomplete.helper";
 import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
 import {
   buildSectorFilterOptions,
@@ -429,9 +430,7 @@ export default function EditStock() {
                               key={resident.casela}
                               value={resident.casela.toString()}
                             >
-                              {uiDisplay.casela === "nome"
-                                ? resident.name
-                                : String(resident.casela)}
+                              {formatResidentCaselaAutocompleteLabel(resident)}
                             </SelectItem>
                           ))}
                         </SelectContent>

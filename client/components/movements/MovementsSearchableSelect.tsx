@@ -15,6 +15,7 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList,
 } from "@/components/ui/command";
 
 export function MovementsSearchableSelect<
@@ -45,9 +46,14 @@ export function MovementsSearchableSelect<
   }, [options, value]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim();
+    const ql = q.toLowerCase();
     if (!q) return options;
-    return options.filter((o) => o.label.toLowerCase().includes(q));
+    return options.filter(
+      (o) =>
+        o.label.toLowerCase().includes(ql) ||
+        o.value.toLowerCase().includes(ql),
+    );
   }, [options, search]);
 
   return (
@@ -61,8 +67,10 @@ export function MovementsSearchableSelect<
             role="combobox"
             className={`mt-1 h-8 w-full justify-between px-2 text-xs ${triggerClassName ?? ""}`}
           >
-            <span className="truncate">
-              {selectedLabel || placeholder || "Selecione"}
+            <span className="truncate text-muted-foreground">
+              {selectedLabel ||
+                placeholder ||
+                (label ? `Qualquer ${label.toLowerCase()}` : "Selecione")}
             </span>
             <ChevronsUpDown className="h-4 w-4 opacity-60" />
           </Button>
@@ -74,32 +82,24 @@ export function MovementsSearchableSelect<
               value={search}
               onValueChange={setSearch}
             />
-            <CommandEmpty>Nenhum resultado.</CommandEmpty>
-            <CommandGroup>
-              <CommandItem
-                value="all"
-                onSelect={() => {
-                  onChange("");
-                  setSearch("");
-                  setOpen(false);
-                }}
-              >
-                Todos
-              </CommandItem>
-              {filtered.map((o) => (
-                <CommandItem
-                  key={o.value}
-                  value={o.value}
-                  onSelect={() => {
-                    onChange(o.value);
-                    setSearch("");
-                    setOpen(false);
-                  }}
-                >
-                  {o.label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            <CommandList>
+              <CommandEmpty>Nenhum resultado.</CommandEmpty>
+              <CommandGroup>
+                {filtered.map((o) => (
+                  <CommandItem
+                    key={o.value}
+                    value={o.value}
+                    onSelect={() => {
+                      onChange(o.value === value ? "" : o.value);
+                      setSearch("");
+                      setOpen(false);
+                    }}
+                  >
+                    {o.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
           </Command>
         </PopoverContent>
       </Popover>
