@@ -1,6 +1,7 @@
 import type { ResidentIssuedMedicalRecord } from "@/api/requests";
 import type { StockItem } from "@/interfaces/interfaces";
 import { OperationType } from "@/utils/enums";
+import { formatProntuarioPeriodoLabel } from "@/components/residents/prontuario.constants";
 
 export function residentStockItemKindLabel(item: StockItem): string {
   return item.itemType === OperationType.MEDICINE ? "Medicamento" : "Insumo";
@@ -14,6 +15,9 @@ export function prontuarioAtivoToChartRows(
     name: i.nome,
     detalhe: i.detalhe?.trim() ? i.detalhe : "—",
     observacao: i.observacao?.trim() ? i.observacao : "—",
+    frequencia:
+      i.frequencia_aplicacao != null ? String(i.frequencia_aplicacao) : "—",
+    periodo: formatProntuarioPeriodoLabel(i.periodo_aplicacao),
   }));
 }
 

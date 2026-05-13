@@ -3,4 +3,6 @@ export const RESIDENT_STOCK_CHART_COLUMNS = [
   { key: "name", label: "Nome", editable: false },
   { key: "detalhe", label: "Detalhe", editable: false },
   { key: "observacao", label: "Observação", editable: false },
+  { key: "frequencia", label: "Frequência", editable: false },
+  { key: "periodo", label: "Período", editable: false },
 ];

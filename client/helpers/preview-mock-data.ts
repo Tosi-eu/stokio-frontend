@@ -310,11 +310,16 @@ export function getPreviewProntuarioAtivoForCasela(
     const obsJoined =
       [...a.observacoes].filter(Boolean).sort().join("; ") || null;
 
+    const pid = previewProntuarioProductId(a.categoria, a.nome);
     rows.push({
       categoria: a.categoria,
       nome: a.nome,
       detalhe: a.detalhe,
       observacao: obsJoined,
+      frequencia_aplicacao: null,
+      periodo_aplicacao: null,
+      medicamento_id: a.categoria === "medicamento" ? pid : null,
+      insumo_id: a.categoria === "insumo" ? pid : null,
     });
   }
 
@@ -621,6 +626,33 @@ export const PREVIEW_INPUTS: Record<string, unknown>[] = [
     preco: 8.5,
   },
 ];
+
+function previewProntuarioProductId(
+  categoria: "medicamento" | "insumo",
+  nome: string,
+): number | null {
+  const n = nome.trim().toLowerCase();
+  if (categoria === "medicamento") {
+    const row = PREVIEW_MEDICINES.find((m) => {
+      const mn = String((m as { nome: string }).nome)
+        .trim()
+        .toLowerCase();
+      return mn === n || n.startsWith(mn) || mn.startsWith(n);
+    });
+    return row != null ? Number((row as { id: number }).id) : null;
+  }
+  const row = PREVIEW_INPUTS.find((m) => {
+    const mn = String((m as { nome: string }).nome)
+      .trim()
+      .toLowerCase();
+    return (
+      mn === n ||
+      n.includes(mn) ||
+      mn.includes(n.split("(")[0]?.trim().toLowerCase() ?? "")
+    );
+  });
+  return row != null ? Number((row as { id: number }).id) : null;
+}
 
 export const PREVIEW_ADMIN_SUMMARY_CARDS = [
   { title: "Medicamentos", value: "28", hint: "Cadastros ativos (demo)" },

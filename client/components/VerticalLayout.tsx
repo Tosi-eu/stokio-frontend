@@ -127,7 +127,7 @@ export function VerticalLayout({ onLogout }: SidebarProps) {
 
   return (
     <aside
-      className="h-screen w-64 flex flex-col shrink-0 rounded-r-2xl border border-border/50 border-l-0 shadow-elevated bg-sidebar bg-gradient-to-b from-sidebar via-sidebar to-background/25 overflow-hidden"
+      className="h-screen w-72 flex flex-col shrink-0 rounded-r-2xl border border-border/50 border-l-0 shadow-elevated bg-sidebar bg-gradient-to-b from-sidebar via-sidebar to-background/25 overflow-hidden"
       aria-label="Navegação principal"
     >
       <div className="h-36 shrink-0 flex items-center justify-center px-4 border-b border-border/50 bg-brand-hero shadow-[inset_0_-1px_0_0_hsl(214_22%_88%/0.5)]">

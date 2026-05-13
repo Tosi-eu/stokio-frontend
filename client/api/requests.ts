@@ -358,6 +358,10 @@ export type ResidentIssuedMedicalRecord = {
   nome: string;
   detalhe: string;
   observacao: string | null;
+  frequencia_aplicacao: number | null;
+  periodo_aplicacao: string | null;
+  medicamento_id: number | null;
+  insumo_id: number | null;
 };
 
 export type ResidentIssuedMedicalRecordResponse = {
@@ -370,6 +374,16 @@ export const getResidentProntuarioAtivo = (casela: string | number) =>
   stokioClient.get<ResidentIssuedMedicalRecordResponse>(
     `/residentes/${casela}/prontuario-ativo`,
   );
+
+export const patchResidentProntuarioItem = (
+  casela: string | number,
+  body: {
+    categoria: "medicamento" | "insumo";
+    item_id: number;
+    frequencia_aplicacao?: number | null;
+    periodo_aplicacao?: string | null;
+  },
+) => stokioClient.patch(`/residentes/${casela}/prontuario-item`, body);
 
 export const getResidentsCount = () => stokioClient.get("/residentes/count");
 export const getCabinetsCount = () => stokioClient.get("/armarios/count");

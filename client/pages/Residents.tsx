@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Layout from "@/components/Layout";
-import EditableTable from "@/components/EditableTable";
 import { SkeletonTable } from "@/components/SkeletonTable";
 import { toast } from "@/hooks/use-toast.hook";
 import {
@@ -26,6 +25,7 @@ import {
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
 import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import {
   PREVIEW_RESIDENTS,
   getPreviewProntuarioAtivoForCasela,
@@ -34,7 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { DownloadJobButton } from "@/components/DownloadJobButton";
-import { ClipboardList, Pencil, Trash2, UserRound } from "lucide-react";
+import { ClipboardList, Pencil, Trash2, UserRound, Users } from "lucide-react";
 import DeletePopUp from "@/components/DeletePopUp";
 import {
   Dialog,
@@ -47,15 +47,13 @@ import { Label } from "@/components/ui/label";
 import type { ResidentRow } from "@/components/residents/residents.types";
 import { EmptyStateCard } from "@/components/medical-record-exports/medical-record-exports.shared";
 import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
-import { Users } from "lucide-react";
-import { RESIDENT_STOCK_CHART_COLUMNS } from "@/components/residents/residents.chart-columns";
-import {
-  residentInitials,
-  prontuarioAtivoToChartRows,
-} from "@/components/residents/residents.stock-chart";
+import { ResidentProntuarioTable } from "@/components/residents/ResidentProntuarioTable";
+import { residentInitials } from "@/components/residents/residents.stock-chart";
 
 export default function Resident() {
   const { previewMode } = useTenant();
+  const { can } = usePermissionMatrix();
+  const canUpdateResidents = can("residents", "update");
   const [residents, setResidents] = useState<ResidentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -217,11 +215,6 @@ export default function Resident() {
       start + RESIDENT_CHART_PAGE_SIZE,
     );
   }, [residentProntuarioFiltered, residentChartPage]);
-
-  const residentChartRows = useMemo(
-    () => prontuarioAtivoToChartRows(residentProntuarioPageSlice),
-    [residentProntuarioPageSlice],
-  );
 
   const residentChartTotal = residentProntuarioFiltered.length;
 
@@ -584,20 +577,22 @@ export default function Resident() {
                       </div>
                     </div>
                     {residentChartLoading ? (
-                      <SkeletonTable rows={4} cols={4} />
-                    ) : residentChartRows.length === 0 ? (
+                      <SkeletonTable rows={4} cols={7} />
+                    ) : residentProntuarioPageSlice.length === 0 ? (
                       <p className="text-sm text-muted-foreground py-4 text-center rounded-xl border border-dashed border-border/70">
                         Não há medicamentos nem insumos ativos na casela (com os
                         filtros atuais).
                       </p>
                     ) : (
                       <div className="space-y-3">
-                        <EditableTable
-                          columns={RESIDENT_STOCK_CHART_COLUMNS}
-                          data={residentChartRows}
-                          readOnly
-                          showAddons={false}
-                          columnWidthKey="residents.stockChart"
+                        <ResidentProntuarioTable
+                          casela={selected.casela}
+                          items={residentProntuarioPageSlice}
+                          previewMode={previewMode}
+                          canUpdate={canUpdateResidents}
+                          onSaved={() =>
+                            void loadResidentProntuarioSource(selected.casela)
+                          }
                         />
 
                         <div className="flex flex-col items-center justify-center gap-2 pt-1">
@@ -612,7 +607,7 @@ export default function Resident() {
                               –
                               {(residentChartPage - 1) *
                                 RESIDENT_CHART_PAGE_SIZE +
-                                residentChartRows.length}
+                                residentProntuarioPageSlice.length}
                             </span>{" "}
                             de{" "}
                             <span className="font-medium text-foreground">

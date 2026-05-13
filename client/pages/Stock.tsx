@@ -798,8 +798,8 @@ export default function Stock() {
 
         {apiFilterOptions !== null && (
           <div className={cn(pageSurfaceSubtleClass, "p-6")}>
-            <div className="flex items-end gap-4">
-              <div className="flex-1 min-w-0">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="min-w-0">
                 <label className="block text-xs text-muted-foreground mb-1">
                   Nome
                 </label>
@@ -809,7 +809,7 @@ export default function Stock() {
                 />
               </div>
 
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0">
                 <label className="block text-xs text-muted-foreground mb-1">
                   Setor
                 </label>
@@ -866,7 +866,7 @@ export default function Stock() {
                 </Popover>
               </div>
 
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0">
                 <label className="block text-xs text-muted-foreground mb-1">
                   Armário
                 </label>
@@ -923,7 +923,7 @@ export default function Stock() {
                 </Popover>
               </div>
 
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0">
                 <MovementsSearchableSelect
                   label={
                     uiDisplay.gaveta === "categoria" ? "Categoria" : "Gaveta"
@@ -943,7 +943,7 @@ export default function Stock() {
                 />
               </div>
 
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0">
                 <label className="block text-xs text-muted-foreground mb-1">
                   Casela
                 </label>
@@ -1008,7 +1008,7 @@ export default function Stock() {
                 </Popover>
               </div>
 
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0">
                 <label className="block text-xs text-muted-foreground mb-1">
                   Lote
                 </label>
