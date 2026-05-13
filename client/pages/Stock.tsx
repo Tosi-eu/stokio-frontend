@@ -102,6 +102,15 @@ export default function Stock() {
   const searchParams = useSearchParams();
   const filter = searchParams.get("filter");
 
+  const [filters, setFilters] = useState({
+    nome: "",
+    casela: "",
+    armario: "",
+    gaveta: "",
+    setor: "",
+    lote: "",
+  });
+
   useEffect(() => {
     const cab = searchParams.get("cabinet");
     const drw = searchParams.get("drawer");
@@ -135,14 +144,6 @@ export default function Stock() {
   const [page, setPage] = useState(1);
   const limit = 8;
   const [hasNext, setHasNext] = useState(false);
-  const [filters, setFilters] = useState({
-    nome: "",
-    casela: "",
-    armario: "",
-    gaveta: "",
-    setor: "",
-    lote: "",
-  });
 
   const setorProfileForFilters = useMemo(
     () =>
@@ -384,10 +385,10 @@ export default function Stock() {
 
   const handleNomeFilterChange = useCallback((value: string) => {
     setFilters((prev) => ({ ...prev, nome: value }));
-  }, []);
+  }, [setFilters]);
   const handleLoteFilterChange = useCallback((value: string) => {
     setFilters((prev) => ({ ...prev, lote: value }));
-  }, []);
+  }, [setFilters]);
 
   const filterOptions = useMemo(
     () =>

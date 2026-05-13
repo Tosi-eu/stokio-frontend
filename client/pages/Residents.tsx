@@ -227,7 +227,7 @@ export default function Resident() {
     const params: Record<string, string> = {};
     if (selected?.casela != null) params.casela = String(selected.casela);
     return params;
-  }, [selected?.casela]);
+  }, [selected]);
 
   const residentChartTotalPages = useMemo(
     () => Math.max(1, Math.ceil(residentChartTotal / RESIDENT_CHART_PAGE_SIZE)),
