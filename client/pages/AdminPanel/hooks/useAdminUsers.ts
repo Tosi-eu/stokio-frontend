@@ -164,7 +164,7 @@ export function useAdminUsers(isAdmin: boolean, enabled = true) {
             isSuperAdmin: fresh?.isSuperAdmin,
           });
         } catch {
-          // ignore: fallback é o reload/log out-in do utilizador
+          void 0;
         }
       }
 

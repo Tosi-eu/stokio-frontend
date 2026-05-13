@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { ResidentIssuedMedicalRecord } from "@/api/requests";
-import { patchResidentProntuarioItem } from "@/api/requests";
+import type { ActiveMedicalRecordItem } from "@/api/requests";
+import { patchResidentMedicalRecordItem } from "@/api/requests";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,15 +24,15 @@ import { toast } from "@/hooks/use-toast.hook";
 import { getErrorMessage } from "@/helpers/validation.helper";
 import { Pencil } from "lucide-react";
 import {
-  PRONTUARIO_PERIODOS,
-  formatProntuarioPeriodoLabel,
-} from "@/components/residents/prontuario.constants";
+  MEDICAL_RECORD_PERIOD_OPTIONS,
+  formatMedicalRecordPeriodLabel,
+} from "@/components/residents/medical-record.constants";
 
-function kindLabel(c: ResidentIssuedMedicalRecord["categoria"]): string {
-  return c === "medicamento" ? "Medicamento" : "Insumo";
+function kindLabel(c: ActiveMedicalRecordItem["category"]): string {
+  return c === "medicine" ? "Medicine" : "Supply";
 }
 
-export function ResidentProntuarioTable({
+export function ResidentMedicalRecordTable({
   casela,
   items,
   previewMode,
@@ -40,25 +40,23 @@ export function ResidentProntuarioTable({
   onSaved,
 }: {
   casela: number;
-  items: ResidentIssuedMedicalRecord[];
+  items: ActiveMedicalRecordItem[];
   previewMode: boolean;
   canUpdate: boolean;
   onSaved: () => void;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<ResidentIssuedMedicalRecord | null>(
-    null,
-  );
+  const [editing, setEditing] = useState<ActiveMedicalRecordItem | null>(null);
   const [freqInput, setFreqInput] = useState("");
-  const [periodoValue, setPeriodoValue] = useState<string>("");
+  const [periodValue, setPeriodValue] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
-  const openEdit = useCallback((row: ResidentIssuedMedicalRecord) => {
+  const openEdit = useCallback((row: ActiveMedicalRecordItem) => {
     setEditing(row);
     setFreqInput(
-      row.frequencia_aplicacao != null ? String(row.frequencia_aplicacao) : "",
+      row.applicationFrequency != null ? String(row.applicationFrequency) : "",
     );
-    setPeriodoValue(row.periodo_aplicacao?.trim() ?? "");
+    setPeriodValue(row.applicationPeriod?.trim() ?? "");
     setDialogOpen(true);
   }, []);
 
@@ -71,13 +69,11 @@ export function ResidentProntuarioTable({
   const handleSave = useCallback(async () => {
     if (!editing || previewMode) return;
     const itemId =
-      editing.categoria === "medicamento"
-        ? editing.medicamento_id
-        : editing.insumo_id;
+      editing.category === "medicine" ? editing.medicineId : editing.supplyId;
     if (itemId == null || !Number.isFinite(itemId)) {
       toast({
-        title: "Dados incompletos",
-        description: "Não foi possível identificar o item.",
+        title: "Incomplete data",
+        description: "Could not identify the item.",
         variant: "error",
         duration: 3000,
       });
@@ -85,24 +81,23 @@ export function ResidentProntuarioTable({
     }
 
     const freqTrim = freqInput.trim();
-    const clearBoth = freqTrim === "" && periodoValue === "";
+    const clearBoth = freqTrim === "" && periodValue === "";
 
     if (!clearBoth) {
       const n = Number(freqTrim);
       if (!Number.isInteger(n) || n < 1) {
         toast({
-          title: "Frequência inválida",
-          description:
-            "Informe um número inteiro ≥ 1 ou limpe ambos os campos.",
+          title: "Invalid frequency",
+          description: "Enter an integer ≥ 1 or clear both fields.",
           variant: "warning",
           duration: 3500,
         });
         return;
       }
-      if (!periodoValue) {
+      if (!periodValue) {
         toast({
-          title: "Período obrigatório",
-          description: "Selecione o período de aplicação.",
+          title: "Period required",
+          description: "Select an application period.",
           variant: "warning",
           duration: 3500,
         });
@@ -112,17 +107,17 @@ export function ResidentProntuarioTable({
 
     setSaving(true);
     try {
-      await patchResidentProntuarioItem(casela, {
-        categoria: editing.categoria,
-        item_id: itemId,
-        frequencia_aplicacao: clearBoth ? null : Number(freqTrim),
-        periodo_aplicacao: clearBoth ? null : periodoValue,
+      await patchResidentMedicalRecordItem(casela, {
+        category: editing.category,
+        itemId,
+        applicationFrequency: clearBoth ? null : Number(freqTrim),
+        applicationPeriod: clearBoth ? null : periodValue,
       });
       toast({
-        title: "Posologia atualizada",
+        title: "Dosage updated",
         description: clearBoth
-          ? "Registo de posologia removido para este item."
-          : "Dados guardados.",
+          ? "Dosage cleared for this item."
+          : "Changes saved.",
         variant: "success",
         duration: 3000,
       });
@@ -130,11 +125,11 @@ export function ResidentProntuarioTable({
       onSaved();
     } catch (err: unknown) {
       toast({
-        title: "Erro ao guardar",
+        title: "Save failed",
         description: getErrorMessage(
           err,
-          "Não foi possível atualizar a posologia.",
-          "Residents:prontuarioPatch",
+          "Could not update dosage.",
+          "Residents:medicalRecordPatch",
         ),
         variant: "error",
         duration: 4000,
@@ -146,7 +141,7 @@ export function ResidentProntuarioTable({
     editing,
     previewMode,
     freqInput,
-    periodoValue,
+    periodValue,
     casela,
     closeDialog,
     onSaved,
@@ -158,14 +153,14 @@ export function ResidentProntuarioTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/40 text-left">
-              <th className="px-3 py-2 font-medium">Categoria</th>
-              <th className="px-3 py-2 font-medium">Nome</th>
-              <th className="px-3 py-2 font-medium">Detalhe</th>
-              <th className="px-3 py-2 font-medium">Observação</th>
+              <th className="px-3 py-2 font-medium">Category</th>
+              <th className="px-3 py-2 font-medium">Name</th>
+              <th className="px-3 py-2 font-medium">Detail</th>
+              <th className="px-3 py-2 font-medium">Note</th>
               <th className="px-3 py-2 font-medium whitespace-nowrap">
-                Frequência
+                Frequency
               </th>
-              <th className="px-3 py-2 font-medium">Período</th>
+              <th className="px-3 py-2 font-medium">Period</th>
               {canUpdate && !previewMode ? (
                 <th className="px-3 py-2 font-medium w-14"> </th>
               ) : null}
@@ -174,30 +169,28 @@ export function ResidentProntuarioTable({
           <tbody>
             {items.map((row, idx) => {
               const itemId =
-                row.categoria === "medicamento"
-                  ? row.medicamento_id
-                  : row.insumo_id;
-              const key = `${row.categoria}-${itemId ?? row.nome}-${idx}`;
+                row.category === "medicine" ? row.medicineId : row.supplyId;
+              const key = `${row.category}-${itemId ?? row.name}-${idx}`;
               return (
                 <tr key={key} className="border-b border-border/60">
-                  <td className="px-3 py-2">{kindLabel(row.categoria)}</td>
-                  <td className="px-3 py-2 font-medium">{row.nome}</td>
+                  <td className="px-3 py-2">{kindLabel(row.category)}</td>
+                  <td className="px-3 py-2 font-medium">{row.name}</td>
                   <td className="px-3 py-2 text-muted-foreground">
-                    {row.detalhe?.trim() ? row.detalhe : "—"}
+                    {row.detail?.trim() ? row.detail : "—"}
                   </td>
                   <td
                     className="px-3 py-2 text-muted-foreground max-w-[200px] truncate"
-                    title={row.observacao ?? ""}
+                    title={row.note ?? ""}
                   >
-                    {row.observacao?.trim() ? row.observacao : "—"}
+                    {row.note?.trim() ? row.note : "—"}
                   </td>
                   <td className="px-3 py-2">
-                    {row.frequencia_aplicacao != null
-                      ? row.frequencia_aplicacao
+                    {row.applicationFrequency != null
+                      ? row.applicationFrequency
                       : "—"}
                   </td>
                   <td className="px-3 py-2">
-                    {formatProntuarioPeriodoLabel(row.periodo_aplicacao)}
+                    {formatMedicalRecordPeriodLabel(row.applicationPeriod)}
                   </td>
                   {canUpdate && !previewMode ? (
                     <td className="px-3 py-2">
@@ -206,7 +199,7 @@ export function ResidentProntuarioTable({
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 rounded-lg"
-                        aria-label={`Editar posologia: ${row.nome}`}
+                        aria-label={`Edit dosage: ${row.name}`}
                         disabled={itemId == null}
                         onClick={() => openEdit(row)}
                       >
@@ -224,44 +217,46 @@ export function ResidentProntuarioTable({
       <Dialog open={dialogOpen} onOpenChange={(o) => !o && closeDialog()}>
         <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Posologia e aplicação</DialogTitle>
+            <DialogTitle>Dosage and application</DialogTitle>
           </DialogHeader>
           {editing ? (
             <div className="space-y-3 py-1">
               <p className="text-sm text-muted-foreground">
                 <span className="font-medium text-foreground">
-                  {editing.nome}
+                  {editing.name}
                 </span>{" "}
-                · {kindLabel(editing.categoria)}
+                · {kindLabel(editing.category)}
               </p>
               <div className="space-y-1">
-                <Label htmlFor="pront-freq">Frequência de aplicação</Label>
+                <Label htmlFor="medical-record-freq">
+                  Application frequency
+                </Label>
                 <Input
-                  id="pront-freq"
+                  id="medical-record-freq"
                   inputMode="numeric"
                   value={freqInput}
                   onChange={(e) => setFreqInput(e.target.value)}
-                  placeholder="ex.: 3"
+                  placeholder="e.g. 3"
                   className="rounded-xl"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Número de vezes no período (ex.: 3 vezes por dia).
+                  Number of times in the period (e.g. 3 times per day).
                 </p>
               </div>
               <div className="space-y-1">
-                <Label>Período</Label>
+                <Label>Period</Label>
                 <Select
-                  value={periodoValue ? periodoValue : "__none__"}
+                  value={periodValue ? periodValue : "__none__"}
                   onValueChange={(v) =>
-                    setPeriodoValue(v === "__none__" ? "" : v)
+                    setPeriodValue(v === "__none__" ? "" : v)
                   }
                 >
                   <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Selecione o período" />
+                    <SelectValue placeholder="Select period" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">—</SelectItem>
-                    {PRONTUARIO_PERIODOS.map((p) => (
+                    {MEDICAL_RECORD_PERIOD_OPTIONS.map((p) => (
                       <SelectItem key={p.value} value={p.value}>
                         {p.label}
                       </SelectItem>
@@ -270,8 +265,8 @@ export function ResidentProntuarioTable({
                 </Select>
               </div>
               <p className="text-xs text-muted-foreground">
-                Deixe frequência e período vazios e guarde para remover a
-                posologia deste item.
+                Leave frequency and period empty and save to remove dosage for
+                this item.
               </p>
             </div>
           ) : null}
@@ -283,7 +278,7 @@ export function ResidentProntuarioTable({
               onClick={closeDialog}
               disabled={saving}
             >
-              Cancelar
+              Cancel
             </Button>
             <Button
               type="button"
@@ -291,7 +286,7 @@ export function ResidentProntuarioTable({
               onClick={() => void handleSave()}
               disabled={saving || previewMode}
             >
-              {saving ? "A guardar…" : "Guardar"}
+              {saving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

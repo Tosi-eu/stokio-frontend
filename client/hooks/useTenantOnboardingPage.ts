@@ -430,7 +430,7 @@ export function useTenantOnboardingPage() {
     try {
       raw = sessionStorage.getItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
     } catch {
-      // ignore
+      void 0;
     }
     if (!raw) return;
 

@@ -1,4 +1,3 @@
-/** Lexicográfico por unidade UTF-16 (equivalente prático ao ASCII para A–Z). */
 export function compareResidentNameCodeUnit(a: string, b: string): number {
   if (a < b) return -1;
   if (a > b) return 1;

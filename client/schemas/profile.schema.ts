@@ -23,7 +23,6 @@ export const profileSchema = z
 
     currentLogin: z.string().optional(),
 
-    /** Obrigatória em qualquer guardar — o backend exige para PUT /login. */
     currentPassword: z
       .string()
       .min(1, "Informe a senha atual para guardar as alterações"),

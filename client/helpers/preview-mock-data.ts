@@ -1,5 +1,5 @@
 import type { DashboardSummaryResponse } from "@/api/types";
-import type { ResidentIssuedMedicalRecord } from "@/api/requests";
+import type { ActiveMedicalRecordItem } from "@/api/requests";
 import type {
   StockItem,
   StockProportionResponse,
@@ -256,14 +256,13 @@ export function filterPreviewStockByCasela(casela: number): StockItem[] {
   );
 }
 
-/** Agrega linhas de preview por nome+categoria (simula itens em uso na casela). */
-export function getPreviewProntuarioAtivoForCasela(
+export function getPreviewActiveMedicalRecordForCasela(
   casela: number,
-): ResidentIssuedMedicalRecord[] {
+): ActiveMedicalRecordItem[] {
   type Agg = {
-    categoria: "medicamento" | "insumo";
-    nome: string;
-    detalhe: string;
+    category: "medicine" | "supply";
+    name: string;
+    detail: string;
     observacoes: Set<string>;
   };
 
@@ -274,13 +273,13 @@ export function getPreviewProntuarioAtivoForCasela(
     const q = Number(i.quantity);
     if (!Number.isFinite(q) || q <= 0) continue;
 
-    const categoria: "medicamento" | "insumo" =
-      i.itemType === OperationType.MEDICINE ? "medicamento" : "insumo";
-    const nome = String(i.name ?? "").trim() || "—";
-    const key = `${categoria}:${nome.toLowerCase()}`;
+    const category: "medicine" | "supply" =
+      i.itemType === OperationType.MEDICINE ? "medicine" : "supply";
+    const name = String(i.name ?? "").trim() || "—";
+    const key = `${category}:${name.toLowerCase()}`;
 
-    const detalhe =
-      categoria === "medicamento"
+    const detail =
+      category === "medicine"
         ? String(i.activeSubstance ?? "")
             .trim()
             .replace(/^—$/, "")
@@ -295,9 +294,9 @@ export function getPreviewProntuarioAtivoForCasela(
     const cur = byKey.get(key);
     if (!cur) {
       byKey.set(key, {
-        categoria,
-        nome,
-        detalhe,
+        category,
+        name,
+        detail,
         observacoes: new Set(obs ? [obs] : []),
       });
     } else {
@@ -305,26 +304,26 @@ export function getPreviewProntuarioAtivoForCasela(
     }
   }
 
-  const rows: ResidentIssuedMedicalRecord[] = [];
+  const rows: ActiveMedicalRecordItem[] = [];
   for (const a of byKey.values()) {
     const obsJoined =
       [...a.observacoes].filter(Boolean).sort().join("; ") || null;
 
-    const pid = previewProntuarioProductId(a.categoria, a.nome);
+    const pid = previewMedicalRecordProductId(a.category, a.name);
     rows.push({
-      categoria: a.categoria,
-      nome: a.nome,
-      detalhe: a.detalhe,
-      observacao: obsJoined,
-      frequencia_aplicacao: null,
-      periodo_aplicacao: null,
-      medicamento_id: a.categoria === "medicamento" ? pid : null,
-      insumo_id: a.categoria === "insumo" ? pid : null,
+      category: a.category,
+      name: a.name,
+      detail: a.detail,
+      note: obsJoined,
+      applicationFrequency: null,
+      applicationPeriod: null,
+      medicineId: a.category === "medicine" ? pid : null,
+      supplyId: a.category === "supply" ? pid : null,
     });
   }
 
   return rows.sort((x, y) =>
-    x.nome.localeCompare(y.nome, "pt", { sensitivity: "base" }),
+    x.name.localeCompare(y.name, "en", { sensitivity: "base" }),
   );
 }
 
@@ -627,12 +626,12 @@ export const PREVIEW_INPUTS: Record<string, unknown>[] = [
   },
 ];
 
-function previewProntuarioProductId(
-  categoria: "medicamento" | "insumo",
+function previewMedicalRecordProductId(
+  category: "medicine" | "supply",
   nome: string,
 ): number | null {
   const n = nome.trim().toLowerCase();
-  if (categoria === "medicamento") {
+  if (category === "medicine") {
     const row = PREVIEW_MEDICINES.find((m) => {
       const mn = String((m as { nome: string }).nome)
         .trim()

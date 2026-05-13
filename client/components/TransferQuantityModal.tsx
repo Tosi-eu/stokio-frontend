@@ -53,7 +53,6 @@ export type InterTenantTransferModalPayload = Omit<
   InterTenantMedicineTransferPayload,
   "sourceEstoqueId"
 > & {
-  /** Apenas UI (toast); não enviar na API. */
   destTenantDisplayLabel?: string;
 };
 
@@ -115,7 +114,6 @@ const TransferQuantityModal: FC<TransferQuantityModalProps> = ({
     number | null
   >(null);
 
-  /** Envio para outro tenant (medicamentos, mesma linha de stock) */
   const [sendToOtherTenant, setSendToOtherTenant] = useState(false);
 
   const [accessibleTenants, setAccessibleTenants] = useState<

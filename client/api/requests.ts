@@ -34,7 +34,7 @@ export async function submitPublicContact(payload: {
       const j = (await res.json()) as { error?: string };
       if (j?.error) msg = j.error;
     } catch {
-      /* Nothing to do */
+      void 0;
     }
     throw new Error(msg);
   }
@@ -353,35 +353,35 @@ export const getResidentsInTenantContext = (
 export const getResidentByCasela = (casela: string | number) =>
   stokioClient.get<ResidentListItem>(`/residentes/${casela}`);
 
-export type ResidentIssuedMedicalRecord = {
-  categoria: "medicamento" | "insumo";
-  nome: string;
-  detalhe: string;
-  observacao: string | null;
-  frequencia_aplicacao: number | null;
-  periodo_aplicacao: string | null;
-  medicamento_id: number | null;
-  insumo_id: number | null;
+export type ActiveMedicalRecordItem = {
+  category: "medicine" | "supply";
+  name: string;
+  detail: string;
+  note: string | null;
+  applicationFrequency: number | null;
+  applicationPeriod: string | null;
+  medicineId: number | null;
+  supplyId: number | null;
 };
 
-export type ResidentIssuedMedicalRecordResponse = {
-  residente: string;
-  casela: number;
-  itens: ResidentIssuedMedicalRecord[];
+export type ResidentActiveMedicalRecordResponse = {
+  residentName: string;
+  stallNumber: number;
+  items: ActiveMedicalRecordItem[];
 };
 
-export const getResidentProntuarioAtivo = (casela: string | number) =>
-  stokioClient.get<ResidentIssuedMedicalRecordResponse>(
+export const getResidentActiveMedicalRecord = (casela: string | number) =>
+  stokioClient.get<ResidentActiveMedicalRecordResponse>(
     `/residentes/${casela}/prontuario-ativo`,
   );
 
-export const patchResidentProntuarioItem = (
+export const patchResidentMedicalRecordItem = (
   casela: string | number,
   body: {
-    categoria: "medicamento" | "insumo";
-    item_id: number;
-    frequencia_aplicacao?: number | null;
-    periodo_aplicacao?: string | null;
+    category: "medicine" | "supply";
+    itemId: number;
+    applicationFrequency?: number | null;
+    applicationPeriod?: string | null;
   },
 ) => stokioClient.patch(`/residentes/${casela}/prontuario-item`, body);
 
@@ -537,7 +537,7 @@ export async function downloadComplianceCsv(
       const j = (await res.json()) as { error?: string };
       if (j?.error) msg = j.error;
     } catch {
-      /* ignore */
+      void 0;
     }
     throw new Error(msg);
   }
@@ -961,9 +961,18 @@ export const updateCabinet = (id: number, data: Record<string, unknown>) =>
 export const updateMedicine = (id: number, data: Record<string, unknown>) =>
   stokioClient.put(`/medicamentos/${id}`, data);
 
-/** Redefinição sem sessão (página Esqueci a senha). */
-export const resetPassword = (login: string, newPassword: string) =>
-  stokioClient.post(`/login/forgot-password`, { login, newPassword });
+export const requestPasswordReset = (login: string) =>
+  stokioClient.post<{ ok: true }>(`/login/forgot-password/request`, { login });
+
+export const confirmPasswordReset = (
+  login: string,
+  token: string,
+  newPassword: string,
+) =>
+  stokioClient.post<{ id: number; login: string }>(
+    `/login/forgot-password/confirm`,
+    { login, token, newPassword },
+  );
 
 export const updateResident = (
   casela: string | number,
@@ -1145,10 +1154,6 @@ export const patchNotificationEvent = (
 const REMINDER_PAGE_SIZE = 100;
 const REMINDER_MAX_PAGES = 80;
 
-/**
- * Carrega todas as notificações que combinam com o filtro (paginando),
- * para lembretes no login não cortarem itens após "OK" + refresh.
- */
 async function fetchAllNotificationsMatching(
   base: Omit<Parameters<typeof getNotifications>[0], "page" | "limit">,
 ): Promise<{

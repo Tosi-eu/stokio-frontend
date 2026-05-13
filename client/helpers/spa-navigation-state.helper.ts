@@ -4,7 +4,7 @@ export function setSpaNavigationState(state: unknown): void {
   try {
     sessionStorage.setItem(KEY, JSON.stringify(state));
   } catch {
-    /* ignore quota / private mode */
+    void 0;
   }
 }
 

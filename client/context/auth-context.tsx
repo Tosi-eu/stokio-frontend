@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           sessionStorage.setItem("user", JSON.stringify(next));
         } catch {
-          /* ignore */
+          void 0;
         }
       }
       return next;
@@ -95,7 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 const s = pick?.slug?.trim();
                 if (s) writeActiveTenantSlug(s);
               } catch {
-                /* ignore */
+                void 0;
               }
             }
             const next = normalizeSessionUser(fresh as LoggedUser);
@@ -104,7 +104,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               try {
                 sessionStorage.setItem("user", JSON.stringify(next));
               } catch {
-                /* ignore */
+                void 0;
               }
             }
             return;

@@ -419,7 +419,7 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
             try {
               setSkipTenantOnboarding(created.tenant.id, false);
             } catch {
-              // ignore
+              void 0;
             }
             toast({
               title: "Vamos configurar seu abrigo",

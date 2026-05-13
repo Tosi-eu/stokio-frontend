@@ -6,7 +6,7 @@ export function setPreviewModeStorage(active: boolean): void {
     if (active) sessionStorage.setItem(PREVIEW_MODE_STORAGE_KEY, "1");
     else sessionStorage.removeItem(PREVIEW_MODE_STORAGE_KEY);
   } catch {
-    /* ignore */
+    void 0;
   }
 }
 

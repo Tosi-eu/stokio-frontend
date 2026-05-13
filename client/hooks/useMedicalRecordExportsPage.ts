@@ -191,7 +191,7 @@ export function useMedicalRecordExportsPage() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `prontuario-${safeCasela}-${dateStamp}.${ext}`;
+        a.download = `medical-record-${safeCasela}-${dateStamp}.${ext}`;
         document.body.appendChild(a);
         a.click();
         a.remove();

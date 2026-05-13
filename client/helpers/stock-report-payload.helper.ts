@@ -1,4 +1,4 @@
-import { getReport, getResidentProntuarioAtivo } from "@/api/requests";
+import { getReport, getResidentActiveMedicalRecord } from "@/api/requests";
 import { MovementPeriod, MovementsParams } from "@/components/StockReporter";
 
 export type StockReportResidentMeta = {
@@ -82,7 +82,7 @@ export async function fetchStockReportPayloadForPdf(
     if (selectedResident == null) {
       throw new Error("Selecione um residente para o prontuário");
     }
-    return getResidentProntuarioAtivo(selectedResident);
+    return getResidentActiveMedicalRecord(selectedResident);
   }
 
   const casela =

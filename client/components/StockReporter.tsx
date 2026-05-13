@@ -179,12 +179,19 @@ interface RowData {
 }
 
 type ResidentMedicalRecordReport = {
-  residente: string;
-  casela: number | string;
+  residentName: string;
+  stallNumber: number | string;
   cpf?: string | null;
   data_nascimento?: string | null;
   idade?: number | null;
-  itens: RowData[];
+  items: Array<{
+    category: "medicine" | "supply";
+    name: string;
+    detail: string;
+    note: string | null;
+    applicationFrequency?: number | null;
+    applicationPeriod?: string | null;
+  }>;
 };
 
 function formatPdfRowDates(r: RowData): RowData {
@@ -320,7 +327,7 @@ interface ColumnConfig {
   header: string;
   key: string;
   isNumeric?: boolean;
-  /** Peso horizontal da coluna (nome/descrição maiores que código). */
+
   flex?: number;
 }
 
@@ -539,7 +546,7 @@ export function createStockPDF(
                       : isExpiringSoon
                         ? "MEDICAMENTOS E INSUMOS PRÓXIMOS AO VENCIMENTO"
                         : isResidentMedicalRecordReport
-                          ? "PRONTU\u00c1RIO DO RESIDENTE"
+                          ? "RESIDENT MEDICAL RECORD"
                           : "ESTOQUE ATUAL"}
           </Text>
         </View>
@@ -550,10 +557,10 @@ export function createStockPDF(
               <Text
                 style={{ fontSize: 14, fontWeight: "bold", marginBottom: 5 }}
               >
-                Residente: {residentMedicalRecordData.residente}
+                Resident: {residentMedicalRecordData.residentName}
               </Text>
               <Text style={{ fontSize: 12, color: "#666" }}>
-                Casela: {residentMedicalRecordData.casela}
+                Stall: {residentMedicalRecordData.stallNumber}
               </Text>
               {residentMedicalRecordData.cpf ? (
                 <Text style={{ fontSize: 12, color: "#666" }}>
@@ -574,18 +581,23 @@ export function createStockPDF(
             </View>
 
             <Text style={styles.sectionTitle}>
-              Medicação e insumos (lista na casela)
+              Medication and supplies (stall)
             </Text>
 
             {renderTableWithConfig(
               [
-                { header: "Categoria", key: "categoria" },
-                { header: "Nome", key: "nome" },
-                { header: "Detalhe", key: "detalhe" },
-                { header: "Observação", key: "observacao" },
+                { header: "Category", key: "category" },
+                { header: "Name", key: "name" },
+                { header: "Detail", key: "detail" },
+                { header: "Note", key: "note" },
               ],
-              (residentMedicalRecordData.itens ?? []).map((r) =>
-                formatPdfRowDates({ ...r } as RowData),
+              (residentMedicalRecordData.items ?? []).map((r) =>
+                formatPdfRowDates({
+                  category: r.category === "medicine" ? "Medicine" : "Supply",
+                  name: r.name,
+                  detail: r.detail,
+                  note: r.note ?? "",
+                } as RowData),
               ),
             )}
           </>

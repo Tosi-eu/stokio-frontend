@@ -123,7 +123,6 @@ export async function resolveTenantR2LogoUrl(params: {
   const base = normalizeR2PublicBaseUrl(params.r2PublicBaseUrl);
   const brandLabel = params.brandName?.trim() || params.name?.trim() || "logo";
 
-  // 1) URL guardada na API (após upload é o público HTTPS do R2) — preferir ao proxy da API.
   if (trimmedApi) {
     const apiUrl = appendLogoRevision(trimmedApi, rev);
     const ok = await tryLoadImage(apiUrl);
@@ -131,7 +130,6 @@ export async function resolveTenantR2LogoUrl(params: {
     if (ok) return apiUrl;
   }
 
-  // 2) Convenção de chaves no bucket público R2 (sem passar pelo backend).
   if (base && slug) {
     const candidates = buildTenantLogoCandidateUrls(base, {
       slug,
@@ -145,7 +143,6 @@ export async function resolveTenantR2LogoUrl(params: {
     if (fromCandidates) return fromCandidates;
   }
 
-  // 3) Proxy público: backend resolve/stream a partir do R2 (útil se logo_url ainda vazio).
   if (slug) {
     const proxyBase = buildTenantLogoProxyUrl(slug);
     if (proxyBase) {

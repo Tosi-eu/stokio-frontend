@@ -15,7 +15,7 @@ export function usePublicDefaultLogoUrl(): string {
         const url = cfg?.defaultLogoUrl?.trim() || null;
         if (!cancelled && url) setServerDefaultLogoUrl(url);
       } catch {
-        /* ignore */
+        void 0;
       }
     })();
     return () => {

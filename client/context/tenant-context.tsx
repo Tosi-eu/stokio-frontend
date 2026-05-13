@@ -71,7 +71,7 @@ export function setSkipTenantOnboarding(tenantId: number, value: boolean) {
     else window.localStorage.removeItem(k);
     window.dispatchEvent(new Event(SKIP_ONBOARDING_EVENT));
   } catch {
-    /* ignore */
+    void 0;
   }
 }
 

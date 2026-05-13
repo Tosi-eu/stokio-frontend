@@ -106,7 +106,6 @@ export function useTenantBrandLogoSrc(
       cancelled = true;
       if (preloadTimeoutId !== undefined) clearTimeout(preloadTimeoutId);
     };
-    // cacheKey já incorpora tenant + publicDefaultLogo (evita efeito por referência nova).
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ver cacheKey
   }, [tenantConfigLoading, logoPreloadTimeoutMs, cacheKey]);
 

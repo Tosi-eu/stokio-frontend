@@ -189,7 +189,6 @@ export function NotificationDrawer() {
 
         {mode === "list" && (
           <>
-            {/* Tabs */}
             <div className="flex border-b mb-4">
               <button
                 className={`flex-1 py-2 text-sm font-medium ${
@@ -219,7 +218,6 @@ export function NotificationDrawer() {
               </button>
             </div>
 
-            {/* Filtro residente */}
             <div className="flex flex-col gap-2 mb-4">
               <input
                 type="text"
@@ -230,7 +228,6 @@ export function NotificationDrawer() {
               />
             </div>
 
-            {/* Lista */}
             <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
               <AnimatePresence mode="popLayout" initial={false}>
                 {loading ? (
@@ -350,7 +347,6 @@ export function NotificationDrawer() {
                 )}
               </AnimatePresence>
 
-              {/* Botão "Mostrar mais" */}
               {items.length > 0 && hasNext && (
                 <div className="text-center py-2">
                   <button

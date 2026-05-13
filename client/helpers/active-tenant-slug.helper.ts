@@ -15,11 +15,10 @@ export function clearActiveTenantSlug(): void {
   try {
     sessionStorage.removeItem(STORAGE_KEY);
   } catch {
-    /* ignore */
+    void 0;
   }
 }
 
-/** Persist slug override for API `X-Tenant`. Pass `null` to use primário (JWT). */
 export function writeActiveTenantSlug(slug: string | null): void {
   if (typeof window === "undefined") return;
   try {
@@ -30,6 +29,6 @@ export function writeActiveTenantSlug(slug: string | null): void {
     }
     window.dispatchEvent(new CustomEvent("stokio-active-tenant-changed"));
   } catch {
-    /* ignore */
+    void 0;
   }
 }

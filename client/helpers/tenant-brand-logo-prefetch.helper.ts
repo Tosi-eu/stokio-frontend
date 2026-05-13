@@ -45,6 +45,6 @@ export async function prefetchTenantBrandLogoBeforeInicioNavigation(): Promise<v
       ),
     ]);
   } catch {
-    /* ignore */
+    void 0;
   }
 }

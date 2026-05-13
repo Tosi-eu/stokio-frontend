@@ -155,7 +155,7 @@ export function AdminTabConfig({
         setPriceBackfillRunning(s.running);
         setPriceBackfillQueueLength(Number(s.queueLength ?? 0));
       } catch {
-        /* ignore */
+        void 0;
       }
     })();
   }, []);
@@ -194,7 +194,7 @@ export function AdminTabConfig({
           return true;
         }
       } catch {
-        /* polling falhou — tenta no próximo intervalo */
+        void 0;
       }
       return false;
     },

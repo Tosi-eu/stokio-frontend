@@ -13,7 +13,6 @@ export function normalizeR2PublicBaseUrl(
   return s || null;
 }
 
-/** Fallback estático na origem da app (último recurso). */
 export const BRAND_LOGO_LOCAL_FALLBACK_PATH = "/default_logo.png";
 
 function r2DefaultLogoUrl(): string | null {
@@ -24,7 +23,6 @@ function r2DefaultLogoUrl(): string | null {
   return `${r2}/default_logo.png`;
 }
 
-/** URL absoluta do `default_logo.png` no R2, se `NEXT_PUBLIC_R2_PUBLIC_BASE_URL` estiver definido. */
 export function getR2PublicDefaultLogoUrl(): string | null {
   return r2DefaultLogoUrl();
 }
@@ -34,9 +32,6 @@ function stripUrlQuery(u: string): string {
   return i === -1 ? u : u.slice(0, i);
 }
 
-/**
- * Próximo URL a tentar quando `<img>` / logo falha a carregar: R2 → ficheiro local.
- */
 export function getNextBrandLogoFallback(currentSrc: string): string | null {
   const cur = stripUrlQuery(currentSrc.trim());
   const r2 = getR2PublicDefaultLogoUrl();

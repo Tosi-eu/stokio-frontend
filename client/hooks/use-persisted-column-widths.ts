@@ -59,7 +59,7 @@ export function usePersistedColumnWidths(storageSuffix: string) {
       try {
         window.localStorage.setItem(storageKey, JSON.stringify(next));
       } catch {
-        /* ignore */
+        void 0;
       }
     },
     [storageKey],

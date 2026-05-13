@@ -10,9 +10,9 @@ import {
 import {
   deleteResident,
   getResidents,
-  getResidentProntuarioAtivo,
+  getResidentActiveMedicalRecord,
   updateResident,
-  type ResidentIssuedMedicalRecord,
+  type ActiveMedicalRecordItem,
 } from "@/api/requests";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
 import {
@@ -28,7 +28,7 @@ import { useTenant } from "@/hooks/use-tenant.hook";
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import {
   PREVIEW_RESIDENTS,
-  getPreviewProntuarioAtivoForCasela,
+  getPreviewActiveMedicalRecordForCasela,
 } from "@/helpers/preview-mock-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,7 +47,7 @@ import { Label } from "@/components/ui/label";
 import type { ResidentRow } from "@/components/residents/residents.types";
 import { EmptyStateCard } from "@/components/medical-record-exports/medical-record-exports.shared";
 import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
-import { ResidentProntuarioTable } from "@/components/residents/ResidentProntuarioTable";
+import { ResidentMedicalRecordTable } from "@/components/residents/ResidentMedicalRecordTable";
 import { residentInitials } from "@/components/residents/residents.stock-chart";
 
 export default function Resident() {
@@ -61,7 +61,7 @@ export default function Resident() {
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const [residentChartItems, setResidentChartItems] = useState<
-    ResidentIssuedMedicalRecord[]
+    ActiveMedicalRecordItem[]
   >([]);
   const [residentChartLoading, setResidentChartLoading] = useState(false);
   const [residentChartPage, setResidentChartPage] = useState(1);
@@ -150,21 +150,21 @@ export default function Resident() {
     [residents, selectedCasela],
   );
 
-  const loadResidentProntuarioSource = useCallback(
+  const loadResidentMedicalRecordSource = useCallback(
     async (casela: number) => {
       setResidentChartLoading(true);
       try {
         if (previewMode) {
-          setResidentChartItems(getPreviewProntuarioAtivoForCasela(casela));
+          setResidentChartItems(getPreviewActiveMedicalRecordForCasela(casela));
           return;
         }
-        const res = await getResidentProntuarioAtivo(casela);
-        setResidentChartItems(res.itens ?? []);
+        const res = await getResidentActiveMedicalRecord(casela);
+        setResidentChartItems(res.items ?? []);
       } catch {
         toast({
-          title: "Erro ao carregar o prontuário",
+          title: "Failed to load medical record",
           description:
-            "Não foi possível obter a lista de medicação e insumos em uso nesta casela.",
+            "Could not load medication and supplies in use for this stall.",
           variant: "error",
           duration: 3000,
         });
@@ -192,31 +192,36 @@ export default function Resident() {
 
   useEffect(() => {
     if (selected == null) return;
-    void loadResidentProntuarioSource(selected.casela);
-  }, [selected, selected?.casela, previewMode, loadResidentProntuarioSource]);
+    void loadResidentMedicalRecordSource(selected.casela);
+  }, [
+    selected,
+    selected?.casela,
+    previewMode,
+    loadResidentMedicalRecordSource,
+  ]);
 
-  const residentProntuarioFiltered = useMemo(() => {
+  const residentMedicalRecordFiltered = useMemo(() => {
     let list = residentChartItems;
-    const nome = residentChartNameFilter.trim().toLowerCase();
-    if (nome) {
+    const nameQ = residentChartNameFilter.trim().toLowerCase();
+    if (nameQ) {
       list = list.filter(
         (i) =>
-          i.nome.toLowerCase().includes(nome) ||
-          (i.detalhe && i.detalhe.toLowerCase().includes(nome)),
+          i.name.toLowerCase().includes(nameQ) ||
+          (i.detail && i.detail.toLowerCase().includes(nameQ)),
       );
     }
     return list;
   }, [residentChartItems, residentChartNameFilter]);
 
-  const residentProntuarioPageSlice = useMemo(() => {
+  const residentMedicalRecordPageSlice = useMemo(() => {
     const start = (residentChartPage - 1) * RESIDENT_CHART_PAGE_SIZE;
-    return residentProntuarioFiltered.slice(
+    return residentMedicalRecordFiltered.slice(
       start,
       start + RESIDENT_CHART_PAGE_SIZE,
     );
-  }, [residentProntuarioFiltered, residentChartPage]);
+  }, [residentMedicalRecordFiltered, residentChartPage]);
 
-  const residentChartTotal = residentProntuarioFiltered.length;
+  const residentChartTotal = residentMedicalRecordFiltered.length;
 
   const residentChartDownloadParams = useMemo(() => {
     const params: Record<string, string> = {};
@@ -552,7 +557,7 @@ export default function Resident() {
                       <DownloadJobButton
                         reportType="prontuario_residente"
                         params={residentChartDownloadParams}
-                        filenameBase={`prontuario-casela-${selected.casela}-${new Date().toISOString().slice(0, 10)}`}
+                        filenameBase={`medical-record-casela-${selected.casela}-${new Date().toISOString().slice(0, 10)}`}
                         disabled={residentChartLoading}
                         label="Descarregar"
                       />
@@ -578,20 +583,22 @@ export default function Resident() {
                     </div>
                     {residentChartLoading ? (
                       <SkeletonTable rows={4} cols={7} />
-                    ) : residentProntuarioPageSlice.length === 0 ? (
+                    ) : residentMedicalRecordPageSlice.length === 0 ? (
                       <p className="text-sm text-muted-foreground py-4 text-center rounded-xl border border-dashed border-border/70">
                         Não há medicamentos nem insumos ativos na casela (com os
                         filtros atuais).
                       </p>
                     ) : (
                       <div className="space-y-3">
-                        <ResidentProntuarioTable
+                        <ResidentMedicalRecordTable
                           casela={selected.casela}
-                          items={residentProntuarioPageSlice}
+                          items={residentMedicalRecordPageSlice}
                           previewMode={previewMode}
                           canUpdate={canUpdateResidents}
                           onSaved={() =>
-                            void loadResidentProntuarioSource(selected.casela)
+                            void loadResidentMedicalRecordSource(
+                              selected.casela,
+                            )
                           }
                         />
 
@@ -607,7 +614,7 @@ export default function Resident() {
                               –
                               {(residentChartPage - 1) *
                                 RESIDENT_CHART_PAGE_SIZE +
-                                residentProntuarioPageSlice.length}
+                                residentMedicalRecordPageSlice.length}
                             </span>{" "}
                             de{" "}
                             <span className="font-medium text-foreground">

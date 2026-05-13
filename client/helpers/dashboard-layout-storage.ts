@@ -66,6 +66,6 @@ export function writeDashboardLayout(
       }),
     );
   } catch {
-    /* ignore */
+    void 0;
   }
 }
