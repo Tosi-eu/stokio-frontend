@@ -1,6 +1,10 @@
 import { fetchPublicAppConfig, getTenantConfig } from "@/api/requests";
 import { mergePublicLogoWithServerDefault } from "@/constants/app-branding";
 import { resolveTenantR2LogoUrl } from "@/helpers/tenant-r2-logo-url.helper";
+import {
+  buildTenantLogoDisplayCacheKey,
+  setTenantBrandLogoDisplayCache,
+} from "@/hooks/use-tenant-brand-logo-src.hook";
 
 const BRAND_LOGO_PREFETCH_BEFORE_INICIO_MAX_MS = 25_000;
 
@@ -37,6 +41,8 @@ export async function prefetchTenantBrandLogoBeforeInicioNavigation(): Promise<v
       isCancelled: () => false,
     });
     const finalSrc = resolved ?? publicDefault;
+    const cacheKey = buildTenantLogoDisplayCacheKey(tenant, publicDefault);
+    setTenantBrandLogoDisplayCache(cacheKey, finalSrc);
 
     await Promise.race([
       preloadBrandLogoImageUrl(finalSrc),

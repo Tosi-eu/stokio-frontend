@@ -665,8 +665,8 @@ export function useTenantOnboardingPage() {
               onPhase: (phase) => setLogoUploadPhase(phase),
             },
           );
-          finalLogoUrl = appendLogoCacheBust(uploaded);
-          setLogoUrl(finalLogoUrl);
+          finalLogoUrl = uploaded;
+          setLogoUrl(appendLogoCacheBust(uploaded));
           clearPendingLogo();
         } finally {
           setUploadingLogo(false);
