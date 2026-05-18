@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { Fragment, useState, useCallback } from "react";
 import type { ActiveMedicalRecordItem } from "@/api/requests";
 import { patchResidentMedicalRecordItem } from "@/api/requests";
 import { Button } from "@/components/ui/button";
@@ -22,14 +22,16 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast.hook";
 import { getErrorMessage } from "@/helpers/validation.helper";
-import { Pencil } from "lucide-react";
+import { ChevronDown, Pencil } from "lucide-react";
 import {
   MEDICAL_RECORD_PERIOD_OPTIONS,
   formatMedicalRecordPeriodLabel,
 } from "@/components/residents/medical-record.constants";
+import { ResidentMedicalRecordSlots } from "@/components/residents/ResidentMedicalRecordSlots";
+import { cn } from "@/lib/utils";
 
 function kindLabel(c: ActiveMedicalRecordItem["category"]): string {
-  return c === "medicine" ? "Medicine" : "Supply";
+  return c === "medicine" ? "Medicamento" : "Insumo";
 }
 
 export function ResidentMedicalRecordTable({
@@ -50,6 +52,9 @@ export function ResidentMedicalRecordTable({
   const [freqInput, setFreqInput] = useState("");
   const [periodValue, setPeriodValue] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+
+  const colCount = (canUpdate && !previewMode ? 1 : 0) + 7;
 
   const openEdit = useCallback((row: ActiveMedicalRecordItem) => {
     setEditing(row);
@@ -72,8 +77,8 @@ export function ResidentMedicalRecordTable({
       editing.category === "medicine" ? editing.medicineId : editing.supplyId;
     if (itemId == null || !Number.isFinite(itemId)) {
       toast({
-        title: "Incomplete data",
-        description: "Could not identify the item.",
+        title: "Dados incompletos",
+        description: "Não foi possível identificar o item.",
         variant: "error",
         duration: 3000,
       });
@@ -87,8 +92,8 @@ export function ResidentMedicalRecordTable({
       const n = Number(freqTrim);
       if (!Number.isInteger(n) || n < 1) {
         toast({
-          title: "Invalid frequency",
-          description: "Enter an integer ≥ 1 or clear both fields.",
+          title: "Frequência inválida",
+          description: "Indique um número inteiro ≥ 1 ou limpe os dois campos.",
           variant: "warning",
           duration: 3500,
         });
@@ -96,8 +101,8 @@ export function ResidentMedicalRecordTable({
       }
       if (!periodValue) {
         toast({
-          title: "Period required",
-          description: "Select an application period.",
+          title: "Período obrigatório",
+          description: "Selecione o período de aplicação.",
           variant: "warning",
           duration: 3500,
         });
@@ -114,10 +119,10 @@ export function ResidentMedicalRecordTable({
         applicationPeriod: clearBoth ? null : periodValue,
       });
       toast({
-        title: "Dosage updated",
+        title: "Dosagem atualizada",
         description: clearBoth
-          ? "Dosage cleared for this item."
-          : "Changes saved.",
+          ? "Dosagem removida para este item."
+          : "Alterações guardadas.",
         variant: "success",
         duration: 3000,
       });
@@ -125,10 +130,10 @@ export function ResidentMedicalRecordTable({
       onSaved();
     } catch (err: unknown) {
       toast({
-        title: "Save failed",
+        title: "Falha ao guardar",
         description: getErrorMessage(
           err,
-          "Could not update dosage.",
+          "Não foi possível atualizar a dosagem.",
           "Residents:medicalRecordPatch",
         ),
         variant: "error",
@@ -153,14 +158,15 @@ export function ResidentMedicalRecordTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/40 text-left">
-              <th className="px-3 py-2 font-medium">Category</th>
-              <th className="px-3 py-2 font-medium">Name</th>
-              <th className="px-3 py-2 font-medium">Detail</th>
-              <th className="px-3 py-2 font-medium">Note</th>
+              <th className="px-3 py-2 font-medium">Categoria</th>
+              <th className="px-3 py-2 font-medium">Nome</th>
+              <th className="px-3 py-2 font-medium">Detalhe</th>
+              <th className="px-3 py-2 font-medium">Nota</th>
               <th className="px-3 py-2 font-medium whitespace-nowrap">
-                Frequency
+                Frequência
               </th>
-              <th className="px-3 py-2 font-medium">Period</th>
+              <th className="px-3 py-2 font-medium">Período</th>
+              <th className="px-3 py-2 font-medium w-12">Etapas</th>
               {canUpdate && !previewMode ? (
                 <th className="px-3 py-2 font-medium w-14"> </th>
               ) : null}
@@ -171,43 +177,88 @@ export function ResidentMedicalRecordTable({
               const itemId =
                 row.category === "medicine" ? row.medicineId : row.supplyId;
               const key = `${row.category}-${itemId ?? row.name}-${idx}`;
+              const isExpanded = expandedKey === key;
+              const hasSlots =
+                row.applicationFrequency != null &&
+                row.applicationFrequency >= 1 &&
+                Boolean(row.applicationPeriod?.trim());
               return (
-                <tr key={key} className="border-b border-border/60">
-                  <td className="px-3 py-2">{kindLabel(row.category)}</td>
-                  <td className="px-3 py-2 font-medium">{row.name}</td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {row.detail?.trim() ? row.detail : "—"}
-                  </td>
-                  <td
-                    className="px-3 py-2 text-muted-foreground max-w-[200px] truncate"
-                    title={row.note ?? ""}
-                  >
-                    {row.note?.trim() ? row.note : "—"}
-                  </td>
-                  <td className="px-3 py-2">
-                    {row.applicationFrequency != null
-                      ? row.applicationFrequency
-                      : "—"}
-                  </td>
-                  <td className="px-3 py-2">
-                    {formatMedicalRecordPeriodLabel(row.applicationPeriod)}
-                  </td>
-                  {canUpdate && !previewMode ? (
+                <Fragment key={key}>
+                  <tr className="border-b border-border/60">
+                    <td className="px-3 py-2">{kindLabel(row.category)}</td>
+                    <td className="px-3 py-2 font-medium">{row.name}</td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {row.detail?.trim() ? row.detail : "—"}
+                    </td>
+                    <td
+                      className="px-3 py-2 text-muted-foreground max-w-[200px] truncate"
+                      title={row.note ?? ""}
+                    >
+                      {row.note?.trim() ? row.note : "—"}
+                    </td>
+                    <td className="px-3 py-2">
+                      {row.applicationFrequency != null
+                        ? row.applicationFrequency
+                        : "—"}
+                    </td>
+                    <td className="px-3 py-2">
+                      {formatMedicalRecordPeriodLabel(row.applicationPeriod)}
+                    </td>
                     <td className="px-3 py-2">
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 rounded-lg"
-                        aria-label={`Edit dosage: ${row.name}`}
-                        disabled={itemId == null}
-                        onClick={() => openEdit(row)}
+                        aria-expanded={isExpanded}
+                        aria-label={
+                          isExpanded
+                            ? `Ocultar etapas: ${row.name}`
+                            : `Ver etapas: ${row.name}`
+                        }
+                        disabled={!hasSlots}
+                        onClick={() =>
+                          setExpandedKey((prev) => (prev === key ? null : key))
+                        }
                       >
-                        <Pencil className="h-4 w-4" />
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 transition-transform",
+                            isExpanded && "rotate-180",
+                          )}
+                        />
                       </Button>
                     </td>
+                    {canUpdate && !previewMode ? (
+                      <td className="px-3 py-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg"
+                          aria-label={`Editar dosagem: ${row.name}`}
+                          disabled={itemId == null}
+                          onClick={() => openEdit(row)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    ) : null}
+                  </tr>
+                  {isExpanded ? (
+                    <tr className="border-b border-border/60">
+                      <td colSpan={colCount} className="px-3 py-3 bg-muted/10">
+                        <ResidentMedicalRecordSlots
+                          casela={casela}
+                          row={row}
+                          previewMode={previewMode}
+                          canUpdate={canUpdate}
+                          onSaved={onSaved}
+                        />
+                      </td>
+                    </tr>
                   ) : null}
-                </tr>
+                </Fragment>
               );
             })}
           </tbody>
@@ -217,7 +268,7 @@ export function ResidentMedicalRecordTable({
       <Dialog open={dialogOpen} onOpenChange={(o) => !o && closeDialog()}>
         <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Dosage and application</DialogTitle>
+            <DialogTitle>Dosagem e aplicação</DialogTitle>
           </DialogHeader>
           {editing ? (
             <div className="space-y-3 py-1">
@@ -229,22 +280,22 @@ export function ResidentMedicalRecordTable({
               </p>
               <div className="space-y-1">
                 <Label htmlFor="medical-record-freq">
-                  Application frequency
+                  Frequência de aplicação
                 </Label>
                 <Input
                   id="medical-record-freq"
                   inputMode="numeric"
                   value={freqInput}
                   onChange={(e) => setFreqInput(e.target.value)}
-                  placeholder="e.g. 3"
+                  placeholder="ex.: 3"
                   className="rounded-xl"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Number of times in the period (e.g. 3 times per day).
+                  Número de vezes no período (ex.: 3 vezes por dia).
                 </p>
               </div>
               <div className="space-y-1">
-                <Label>Period</Label>
+                <Label>Período</Label>
                 <Select
                   value={periodValue ? periodValue : "__none__"}
                   onValueChange={(v) =>
@@ -252,7 +303,7 @@ export function ResidentMedicalRecordTable({
                   }
                 >
                   <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Select period" />
+                    <SelectValue placeholder="Selecionar período" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">—</SelectItem>
@@ -264,10 +315,6 @@ export function ResidentMedicalRecordTable({
                   </SelectContent>
                 </Select>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Leave frequency and period empty and save to remove dosage for
-                this item.
-              </p>
             </div>
           ) : null}
           <DialogFooter className="gap-2 sm:gap-0">
@@ -278,7 +325,7 @@ export function ResidentMedicalRecordTable({
               onClick={closeDialog}
               disabled={saving}
             >
-              Cancel
+              Cancelar
             </Button>
             <Button
               type="button"
@@ -286,7 +333,7 @@ export function ResidentMedicalRecordTable({
               onClick={() => void handleSave()}
               disabled={saving || previewMode}
             >
-              {saving ? "Saving…" : "Save"}
+              {saving ? "A guardar…" : "Guardar"}
             </Button>
           </DialogFooter>
         </DialogContent>

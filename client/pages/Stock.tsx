@@ -45,7 +45,6 @@ import {
   formatResidentCaselaAutocompleteLabel,
   matchesResidentCaselaSearch,
 } from "@/helpers/resident-casela-autocomplete.helper";
-import { MovementsSearchableSelect } from "@/components/movements/MovementsSearchableSelect";
 import {
   Popover,
   PopoverContent,
@@ -156,6 +155,7 @@ export default function Stock() {
   const [debouncedNome, setDebouncedNome] = useState("");
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [armarioSearch, setArmarioSearch] = useState("");
+  const [gavetaSearch, setGavetaSearch] = useState("");
   const [caselaSearch, setCaselaSearch] = useState("");
   const [setorSearch, setSetorSearch] = useState("");
 
@@ -495,6 +495,16 @@ export default function Stock() {
     [drawerCategoryByNum, uiDisplay.gaveta],
   );
 
+  const filteredDrawers = useMemo(() => {
+    if (!gavetaSearch.trim()) return drawerSelectOptions;
+    const q = gavetaSearch.trim().toLowerCase();
+    return drawerSelectOptions.filter(
+      (d) =>
+        d.label.toLowerCase().includes(q) ||
+        d.value.includes(gavetaSearch.trim()),
+    );
+  }, [gavetaSearch, drawerSelectOptions]);
+
   const columns = [
     { key: "stockType", label: "Tipo", editable: false },
     { key: "lot", label: "Lote", editable: false },
@@ -805,7 +815,7 @@ export default function Stock() {
 
         {apiFilterOptions !== null && (
           <div className={cn(pageSurfaceSubtleClass, "p-6")}>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
               <div className="min-w-0">
                 <label className="block text-xs text-muted-foreground mb-1">
                   Nome
@@ -813,6 +823,7 @@ export default function Stock() {
                 <TableFilter
                   placeholder="Buscar por nome"
                   onFilterChange={handleNomeFilterChange}
+                  className="[&_input]:rounded-lg [&_input]:py-2 [&_input]:text-sm"
                 />
               </div>
 
@@ -931,23 +942,72 @@ export default function Stock() {
               </div>
 
               <div className="min-w-0">
-                <MovementsSearchableSelect
-                  label={
-                    uiDisplay.gaveta === "categoria" ? "Categoria" : "Gaveta"
-                  }
-                  placeholder={
-                    uiDisplay.gaveta === "categoria"
-                      ? "Todas as categorias"
-                      : "Todas as gavetas"
-                  }
-                  value={filters.gaveta}
-                  onChange={(v) =>
-                    setFilters((prev) => ({ ...prev, gaveta: v }))
-                  }
-                  options={drawerSelectOptions}
-                  searchPlaceholder="Buscar por número ou categoria…"
-                  triggerClassName="rounded-lg"
-                />
+                <label className="mb-1 block text-xs text-muted-foreground">
+                  {uiDisplay.gaveta === "categoria" ? "Categoria" : "Gaveta"}
+                </label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between truncate rounded-lg border border-border bg-background p-2"
+                    >
+                      <span
+                        className={
+                          filters.gaveta
+                            ? "truncate"
+                            : "truncate text-muted-foreground"
+                        }
+                      >
+                        {filters.gaveta
+                          ? (drawerSelectOptions.find(
+                              (d) => d.value === filters.gaveta,
+                            )?.label ??
+                            (uiDisplay.gaveta === "categoria"
+                              ? `Categoria ${filters.gaveta}`
+                              : `Gaveta ${filters.gaveta}`))
+                          : uiDisplay.gaveta === "categoria"
+                            ? "Todas as categorias"
+                            : "Todas as gavetas"}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder={
+                          uiDisplay.gaveta === "categoria"
+                            ? "Buscar categoria"
+                            : "Buscar gaveta"
+                        }
+                        value={gavetaSearch}
+                        onValueChange={setGavetaSearch}
+                      />
+                      <CommandList>
+                        <CommandGroup>
+                          {filteredDrawers.map((drawer) => (
+                            <CommandItem
+                              key={drawer.value}
+                              value={drawer.value}
+                              onSelect={() => {
+                                setFilters((prev) => ({
+                                  ...prev,
+                                  gaveta:
+                                    prev.gaveta === drawer.value
+                                      ? ""
+                                      : drawer.value,
+                                }));
+                                setGavetaSearch("");
+                              }}
+                            >
+                              {drawer.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="min-w-0">
@@ -1022,6 +1082,7 @@ export default function Stock() {
                 <TableFilter
                   placeholder="Buscar por lote"
                   onFilterChange={handleLoteFilterChange}
+                  className="[&_input]:rounded-lg [&_input]:py-2 [&_input]:text-sm"
                 />
               </div>
             </div>

@@ -30,13 +30,9 @@ export class InvalidSessionError extends Error {
   }
 }
 
+/** Session uses HttpOnly cookie; Bearer header is not sent from the web client. */
 export function readBearerToken(): string | null {
-  try {
-    const token = sessionStorage.getItem("authToken");
-    return token && token.trim() ? token.trim() : null;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 const PREVIEW_MUTATION_ALLOW_PREFIXES = [
@@ -89,7 +85,6 @@ function handleHttpError(err: StokioApiError): never {
 
     if (isAuthError) {
       window.dispatchEvent(new CustomEvent("invalid-session"));
-      sessionStorage.removeItem("user");
       const sessErr = new InvalidSessionError("Sessão inválida");
       reportClientError(sessErr, {
         category: "auth",

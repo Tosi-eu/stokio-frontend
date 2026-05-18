@@ -7,7 +7,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { BellRing, Package } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -57,7 +56,7 @@ const StartupRemindersModal: FC<StartupRemindersModalProps> = ({
           vistos.
         </p>
 
-        <ScrollArea className="min-h-0 flex-1 max-h-[min(60vh,28rem)] pr-3">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2 [-webkit-overflow-scrolling:touch]">
           <div className="space-y-6 pb-2">
             {hasMedicine ? (
               <section className="space-y-3">
@@ -134,7 +133,7 @@ const StartupRemindersModal: FC<StartupRemindersModalProps> = ({
               </section>
             ) : null}
           </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter className="shrink-0 flex-col gap-2 sm:flex-row">
           {hasReplacement ? (

@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { DisplayNamePreview } from "@/components/DisplayNamePreview";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Layout from "@/components/Layout";
 import { useRouter } from "next/navigation";
@@ -14,6 +16,7 @@ import { Button } from "@/components/ui/button";
 
 export default function RegisterInput() {
   const router = useRouter();
+  const [namePreview, setNamePreview] = useState("");
 
   const {
     register,
@@ -73,12 +76,15 @@ export default function RegisterInput() {
               <Label htmlFor="name">Nome do insumo</Label>
               <Input
                 id="name"
-                {...register("name")}
+                {...register("name", {
+                  onBlur: (e) => setNamePreview(e.target.value),
+                })}
                 maxLength={255}
                 placeholder="Seringa 5ml"
                 disabled={isSubmitting}
                 aria-invalid={errors.name ? "true" : "false"}
               />
+              <DisplayNamePreview value={namePreview} />
               {errors.name && (
                 <p className="text-sm text-red-600 mt-1">
                   {errors.name.message}

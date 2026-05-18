@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { DisplayNamePreview } from "@/components/DisplayNamePreview";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Layout from "@/components/Layout";
 import { useRouter } from "next/navigation";
@@ -23,6 +25,7 @@ import { Button } from "@/components/ui/button";
 export default function RegisterResident() {
   const router = useRouter();
   const { toast } = useToast();
+  const [namePreview, setNamePreview] = useState("");
 
   const {
     register,
@@ -86,12 +89,15 @@ export default function RegisterResident() {
               <Label htmlFor="name">Nome do residente</Label>
               <Input
                 id="name"
-                {...register("name")}
+                {...register("name", {
+                  onBlur: (e) => setNamePreview(e.target.value),
+                })}
                 maxLength={60}
                 placeholder="Digite o nome do residente"
                 disabled={isSubmitting}
                 aria-invalid={errors.name ? "true" : "false"}
               />
+              <DisplayNamePreview value={namePreview} />
               {errors.name && (
                 <p className="text-sm text-red-600 mt-1">
                   {errors.name.message}

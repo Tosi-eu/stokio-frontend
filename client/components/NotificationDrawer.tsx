@@ -174,8 +174,8 @@ export function NotificationDrawer() {
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerContent className="p-6 w-[500px] ml-auto h-full border-l">
-        <DrawerHeader>
+      <DrawerContent className="ml-auto flex h-full max-h-[100dvh] w-[min(100vw,500px)] flex-col overflow-hidden border-l p-0">
+        <DrawerHeader className="shrink-0 px-6 pb-2 pt-6 text-left">
           <DrawerTitle>
             {mode === "list"
               ? activeTab === "receita"
@@ -188,8 +188,8 @@ export function NotificationDrawer() {
         </DrawerHeader>
 
         {mode === "list" && (
-          <>
-            <div className="flex border-b mb-4">
+          <motion.div className="flex min-h-0 flex-1 flex-col">
+            <div className="mb-0 flex shrink-0 border-b px-6">
               <button
                 className={`flex-1 py-2 text-sm font-medium ${
                   activeTab === "receita"
@@ -218,17 +218,17 @@ export function NotificationDrawer() {
               </button>
             </div>
 
-            <div className="flex flex-col gap-2 mb-4">
+            <div className="mb-4 flex shrink-0 flex-col gap-2 px-6">
               <input
                 type="text"
                 placeholder="Filtrar por residente"
                 value={filterResidentName}
                 onChange={(e) => setFilterResidentName(e.target.value)}
-                className="px-2 py-1 border rounded"
+                className="rounded border px-2 py-1"
               />
             </div>
 
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-6 pb-4 pr-1">
               <AnimatePresence mode="popLayout" initial={false}>
                 {loading ? (
                   <motion.div
@@ -236,7 +236,7 @@ export function NotificationDrawer() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="flex items-center justify-center h-[70vh] text-slate-400 text-center"
+                    className="flex min-h-[12rem] items-center justify-center py-12 text-center text-slate-400"
                   >
                     Carregando notificações...
                   </motion.div>
@@ -247,7 +247,7 @@ export function NotificationDrawer() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="flex items-center justify-center h-[70vh] text-slate-400 text-center"
+                    className="flex min-h-[12rem] items-center justify-center py-12 text-center text-slate-400"
                   >
                     Nenhuma notificação pendente.
                   </motion.div>
@@ -363,7 +363,7 @@ export function NotificationDrawer() {
               )}
             </div>
 
-            <DrawerFooter>
+            <DrawerFooter className="shrink-0 border-t px-6 pb-6 pt-4">
               {activeTab === "receita" && !previewMode ? (
                 <button
                   className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90"
@@ -376,12 +376,12 @@ export function NotificationDrawer() {
                 </button>
               ) : null}
             </DrawerFooter>
-          </>
+          </motion.div>
         )}
 
         {mode === "create" && activeTab === "receita" && !previewMode && (
-          <>
-            <div className="pt-2">
+          <motion.div className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pt-2">
               <CreateNotificationForm
                 editData={editingNotification}
                 onCreated={() => {
@@ -392,18 +392,18 @@ export function NotificationDrawer() {
               />
             </div>
 
-            <DrawerFooter>
+            <DrawerFooter className="shrink-0 border-t px-6 pb-6 pt-4">
               <button
                 form="create-notification-form"
                 type="submit"
-                className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg w-full"
+                className="w-full rounded-lg bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
               >
                 {editingNotification
                   ? "Salvar Alterações"
                   : "Criar Notificação"}
               </button>
             </DrawerFooter>
-          </>
+          </motion.div>
         )}
       </DrawerContent>
     </Drawer>

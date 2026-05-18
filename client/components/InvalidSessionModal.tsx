@@ -22,8 +22,6 @@ export function InvalidSessionModal({
   const router = useRouter();
 
   const handleGoToLogin = () => {
-    sessionStorage.removeItem("user");
-    sessionStorage.removeItem("token");
     onClose();
     router.replace("/user/login");
   };

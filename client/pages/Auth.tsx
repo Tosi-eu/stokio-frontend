@@ -20,9 +20,13 @@ import {
   type LoginTenantSummary,
 } from "@/api/requests";
 import {
-  SIGNUP_CONTRACT_VERIFIED_SESSION_KEY,
+  clearSignupContractVerified,
+  readSignupContractVerified,
+  writeSignupContractVerified,
   type SignupContractVerifiedPayload,
 } from "@/helpers/signup-contract-session.helper";
+import { ManageCookiesLink } from "@/components/legal/ManageCookiesLink";
+import { PrivacyPolicyContent } from "@/components/legal/PrivacyPolicyContent";
 import {
   getErrorMessage,
   USER_FACING_RETRY_SHORT,
@@ -148,9 +152,17 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
   }, [searchParams]);
 
   useLayoutEffect(() => {
-    if (scrollToSection !== "contact") return;
-    const scrollContactIntoView = () => {
-      const el = document.getElementById("contact");
+    if (scrollToSection === "auth") return;
+    const sectionId =
+      scrollToSection === "contact"
+        ? "contact"
+        : scrollToSection === "privacy"
+          ? "privacy"
+          : null;
+    if (!sectionId) return;
+
+    const scrollSectionIntoView = () => {
+      const el = document.getElementById(sectionId);
       if (!el) return;
       const reduceMotion = window.matchMedia(
         "(prefers-reduced-motion: reduce)",
@@ -160,8 +172,8 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
         block: "start",
       });
     };
-    scrollContactIntoView();
-    requestAnimationFrame(scrollContactIntoView);
+    scrollSectionIntoView();
+    requestAnimationFrame(scrollSectionIntoView);
   }, [scrollToSection]);
 
   useEffect(() => {
@@ -188,16 +200,9 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
     const signupEmail = sanitizeInput(login).trim();
     const emailCheck = validateEmail(signupEmail);
 
-    try {
-      const raw = sessionStorage.getItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
-      if (raw) {
-        const o = JSON.parse(raw) as { code?: string; email?: string };
-        if (o.code !== cc || o.email !== signupEmail) {
-          sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
-        }
-      }
-    } catch {
-      sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+    const stored = readSignupContractVerified();
+    if (stored && (stored.code !== cc || stored.email !== signupEmail)) {
+      clearSignupContractVerified();
     }
 
     if (!cc || !emailCheck.valid) {
@@ -215,16 +220,13 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
             email: signupEmail,
             verifiedAt: Date.now(),
           };
-          sessionStorage.setItem(
-            SIGNUP_CONTRACT_VERIFIED_SESSION_KEY,
-            JSON.stringify(payload),
-          );
+          writeSignupContractVerified(payload);
         } else {
-          sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+          clearSignupContractVerified();
         }
       } catch {
         if (cancelled) return;
-        sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+        clearSignupContractVerified();
         const now = Date.now();
         if (now - contractVerifyBackgroundErrorAtRef.current > 60_000) {
           contractVerifyBackgroundErrorAtRef.current = now;
@@ -796,7 +798,7 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
 
           <main id="auth-page-main">
             <h1 className="sr-only">
-              Iniciar sessão e contacto · {APP_PUBLIC_NAME}
+              Iniciar sessão, contacto e privacidade · {APP_PUBLIC_NAME}
             </h1>
 
             <section
@@ -1262,8 +1264,11 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
                   </CardContent>
                 </Card>
 
-                <p className="mt-8 text-center text-xs text-muted-foreground/80 lg:hidden">
-                  © {new Date().getFullYear()} {APP_PUBLIC_NAME}
+                <p className="mt-8 text-center text-xs text-muted-foreground/80 lg:hidden space-y-1">
+                  <span className="block">
+                    © {new Date().getFullYear()} {APP_PUBLIC_NAME}
+                  </span>
+                  <ManageCookiesLink className="text-muted-foreground/80" />
                 </p>
               </div>
             </section>
@@ -1278,7 +1283,40 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
                 <AuthContactIntro />
                 <ContactFormSection variant="embedded" />
 
-                <p className="mt-10 text-center">
+                <p className="mt-10 text-center space-y-2">
+                  <a
+                    href="#privacy"
+                    className="block text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground"
+                  >
+                    Privacidade e cookies
+                  </a>
+                  <a
+                    href="#auth"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
+                  >
+                    <ArrowUp className="h-4 w-4 shrink-0" aria-hidden />
+                    Voltar ao início de sessão
+                  </a>
+                </p>
+              </div>
+            </section>
+
+            <section
+              id="privacy"
+              aria-label="Privacidade e cookies"
+              className="relative flex min-h-[100dvh] snap-start scroll-mt-24 flex-col justify-center border-t border-border/30 bg-background px-4 pb-28 pt-14 sm:px-6 lg:min-h-[100dvh] lg:scroll-mt-28 lg:px-10 lg:pb-36 lg:pt-20"
+            >
+              <div className="relative mx-auto w-full max-w-lg">
+                <PageLabel className="mb-4">Privacidade</PageLabel>
+                <PrivacyPolicyContent />
+
+                <p className="mt-10 text-center space-y-2">
+                  <a
+                    href="#contact"
+                    className="block text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground"
+                  >
+                    Contacto
+                  </a>
                   <a
                     href="#auth"
                     className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"

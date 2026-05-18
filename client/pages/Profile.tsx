@@ -23,6 +23,7 @@ import {
 } from "@/components/page/page-ui.constants";
 import { cn } from "@/lib/utils";
 import { UserRound, Shield } from "lucide-react";
+import { ManageCookiesLink } from "@/components/legal/ManageCookiesLink";
 
 export default function Profile() {
   const { toast } = useToast();
@@ -348,6 +349,10 @@ export default function Profile() {
               </div>
             </div>
           </section>
+
+          <p className="text-xs text-muted-foreground">
+            <ManageCookiesLink />
+          </p>
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Button

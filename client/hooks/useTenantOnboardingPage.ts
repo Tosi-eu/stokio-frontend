@@ -7,6 +7,7 @@ import {
   setTenantContractCode,
   claimTenantContractCode,
   verifyTenantContractCode,
+  fetchPublicTenantBrandingIfExists,
   listTenantSetores,
   type TenantSetorRow,
   downloadTenantImportTemplate,
@@ -15,6 +16,7 @@ import {
   type TenantImportXlsxResponse,
   dismissTenantOnboarding,
 } from "@/api/requests";
+import { writeActiveTenantSlug } from "@/helpers/active-tenant-slug.helper";
 import {
   getEnabledSectors,
   tenantEnabledKeysForConfigPatch,
@@ -36,7 +38,10 @@ import {
   getErrorMessage,
   USER_FACING_RETRY_SHORT,
 } from "@/helpers/validation.helper";
-import { SIGNUP_CONTRACT_VERIFIED_SESSION_KEY } from "@/helpers/signup-contract-session.helper";
+import {
+  clearSignupContractVerified,
+  readSignupContractVerified,
+} from "@/helpers/signup-contract-session.helper";
 import { HeartPulse, Pill, Warehouse } from "lucide-react";
 import { TENANT_ONBOARDING_SECTOR_OPTIONS } from "@/components/tenant-onboarding/tenant-onboarding.constants";
 
@@ -284,6 +289,33 @@ export function useTenantOnboardingPage() {
     });
   };
 
+  const prefillBrandFromCanonicalSlug = useCallback(
+    async (canonicalSlug: string) => {
+      const branding = await fetchPublicTenantBrandingIfExists(canonicalSlug);
+      if (!branding) return;
+      const label = (branding.brandName ?? branding.name ?? "").trim();
+      if (label) setBrandName(label);
+    },
+    [],
+  );
+
+  const applyContractMigrationResult = useCallback(
+    async (res: {
+      migrated?: boolean;
+      tenantId?: number;
+      tenantSlug?: string;
+    }) => {
+      if (res.migrated !== true || res.tenantId == null) return false;
+      const nextSlug = res.tenantSlug?.trim();
+      if (nextSlug) writeActiveTenantSlug(nextSlug);
+      patchStoredUser({ tenantId: res.tenantId, role: "admin" });
+      await refetch();
+      if (nextSlug) await prefillBrandFromCanonicalSlug(nextSlug);
+      return true;
+    },
+    [patchStoredUser, prefillBrandFromCanonicalSlug, refetch],
+  );
+
   const verifyContractCodeFlow = useCallback(
     async (rawCode: string, opts?: { silent?: boolean }): Promise<boolean> => {
       const silent = Boolean(opts?.silent);
@@ -329,13 +361,16 @@ export function useTenantOnboardingPage() {
       setValidatingContract(true);
       try {
         if (slug.startsWith("u-")) {
+          try {
+            const preview = await verifyTenantContractCode(slug, code);
+            if (preview.valid && preview.canonicalSlug?.trim()) {
+              await prefillBrandFromCanonicalSlug(preview.canonicalSlug.trim());
+            }
+          } catch {
+            void 0;
+          }
           const claim = await claimTenantContractCode(code, sessionLogin);
-          if (claim.migrated === true && claim.tenantId != null) {
-            patchStoredUser({
-              tenantId: claim.tenantId,
-              role: "admin",
-            });
-            await refetch();
+          if (await applyContractMigrationResult(claim)) {
             setContractValidated(true);
             if (!silent) {
               toast({
@@ -412,7 +447,12 @@ export function useTenantOnboardingPage() {
         setValidatingContract(false);
       }
     },
-    [tenant?.slug, user?.login, patchStoredUser, refetch],
+    [
+      tenant?.slug,
+      user?.login,
+      applyContractMigrationResult,
+      prefillBrandFromCanonicalSlug,
+    ],
   );
 
   const handleVerifyContract = async () => {
@@ -426,33 +466,20 @@ export function useTenantOnboardingPage() {
     if (!slug || !sessionLogin) return;
     if (signupContractAutoVerifyStartedRef.current) return;
 
-    let raw: string | null = null;
-    try {
-      raw = sessionStorage.getItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
-    } catch {
-      void 0;
-    }
-    if (!raw) return;
-
-    let parsed: { code?: string; email?: string };
-    try {
-      parsed = JSON.parse(raw) as { code?: string; email?: string };
-    } catch {
-      sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
-      return;
-    }
+    const parsed = readSignupContractVerified();
+    if (!parsed) return;
 
     const pc = String(parsed.code ?? "").trim();
     const pe = String(parsed.email ?? "").trim();
     if (!pc || pe !== sessionLogin) {
-      sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+      clearSignupContractVerified();
       return;
     }
 
     signupContractAutoVerifyStartedRef.current = true;
     void (async () => {
       const ok = await verifyContractCodeFlow(pc, { silent: true });
-      sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+      clearSignupContractVerified();
       if (!ok) {
         signupContractAutoVerifyStartedRef.current = false;
       } else if (tenantId != null) {
@@ -602,13 +629,20 @@ export function useTenantOnboardingPage() {
           });
           return;
         }
-        contractRes = await setTenantContractCode(
-          contractCode.trim(),
-          sessionLogin,
-        );
-        if (contractRes?.migrated === true && contractRes.tenantId != null) {
-          patchStoredUser({ tenantId: contractRes.tenantId, role: "admin" });
-          await refetch();
+        const activeSlug = tenant?.slug?.trim() ?? "";
+        if (activeSlug.startsWith("u-")) {
+          contractRes = await claimTenantContractCode(
+            contractCode.trim(),
+            sessionLogin,
+          );
+        } else if (user?.role === "admin" || isSuperAdminUser(user ?? null)) {
+          contractRes = await setTenantContractCode(
+            contractCode.trim(),
+            sessionLogin,
+          );
+        }
+        if (contractRes) {
+          await applyContractMigrationResult(contractRes);
         }
       }
 

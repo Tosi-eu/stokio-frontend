@@ -305,6 +305,7 @@ export function AdminTabInsights({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Data</TableHead>
+                    <TableHead>Operador</TableHead>
                     <TableHead>Entidade</TableHead>
                     <TableHead>Ação</TableHead>
                     <TableHead>Resultado</TableHead>
@@ -316,7 +317,7 @@ export function AdminTabInsights({
                   {insights.events.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={6}
+                        colSpan={7}
                         className="text-center text-muted-foreground py-8"
                       >
                         Nenhum evento neste filtro.
@@ -327,6 +328,10 @@ export function AdminTabInsights({
                       <TableRow key={e.id}>
                         <TableCell className="text-xs whitespace-nowrap">
                           {formatDateTimePtBr(e.created_at)}
+                        </TableCell>
+                        <TableCell className="text-xs max-w-[200px] truncate">
+                          {e.operator?.trim() ||
+                            (e.user_id != null ? `#${e.user_id}` : "—")}
                         </TableCell>
                         <TableCell className="text-xs">
                           {e.resource

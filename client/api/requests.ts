@@ -353,6 +353,12 @@ export const getResidentsInTenantContext = (
 export const getResidentByCasela = (casela: string | number) =>
   stokioClient.get<ResidentListItem>(`/residentes/${casela}`);
 
+export type MedicalRecordApplicationSlot = {
+  index: number;
+  scheduledTime: string | null;
+  completedAt: string | null;
+};
+
 export type ActiveMedicalRecordItem = {
   category: "medicine" | "supply";
   name: string;
@@ -360,6 +366,8 @@ export type ActiveMedicalRecordItem = {
   note: string | null;
   applicationFrequency: number | null;
   applicationPeriod: string | null;
+  applicationSlots: MedicalRecordApplicationSlot[];
+  periodKey: string | null;
   medicineId: number | null;
   supplyId: number | null;
 };
@@ -382,8 +390,20 @@ export const patchResidentMedicalRecordItem = (
     itemId: number;
     applicationFrequency?: number | null;
     applicationPeriod?: string | null;
+    applicationTimes?: (string | null)[] | null;
   },
 ) => stokioClient.patch(`/residentes/${casela}/prontuario-item`, body);
+
+export const patchResidentMedicalRecordSlot = (
+  casela: string | number,
+  body: {
+    category: "medicine" | "supply";
+    itemId: number;
+    slotIndex: number;
+    action: "setTime" | "complete" | "uncomplete";
+    scheduledTime?: string;
+  },
+) => stokioClient.patch(`/residentes/${casela}/prontuario-item/etapa`, body);
 
 export const getResidentsCount = () => stokioClient.get("/residentes/count");
 export const getCabinetsCount = () => stokioClient.get("/armarios/count");
@@ -456,6 +476,7 @@ export type ComplianceAuditInsights = {
   events: Array<{
     id: number;
     user_id: number | null;
+    operator?: string | null;
     method: string;
     path: string;
     operation_type: string;
@@ -514,8 +535,6 @@ export async function downloadComplianceCsv(
   kind: "events" | "login" | "movements",
   query: Record<string, string>,
 ): Promise<void> {
-  const token = readBearerToken();
-  if (!token) throw new Error("Sessão não encontrada.");
   const path =
     kind === "events"
       ? "/audit/export/events.csv"
@@ -528,7 +547,6 @@ export async function downloadComplianceCsv(
     if (v !== "") url.searchParams.set(k, v);
   });
   const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${token}` },
     credentials: "include",
   });
   if (!res.ok) {

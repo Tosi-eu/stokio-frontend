@@ -6,6 +6,7 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
 } from "react";
+import { isFunctionalConsentGranted } from "@/helpers/functional-consent.helper";
 
 export const COL_WIDTH_MIN = 80;
 export const COL_WIDTH_MAX = 800;
@@ -45,7 +46,7 @@ export function usePersistedColumnWidths(storageSuffix: string) {
   } | null>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !isFunctionalConsentGranted()) return;
     setColWidths(parseStoredWidths(window.localStorage.getItem(storageKey)));
   }, [storageKey]);
 
@@ -55,7 +56,9 @@ export function usePersistedColumnWidths(storageSuffix: string) {
 
   const persistColWidths = useCallback(
     (next: Record<string, number>) => {
-      if (typeof window === "undefined") return;
+      if (typeof window === "undefined" || !isFunctionalConsentGranted()) {
+        return;
+      }
       try {
         window.localStorage.setItem(storageKey, JSON.stringify(next));
       } catch {

@@ -305,18 +305,40 @@ export function getPreviewActiveMedicalRecordForCasela(
   }
 
   const rows: ActiveMedicalRecordItem[] = [];
+  let samplePosology = true;
   for (const a of byKey.values()) {
     const obsJoined =
       [...a.observacoes].filter(Boolean).sort().join("; ") || null;
 
     const pid = previewMedicalRecordProductId(a.category, a.name);
+    const withSample =
+      samplePosology &&
+      a.category === "medicine" &&
+      a.name.toLowerCase().includes("paracet");
+    if (withSample) samplePosology = false;
+
+    const freq = withSample ? 3 : null;
+    const period = withSample ? "day" : null;
+    const today = new Date().toISOString().slice(0, 10);
     rows.push({
       category: a.category,
       name: a.name,
       detail: a.detail,
       note: obsJoined,
-      applicationFrequency: null,
-      applicationPeriod: null,
+      applicationFrequency: freq,
+      applicationPeriod: period,
+      applicationSlots: withSample
+        ? [
+            {
+              index: 0,
+              scheduledTime: "08:00",
+              completedAt: new Date().toISOString(),
+            },
+            { index: 1, scheduledTime: "14:00", completedAt: null },
+            { index: 2, scheduledTime: "20:00", completedAt: null },
+          ]
+        : [],
+      periodKey: withSample ? today : null,
       medicineId: a.category === "medicine" ? pid : null,
       supplyId: a.category === "supply" ? pid : null,
     });

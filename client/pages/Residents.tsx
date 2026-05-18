@@ -162,9 +162,9 @@ export default function Resident() {
         setResidentChartItems(res.items ?? []);
       } catch {
         toast({
-          title: "Failed to load medical record",
+          title: "Falha ao carregar prontuário",
           description:
-            "Could not load medication and supplies in use for this stall.",
+            "Não foi possível carregar medicamentos e insumos em uso nesta casela.",
           variant: "error",
           duration: 3000,
         });

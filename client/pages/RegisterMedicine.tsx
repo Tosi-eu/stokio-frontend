@@ -1,5 +1,6 @@
 import Layout from "@/components/Layout";
 import { useState, useEffect } from "react";
+import { DisplayNamePreview } from "@/components/DisplayNamePreview";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -47,6 +48,8 @@ export default function SignUpMedicine() {
   });
 
   const [medicines, setMedicines] = useState<RawStockMedicine[]>([]);
+  const [namePreview, setNamePreview] = useState("");
+  const [substancePreview, setSubstancePreview] = useState("");
   // eslint-disable-next-line react-hooks/incompatible-library -- React Hook Form watch()
   const watchedName = watch("name");
 
@@ -141,12 +144,15 @@ export default function SignUpMedicine() {
               <Input
                 id="name"
                 list="lista-medicamentos"
-                {...register("name")}
+                {...register("name", {
+                  onBlur: (e) => setNamePreview(e.target.value),
+                })}
                 maxLength={255}
                 placeholder="Digite o nome do medicamento"
                 disabled={isSubmitting}
                 aria-invalid={errors.name ? "true" : "false"}
               />
+              <DisplayNamePreview value={namePreview} />
               <datalist id="lista-medicamentos">
                 {medicines.map((m) => (
                   <option key={m.id} value={m.nome} />
@@ -163,12 +169,15 @@ export default function SignUpMedicine() {
               <Label htmlFor="substance">Princípio ativo</Label>
               <Input
                 id="substance"
-                {...register("substance")}
+                {...register("substance", {
+                  onBlur: (e) => setSubstancePreview(e.target.value),
+                })}
                 maxLength={255}
                 placeholder="Paracetamol"
                 disabled={isSubmitting}
                 aria-invalid={errors.substance ? "true" : "false"}
               />
+              <DisplayNamePreview value={substancePreview} />
               {errors.substance && (
                 <p className="text-sm text-red-600 mt-1">
                   {errors.substance.message}

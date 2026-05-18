@@ -1,5 +1,6 @@
 import type { DashboardWidgetId } from "@/constants/dashboard-widgets";
 import { DASHBOARD_WIDGET_IDS } from "@/constants/dashboard-widgets";
+import { isFunctionalConsentGranted } from "@/helpers/functional-consent.helper";
 
 const STORAGE_VERSION = 1 as const;
 
@@ -24,7 +25,11 @@ function storageKey(tenantId: number) {
 export function readDashboardLayout(
   tenantId: number | null,
 ): DashboardLayoutV1 {
-  if (tenantId == null || typeof window === "undefined") {
+  if (
+    tenantId == null ||
+    typeof window === "undefined" ||
+    !isFunctionalConsentGranted()
+  ) {
     return { ...DEFAULT_LAYOUT, hidden: [], wide: {} };
   }
   try {
@@ -55,7 +60,13 @@ export function writeDashboardLayout(
   tenantId: number | null,
   layout: DashboardLayoutV1,
 ) {
-  if (tenantId == null || typeof window === "undefined") return;
+  if (
+    tenantId == null ||
+    typeof window === "undefined" ||
+    !isFunctionalConsentGranted()
+  ) {
+    return;
+  }
   try {
     window.localStorage.setItem(
       storageKey(tenantId),

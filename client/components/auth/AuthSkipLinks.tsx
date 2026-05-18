@@ -12,10 +12,13 @@ export function AuthSkipLinks() {
   return (
     <div className="pointer-events-none relative z-[90] [&_a]:pointer-events-auto">
       <a href="#auth-main" className={skipLinkClass}>
-        Saltar para o formulário de início de sessão
+        Ir para o formulário de início de sessão
       </a>
       <a href="#contact" className={cn(skipLinkClass, "focus:top-20")}>
-        Saltar para contacto
+        Ir para contato
+      </a>
+      <a href="#privacy" className={cn(skipLinkClass, "focus:top-36")}>
+        Ir para privacidade
       </a>
     </div>
   );

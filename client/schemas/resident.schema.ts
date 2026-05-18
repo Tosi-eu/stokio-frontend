@@ -1,3 +1,4 @@
+import { formatEntityDisplayName } from "@/helpers/text-name.helper";
 import { z } from "zod";
 
 const isoDateOnly = /^\d{4}-\d{2}-\d{2}$/;
@@ -7,7 +8,8 @@ export const residentSchema = z.object({
     .string()
     .min(1, "Nome é obrigatório")
     .max(60, "Nome deve ter no máximo 60 caracteres")
-    .trim(),
+    .trim()
+    .transform(formatEntityDisplayName),
   cpf: z
     .string()
     .optional()

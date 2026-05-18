@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, type Dispatch, type SetStateAction } from "react";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -101,14 +100,16 @@ export function MovementsFiltersSection({
 
   return (
     <div className="grid gap-2">
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-[220px] flex-1 max-w-[360px]">
-          <Label className="text-xs">Produto</Label>
+      <div className="grid grid-cols-2 items-end gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <div className="min-w-0">
+          <label className="mb-1 block text-xs text-muted-foreground">
+            Produto
+          </label>
           <Input
             value={filters.produto}
             onChange={(e) => actions.onProduto(e.target.value)}
             placeholder="Nome do produto"
-            className="mt-1 h-8 px-2 text-xs"
+            className="h-auto rounded-lg px-2 py-2 text-sm"
           />
         </div>
         <MovementsSearchableSelect
@@ -131,8 +132,10 @@ export function MovementsFiltersSection({
           options={drawerSelectOptions}
           searchPlaceholder="Buscar gaveta..."
         />
-        <div className="min-w-[220px] max-w-[320px]">
-          <Label className="text-xs">Casela</Label>
+        <div className="min-w-0">
+          <label className="mb-1 block text-xs text-muted-foreground">
+            Casela
+          </label>
           <Popover
             open={residentPopoverOpen[uiKey]}
             onOpenChange={(next) =>
@@ -140,11 +143,10 @@ export function MovementsFiltersSection({
             }
           >
             <PopoverTrigger asChild>
-              <Button
+              <button
                 type="button"
-                variant="outline"
                 role="combobox"
-                className="mt-1 h-8 w-full justify-between px-2 text-xs"
+                className="flex w-full items-center justify-between truncate rounded-lg border border-border bg-background p-2 text-sm"
               >
                 <span
                   className={
@@ -164,8 +166,8 @@ export function MovementsFiltersSection({
                       })()
                     : "Todas as caselas"}
                 </span>
-                <ChevronsUpDown className="h-4 w-4 opacity-60" />
-              </Button>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </button>
             </PopoverTrigger>
             <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
               <Command shouldFilter={false}>
@@ -211,17 +213,19 @@ export function MovementsFiltersSection({
           options={sectorOptions}
           searchPlaceholder="Buscar setor..."
         />
-        <div className="min-w-[180px] max-w-[240px]">
-          <Label className="text-xs">Lote</Label>
+        <div className="min-w-0">
+          <label className="mb-1 block text-xs text-muted-foreground">
+            Lote
+          </label>
           <Input
             value={filters.lote}
             onChange={(e) => actions.onLote(e.target.value)}
             placeholder="Ex.: ABC123"
-            className="mt-1 h-8 px-2 text-xs"
+            className="h-auto rounded-lg px-2 py-2 text-sm"
           />
         </div>
 
-        <div className="ml-auto flex justify-end gap-2">
+        <div className="col-span-full flex justify-end gap-2 xl:col-span-6">
           <Button
             type="button"
             variant="outline"
