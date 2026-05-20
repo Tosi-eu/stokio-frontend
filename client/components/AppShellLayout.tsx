@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { useNotifications } from "@/hooks/use-notification.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import { VerticalLayout } from "@/components/VerticalLayout";
 import { TenantSwitcherBar } from "@/components/tenant/TenantSwitcherBar";
 import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
@@ -17,8 +18,10 @@ export function AppShellLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { logout, user } = useAuth();
   const { isEnabled, previewMode } = useTenant();
+  const { can } = usePermissionMatrix();
   const { setOpen: setNotificationsOpen } = useNotifications();
-  const showNotificationsUi = previewMode || isEnabled("notifications");
+  const showNotificationsUi =
+    previewMode || (isEnabled("notifications") && can("notifications", "read"));
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 

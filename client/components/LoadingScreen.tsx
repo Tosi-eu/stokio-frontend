@@ -2,16 +2,16 @@
 
 import { getBackendHealthCheck } from "@/api/requests";
 import {
+  APP_PUBLIC_LOGO_URL,
   APP_PUBLIC_NAME,
   getNextBrandLogoFallback,
 } from "@/constants/app-branding";
-import { usePublicDefaultLogoUrl } from "@/hooks/use-public-default-logo.hook";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoadingScreen() {
   const router = useRouter();
-  const brandLogoSrc = usePublicDefaultLogoUrl();
+  const brandLogoSrc = APP_PUBLIC_LOGO_URL;
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {

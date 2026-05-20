@@ -1,3 +1,13 @@
+/** STG em dev; PRD em production build — alinhado ao backend (env.validation). */
+export function resolveActiveR2PublicBaseUrl(): string | null {
+  const prd = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL_PRD?.trim();
+  const stg = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL_STG?.trim();
+  const fallback = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL?.trim();
+  const isProd = process.env.NODE_ENV === "production";
+  const raw = isProd ? prd || fallback : stg || fallback;
+  return normalizeR2PublicBaseUrl(raw || undefined);
+}
+
 export function normalizeR2PublicBaseUrl(
   raw: string | undefined,
 ): string | null {
@@ -16,9 +26,7 @@ export function normalizeR2PublicBaseUrl(
 export const BRAND_LOGO_LOCAL_FALLBACK_PATH = "/default_logo.png";
 
 function r2DefaultLogoUrl(): string | null {
-  const r2 = normalizeR2PublicBaseUrl(
-    process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
-  );
+  const r2 = resolveActiveR2PublicBaseUrl();
   if (!r2) return null;
   return `${r2}/default_logo.png`;
 }
@@ -107,9 +115,7 @@ export function mergePublicLogoWithServerDefault(
 export const PDF_REPORT_LOGO_URL = resolvePdfLogoUrl();
 
 export function getR2PublicOriginForPreconnect(): string | null {
-  const r2 = normalizeR2PublicBaseUrl(
-    process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
-  );
+  const r2 = resolveActiveR2PublicBaseUrl();
   if (!r2) return null;
   try {
     return new URL(r2).origin;
