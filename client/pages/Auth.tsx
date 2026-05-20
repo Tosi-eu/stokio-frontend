@@ -3,7 +3,6 @@ import {
   useEffect,
   useLayoutEffect,
   useRef,
-  useCallback,
   useMemo,
 } from "react";
 import Link from "next/link";
@@ -57,9 +56,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
   APP_PUBLIC_NAME,
-  getNextBrandLogoFallback,
+  BRAND_LOGO_LOCAL_FALLBACK_PATH,
 } from "@/constants/app-branding";
-import { usePublicDefaultLogoUrl } from "@/hooks/use-public-default-logo.hook";
 import {
   validateEmail,
   validatePassword,
@@ -143,7 +141,6 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
     lastName: string;
   } | null>(null);
 
-  const publicBrandLogoUrl = usePublicDefaultLogoUrl();
   const activeLandingSection = useAuthLandingActiveSection();
 
   useEffect(() => {
@@ -694,18 +691,6 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
     ? loginTenantDisplayLabel(selectedLoginTenant)
     : "Selecione o abrigo";
 
-  const [authHeaderImgSrc, setAuthHeaderImgSrc] = useState(publicBrandLogoUrl);
-  useEffect(() => {
-    setAuthHeaderImgSrc(publicBrandLogoUrl);
-  }, [publicBrandLogoUrl]);
-
-  const handleAuthLogoFallback = useCallback(() => {
-    setAuthHeaderImgSrc((current) => {
-      const next = getNextBrandLogoFallback(current);
-      return next ?? current;
-    });
-  }, []);
-
   const inputFieldClass =
     "h-11 rounded-xl border-border/70 bg-background/95 shadow-sm transition-shadow focus-visible:ring-primary/30";
 
@@ -782,8 +767,8 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
       </AlertDialog>
 
       <AuthMarketingAside
-        logoSrc={authHeaderImgSrc}
-        onLogoFallback={handleAuthLogoFallback}
+        logoSrc={BRAND_LOGO_LOCAL_FALLBACK_PATH}
+        onLogoFallback={() => {}}
         activeSection={activeLandingSection}
       />
 
@@ -791,8 +776,8 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
         <AuthSkipLinks />
         <div className="auth-landing-scroll flex min-h-0 flex-1 snap-y snap-proximity flex-col overflow-y-auto scroll-smooth overscroll-y-contain motion-reduce:snap-none pb-[5.25rem] lg:pb-0">
           <AuthMobileHeader
-            logoSrc={authHeaderImgSrc}
-            onLogoFallback={handleAuthLogoFallback}
+            logoSrc={BRAND_LOGO_LOCAL_FALLBACK_PATH}
+            onLogoFallback={() => {}}
           />
 
           <main id="auth-page-main">
