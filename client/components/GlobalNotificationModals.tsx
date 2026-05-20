@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { toast } from "@/hooks/use-toast.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
+import { canAccessNotificationsUi } from "@/helpers/permission-matrix.helpers";
 import {
   getTodayMedicineNotifications,
   getTomorrowReplacementNotifications,
@@ -18,14 +19,13 @@ const StartupRemindersModal = lazy(() =>
 );
 
 export function GlobalNotificationModals() {
-  const { previewMode, isEnabled } = useTenant();
+  const { previewMode } = useTenant();
   const { can } = usePermissionMatrix();
 
   const canFetch = useMemo(() => {
     if (previewMode) return false;
-    if (!isEnabled("notifications")) return false;
-    return can("notifications", "read");
-  }, [can, isEnabled, previewMode]);
+    return canAccessNotificationsUi(false, can("notifications", "read"));
+  }, [can, previewMode]);
 
   const [startupOpen, setStartupOpen] = useState(false);
   const [medicineList, setMedicineList] = useState<NotificationListItem[]>([]);

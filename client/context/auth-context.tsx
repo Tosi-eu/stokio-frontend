@@ -21,6 +21,7 @@ import {
   readActiveTenantSlug,
   writeActiveTenantSlug,
 } from "@/helpers/active-tenant-slug.helper";
+import { resolveUserPermissionMatrix } from "@/helpers/permission-matrix.helpers";
 
 export const AuthContext = createContext<AuthContextType | undefined>(
   undefined,
@@ -30,6 +31,8 @@ function normalizeSessionUser(raw: LoggedUser | null): LoggedUser | null {
   if (!raw || typeof raw.id !== "number") return null;
   const first = raw.firstName ?? raw.first_name;
   const last = raw.lastName ?? raw.last_name;
+  const permissionMatrix =
+    raw.permissionMatrix ?? resolveUserPermissionMatrix(raw) ?? undefined;
   return {
     ...raw,
     first_name: first,
@@ -37,6 +40,7 @@ function normalizeSessionUser(raw: LoggedUser | null): LoggedUser | null {
     firstName: raw.firstName ?? first,
     lastName: raw.lastName ?? last,
     isSuperAdmin: isSuperAdminUser(raw),
+    ...(permissionMatrix ? { permissionMatrix } : {}),
   };
 }
 
@@ -47,8 +51,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const patchStoredUser = useCallback((partial: Partial<LoggedUser>) => {
     setUser((prev) => {
       if (!prev) return prev;
-      const merged = { ...prev, ...partial };
-      return normalizeSessionUser(merged);
+      return normalizeSessionUser({ ...prev, ...partial });
     });
   }, []);
 
