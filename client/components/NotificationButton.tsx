@@ -1,6 +1,6 @@
 import { useNotifications } from "@/hooks/use-notification.hook";
-import { useAuth } from "@/hooks/use-auth.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import { useToast } from "@/hooks/use-toast.hook";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell } from "lucide-react";
@@ -13,13 +13,13 @@ import {
 
 export function NotificationButton() {
   const { count, setOpen } = useNotifications();
-  const { user } = useAuth();
   const { isEnabled, previewMode } = useTenant();
+  const { can } = usePermissionMatrix();
   const { toast } = useToast();
   const hasNotifications = count > 0;
   const moduleOn = isEnabled("notifications");
   const canAccessNotifications =
-    previewMode || (moduleOn && user?.role === "admin");
+    previewMode || (moduleOn && can("notifications", "read"));
 
   const handleClick = () => {
     if (!canAccessNotifications) {
