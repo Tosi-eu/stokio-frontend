@@ -20,6 +20,7 @@ const columns = [
   { key: "descricao", label: "Descrição", editable: true },
   { key: "estoque_minimo", label: "Estoque Mínimo", editable: true },
   { key: "preco", label: "Preço (R$)", editable: true },
+  { key: "preco_atualizado_em", label: "Últ. atual. preço" },
 ];
 
 export default function Inputs() {

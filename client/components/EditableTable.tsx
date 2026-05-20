@@ -317,6 +317,12 @@ export default function EditableTable({
         return `R$ ${num.toFixed(2)}`;
       }
 
+      case "preco_atualizado_em": {
+        const v = row[colKey];
+        if (v === null || v === undefined || v === "") return "-";
+        return formatDateToPtBr(String(v));
+      }
+
       case "expiry":
         return renderExpiryTag(row);
 
@@ -813,7 +819,8 @@ function fallbackQuantityStatusKey(
   quantity: number,
   minimumStock: number,
 ): string {
-  const min = minimumStock;
+  const min = Math.max(0, Number(minimumStock) || 0);
+  if (min <= 0) return "high";
   const lowMax = min * 1.35;
   const highThreshold = min * 3;
   if (quantity >= highThreshold) return "high";

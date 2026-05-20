@@ -44,7 +44,14 @@ export function applyMovementFilters(
 
     if (casela) {
       const n = Number(casela);
-      if (Number.isNaN(n) || r.residentCasela !== n) return false;
+      if (!Number.isNaN(n)) {
+        if (r.residentCasela !== n) return false;
+      } else {
+        const label = String(r.resident ?? "").toLowerCase();
+        const name = String(r.residentName ?? "").toLowerCase();
+        const q = casela.toLowerCase();
+        if (!label.includes(q) && !name.includes(q)) return false;
+      }
     }
 
     if (setor) {

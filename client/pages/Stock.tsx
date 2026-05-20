@@ -63,6 +63,7 @@ import { useTenant } from "@/hooks/use-tenant.hook";
 import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
 import {
   buildSectorFilterOptions,
+  formatTenantSectorKeyLabel,
   getEnabledSectors,
   resolveSectorProfile,
 } from "@/helpers/tenant-sectors.helper";
@@ -428,9 +429,10 @@ export default function Stock() {
           : caselaId != null
             ? residents.find((r) => r.casela === caselaId)?.name
             : undefined;
-      const caselaDisplay = formatCaselaLabel(uiDisplay.casela, {
+      const caselaDisplay = formatCaselaLabel(uiDisplay, {
         caselaId,
         residentName,
+        sector: item.sector,
       });
       const numDrawer =
         typeof item.drawer === "number"
@@ -445,9 +447,14 @@ export default function Stock() {
             ? drawerCategoryByNum.get(numDrawer)
             : undefined,
       });
-      return { ...item, caselaDisplay, drawerDisplay };
+      const sectorKey = String(item.sector ?? "").trim();
+      const sectorDisplay =
+        sectorKey && sectorKey !== "-"
+          ? (labelByKey.get(sectorKey) ?? formatTenantSectorKeyLabel(sectorKey))
+          : "—";
+      return { ...item, caselaDisplay, drawerDisplay, sectorDisplay };
     });
-  }, [items, residents, uiDisplay, drawerCategoryByNum]);
+  }, [items, residents, uiDisplay, drawerCategoryByNum, labelByKey]);
 
   const filteredCabinets = useMemo(() => {
     if (!armarioSearch) return filterOptions.cabinets;
@@ -518,7 +525,7 @@ export default function Stock() {
     { key: "caselaDisplay", label: "Casela", editable: false },
     { key: "daysToReplacement", label: "Dias para Repor", editable: false },
     { key: "origin", label: "Origem", editable: false },
-    { key: "sector", label: "Setor", editable: false },
+    { key: "sectorDisplay", label: "Setor", editable: false },
     { key: "destination", label: "Destino", editable: false },
     { key: "detail", label: "Observação", editable: false },
     { key: "status", label: "Status", editable: false },

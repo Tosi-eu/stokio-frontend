@@ -3,15 +3,19 @@
 import { BarChart3, Package, ShieldCheck } from "lucide-react";
 import { APP_PUBLIC_NAME } from "@/constants/app-branding";
 import { AuthBrandLogoImage } from "@/components/auth/AuthBrandLogoImage";
+import { AuthDesktopSectionNav } from "@/components/auth/AuthDesktopSectionNav";
+import type { AuthLandingSectionId } from "@/components/auth/auth-landing.constants";
 
 type AuthMarketingAsideProps = {
   logoSrc: string;
   onLogoFallback: () => void;
+  activeSection: AuthLandingSectionId;
 };
 
 export function AuthMarketingAside({
   logoSrc,
   onLogoFallback,
+  activeSection,
 }: AuthMarketingAsideProps) {
   return (
     <aside className="relative hidden h-full min-h-0 max-h-full shrink-0 overflow-hidden lg:flex lg:w-[min(42%,480px)] lg:flex-col lg:items-center lg:justify-center lg:self-stretch bg-brand-strip px-10 py-12 text-primary-foreground xl:px-14">
@@ -73,6 +77,8 @@ export function AuthMarketingAside({
             </span>
           </li>
         </ul>
+
+        <AuthDesktopSectionNav activeSection={activeSection} />
 
         <p className="mt-10 max-w-sm px-2 text-xs leading-snug text-primary-foreground/65">
           © {new Date().getFullYear()} {APP_PUBLIC_NAME}

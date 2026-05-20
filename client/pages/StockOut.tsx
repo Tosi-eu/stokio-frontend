@@ -14,6 +14,7 @@ import {
   type ApiFilterOptions,
 } from "@/helpers/stock-list.helper";
 import { getErrorMessage } from "@/helpers/validation.helper";
+import { toCatalogOperationType } from "@/helpers/stock-catalog-type.helper";
 
 import { AnimatePresence, motion } from "framer-motion";
 import Pagination from "@/components/Pagination";
@@ -291,7 +292,9 @@ export default function StockOut() {
     }
 
     if (usingPassedData && passedData) {
-      const base = passedData.filter((i) => i.tipo_item === itemTypeFilter);
+      const base = passedData.filter(
+        (i) => toCatalogOperationType(i.tipo_item) === itemTypeFilter,
+      );
       const filtered = applyLocalFilters(base);
       setTotalCount(filtered.length);
       const start = (stockPage - 1) * STOCK_OUT_PAGE_SIZE;
@@ -418,7 +421,7 @@ export default function StockOut() {
     try {
       await createStockOut({
         estoqueId: selected.estoque_id,
-        tipo: selected.tipo_item as OperationType,
+        tipo: toCatalogOperationType(selected.tipo_item),
         quantidade: qty,
       });
 

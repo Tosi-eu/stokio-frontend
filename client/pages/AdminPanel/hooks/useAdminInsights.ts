@@ -6,6 +6,17 @@ import type { InsightsData, AuditEvent } from "../types";
 
 const SYSTEM_USER_IDS = new Set([1]);
 
+function formatDateInput(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function defaultAuditDateRange(): { fromDate: string; toDate: string } {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - 30);
+  return { fromDate: formatDateInput(from), toDate: formatDateInput(to) };
+}
+
 function isSystemAuditEvent(e: AuditEvent): boolean {
   if (e.user_id != null && SYSTEM_USER_IDS.has(e.user_id)) return true;
 
@@ -33,17 +44,32 @@ function isSystemAuditEvent(e: AuditEvent): boolean {
   return false;
 }
 
+export type AuditActionFilter = "" | "create" | "update" | "delete";
+
+export type AuditFiltersApplied = {
+  fromDate: string;
+  toDate: string;
+  actionFilter: AuditActionFilter;
+  resourceFilter: string;
+  operatorUserId: number | "";
+};
+
 export function useAdminInsights(isAdmin: boolean, enabled = true) {
-  const [insightDays, setInsightDays] = useState(30);
-  const [insightDaysInput, setInsightDaysInput] = useState("30");
-  const [insightFilter, setInsightFilter] = useState<
-    "create" | "update" | "delete" | null
-  >(null);
-  const [insightResourceFilter, setInsightResourceFilter] =
-    useState<string>("");
-  const [insightUserIdFilter, setInsightUserIdFilter] = useState<number | "">(
-    "",
-  );
+  const defaults = useMemo(() => defaultAuditDateRange(), []);
+
+  const [fromDate, setFromDate] = useState(defaults.fromDate);
+  const [toDate, setToDate] = useState(defaults.toDate);
+  const [actionFilter, setActionFilter] = useState<AuditActionFilter>("");
+  const [resourceFilter, setResourceFilter] = useState("");
+  const [operatorUserId, setOperatorUserId] = useState<number | "">("");
+  const [applied, setApplied] = useState<AuditFiltersApplied>({
+    fromDate: defaults.fromDate,
+    toDate: defaults.toDate,
+    actionFilter: "",
+    resourceFilter: "",
+    operatorUserId: "",
+  });
+
   const [eventsPage, setEventsPage] = useState(1);
   const [eventsPageSize, setEventsPageSize] = useState(25);
   const [auditCompareEvent, setAuditCompareEvent] = useState<AuditEvent | null>(
@@ -58,23 +84,26 @@ export function useAdminInsights(isAdmin: boolean, enabled = true) {
     queryKey: [
       "admin",
       "insights",
-      insightDays,
+      applied.fromDate,
+      applied.toDate,
+      applied.actionFilter,
+      applied.resourceFilter,
+      applied.operatorUserId,
       eventsPage,
       eventsPageSize,
-      insightFilter,
-      insightResourceFilter,
-      insightUserIdFilter,
     ],
     queryFn: () =>
       getAdminInsights({
-        days: insightDays,
+        fromDate: applied.fromDate,
+        toDate: applied.toDate,
         limit: eventsPageSize,
         page: eventsPage,
-        operationType: insightFilter ?? undefined,
-        resource: insightResourceFilter || undefined,
-        userId: insightUserIdFilter === "" ? undefined : insightUserIdFilter,
+        operationType: applied.actionFilter || undefined,
+        resource: applied.resourceFilter || undefined,
+        userId:
+          applied.operatorUserId === "" ? undefined : applied.operatorUserId,
       }),
-    enabled: isAdmin && enabled,
+    enabled: isAdmin && enabled && Boolean(applied.fromDate && applied.toDate),
   });
 
   const insights = useMemo(() => {
@@ -100,10 +129,28 @@ export function useAdminInsights(isAdmin: boolean, enabled = true) {
     }
   }, [insightsError]);
 
-  const applyInsightDays = () => {
-    const n = Math.min(365, Math.max(1, Number(insightDaysInput) || 30));
-    setInsightDaysInput(String(n));
-    setInsightDays(n);
+  const applyFilters = () => {
+    if (!fromDate || !toDate) {
+      toast({
+        title: "Informe o intervalo de datas",
+        variant: "error",
+      });
+      return;
+    }
+    if (fromDate > toDate) {
+      toast({
+        title: "Data inicial deve ser anterior à final",
+        variant: "error",
+      });
+      return;
+    }
+    setApplied({
+      fromDate,
+      toDate,
+      actionFilter,
+      resourceFilter,
+      operatorUserId,
+    });
     setEventsPage(1);
   };
 
@@ -124,20 +171,21 @@ export function useAdminInsights(isAdmin: boolean, enabled = true) {
     insights,
     loadingInsights,
     insightsError,
-    insightDays,
-    insightDaysInput,
-    setInsightDaysInput,
-    insightFilter,
-    setInsightFilter,
-    insightResourceFilter,
-    setInsightResourceFilter,
-    insightUserIdFilter,
-    setInsightUserIdFilter,
+    fromDate,
+    setFromDate,
+    toDate,
+    setToDate,
+    actionFilter,
+    setActionFilter,
+    resourceFilter,
+    setResourceFilter,
+    operatorUserId,
+    setOperatorUserId,
+    applyFilters,
     eventsPage,
     setEventsPage,
     eventsPageSize,
     setEventsPageSize,
-    applyInsightDays,
     goToPage,
     totalFiltered,
     totalPages,

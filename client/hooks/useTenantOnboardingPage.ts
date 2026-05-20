@@ -682,7 +682,11 @@ export function useTenantOnboardingPage() {
         });
         return;
       }
-      await updateTenantBranding({ ...brandPayload, logoUrl: finalLogoUrl });
+      await updateTenantBranding(
+        pendingLogoFile
+          ? brandPayload
+          : { ...brandPayload, logoUrl: finalLogoUrl },
+      );
       if (canManageModules) {
         await updateTenantConfig({
           enabled: tenantEnabledKeysForConfigPatch(modules?.enabled),

@@ -489,21 +489,23 @@ export function AdminTabConfig({
         String(tenant?.brandName ?? "").trim() ||
         String(tenant?.name ?? "").trim() ||
         "logo";
-      const { logoUrl } = await uploadTenantLogoWithProgress(file, bnForUpload);
+      await uploadTenantLogoWithProgress(file, bnForUpload);
       const brandingRes = await updateTenantBranding({
         brandName: brandVisualName.trim() || null,
-        logoUrl,
       });
       const rev = brandingRes.tenant?.brandingUpdatedAt;
       const slug = tenant?.slug?.trim();
       const proxy = slug ? buildTenantLogoProxyUrl(slug) : "";
+      const persistedLogo = brandingRes.tenant?.logoUrl?.trim() || "";
       if (proxy) {
         setLogoPreviewUrl(
           rev ? appendLogoRevision(proxy, rev) : appendLogoCacheBust(proxy),
         );
-      } else {
+      } else if (persistedLogo) {
         setLogoPreviewUrl(
-          rev ? appendLogoRevision(logoUrl, rev) : appendLogoCacheBust(logoUrl),
+          rev
+            ? appendLogoRevision(persistedLogo, rev)
+            : appendLogoCacheBust(persistedLogo),
         );
       }
       await refetchTenant();
@@ -1029,12 +1031,7 @@ export function AdminTabConfig({
                         <Label htmlFor={key}>{label}</Label>
                         <Input
                           id={key}
-                          type={
-                            key === "expiring_days" ||
-                            key === "estoque_minimo_padrao"
-                              ? "number"
-                              : "text"
-                          }
+                          type={key === "expiring_days" ? "number" : "text"}
                           min={key === "expiring_days" ? 1 : undefined}
                           max={key === "expiring_days" ? 365 : undefined}
                           value={form[key] ?? ""}

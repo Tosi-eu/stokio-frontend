@@ -22,6 +22,7 @@ const columns = [
   { key: "unidade_medida", label: "Unidade" },
   { key: "estoque_minimo", label: "Estoque Mínimo" },
   { key: "preco", label: "Preço (R$)" },
+  { key: "preco_atualizado_em", label: "Últ. atual. preço" },
 ];
 
 export default function Medicines() {

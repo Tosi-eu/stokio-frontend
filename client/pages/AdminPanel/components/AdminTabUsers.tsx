@@ -19,11 +19,9 @@ import { Pencil, Trash2, UserPlus } from "lucide-react";
 import type { AdminUser } from "../types";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast.hook";
-import { createTenantInvite, grantTenantMembership } from "@/api/requests";
+import { createTenantInvite } from "@/api/requests";
 import { getErrorMessage } from "@/helpers/validation.helper";
 import { useState } from "react";
-import { useAuth } from "@/hooks/use-auth.hook";
-
 interface AdminTabUsersProps {
   users: AdminUser[];
   loadingUsers: boolean;
@@ -58,13 +56,6 @@ export function AdminTabUsers({
   const [sendingInvite, setSendingInvite] = useState(false);
   const [lastInviteToken, setLastInviteToken] = useState<string | null>(null);
   const [lastInviteLink, setLastInviteLink] = useState<string | null>(null);
-  const { user } = useAuth();
-  const mayGrantMembership =
-    Boolean(user?.isTenantOwner || user?.is_tenant_owner) ||
-    Boolean(user?.isSuperAdmin);
-  const [grantLoginId, setGrantLoginId] = useState("");
-  const [grantBusy, setGrantBusy] = useState(false);
-
   const copy = async (value: string, label: string) => {
     try {
       await navigator.clipboard.writeText(value);
@@ -377,71 +368,6 @@ export function AdminTabUsers({
           )}
         </CardContent>
       </Card>
-
-      {mayGrantMembership ? (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="text-base">
-              Acesso multi-abrigo (titular)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 max-w-md">
-            <p className="text-sm text-muted-foreground">
-              Associa outro utilizador já registado (ID do login) a este abrigo,
-              para que possa alternar o contexto com X-Tenant / seletor do
-              painel.
-            </p>
-            <div className="flex flex-wrap gap-2 items-end">
-              <div className="flex-1 min-w-[8rem]">
-                <label className="text-xs text-muted-foreground block mb-1">
-                  ID do login (utilizador)
-                </label>
-                <Input
-                  inputMode="numeric"
-                  value={grantLoginId}
-                  onChange={(e) => setGrantLoginId(e.target.value)}
-                  placeholder="ex.: 12"
-                />
-              </div>
-              <Button
-                type="button"
-                disabled={grantBusy}
-                onClick={async () => {
-                  const id = Number(grantLoginId);
-                  if (!Number.isInteger(id) || id < 1) {
-                    toast({
-                      title: "ID inválido",
-                      variant: "error",
-                    });
-                    return;
-                  }
-                  setGrantBusy(true);
-                  try {
-                    await grantTenantMembership(id);
-                    toast({
-                      title: "Acesso concedido",
-                      description:
-                        "O utilizador passa a poder operar neste abrigo após renovar a sessão.",
-                      variant: "success",
-                    });
-                    setGrantLoginId("");
-                  } catch (err: unknown) {
-                    toast({
-                      title: "Não foi possível conceder acesso",
-                      description: getErrorMessage(err, "Tente novamente."),
-                      variant: "error",
-                    });
-                  } finally {
-                    setGrantBusy(false);
-                  }
-                }}
-              >
-                Associar a este abrigo
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
     </>
   );
 }

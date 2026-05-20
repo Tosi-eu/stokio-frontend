@@ -335,6 +335,7 @@ export interface RawMovement {
   insumo_id?: number | null;
   armario_id?: number | null;
   gaveta_id?: number | null;
+  casela_id?: number | null;
   setor?: string | null;
   lote?: string | null;
 

@@ -13,7 +13,7 @@ export function AuthMobileHeader({
   onLogoFallback,
 }: AuthMobileHeaderProps) {
   return (
-    <header className="shrink-0 border-b border-border/60 bg-card/80 backdrop-blur-md lg:border-0 lg:bg-transparent lg:backdrop-blur-none">
+    <header className="shrink-0 border-b border-border/60 bg-card/80 backdrop-blur-md lg:hidden">
       <div className="mx-auto flex max-w-lg items-center gap-3 px-4 py-5 sm:px-6 lg:max-w-none lg:justify-end lg:px-10 lg:py-8">
         <AuthBrandLogoImage
           src={logoSrc}

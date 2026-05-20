@@ -1,20 +1,22 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import type { AuthLandingSectionId } from "@/components/auth/auth-landing.constants";
+import { scrollAuthLandingSectionIntoView } from "@/components/auth/auth-landing.utils";
 
-function scrollSectionIntoView(id: string) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const reduceMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  el.scrollIntoView({
-    behavior: reduceMotion ? "auto" : "smooth",
-    block: "start",
-  });
-}
+const NAV_ITEMS: { id: AuthLandingSectionId; label: string }[] = [
+  { id: "auth", label: "Entrar" },
+  { id: "contact", label: "Contacto" },
+  { id: "privacy", label: "Privacidade" },
+];
 
-export function AuthMobileAnchorBar() {
+type AuthMobileAnchorBarProps = {
+  activeSection: AuthLandingSectionId;
+};
+
+export function AuthMobileAnchorBar({
+  activeSection,
+}: AuthMobileAnchorBarProps) {
   return (
     <nav
       className={cn(
@@ -24,27 +26,26 @@ export function AuthMobileAnchorBar() {
       aria-label="Navegação entre secções"
     >
       <div className="mx-auto flex max-w-lg gap-1.5 px-3 py-2">
-        <button
-          type="button"
-          className="flex-1 rounded-xl border border-border/70 bg-muted/50 py-2.5 text-xs sm:text-sm font-semibold text-foreground shadow-sm transition-colors hover:border-primary/35 hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          onClick={() => scrollSectionIntoView("auth")}
-        >
-          Entrar
-        </button>
-        <button
-          type="button"
-          className="flex-1 rounded-xl border border-border/70 bg-muted/50 py-2.5 text-xs sm:text-sm font-semibold text-foreground shadow-sm transition-colors hover:border-primary/35 hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          onClick={() => scrollSectionIntoView("contact")}
-        >
-          Contacto
-        </button>
-        <button
-          type="button"
-          className="flex-1 rounded-xl border border-border/70 bg-muted/50 py-2.5 text-xs sm:text-sm font-semibold text-foreground shadow-sm transition-colors hover:border-primary/35 hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          onClick={() => scrollSectionIntoView("privacy")}
-        >
-          Privacidade
-        </button>
+        {NAV_ITEMS.map((item) => {
+          const isActive = activeSection === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              aria-current={isActive ? "true" : undefined}
+              className={cn(
+                "flex-1 rounded-xl border py-2.5 text-xs font-semibold sm:text-sm",
+                "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                isActive
+                  ? "border-primary/40 bg-primary/10 text-foreground shadow-sm"
+                  : "border-border/70 bg-muted/50 text-foreground shadow-sm hover:border-primary/35 hover:bg-muted/80",
+              )}
+              onClick={() => scrollAuthLandingSectionIntoView(item.id)}
+            >
+              {item.label}
+            </button>
+          );
+        })}
       </div>
     </nav>
   );

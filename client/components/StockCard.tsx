@@ -67,9 +67,10 @@ export function StockCard({
   if (item.casela_id) {
     fields.push({
       label: "Casela",
-      value: formatCaselaLabel(uiDisplay.casela, {
+      value: formatCaselaLabel(uiDisplay, {
         caselaId: item.casela_id,
         residentName: item.paciente,
+        sector: item.setor,
       }),
     });
   } else {

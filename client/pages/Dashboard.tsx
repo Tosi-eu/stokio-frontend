@@ -215,9 +215,10 @@ export default function Dashboard() {
           name: m.MedicineModel?.nome || m.InputModel?.nome || "-",
           type: m.tipo,
           operator: m.LoginModel?.login || "-",
-          casela: formatCaselaLabel(uiDisplay.casela, {
+          casela: formatCaselaLabel(uiDisplay, {
             caselaId: m.ResidentModel?.num_casela,
             residentName: m.ResidentModel?.nome,
+            sector: m.setor,
           }),
           quantity: m.quantidade,
           patient: m.ResidentModel ? m.ResidentModel.nome : "-",

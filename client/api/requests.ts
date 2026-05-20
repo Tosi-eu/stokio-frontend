@@ -212,7 +212,7 @@ export const getDrawersInTenantContext = (
 };
 
 export const getNonMovementProducts = () =>
-  stokioClient.get("/movimentacoes/produtos-parados");
+  stokioClient.get("/movements/produtos-parados");
 
 export const checkCabinetStock = (number: number) =>
   stokioClient.get(`/armarios/${number}/check`);
@@ -286,7 +286,7 @@ export const getInputMovements = ({
   days?: number;
   type?: string;
 }): Promise<PaginatedResponse<RawMovement>> =>
-  stokioClient.get<PaginatedResponse<RawMovement>>("/movimentacoes/insumos", {
+  stokioClient.get<PaginatedResponse<RawMovement>>("/movements/insumos", {
     params: { page, limit, type, days },
   });
 
@@ -301,12 +301,9 @@ export const getMedicineMovements = ({
   days?: number;
   type?: string;
 }): Promise<PaginatedResponse<RawMovement>> =>
-  stokioClient.get<PaginatedResponse<RawMovement>>(
-    "/movimentacoes/medicamentos",
-    {
-      params: { page, limit, days, type },
-    },
-  );
+  stokioClient.get<PaginatedResponse<RawMovement>>("/movements/medicamentos", {
+    params: { page, limit, days, type },
+  });
 
 export const getInputs = (
   page = 1,
@@ -366,8 +363,12 @@ export type ActiveMedicalRecordItem = {
   note: string | null;
   applicationFrequency: number | null;
   applicationPeriod: string | null;
+  applicationDoseQuantity: number | null;
   applicationSlots: MedicalRecordApplicationSlot[];
   periodKey: string | null;
+  stallStockQuantity: number;
+  estimatedDaysRemaining: number | null;
+  estimatedDepletionDate: string | null;
   medicineId: number | null;
   supplyId: number | null;
 };
@@ -391,6 +392,7 @@ export const patchResidentMedicalRecordItem = (
     applicationFrequency?: number | null;
     applicationPeriod?: string | null;
     applicationTimes?: (string | null)[] | null;
+    applicationDoseQuantity?: number | null;
   },
 ) => stokioClient.patch(`/residentes/${casela}/prontuario-item`, body);
 
@@ -1013,7 +1015,8 @@ export const createInput = (
   stokioClient.post("/insumos", {
     nome,
     descricao: descricao ?? null,
-    estoque_minimo: estoque_minimo ?? 0,
+    estoque_minimo:
+      estoque_minimo != null && estoque_minimo > 0 ? estoque_minimo : null,
     preco: preco ?? null,
   });
 
@@ -1038,11 +1041,16 @@ export const createResident = (
   casela: string,
   data_nascimento?: string | null,
   cpf?: string | null,
+  telefone_responsavel?: string | null,
 ) =>
   stokioClient.post("/residentes", {
     nome,
     casela: parseInt(casela),
     ...(cpf != null && String(cpf).trim() !== "" ? { cpf } : {}),
+    ...(telefone_responsavel != null &&
+    String(telefone_responsavel).trim() !== ""
+      ? { telefone_responsavel: String(telefone_responsavel).trim() }
+      : {}),
     ...(data_nascimento != null && String(data_nascimento).trim() !== ""
       ? { data_nascimento: String(data_nascimento).trim() }
       : {}),
@@ -1082,7 +1090,7 @@ export const createMovement = (payload: {
   insumo_id?: number;
   setor: string;
   lote?: string | null;
-}) => stokioClient.post("/movimentacoes", payload);
+}) => stokioClient.post("/movements", payload);
 
 export const createNotificationEvent = (payload: {
   medicamento_id: number;
@@ -1097,7 +1105,7 @@ export const createNotificationEvent = (payload: {
   const d =
     payload.data_prevista instanceof Date ? payload.data_prevista : null;
   const dateOnly = d ? d.toISOString().slice(0, 10) : "";
-  return stokioClient.post("/notificacao", {
+  return stokioClient.post("/notification", {
     medicamento_id: payload.medicamento_id,
     residente_id: payload.residente_id,
     destino: payload.destino,
@@ -1149,7 +1157,7 @@ export const getNotifications = async ({
 export const updateNotification = (
   id: number,
   data: { status?: string; visto?: boolean },
-) => stokioClient.patch(`/notificacao/${id}`, data);
+) => stokioClient.patch(`/notification/${id}`, data);
 
 export const patchNotificationEvent = (
   id: number,
@@ -1166,7 +1174,7 @@ export const patchNotificationEvent = (
   if (data.data_prevista instanceof Date) {
     out.data_prevista = data.data_prevista.toISOString().slice(0, 10);
   }
-  return stokioClient.patch(`/notificacao/${id}`, out);
+  return stokioClient.patch(`/notification/${id}`, out);
 };
 
 const REMINDER_PAGE_SIZE = 100;
@@ -1276,7 +1284,7 @@ export const getMedicineRanking = (
   page = 1,
   limit = 10,
 ) =>
-  stokioClient.get("/movimentacoes/medicamentos/ranking", {
+  stokioClient.get("/movements/medicamentos/ranking", {
     params: { type, page, limit },
   });
 
@@ -1488,7 +1496,7 @@ export const listInterTenantMovements = (params?: {
     page: number;
     limit: number;
     hasNext: boolean;
-  }>("/movimentacoes/inter-tenant", { params });
+  }>("/movements/inter-tenant", { params });
 
 export type UpdateTenantModulesPayload = {
   enabled: string[];
@@ -1580,7 +1588,7 @@ export type TenantSetorRow = {
 };
 
 export const listTenantSetores = () =>
-  stokioClient.get<{ data: TenantSetorRow[] }>("/tenant/setores");
+  stokioClient.get<{ data: TenantSetorRow[] }>("/tenant/sectors");
 
 export type CreateTenantSetorPayload = {
   key?: string;
@@ -1589,12 +1597,12 @@ export type CreateTenantSetorPayload = {
 };
 
 export const listTenantSetoresInTenantContext = (tenantSlug: string) =>
-  stokioClient.get<{ data: TenantSetorRow[] }>("/tenant/setores", {
+  stokioClient.get<{ data: TenantSetorRow[] }>("/tenant/sectors", {
     headers: { "X-Tenant": tenantSlug.trim() },
   });
 
 export const createTenantSetor = (payload: CreateTenantSetorPayload) =>
-  stokioClient.post<TenantSetorRow>("/tenant/setores", payload);
+  stokioClient.post<TenantSetorRow>("/tenant/sectors", payload);
 
 export type TenantSetorStockTypesResponse = {
   setorId: number;
@@ -1605,7 +1613,7 @@ export type TenantSetorStockTypesResponse = {
 
 export const getTenantSetorStockTypes = (setorId: number) =>
   stokioClient.get<TenantSetorStockTypesResponse>(
-    `/tenant/setores/${setorId}/stock-types`,
+    `/tenant/sectors/${setorId}/stock-types`,
   );
 
 export const updateTenantSetorStockTypes = (
@@ -1613,7 +1621,7 @@ export const updateTenantSetorStockTypes = (
   stockTypes: TenantSetorStockTypesResponse["stockTypes"],
 ) =>
   stokioClient.put<TenantSetorStockTypesResponse>(
-    `/tenant/setores/${setorId}/stock-types`,
+    `/tenant/sectors/${setorId}/stock-types`,
     { stockTypes },
   );
 
@@ -1731,6 +1739,9 @@ export type LoginLogEntry = {
   success: boolean;
   ip: string | null;
   user_agent: string | null;
+  browser?: string | null;
+  os?: string | null;
+  country?: string | null;
   created_at: string;
 };
 
@@ -1933,6 +1944,8 @@ export const patchAdminNotification = (
 
 export const getAdminInsights = (params?: {
   days?: number;
+  fromDate?: string;
+  toDate?: string;
   limit?: number;
   page?: number;
   operationType?: "create" | "update" | "delete";

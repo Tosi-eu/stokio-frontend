@@ -17,12 +17,15 @@ import { submitPublicContact } from "@/api/requests";
 import { cn } from "@/lib/utils";
 import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
 
-export type ContactFormSectionProps = { variant?: "standalone" | "embedded" };
+export type ContactFormSectionProps = {
+  variant?: "standalone" | "embedded" | "embedded-panel";
+};
 
 export function ContactFormSection({
   variant = "standalone",
 }: ContactFormSectionProps) {
-  const embedded = variant === "embedded";
+  const embedded = variant === "embedded" || variant === "embedded-panel";
+  const insidePanel = variant === "embedded-panel";
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -55,6 +58,68 @@ export function ContactFormSection({
     }
   }
 
+  const formFields = (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        className="hidden"
+        aria-hidden
+      />
+      <div className="space-y-2">
+        <Label htmlFor="contact-name">Nome</Label>
+        <Input
+          id="contact-name"
+          name="name"
+          required
+          maxLength={120}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoComplete="name"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="contact-email">E-mail</Label>
+        <Input
+          id="contact-email"
+          name="email"
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="contact-message">Mensagem</Label>
+        <Textarea
+          id="contact-message"
+          name="message"
+          required
+          minLength={10}
+          maxLength={8000}
+          rows={6}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Escreva a sua mensagem…"
+        />
+      </div>
+      <Button type="submit" className="w-full" disabled={loading}>
+        {loading ? "A enviar…" : "Enviar mensagem"}
+      </Button>
+    </form>
+  );
+
+  if (insidePanel) {
+    return (
+      <div className="rounded-xl border border-border/50 bg-muted/30 p-4 sm:p-5">
+        {formFields}
+      </div>
+    );
+  }
+
   return (
     <Card className={cn(pageSurfaceCardClass, "bg-card/95 backdrop-blur-sm")}>
       {!embedded && (
@@ -65,59 +130,7 @@ export function ContactFormSection({
           </CardDescription>
         </CardHeader>
       )}
-      <CardContent className={cn(embedded && "pt-1")}>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            name="website"
-            tabIndex={-1}
-            autoComplete="off"
-            className="hidden"
-            aria-hidden
-          />
-          <div className="space-y-2">
-            <Label htmlFor="contact-name">Nome</Label>
-            <Input
-              id="contact-name"
-              name="name"
-              required
-              maxLength={120}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoComplete="name"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="contact-email">E-mail</Label>
-            <Input
-              id="contact-email"
-              name="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="contact-message">Mensagem</Label>
-            <Textarea
-              id="contact-message"
-              name="message"
-              required
-              minLength={10}
-              maxLength={8000}
-              rows={6}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Escreva a sua mensagem…"
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "A enviar…" : "Enviar mensagem"}
-          </Button>
-        </form>
-      </CardContent>
+      <CardContent className={cn(embedded && "pt-1")}>{formFields}</CardContent>
     </Card>
   );
 }

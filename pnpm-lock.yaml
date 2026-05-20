@@ -23,8 +23,8 @@ importers:
         specifier: ^4.3.1
         version: 4.5.1(react@18.3.1)
       "@stokio/sdk":
-        specifier: ^0.4.3
-        version: 0.4.3
+        specifier: ^0.4.4
+        version: 0.4.4
       "@tanstack/react-virtual":
         specifier: ^3.13.18
         version: 3.13.24(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2535,10 +2535,10 @@ packages:
         integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==,
       }
 
-  "@stokio/sdk@0.4.3":
+  "@stokio/sdk@0.4.4":
     resolution:
       {
-        integrity: sha512-9Zg7gR4KD/wWKg/cSXBVTHrcBTZefBm473shsIL8h8alAgN+aBDo4yWcP0glaxvsQtUlA9Hf0HaoRa+kSZVOLg==,
+        integrity: sha512-C9XfAAlavaddcltKZH/GYWE/eCZ+/2CvaPYCC8tkI4mc4VI82o1/QcXo4hbUDuhX0lH9FJbdfCohWSXUid5qGg==,
       }
 
   "@swc/counter@0.1.3":
@@ -7854,7 +7854,7 @@ snapshots:
 
   "@standard-schema/utils@0.3.0": {}
 
-  "@stokio/sdk@0.4.3": {}
+  "@stokio/sdk@0.4.4": {}
 
   "@swc/counter@0.1.3": {}
 

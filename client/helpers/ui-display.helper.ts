@@ -1,4 +1,8 @@
-export type UiDisplayCasela = "numero" | "nome";
+export type UiDisplayCasela = "numero" | "nome" | "nome_casela";
+
+export function caselaUsesResidentName(mode: UiDisplayCasela): boolean {
+  return mode === "nome" || mode === "nome_casela";
+}
 export type UiDisplayCaselaSetor = "farmacia" | "enfermagem" | "todos";
 export type UiDisplayArmarioGaveta = "numero" | "categoria";
 
@@ -41,7 +45,9 @@ export function formatCaselaDisplay(
     sector,
   );
   if (num == null) return "-";
-  if (effective === "nome" && residentName?.trim()) return residentName.trim();
+  const name = residentName?.trim();
+  if (effective === "nome" && name) return name;
+  if (effective === "nome_casela" && name) return `${name} (${num})`;
   return String(num);
 }
 
@@ -94,9 +100,9 @@ export function caselaFilterLabel(
     uiDisplay.caselaSetor,
     sector,
   );
-  if (mode === "nome" && residentName?.trim()) {
-    return `${residentName.trim()} (${num})`;
-  }
+  const name = residentName?.trim();
+  if (mode === "nome" && name) return name;
+  if (mode === "nome_casela" && name) return `${name} (${num})`;
   return `Casela ${num}`;
 }
 

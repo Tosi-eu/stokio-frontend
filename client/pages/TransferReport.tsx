@@ -86,9 +86,10 @@ export default function TransferReport() {
     operador: transfer.usuario,
     data: formatDateToPtBr(transfer.data),
     armario: transfer.armario ? String(transfer.armario) : "-",
-    casela: formatCaselaLabel(uiDisplay.casela, {
+    casela: formatCaselaLabel(uiDisplay, {
       caselaId: transfer.casela,
       residentName: transfer.residente,
+      sector: "enfermagem",
     }),
     residente: transfer.residente || "-",
   }));

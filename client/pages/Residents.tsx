@@ -22,6 +22,13 @@ import {
   formatCpfForDisplay,
   formatCpfMask,
 } from "@/helpers/cpf-format.helper";
+import {
+  brPhoneDigitsOnly,
+  brPhoneInputValueFromStored,
+  brPhonePayloadFromInput,
+  formatBrPhoneForDisplay,
+  formatBrPhoneMask,
+} from "@/helpers/br-phone-format.helper";
 import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
 import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
 import { useTenant } from "@/hooks/use-tenant.hook";
@@ -74,6 +81,7 @@ export default function Resident() {
   const [editNome, setEditNome] = useState("");
   const [editDataNascimento, setEditDataNascimento] = useState("");
   const [editCpf, setEditCpf] = useState("");
+  const [editTelefone, setEditTelefone] = useState("");
 
   const loadResidents = useCallback(async () => {
     setLoading(true);
@@ -81,7 +89,15 @@ export default function Resident() {
       if (previewMode) {
         const start = (page - 1) * DEFAULT_PAGE_SIZE;
         const slice = PREVIEW_RESIDENTS.slice(start, start + DEFAULT_PAGE_SIZE);
-        setResidents(slice.map((r) => ({ ...r, cpf: null })));
+        setResidents(
+          slice.map((r) => ({
+            ...r,
+            cpf: null,
+            telefone_responsavel:
+              (r as { telefone_responsavel?: string | null })
+                .telefone_responsavel ?? null,
+          })),
+        );
         setHasNext(start + DEFAULT_PAGE_SIZE < PREVIEW_RESIDENTS.length);
         return;
       }
@@ -93,6 +109,12 @@ export default function Resident() {
         cpf:
           (r as { cpf?: unknown }).cpf != null
             ? String((r as { cpf?: unknown }).cpf)
+            : null,
+        telefone_responsavel:
+          (r as { telefone_responsavel?: unknown }).telefone_responsavel != null
+            ? String(
+                (r as { telefone_responsavel?: unknown }).telefone_responsavel,
+              )
             : null,
         data_nascimento:
           r.data_nascimento != null ? String(r.data_nascimento) : null,
@@ -243,6 +265,7 @@ export default function Resident() {
         : "",
     );
     setEditCpf(cpfInputValueFromStored(selected.cpf));
+    setEditTelefone(brPhoneInputValueFromStored(selected.telefone_responsavel));
     setEditOpen(true);
   }, [selected, previewMode]);
 
@@ -270,12 +293,26 @@ export default function Resident() {
       return;
     }
 
+    const phoneRaw = editTelefone.trim();
+    const phoneDigits = phoneRaw ? brPhonePayloadFromInput(phoneRaw) : null;
+    if (phoneRaw && !phoneDigits) {
+      toast({
+        title: "Telefone incompleto",
+        description:
+          "Informe DDD + número (10 ou 11 dígitos) ou deixe o campo vazio.",
+        variant: "warning",
+        duration: 3500,
+      });
+      return;
+    }
+
     setEditSaving(true);
     try {
       const dn = editDataNascimento.trim();
       await updateResident(selected.casela, {
         nome: nomeTrim,
         cpf: cpfDigits && cpfDigits.length === 11 ? cpfDigits : null,
+        telefone_responsavel: phoneDigits,
         data_nascimento: dn === "" ? null : dn,
       });
       toast({
@@ -308,6 +345,7 @@ export default function Resident() {
     loadResidents,
     setEditOpen,
     editCpf,
+    editTelefone,
   ]);
 
   const handleDeleteResident = useCallback(async () => {
@@ -525,6 +563,14 @@ export default function Resident() {
                     </div>
                     <div>
                       <dt className="text-muted-foreground">
+                        Tel. do responsável
+                      </dt>
+                      <dd className="font-medium mt-1">
+                        {formatBrPhoneForDisplay(selected.telefone_responsavel)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">
                         Data de nascimento
                       </dt>
                       <dd className="font-medium mt-1">
@@ -736,6 +782,32 @@ export default function Resident() {
                             inputMode="numeric"
                             autoComplete="off"
                             maxLength={14}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Deixe em branco para remover.
+                          </p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="resident-telefone">
+                            Telefone do responsável
+                          </Label>
+                          <Input
+                            id="resident-telefone"
+                            value={editTelefone}
+                            onChange={(e) =>
+                              setEditTelefone(
+                                formatBrPhoneMask(
+                                  brPhoneDigitsOnly(e.target.value),
+                                ),
+                              )
+                            }
+                            disabled={editSaving}
+                            className="rounded-xl"
+                            placeholder="(11) 98765-4321"
+                            inputMode="tel"
+                            autoComplete="tel"
+                            maxLength={16}
                           />
                           <p className="text-xs text-muted-foreground">
                             Deixe em branco para remover.

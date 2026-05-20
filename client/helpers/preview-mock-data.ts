@@ -28,36 +28,42 @@ export const PREVIEW_RESIDENTS = [
   {
     name: "Ana Costa",
     casela: 103,
+    telefone_responsavel: "11987654321",
     data_nascimento: null,
     idade: null,
   },
   {
     name: "Carlos Mendes",
     casela: 104,
+    telefone_responsavel: "2134567890",
     data_nascimento: "1960-07-20",
     idade: 65,
   },
   {
     name: "João Santos",
     casela: 102,
+    telefone_responsavel: null,
     data_nascimento: "1955-11-02",
     idade: 70,
   },
   {
     name: "Maria Silva",
     casela: 101,
+    telefone_responsavel: "11999887766",
     data_nascimento: "1948-03-12",
     idade: 78,
   },
   {
     name: "Pedro Alves",
     casela: 106,
+    telefone_responsavel: null,
     data_nascimento: null,
     idade: null,
   },
   {
     name: "Rosa Ferreira",
     casela: 105,
+    telefone_responsavel: "47991234567",
     data_nascimento: "1952-01-30",
     idade: 74,
   },
@@ -327,6 +333,7 @@ export function getPreviewActiveMedicalRecordForCasela(
       note: obsJoined,
       applicationFrequency: freq,
       applicationPeriod: period,
+      applicationDoseQuantity: withSample ? 1 : null,
       applicationSlots: withSample
         ? [
             {
@@ -339,6 +346,9 @@ export function getPreviewActiveMedicalRecordForCasela(
           ]
         : [],
       periodKey: withSample ? today : null,
+      stallStockQuantity: withSample ? 30 : 0,
+      estimatedDaysRemaining: withSample ? 10 : null,
+      estimatedDepletionDate: withSample ? today : null,
       medicineId: a.category === "medicine" ? pid : null,
       supplyId: a.category === "supply" ? pid : null,
     });
@@ -620,6 +630,8 @@ export const PREVIEW_MEDICINES: Record<string, unknown>[] = [
     dosagem: "500",
     unidade_medida: "mg",
     estoque_minimo: 10,
+    preco: 12.5,
+    preco_atualizado_em: new Date(Date.now() - 5 * 86400000).toISOString(),
   },
   {
     id: 8002,
@@ -628,6 +640,8 @@ export const PREVIEW_MEDICINES: Record<string, unknown>[] = [
     dosagem: "50",
     unidade_medida: "mg",
     estoque_minimo: 8,
+    preco: 28.9,
+    preco_atualizado_em: new Date(Date.now() - 12 * 86400000).toISOString(),
   },
 ];
 
@@ -638,6 +652,7 @@ export const PREVIEW_INPUTS: Record<string, unknown>[] = [
     descricao: "Procedimento",
     estoque_minimo: 100,
     preco: 39.9,
+    preco_atualizado_em: new Date(Date.now() - 3 * 86400000).toISOString(),
   },
   {
     id: 7002,
@@ -645,6 +660,7 @@ export const PREVIEW_INPUTS: Record<string, unknown>[] = [
     descricao: "Frasco 500ml",
     estoque_minimo: 20,
     preco: 8.5,
+    preco_atualizado_em: new Date(Date.now() - 20 * 86400000).toISOString(),
   },
 ];
 

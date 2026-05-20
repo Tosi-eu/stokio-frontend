@@ -1,16 +1,9 @@
 FROM node:20-bookworm-slim AS build
 
-WORKDIR /app
-
-WORKDIR /app/sdk
-COPY sdk/package.json sdk/package-lock.json* ./
-RUN npm install
-COPY sdk/ ./
-RUN npm run build
-
 WORKDIR /app/frontend
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm install
+
+COPY frontend/package.json frontend/package-lock.json frontend/.npmrc ./
+RUN npm ci
 COPY frontend/ ./
 
 ARG NEXT_PUBLIC_API_BASE_URL

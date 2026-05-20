@@ -51,10 +51,20 @@ export function ResidentMedicalRecordTable({
   const [editing, setEditing] = useState<ActiveMedicalRecordItem | null>(null);
   const [freqInput, setFreqInput] = useState("");
   const [periodValue, setPeriodValue] = useState<string>("");
+  const [doseInput, setDoseInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
-  const colCount = (canUpdate && !previewMode ? 1 : 0) + 7;
+  const colCount = (canUpdate && !previewMode ? 1 : 0) + 9;
+
+  function formatStockProjection(row: ActiveMedicalRecordItem): string {
+    if (row.estimatedDaysRemaining == null) return "—";
+    if (row.estimatedDaysRemaining <= 0) return "Esgotado";
+    const datePart = row.estimatedDepletionDate
+      ? ` (${row.estimatedDepletionDate.split("-").reverse().join("/")})`
+      : "";
+    return `~${row.estimatedDaysRemaining} dia(s)${datePart}`;
+  }
 
   const openEdit = useCallback((row: ActiveMedicalRecordItem) => {
     setEditing(row);
@@ -62,6 +72,11 @@ export function ResidentMedicalRecordTable({
       row.applicationFrequency != null ? String(row.applicationFrequency) : "",
     );
     setPeriodValue(row.applicationPeriod?.trim() ?? "");
+    setDoseInput(
+      row.applicationDoseQuantity != null
+        ? String(row.applicationDoseQuantity)
+        : "",
+    );
     setDialogOpen(true);
   }, []);
 
@@ -108,6 +123,16 @@ export function ResidentMedicalRecordTable({
         });
         return;
       }
+      const doseN = Number(doseInput.trim());
+      if (!Number.isInteger(doseN) || doseN < 1) {
+        toast({
+          title: "Quantidade por aplicação inválida",
+          description: "Indique um número inteiro ≥ 1 (unidades por dose).",
+          variant: "warning",
+          duration: 3500,
+        });
+        return;
+      }
     }
 
     setSaving(true);
@@ -117,6 +142,7 @@ export function ResidentMedicalRecordTable({
         itemId,
         applicationFrequency: clearBoth ? null : Number(freqTrim),
         applicationPeriod: clearBoth ? null : periodValue,
+        applicationDoseQuantity: clearBoth ? null : Number(doseInput.trim()),
       });
       toast({
         title: "Dosagem atualizada",
@@ -147,6 +173,7 @@ export function ResidentMedicalRecordTable({
     previewMode,
     freqInput,
     periodValue,
+    doseInput,
     casela,
     closeDialog,
     onSaved,
@@ -166,6 +193,15 @@ export function ResidentMedicalRecordTable({
                 Frequência
               </th>
               <th className="px-3 py-2 font-medium">Período</th>
+              <th className="px-3 py-2 font-medium whitespace-nowrap">
+                Qtd/dose
+              </th>
+              <th className="px-3 py-2 font-medium whitespace-nowrap">
+                Estoque
+              </th>
+              <th className="px-3 py-2 font-medium whitespace-nowrap">
+                Previsão
+              </th>
               <th className="px-3 py-2 font-medium w-12">Etapas</th>
               {canUpdate && !previewMode ? (
                 <th className="px-3 py-2 font-medium w-14"> </th>
@@ -203,6 +239,22 @@ export function ResidentMedicalRecordTable({
                     </td>
                     <td className="px-3 py-2">
                       {formatMedicalRecordPeriodLabel(row.applicationPeriod)}
+                    </td>
+                    <td className="px-3 py-2">
+                      {row.applicationDoseQuantity != null
+                        ? row.applicationDoseQuantity
+                        : "—"}
+                    </td>
+                    <td className="px-3 py-2">{row.stallStockQuantity}</td>
+                    <td
+                      className={cn(
+                        "px-3 py-2 text-xs whitespace-nowrap",
+                        row.estimatedDaysRemaining != null &&
+                          row.estimatedDaysRemaining <= 3 &&
+                          "text-destructive font-medium",
+                      )}
+                    >
+                      {formatStockProjection(row)}
                     </td>
                     <td className="px-3 py-2">
                       <Button
@@ -314,6 +366,22 @@ export function ResidentMedicalRecordTable({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="medical-record-dose">
+                  Quantidade por aplicação (dose)
+                </Label>
+                <Input
+                  id="medical-record-dose"
+                  inputMode="numeric"
+                  value={doseInput}
+                  onChange={(e) => setDoseInput(e.target.value)}
+                  placeholder="ex.: 1"
+                  className="rounded-xl"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Unidades baixadas do estoque da casela a cada confirmação.
+                </p>
               </div>
             </div>
           ) : null}

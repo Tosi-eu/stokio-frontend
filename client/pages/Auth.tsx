@@ -67,7 +67,7 @@ import {
   validateTextInput,
 } from "@/helpers/validation.helper";
 import { prefetchTenantBrandLogoBeforeInicioNavigation } from "@/helpers/tenant-brand-logo-prefetch.helper";
-import { ArrowUp, Check, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { ContactFormSection } from "@/components/ContactFormSection";
 import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
 import { AuthMarketingAside } from "@/components/auth/AuthMarketingAside";
@@ -76,6 +76,11 @@ import { AuthContactIntro } from "@/components/auth/AuthContactIntro";
 import { AuthMobileHeader } from "@/components/auth/AuthMobileHeader";
 import { AuthMobileAnchorBar } from "@/components/auth/AuthMobileAnchorBar";
 import { AuthSkipLinks } from "@/components/auth/AuthSkipLinks";
+import { AuthLandingSection } from "@/components/auth/AuthLandingSection";
+import { AuthLandingPanel } from "@/components/auth/AuthLandingPanel";
+import { AuthSectionFooterLinks } from "@/components/auth/AuthSectionFooterLinks";
+import { scrollAuthLandingSectionIntoView } from "@/components/auth/auth-landing.utils";
+import { useAuthLandingActiveSection } from "@/components/auth/useAuthLandingActiveSection";
 import { PageLabel } from "@/components/page/PageLabel";
 import {
   Popover,
@@ -139,6 +144,7 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
   } | null>(null);
 
   const publicBrandLogoUrl = usePublicDefaultLogoUrl();
+  const activeLandingSection = useAuthLandingActiveSection();
 
   useEffect(() => {
     const invite = (searchParams.get("invite") ?? "").trim();
@@ -162,15 +168,7 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
     if (!sectionId) return;
 
     const scrollSectionIntoView = () => {
-      const el = document.getElementById(sectionId);
-      if (!el) return;
-      const reduceMotion = window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      ).matches;
-      el.scrollIntoView({
-        behavior: reduceMotion ? "auto" : "smooth",
-        block: "start",
-      });
+      scrollAuthLandingSectionIntoView(sectionId);
     };
     scrollSectionIntoView();
     requestAnimationFrame(scrollSectionIntoView);
@@ -786,11 +784,12 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
       <AuthMarketingAside
         logoSrc={authHeaderImgSrc}
         onLogoFallback={handleAuthLogoFallback}
+        activeSection={activeLandingSection}
       />
 
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AuthSkipLinks />
-        <div className="flex min-h-0 flex-1 snap-y snap-proximity flex-col overflow-y-auto scroll-smooth overscroll-y-contain motion-reduce:snap-none pb-[5.25rem] lg:pb-0">
+        <div className="auth-landing-scroll flex min-h-0 flex-1 snap-y snap-proximity flex-col overflow-y-auto scroll-smooth overscroll-y-contain motion-reduce:snap-none pb-[5.25rem] lg:pb-0">
           <AuthMobileHeader
             logoSrc={authHeaderImgSrc}
             onLogoFallback={handleAuthLogoFallback}
@@ -801,13 +800,15 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
               Iniciar sessão, contacto e privacidade · {APP_PUBLIC_NAME}
             </h1>
 
-            <section
+            <AuthLandingSection
               id="auth"
-              aria-label="Entrar ou cadastrar"
-              className="relative flex min-h-[100dvh] snap-start scroll-mt-24 flex-col justify-center border-b border-border/40 bg-gradient-to-b from-background via-brand-mesh to-muted/20 px-4 pb-20 pt-8 sm:px-6 lg:min-h-[100dvh] lg:scroll-mt-28 lg:px-10 lg:pb-28 lg:pt-12"
+              ariaLabel="Entrar ou cadastrar"
+              tone="default"
+              align="start"
+              className="border-t-0 pb-20 pt-4 sm:pt-5 lg:pb-24 lg:pt-8"
             >
-              <div className="relative mx-auto w-full max-w-lg">
-                <header className="mb-8 space-y-4 sm:mb-10">
+              <AuthLandingPanel className="space-y-5 sm:space-y-6">
+                <header className="space-y-3">
                   <PageLabel>Acesso</PageLabel>
                   <AuthLandingHero />
                 </header>
@@ -816,7 +817,7 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
                   id="auth-main"
                   className={cn(
                     pageSurfaceCardClass,
-                    "bg-card/95 backdrop-blur-sm",
+                    "border-border/60 bg-background/75 shadow-sm ring-0 backdrop-blur-sm",
                   )}
                 >
                   <CardHeader className="space-y-1 pb-2">
@@ -1264,72 +1265,46 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
                   </CardContent>
                 </Card>
 
-                <p className="mt-8 text-center text-xs text-muted-foreground/80 lg:hidden space-y-1">
+                <p className="text-center text-xs text-muted-foreground/80 lg:hidden space-y-1">
                   <span className="block">
                     © {new Date().getFullYear()} {APP_PUBLIC_NAME}
                   </span>
                   <ManageCookiesLink className="text-muted-foreground/80" />
                 </p>
-              </div>
-            </section>
+              </AuthLandingPanel>
+            </AuthLandingSection>
 
-            <section
-              id="contact"
-              aria-label="Contacto"
-              className="relative flex min-h-[100dvh] snap-start scroll-mt-24 flex-col justify-center border-t border-border/30 bg-muted/25 px-4 pb-28 pt-14 sm:px-6 lg:min-h-[100dvh] lg:scroll-mt-28 lg:px-10 lg:pb-36 lg:pt-20"
-            >
-              <div className="relative mx-auto w-full max-w-lg">
-                <PageLabel className="mb-4">Contato</PageLabel>
+            <AuthLandingSection id="contact" ariaLabel="Contacto" tone="muted">
+              <AuthLandingPanel className="space-y-6">
+                <PageLabel>Contato</PageLabel>
                 <AuthContactIntro />
-                <ContactFormSection variant="embedded" />
+                <ContactFormSection variant="embedded-panel" />
+                <AuthSectionFooterLinks
+                  primaryHref="#privacy"
+                  primaryLabel="Privacidade e cookies"
+                />
+              </AuthLandingPanel>
+            </AuthLandingSection>
 
-                <p className="mt-10 text-center space-y-2">
-                  <a
-                    href="#privacy"
-                    className="block text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground"
-                  >
-                    Privacidade e cookies
-                  </a>
-                  <a
-                    href="#auth"
-                    className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
-                  >
-                    <ArrowUp className="h-4 w-4 shrink-0" aria-hidden />
-                    Voltar ao início de sessão
-                  </a>
-                </p>
-              </div>
-            </section>
-
-            <section
+            <AuthLandingSection
               id="privacy"
-              aria-label="Privacidade e cookies"
-              className="relative flex min-h-[100dvh] snap-start scroll-mt-24 flex-col justify-center border-t border-border/30 bg-background px-4 pb-28 pt-14 sm:px-6 lg:min-h-[100dvh] lg:scroll-mt-28 lg:px-10 lg:pb-36 lg:pt-20"
+              ariaLabel="Privacidade e cookies"
+              tone="subtle"
             >
-              <div className="relative mx-auto w-full max-w-lg">
-                <PageLabel className="mb-4">Privacidade</PageLabel>
-                <PrivacyPolicyContent />
-
-                <p className="mt-10 text-center space-y-2">
-                  <a
-                    href="#contact"
-                    className="block text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground"
-                  >
-                    Contacto
-                  </a>
-                  <a
-                    href="#auth"
-                    className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
-                  >
-                    <ArrowUp className="h-4 w-4 shrink-0" aria-hidden />
-                    Voltar ao início de sessão
-                  </a>
-                </p>
-              </div>
-            </section>
+              <AuthLandingPanel className="space-y-6">
+                <PageLabel>Privacidade</PageLabel>
+                <div className="rounded-xl border border-border/50 bg-muted/25 p-4 sm:p-5">
+                  <PrivacyPolicyContent />
+                </div>
+                <AuthSectionFooterLinks
+                  primaryHref="#contact"
+                  primaryLabel="Contacto"
+                />
+              </AuthLandingPanel>
+            </AuthLandingSection>
           </main>
         </div>
-        <AuthMobileAnchorBar />
+        <AuthMobileAnchorBar activeSection={activeLandingSection} />
       </div>
     </div>
   );

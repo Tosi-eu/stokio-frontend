@@ -70,11 +70,14 @@ export interface StockListItemRaw extends Partial<StockItemRaw> {
   destino?: string | null;
   observacao?: string | null;
   dias_para_repor?: number | null;
+  /** Chave do setor; a API pode enviar `setor` (PT) ou `sector` (EN). */
+  sector?: string;
 }
 
 export function formatStockItems(raw: unknown[]): StockItem[] {
   return (raw || []).map((item: StockListItemRaw) => {
-    const isMedicamento = item.tipo_item === "medicamento";
+    const isMedicamento =
+      item.tipo_item === "medicamento" || item.tipo_item === "medicine";
     const name = isMedicamento
       ? `${item.nome || ""} ${item.dosagem || ""}${item.unidade_medida || ""}`.trim()
       : (item.nome || "").trim();
@@ -105,10 +108,9 @@ export function formatStockItems(raw: unknown[]): StockItem[] {
       suspended_at: item.suspenso_em ? new Date(item.suspenso_em) : null,
       detail: item.observacao ?? null,
       daysToReplacement: item.dias_para_repor ?? null,
-      medicamentoId:
-        item.tipo_item === "medicamento" ? (item.item_id ?? null) : null,
+      medicamentoId: isMedicamento ? (item.item_id ?? null) : null,
       itemType: item.tipo_item,
-      sector: item.setor,
+      sector: String(item.setor ?? item.sector ?? "").trim() || "-",
       lot: item.lote ?? null,
     } as StockItem;
   });

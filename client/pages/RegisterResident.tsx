@@ -15,6 +15,11 @@ import {
   cpfPayloadFromInput,
   formatCpfMask,
 } from "@/helpers/cpf-format.helper";
+import {
+  brPhoneDigitsOnly,
+  brPhonePayloadFromInput,
+  formatBrPhoneMask,
+} from "@/helpers/br-phone-format.helper";
 import { getErrorMessage } from "@/helpers/validation.helper";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -37,6 +42,7 @@ export default function RegisterResident() {
     defaultValues: {
       name: "",
       cpf: "",
+      telefone_responsavel: "",
       casela: "",
       data_nascimento: "",
     },
@@ -46,11 +52,15 @@ export default function RegisterResident() {
     try {
       const dn = data.data_nascimento?.trim();
       const cpfDigits = cpfPayloadFromInput(data.cpf ?? "");
+      const phoneDigits = brPhonePayloadFromInput(
+        data.telefone_responsavel ?? "",
+      );
       await createResident(
         data.name.trim(),
         data.casela,
         dn && dn !== "" ? dn : undefined,
         cpfDigits && cpfDigits.length === 11 ? cpfDigits : undefined,
+        phoneDigits ?? undefined,
       );
 
       toast({
@@ -137,6 +147,45 @@ export default function RegisterResident() {
               {errors.cpf && (
                 <p className="text-sm text-red-600 mt-1">
                   {errors.cpf.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="telefone_responsavel">
+                Telefone do responsável
+              </Label>
+              <Controller
+                name="telefone_responsavel"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    id="telefone_responsavel"
+                    placeholder="(11) 98765-4321"
+                    disabled={isSubmitting}
+                    aria-invalid={
+                      errors.telefone_responsavel ? "true" : "false"
+                    }
+                    inputMode="tel"
+                    autoComplete="tel"
+                    maxLength={16}
+                    value={field.value ?? ""}
+                    onBlur={field.onBlur}
+                    ref={field.ref}
+                    onChange={(e) =>
+                      field.onChange(
+                        formatBrPhoneMask(brPhoneDigitsOnly(e.target.value)),
+                      )
+                    }
+                  />
+                )}
+              />
+              <p className="text-xs text-muted-foreground">
+                Opcional. DDD + número (fixo ou celular); formatação automática.
+              </p>
+              {errors.telefone_responsavel && (
+                <p className="text-sm text-red-600 mt-1">
+                  {errors.telefone_responsavel.message}
                 </p>
               )}
             </div>

@@ -4,6 +4,10 @@ import { normalizeR2PublicBaseUrl } from "@/constants/app-branding";
 export function buildTenantLogoProxyUrl(slug: string): string {
   const s = String(slug ?? "").trim();
   if (!s) return "";
+  const path = `/api/v1/public/tenants/${encodeURIComponent(s)}/logo`;
+  if (typeof window !== "undefined") {
+    return path;
+  }
   const base = API_BASE_URL.replace(/\/$/, "");
   if (!base) return "";
   return `${base}/public/tenants/${encodeURIComponent(s)}/logo`;

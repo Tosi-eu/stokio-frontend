@@ -2,9 +2,12 @@
 
 export function AuthContactIntro() {
   return (
-    <div className="mb-8 space-y-2">
+    <div className="space-y-2">
+      <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">
+        Fale connosco
+      </h2>
       <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-        Mande sua mensagem. A gente responde pelo e-mail que você informar.
+        Envie a sua mensagem. Respondemos para o e-mail que indicar.
       </p>
     </div>
   );

@@ -68,6 +68,18 @@ export function StockOutDrawer({
   const exceedsStock = Boolean(item) && qty > max;
   const status = item ? deriveItemStatus(item) : null;
 
+  const caselaDisplay =
+    item?.casela_id != null
+      ? formatCaselaLabel(uiDisplay, {
+          caselaId: item.casela_id,
+          residentName: item.paciente,
+          sector: item.setor,
+        })
+      : null;
+  const showPacienteRow =
+    Boolean(item?.paciente?.trim()) &&
+    (!item?.casela_id || uiDisplay.casela === "numero");
+
   const confirmDisabled =
     !item || status?.disabled || submitting || !qty || qty <= 0 || exceedsStock;
 
@@ -115,10 +127,7 @@ export function StockOutDrawer({
                   </dt>
                   <dd className="font-medium text-right">
                     {item.casela_id
-                      ? formatCaselaLabel(uiDisplay.casela, {
-                          caselaId: item.casela_id,
-                          residentName: item.paciente,
-                        })
+                      ? caselaDisplay
                       : formatGavetaLabel(uiDisplay.gaveta, {
                           gavetaId: item.gaveta_id ?? undefined,
                           categoriaNome:
@@ -128,12 +137,14 @@ export function StockOutDrawer({
                         })}
                   </dd>
                 </div>
-                <div className="flex items-start justify-between gap-3">
-                  <dt className="text-muted-foreground">Paciente</dt>
-                  <dd className="font-medium text-right">
-                    {display(item.paciente)}
-                  </dd>
-                </div>
+                {showPacienteRow ? (
+                  <div className="flex items-start justify-between gap-3">
+                    <dt className="text-muted-foreground">Paciente</dt>
+                    <dd className="font-medium text-right">
+                      {display(item.paciente)}
+                    </dd>
+                  </div>
+                ) : null}
                 <div className="flex items-start justify-between gap-3">
                   <dt className="text-muted-foreground">Setor</dt>
                   <dd className="font-medium text-right">

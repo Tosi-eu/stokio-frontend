@@ -20,12 +20,18 @@ export function normalizeMovement(
   const gavetaCat = item.DrawerModel?.DrawerCategoryModel?.nome;
 
   const sortMs = parseMovementDateMs(item.data);
-  const residentName = item.ResidentModel?.nome ?? null;
-  const residentCasela =
+  const residentName = item.ResidentModel?.nome?.trim() || null;
+  const residentCaselaFromModel =
     typeof item.ResidentModel?.num_casela === "number"
-      ? item.ResidentModel?.num_casela
+      ? item.ResidentModel.num_casela
       : item.ResidentModel?.num_casela != null
-        ? Number(item.ResidentModel?.num_casela)
+        ? Number(item.ResidentModel.num_casela)
+        : null;
+  const residentCasela =
+    residentCaselaFromModel != null && Number.isFinite(residentCaselaFromModel)
+      ? residentCaselaFromModel
+      : item.casela_id != null
+        ? Number(item.casela_id)
         : null;
   const cabinetNumber =
     typeof item.armario_id === "number"
@@ -73,9 +79,10 @@ export function normalizeMovement(
     }),
     drawerNumber,
     drawerCategory,
-    resident: formatCaselaLabel(uiDisplay.casela, {
+    resident: formatCaselaLabel(uiDisplay, {
       caselaId: residentCasela,
       residentName,
+      sector: item.setor,
     }),
     residentCasela:
       residentCasela != null && Number.isFinite(residentCasela)

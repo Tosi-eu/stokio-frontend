@@ -74,6 +74,7 @@ export interface PeriodMovementReport {
 export interface ResidentMedicinesReport {
   residente: string;
   casela: number;
+  telefone_responsavel?: string | null;
   cpf?: string | null;
   data_nascimento?: string | null;
   idade?: number | null;
@@ -127,6 +128,7 @@ interface PsicotropicosReport {
 interface ResidentConsumptionReport {
   residente: string;
   casela: number;
+  telefone_responsavel?: string | null;
   periodo_movimentacao_referencia: string;
   cpf?: string | null;
   data_nascimento?: string | null;
@@ -614,6 +616,11 @@ export function createStockPDF(
               <Text style={{ fontSize: 12, color: "#666" }}>
                 Casela: {consumptionData.casela}
               </Text>
+              {consumptionData.telefone_responsavel ? (
+                <Text style={{ fontSize: 12, color: "#666" }}>
+                  Tel. responsável: {consumptionData.telefone_responsavel}
+                </Text>
+              ) : null}
               <Text style={{ fontSize: 10, color: "#64748b", marginTop: 6 }}>
                 Custos inferidos usam o recebimento na casela no período
                 calculado automaticamente (entradas administrativas e
@@ -889,6 +896,7 @@ export function createStockPDF(
               [
                 "Residente",
                 "Casela",
+                "Telefone responsavel",
                 "Medicamento",
                 "Principio Ativo",
                 "Quantidade",
@@ -905,6 +913,7 @@ export function createStockPDF(
               [
                 "Residente",
                 "Casela",
+                "Telefone responsavel",
                 "Medicamento",
                 "Principio Ativo",
                 "Data",
@@ -1185,6 +1194,12 @@ export function createStockPDF(
                   <Text style={{ fontSize: 12, color: "#666" }}>
                     Casela: {residentMedicinesData[0]?.casela || ""}
                   </Text>
+                  {residentMedicinesData[0]?.telefone_responsavel ? (
+                    <Text style={{ fontSize: 12, color: "#666" }}>
+                      Tel. responsável:{" "}
+                      {residentMedicinesData[0]?.telefone_responsavel}
+                    </Text>
+                  ) : null}
                   {residentMedicinesData[0]?.cpf ? (
                     <Text style={{ fontSize: 12, color: "#666" }}>
                       CPF: {residentMedicinesData[0]?.cpf}
