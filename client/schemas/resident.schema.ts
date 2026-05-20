@@ -1,4 +1,6 @@
+import { formatEntityDisplayName } from "@/helpers/text-name.helper";
 import { z } from "zod";
+import { brPhonePayloadFromInput } from "@/helpers/br-phone-format.helper";
 
 const isoDateOnly = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -7,7 +9,8 @@ export const residentSchema = z.object({
     .string()
     .min(1, "Nome é obrigatório")
     .max(60, "Nome deve ter no máximo 60 caracteres")
-    .trim(),
+    .trim()
+    .transform(formatEntityDisplayName),
   cpf: z
     .string()
     .optional()
@@ -35,6 +38,21 @@ export const residentSchema = z.object({
         message: "Casela deve ser um número entre 1 e 200",
       },
     ),
+  telefone_responsavel: z
+    .string()
+    .optional()
+    .superRefine((val, ctx) => {
+      if (val == null) return;
+      const v = String(val).trim();
+      if (!v) return;
+      const digits = brPhonePayloadFromInput(v);
+      if (!digits) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Telefone deve ter 10 ou 11 dígitos (DDD + número)",
+        });
+      }
+    }),
   data_nascimento: z
     .string()
     .optional()

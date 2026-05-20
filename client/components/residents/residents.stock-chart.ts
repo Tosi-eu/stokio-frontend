@@ -1,31 +1,17 @@
-import type { StockItem } from "@/interfaces/interfaces";
-import { OperationType } from "@/utils/enums";
+import type { ActiveMedicalRecordItem } from "@/api/requests";
+import { formatMedicalRecordPeriodLabel } from "@/components/residents/medical-record.constants";
 
-export function residentStockItemKindLabel(item: StockItem): string {
-  return item.itemType === OperationType.MEDICINE ? "Medicamento" : "Insumo";
-}
-
-export function stockToResidentChartRows(
-  items: StockItem[],
+export function activeMedicalRecordToChartRows(
+  items: ActiveMedicalRecordItem[],
 ): Record<string, unknown>[] {
   return items.map((i) => ({
-    kind: residentStockItemKindLabel(i),
+    kind: i.category === "medicine" ? "Medicine" : "Supply",
     name: i.name,
-    detalhe: (() => {
-      const pa = i.activeSubstance?.trim();
-      if (pa && pa !== "-") return pa;
-      const desc = i.description?.trim();
-      if (desc && desc !== "-") return desc;
-      return "—";
-    })(),
-    quantity: i.quantity,
-    expiry: i.expiry,
-    entryDate: i.entryDate?.trim() ? i.entryDate : "—",
-    exitDate: i.exitDate?.trim() ? i.exitDate : "—",
-    cabinet: i.cabinet ?? "—",
-    drawer: i.drawer ?? "—",
-    sector: i.sector ?? "—",
-    lot: i.lot ?? "—",
+    detail: i.detail?.trim() ? i.detail : "—",
+    note: i.note?.trim() ? i.note : "—",
+    frequency:
+      i.applicationFrequency != null ? String(i.applicationFrequency) : "—",
+    period: formatMedicalRecordPeriodLabel(i.applicationPeriod),
   }));
 }
 

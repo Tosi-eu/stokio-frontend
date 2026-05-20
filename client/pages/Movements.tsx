@@ -26,6 +26,7 @@ import {
   buildSectorFilterOptions,
   getEnabledSectors,
 } from "@/helpers/tenant-sectors.helper";
+import { matchesResidentCaselaSearch } from "@/helpers/resident-casela-autocomplete.helper";
 import type {
   MovementFilters,
   MovementRow,
@@ -149,12 +150,9 @@ export default function InputMovements() {
   }, [modules, labelByKey]);
 
   const filteredResidentOptions = useMemo(() => {
-    const q = residentSearch.trim().toLowerCase();
-    if (!q) return residentOptions;
-    if (/^\d+$/.test(q)) {
-      return residentOptions.filter((r) => String(r.casela).startsWith(q));
-    }
-    return residentOptions.filter((r) => r.name.toLowerCase().includes(q));
+    return residentOptions.filter((r) =>
+      matchesResidentCaselaSearch(r, residentSearch),
+    );
   }, [residentOptions, residentSearch]);
 
   const resetEntriesPaging = useCallback(() => {

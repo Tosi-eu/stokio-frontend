@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Archive, Layers } from "lucide-react";
+import { Archive, Layers, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export type StorageFolderItem = {
   numero: number;
@@ -52,7 +53,7 @@ export function StorageFolderGrid({
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((it) => {
-      if (categoryFilter && categoryFilter !== "__all") {
+      if (categoryFilter.trim()) {
         if (it.categoria !== categoryFilter) return false;
       }
       if (!q) return true;
@@ -83,23 +84,41 @@ export function StorageFolderGrid({
           <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
             Categoria
           </label>
-          <Select value={categoryFilter} onValueChange={onCategoryChange}>
-            <SelectTrigger className="rounded-xl">
-              <SelectValue placeholder="Todas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all">Todas</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2 items-center">
+            <div className="min-w-0 flex-1">
+              <Select
+                value={categoryFilter.trim() ? categoryFilter : undefined}
+                onValueChange={onCategoryChange}
+              >
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder="Todas as categorias" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {categoryFilter.trim() ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0 rounded-xl"
+                onClick={() => onCategoryChange("")}
+                aria-label="Limpar filtro de categoria"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {filtered.map((it) => {
           const active = selectedNumero === it.numero;
           return (

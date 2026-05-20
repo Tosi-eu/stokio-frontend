@@ -31,6 +31,7 @@ export interface EditableTableProps {
   data: Record<string, unknown>[];
   columns: Column[];
   entityType?: string;
+  columnWidthKey?: string;
   showAddons?: boolean;
   minRows?: number;
   onAdd?: (newRow: Record<string, unknown>) => void;
@@ -46,7 +47,6 @@ export interface BreadcrumbItem {
 export interface LayoutProps {
   children: ReactNode;
   title?: string;
-  /** Optional muted subtitle under the route title (H1). */
   description?: ReactNode;
   breadcrumb?: BreadcrumbItem[];
   minimal?: boolean;
@@ -335,6 +335,7 @@ export interface RawMovement {
   insumo_id?: number | null;
   armario_id?: number | null;
   gaveta_id?: number | null;
+  casela_id?: number | null;
   setor?: string | null;
   lote?: string | null;
 

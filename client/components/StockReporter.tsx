@@ -74,6 +74,7 @@ export interface PeriodMovementReport {
 export interface ResidentMedicinesReport {
   residente: string;
   casela: number;
+  telefone_responsavel?: string | null;
   cpf?: string | null;
   data_nascimento?: string | null;
   idade?: number | null;
@@ -127,35 +128,39 @@ interface PsicotropicosReport {
 interface ResidentConsumptionReport {
   residente: string;
   casela: number;
+  telefone_responsavel?: string | null;
+  periodo_movimentacao_referencia: string;
   cpf?: string | null;
   data_nascimento?: string | null;
   idade?: number | null;
   medicamentos: {
     nome: string;
     principio_ativo: string;
-    preco_formatado: string;
+    preco_unitario_formatado: string;
     quantidade_estoque: number;
+    valor_em_estoque_formatado: string;
+    consumo_mensal_unidades: number;
+    custo_mensal_inferido_formatado: string;
+    custo_anual_projetado_formatado: string;
     observacao?: string | null;
   }[];
   insumos: {
     nome: string;
     descricao: string | null;
-    preco_formatado: string;
+    preco_unitario_formatado: string;
     quantidade_estoque: number;
+    valor_em_estoque_formatado: string;
+    consumo_mensal_unidades: number;
+    custo_mensal_inferido_formatado: string;
+    custo_anual_projetado_formatado: string;
   }[];
-  custos_medicamentos: {
-    item: string;
-    nome: string;
-    custo_mensal_formatado: string;
-    custo_anual_formatado: string;
-  }[];
-  custos_insumos: {
-    item: string;
-    nome: string;
-    custo_mensal_formatado: string;
-    custo_anual_formatado: string;
-  }[];
-  total_estimado_formatado: string;
+  totais: {
+    medicamentos_formatado: string;
+    insumos_formatado: string;
+    geral_formatado: string;
+    custo_mensal_inferido_total_formatado: string;
+    custo_anual_projetado_total_formatado: string;
+  };
 }
 
 interface RowData {
@@ -176,12 +181,19 @@ interface RowData {
 }
 
 type ResidentMedicalRecordReport = {
-  residente: string;
-  casela: number | string;
+  residentName: string;
+  stallNumber: number | string;
   cpf?: string | null;
   data_nascimento?: string | null;
   idade?: number | null;
-  itens: RowData[];
+  items: Array<{
+    category: "medicine" | "supply";
+    name: string;
+    detail: string;
+    note: string | null;
+    applicationFrequency?: number | null;
+    applicationPeriod?: string | null;
+  }>;
 };
 
 function formatPdfRowDates(r: RowData): RowData {
@@ -246,46 +258,62 @@ const styles = StyleSheet.create({
 
   tableHeader: {
     flexDirection: "row",
-    backgroundColor: "#e5e5e5",
-    paddingVertical: 4,
+    backgroundColor: "#0f172a",
+    paddingVertical: 6,
+    paddingHorizontal: 2,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: "#000",
-    fontWeight: "bold",
-    textAlign: "center",
-    fontSize: 8,
+    borderColor: "#0f172a",
+    alignItems: "flex-start",
   },
 
   tableRow: {
     flexDirection: "row",
-    paddingVertical: 5,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
     borderBottomWidth: 0.5,
-    borderBottomColor: "#ccc",
+    borderBottomColor: "#e2e8f0",
+    alignItems: "flex-start",
   },
 
   striped: {
-    backgroundColor: "#f2f2f2",
+    backgroundColor: "#f1f5f9",
   },
 
-  cell: {
-    flex: 1,
-    paddingHorizontal: 2,
-    fontSize: 8,
-    textAlign: "center",
-    justifyContent: "center",
-    alignItems: "center",
-    flexWrap: "wrap",
-    overflow: "hidden",
+  cellShell: {
+    minWidth: 0,
+    paddingHorizontal: 3,
+    paddingVertical: 2,
   },
-  cellNumeric: {
-    flex: 0.5,
-    paddingHorizontal: 2,
-    fontSize: 8,
+
+  cellText: {
+    fontSize: 7,
+    color: "#0f172a",
+    lineHeight: 1.35,
     textAlign: "center",
-    justifyContent: "center",
-    alignItems: "center",
-    flexWrap: "wrap",
-    overflow: "hidden",
+  },
+
+  cellTextNumeric: {
+    fontSize: 7,
+    color: "#0f172a",
+    lineHeight: 1.35,
+    textAlign: "center",
+  },
+
+  headerCellText: {
+    fontSize: 7,
+    fontWeight: "bold",
+    color: "#f8fafc",
+    lineHeight: 1.35,
+    textAlign: "center",
+  },
+
+  headerCellTextNumeric: {
+    fontSize: 7,
+    fontWeight: "bold",
+    color: "#f8fafc",
+    lineHeight: 1.35,
+    textAlign: "center",
   },
 
   footer: {
@@ -301,6 +329,24 @@ interface ColumnConfig {
   header: string;
   key: string;
   isNumeric?: boolean;
+
+  flex?: number;
+}
+
+function defaultFlexForKey(normalizedKey: string, isNumeric: boolean): number {
+  if (isNumeric) return 0.62;
+  const k = normalizedKey.toLowerCase();
+  if (
+    /nome|descricao|medicamento|insumo|residente|principio|observacao|destino|complemento|detalhe/.test(
+      k,
+    )
+  ) {
+    return 2;
+  }
+  if (/data|tipo|validade|setor|lote|categoria/.test(k)) {
+    return 1.05;
+  }
+  return 1;
 }
 
 function renderTableWithConfig(
@@ -315,14 +361,21 @@ function renderTableWithConfig(
   return (
     <>
       <View style={styles.tableHeader}>
-        {columns.map((col, i) => (
-          <Text
-            key={i}
-            style={col.isNumeric ? styles.cellNumeric : styles.cell}
-          >
-            {col.header}
-          </Text>
-        ))}
+        {columns.map((col, i) => {
+          const flex = col.flex ?? defaultFlexForKey(col.key, !!col.isNumeric);
+          const isNum = !!col.isNumeric;
+          return (
+            <View key={i} style={[styles.cellShell, { flex }]}>
+              <Text
+                style={
+                  isNum ? styles.headerCellTextNumeric : styles.headerCellText
+                }
+              >
+                {col.header}
+              </Text>
+            </View>
+          );
+        })}
       </View>
 
       {rows.map((row, idx) => (
@@ -331,8 +384,14 @@ function renderTableWithConfig(
           style={[styles.tableRow, idx % 2 === 0 ? styles.striped : undefined]}
         >
           {columns.map((col, i) => {
+            const flex =
+              col.flex ?? defaultFlexForKey(col.key, !!col.isNumeric);
             if (customCellRenderer) {
-              return <View key={i}>{customCellRenderer(row, col, i)}</View>;
+              return (
+                <View key={i} style={[styles.cellShell, { flex }]}>
+                  {customCellRenderer(row, col, i)}
+                </View>
+              );
             }
 
             const key = col.key
@@ -344,12 +403,15 @@ function renderTableWithConfig(
             const value = (row[key as keyof RowData] ?? "") as string | number;
 
             return (
-              <Text
-                key={i}
-                style={col.isNumeric ? styles.cellNumeric : styles.cell}
-              >
-                {value}
-              </Text>
+              <View key={i} style={[styles.cellShell, { flex }]}>
+                <Text
+                  style={
+                    col.isNumeric ? styles.cellTextNumeric : styles.cellText
+                  }
+                >
+                  {value}
+                </Text>
+              </View>
             );
           })}
         </View>
@@ -377,10 +439,13 @@ function renderTable(headers: string[], rows: RowData[]) {
       "item",
     ];
 
+    const isNumeric = numericColumns.includes(normalized);
+
     return {
       header: h,
       key: normalized,
-      isNumeric: numericColumns.includes(normalized),
+      isNumeric,
+      flex: defaultFlexForKey(normalized, isNumeric),
     };
   });
 
@@ -483,7 +548,7 @@ export function createStockPDF(
                       : isExpiringSoon
                         ? "MEDICAMENTOS E INSUMOS PRÓXIMOS AO VENCIMENTO"
                         : isResidentMedicalRecordReport
-                          ? "PRONTUÁRIO DO RESIDENTE"
+                          ? "RESIDENT MEDICAL RECORD"
                           : "ESTOQUE ATUAL"}
           </Text>
         </View>
@@ -494,10 +559,10 @@ export function createStockPDF(
               <Text
                 style={{ fontSize: 14, fontWeight: "bold", marginBottom: 5 }}
               >
-                Residente: {residentMedicalRecordData.residente}
+                Resident: {residentMedicalRecordData.residentName}
               </Text>
               <Text style={{ fontSize: 12, color: "#666" }}>
-                Casela: {residentMedicalRecordData.casela}
+                Stall: {residentMedicalRecordData.stallNumber}
               </Text>
               {residentMedicalRecordData.cpf ? (
                 <Text style={{ fontSize: 12, color: "#666" }}>
@@ -517,31 +582,25 @@ export function createStockPDF(
               ) : null}
             </View>
 
-            <Text style={styles.sectionTitle}>Itens em stock</Text>
+            <Text style={styles.sectionTitle}>
+              Medication and supplies (stall)
+            </Text>
 
             {renderTableWithConfig(
               [
-                { header: "Categoria", key: "categoria" },
-                { header: "Nome", key: "nome" },
-                { header: "Qtd.", key: "quantidade", isNumeric: true },
-                { header: "Validade", key: "validade" },
-                { header: "Entrada", key: "data_entrada" },
-                { header: "Saída", key: "data_saida" },
-                { header: "Armário", key: "armario", isNumeric: true },
-                { header: "Gaveta", key: "gaveta", isNumeric: true },
-                { header: "Setor", key: "setor" },
-                { header: "Lote", key: "lote" },
+                { header: "Category", key: "category" },
+                { header: "Name", key: "name" },
+                { header: "Detail", key: "detail" },
+                { header: "Note", key: "note" },
               ],
-              (residentMedicalRecordData.itens ?? []).map((r) => {
-                const ext = r as RowData & { qtd?: unknown };
-                return formatPdfRowDates({
-                  ...r,
-                  quantidade:
-                    ext.quantidade != null && ext.quantidade !== ""
-                      ? ext.quantidade
-                      : ext.qtd,
-                } as RowData);
-              }),
+              (residentMedicalRecordData.items ?? []).map((r) =>
+                formatPdfRowDates({
+                  category: r.category === "medicine" ? "Medicine" : "Supply",
+                  name: r.name,
+                  detail: r.detail,
+                  note: r.note ?? "",
+                } as RowData),
+              ),
             )}
           </>
         )}
@@ -556,6 +615,17 @@ export function createStockPDF(
               </Text>
               <Text style={{ fontSize: 12, color: "#666" }}>
                 Casela: {consumptionData.casela}
+              </Text>
+              {consumptionData.telefone_responsavel ? (
+                <Text style={{ fontSize: 12, color: "#666" }}>
+                  Tel. responsável: {consumptionData.telefone_responsavel}
+                </Text>
+              ) : null}
+              <Text style={{ fontSize: 10, color: "#64748b", marginTop: 6 }}>
+                Custos inferidos usam o recebimento na casela no período
+                calculado automaticamente (entradas administrativas e
+                transferências da farmácia). O estoque nas tabelas é sempre o
+                saldo atual na casela.
               </Text>
               {consumptionData.cpf ? (
                 <Text style={{ fontSize: 12, color: "#666" }}>
@@ -575,13 +645,28 @@ export function createStockPDF(
               ) : null}
             </View>
 
-            <Text style={styles.sectionTitle}>1. Medicamentos e Uso</Text>
+            <Text style={styles.sectionTitle}>1. Medicamentos na casela</Text>
             {consumptionData.medicamentos.length > 0 ? (
               <>
                 <View style={styles.tableHeader}>
-                  <Text style={styles.cell}>Nome do Medicamento</Text>
-                  <Text style={styles.cell}>Preço Unitário (R$)</Text>
-                  <Text style={styles.cell}>Observação</Text>
+                  <View style={[styles.cellShell, { flex: 1.9 }]}>
+                    <Text style={styles.headerCellText}>Medicamento</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 1.05 }]}>
+                    <Text style={styles.headerCellText}>Princípio ativo</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 0.72 }]}>
+                    <Text style={styles.headerCellTextNumeric}>P. unit.</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 0.45 }]}>
+                    <Text style={styles.headerCellTextNumeric}>Qtd</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 0.68 }]}>
+                    <Text style={styles.headerCellTextNumeric}>V. estq.</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 1.35 }]}>
+                    <Text style={styles.headerCellText}>Obs.</Text>
+                  </View>
                 </View>
                 {consumptionData.medicamentos.map((med, idx) => {
                   return (
@@ -592,11 +677,34 @@ export function createStockPDF(
                         idx % 2 === 0 ? styles.striped : undefined,
                       ]}
                     >
-                      <Text style={styles.cell}>{med.nome || "-"}</Text>
-                      <Text style={styles.cell}>
-                        {med.preco_formatado || "-"}
-                      </Text>
-                      <Text style={styles.cell}>{med.observacao || "-"}</Text>
+                      <View style={[styles.cellShell, { flex: 1.9 }]}>
+                        <Text style={styles.cellText}>{med.nome || "-"}</Text>
+                      </View>
+                      <View style={[styles.cellShell, { flex: 1.05 }]}>
+                        <Text style={styles.cellText}>
+                          {med.principio_ativo || "-"}
+                        </Text>
+                      </View>
+                      <View style={[styles.cellShell, { flex: 0.72 }]}>
+                        <Text style={styles.cellTextNumeric}>
+                          {med.preco_unitario_formatado || "-"}
+                        </Text>
+                      </View>
+                      <View style={[styles.cellShell, { flex: 0.45 }]}>
+                        <Text style={styles.cellTextNumeric}>
+                          {med.quantidade_estoque ?? "-"}
+                        </Text>
+                      </View>
+                      <View style={[styles.cellShell, { flex: 0.68 }]}>
+                        <Text style={styles.cellTextNumeric}>
+                          {med.valor_em_estoque_formatado || "-"}
+                        </Text>
+                      </View>
+                      <View style={[styles.cellShell, { flex: 1.35 }]}>
+                        <Text style={styles.cellText}>
+                          {med.observacao || "-"}
+                        </Text>
+                      </View>
                     </View>
                   );
                 })}
@@ -607,13 +715,25 @@ export function createStockPDF(
               </Text>
             )}
 
-            <Text style={styles.sectionTitle}>2. Insumos</Text>
+            <Text style={styles.sectionTitle}>2. Insumos na casela</Text>
             {consumptionData.insumos.length > 0 ? (
               <>
                 <View style={styles.tableHeader}>
-                  <Text style={styles.cell}>Nome do Insumo</Text>
-                  <Text style={styles.cell}>Descrição</Text>
-                  <Text style={styles.cell}>Preço Unitário (R$)</Text>
+                  <View style={[styles.cellShell, { flex: 1.65 }]}>
+                    <Text style={styles.headerCellText}>Insumo</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 1.35 }]}>
+                    <Text style={styles.headerCellText}>Descrição</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 0.72 }]}>
+                    <Text style={styles.headerCellTextNumeric}>P. unit.</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 0.45 }]}>
+                    <Text style={styles.headerCellTextNumeric}>Qtd</Text>
+                  </View>
+                  <View style={[styles.cellShell, { flex: 0.68 }]}>
+                    <Text style={styles.headerCellTextNumeric}>V. estq.</Text>
+                  </View>
                 </View>
                 {consumptionData.insumos.map((input, idx) => (
                   <View
@@ -623,11 +743,29 @@ export function createStockPDF(
                       idx % 2 === 0 ? styles.striped : undefined,
                     ]}
                   >
-                    <Text style={styles.cell}>{input.nome || "-"}</Text>
-                    <Text style={styles.cell}>{input.descricao || "-"}</Text>
-                    <Text style={styles.cell}>
-                      {input.preco_formatado || "-"}
-                    </Text>
+                    <View style={[styles.cellShell, { flex: 1.65 }]}>
+                      <Text style={styles.cellText}>{input.nome || "-"}</Text>
+                    </View>
+                    <View style={[styles.cellShell, { flex: 1.35 }]}>
+                      <Text style={styles.cellText}>
+                        {input.descricao || "-"}
+                      </Text>
+                    </View>
+                    <View style={[styles.cellShell, { flex: 0.72 }]}>
+                      <Text style={styles.cellTextNumeric}>
+                        {input.preco_unitario_formatado || "-"}
+                      </Text>
+                    </View>
+                    <View style={[styles.cellShell, { flex: 0.45 }]}>
+                      <Text style={styles.cellTextNumeric}>
+                        {input.quantidade_estoque ?? "-"}
+                      </Text>
+                    </View>
+                    <View style={[styles.cellShell, { flex: 0.68 }]}>
+                      <Text style={styles.cellTextNumeric}>
+                        {input.valor_em_estoque_formatado || "-"}
+                      </Text>
+                    </View>
                   </View>
                 ))}
               </>
@@ -638,95 +776,114 @@ export function createStockPDF(
             )}
 
             <Text style={styles.sectionTitle}>
-              Custos Estimados - Medicamentos
+              3. Totais e custos inferidos
             </Text>
-            {consumptionData.custos_medicamentos.length > 0 ? (
-              <>
-                <View style={styles.tableHeader}>
-                  <Text style={styles.cell}>Item</Text>
-                  <Text style={styles.cell}>Nome do Medicamento</Text>
-                  <Text style={styles.cell}>Custo Mensal (R$)</Text>
-                  <Text style={styles.cell}>Custo Anual (R$)</Text>
-                </View>
-                {consumptionData.custos_medicamentos.map((custo, idx) => (
-                  <View
-                    key={idx}
-                    style={[
-                      styles.tableRow,
-                      idx % 2 === 0 ? styles.striped : undefined,
-                    ]}
-                  >
-                    <Text style={styles.cell}>{custo.item || "-"}</Text>
-                    <Text style={styles.cell}>{custo.nome || "-"}</Text>
-                    <Text style={styles.cell}>
-                      {custo.custo_mensal_formatado || "-"}
-                    </Text>
-                    <Text style={styles.cell}>
-                      {custo.custo_anual_formatado || "-"}
-                    </Text>
-                  </View>
-                ))}
-              </>
-            ) : (
-              <Text style={{ fontSize: 10, marginTop: 10, color: "#666" }}>
-                Nenhum custo de medicamento encontrado.
-              </Text>
-            )}
-
-            <Text style={styles.sectionTitle}>Custos Estimados - Insumos</Text>
-            {consumptionData.custos_insumos.length > 0 ? (
-              <>
-                <View style={styles.tableHeader}>
-                  <Text style={styles.cell}>Item</Text>
-                  <Text style={styles.cell}>Nome do Insumo</Text>
-                  <Text style={styles.cell}>Custo Mensal (R$)</Text>
-                  <Text style={styles.cell}>Custo Anual (R$)</Text>
-                </View>
-                {consumptionData.custos_insumos.map((custo, idx) => (
-                  <View
-                    key={idx}
-                    style={[
-                      styles.tableRow,
-                      idx % 2 === 0 ? styles.striped : undefined,
-                    ]}
-                  >
-                    <Text style={styles.cell}>{custo.item || "-"}</Text>
-                    <Text style={styles.cell}>{custo.nome || "-"}</Text>
-                    <Text style={styles.cell}>
-                      {custo.custo_mensal_formatado || "-"}
-                    </Text>
-                    <Text style={styles.cell}>
-                      {custo.custo_anual_formatado || "-"}
-                    </Text>
-                  </View>
-                ))}
-              </>
-            ) : (
-              <Text style={{ fontSize: 10, marginTop: 10, color: "#666" }}>
-                Nenhum custo de insumo encontrado.
-              </Text>
-            )}
-
             <View
               style={{
-                marginTop: 20,
-                padding: 10,
-                backgroundColor: "#f0f0f0",
-                borderRadius: 4,
+                marginTop: 8,
+                borderRadius: 6,
                 borderWidth: 1,
-                borderColor: "#000",
+                borderColor: "#cbd5e1",
+                overflow: "hidden",
               }}
             >
-              <Text
+              <View style={{ padding: 12, backgroundColor: "#f8fafc" }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "bold",
+                    marginBottom: 8,
+                    color: "#0f172a",
+                  }}
+                >
+                  Valor em estoque (hoje)
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 9,
+                    color: "#64748b",
+                    marginBottom: 8,
+                    lineHeight: 1.35,
+                  }}
+                >
+                  Soma do preço unitário × quantidade atual em cada item na
+                  casela.
+                </Text>
+                <Text
+                  style={{ fontSize: 10, marginBottom: 4, color: "#334155" }}
+                >
+                  <Text style={{ fontWeight: "bold" }}>Medicamentos: </Text>
+                  {consumptionData.totais?.medicamentos_formatado ?? "-"}
+                </Text>
+                <Text
+                  style={{ fontSize: 10, marginBottom: 4, color: "#334155" }}
+                >
+                  <Text style={{ fontWeight: "bold" }}>Insumos: </Text>
+                  {consumptionData.totais?.insumos_formatado ?? "-"}
+                </Text>
+                <Text
+                  style={{ fontSize: 10, marginBottom: 0, color: "#334155" }}
+                >
+                  <Text style={{ fontWeight: "bold" }}>Geral: </Text>
+                  {consumptionData.totais?.geral_formatado ?? "-"}
+                </Text>
+              </View>
+              <View
                 style={{
-                  fontSize: 14,
-                  fontWeight: "bold",
-                  textAlign: "center",
+                  padding: 12,
+                  backgroundColor: "#f1f5f9",
+                  borderTopWidth: 1,
+                  borderTopColor: "#e2e8f0",
                 }}
               >
-                Total Estimado Anual: R${" "}
-                {consumptionData.total_estimado_formatado || "-"}
-              </Text>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "bold",
+                    marginBottom: 8,
+                    color: "#0f172a",
+                  }}
+                >
+                  Custos inferidos (período automático)
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 9,
+                    color: "#64748b",
+                    marginBottom: 8,
+                    lineHeight: 1.35,
+                  }}
+                >
+                  Baseado no recebimento na casela nesse período (entradas +
+                  transferências da farmácia) × preço unitário. Anual = mensal ×
+                  12.
+                </Text>
+                <Text
+                  style={{ fontSize: 10, marginBottom: 4, color: "#334155" }}
+                >
+                  <Text style={{ fontWeight: "bold" }}>
+                    Custo mensal total:{" "}
+                  </Text>
+                  {consumptionData.totais
+                    ?.custo_mensal_inferido_total_formatado ?? "-"}
+                </Text>
+                <Text
+                  style={{ fontSize: 10, marginBottom: 8, color: "#334155" }}
+                >
+                  <Text style={{ fontWeight: "bold" }}>
+                    Custo anual projetado:{" "}
+                  </Text>
+                  {consumptionData.totais
+                    ?.custo_anual_projetado_total_formatado ?? "-"}
+                </Text>
+                <Text
+                  style={{ fontSize: 8, color: "#64748b", lineHeight: 1.4 }}
+                >
+                  Pode haver estoque sem custo inferido no período (ex.: lote
+                  antigo, migração de dados ou ajuste manual). Nesse caso o
+                  valor em estoque acima continua refletindo o saldo atual.
+                </Text>
+              </View>
             </View>
           </>
         )}
@@ -739,6 +896,7 @@ export function createStockPDF(
               [
                 "Residente",
                 "Casela",
+                "Telefone responsavel",
                 "Medicamento",
                 "Principio Ativo",
                 "Quantidade",
@@ -755,6 +913,7 @@ export function createStockPDF(
               [
                 "Residente",
                 "Casela",
+                "Telefone responsavel",
                 "Medicamento",
                 "Principio Ativo",
                 "Data",
@@ -958,24 +1117,35 @@ export function createStockPDF(
               <>
                 {renderTableWithConfig(
                   [
-                    { header: "Data/Hora", key: "data" },
-                    { header: "Tipo", key: "tipo_movimentacao" },
-                    { header: "Item", key: "nome" },
-                    { header: "Complemento", key: "complemento" },
+                    { header: "Data/Hora", key: "data", flex: 1.2 },
+                    {
+                      header: "Tipo",
+                      key: "tipo_movimentacao",
+                      flex: 0.82,
+                    },
+                    { header: "Item", key: "nome", flex: 1.95 },
+                    { header: "Complemento", key: "complemento", flex: 1.75 },
                     {
                       header: "Quantidade",
                       key: "quantidade",
                       isNumeric: true,
+                      flex: 0.58,
                     },
-                    { header: "Setor", key: "setor" },
-                    { header: "Casela", key: "casela", isNumeric: true },
+                    { header: "Setor", key: "setor", flex: 0.95 },
+                    {
+                      header: "Casela",
+                      key: "casela",
+                      isNumeric: true,
+                      flex: 0.52,
+                    },
                     {
                       header: showCabinetColumn ? "Armário" : "Gaveta",
                       key: showCabinetColumn ? "armario" : "gaveta",
                       isNumeric: true,
+                      flex: 0.52,
                     },
-                    { header: "Lote", key: "lote" },
-                    { header: "Destino", key: "destino" },
+                    { header: "Lote", key: "lote", flex: 0.85 },
+                    { header: "Destino", key: "destino", flex: 0.95 },
                   ],
                   movementsData.map((movement) => ({
                     data: movement.data
@@ -1024,6 +1194,12 @@ export function createStockPDF(
                   <Text style={{ fontSize: 12, color: "#666" }}>
                     Casela: {residentMedicinesData[0]?.casela || ""}
                   </Text>
+                  {residentMedicinesData[0]?.telefone_responsavel ? (
+                    <Text style={{ fontSize: 12, color: "#666" }}>
+                      Tel. responsável:{" "}
+                      {residentMedicinesData[0]?.telefone_responsavel}
+                    </Text>
+                  ) : null}
                   {residentMedicinesData[0]?.cpf ? (
                     <Text style={{ fontSize: 12, color: "#666" }}>
                       CPF: {residentMedicinesData[0]?.cpf}

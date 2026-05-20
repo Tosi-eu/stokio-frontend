@@ -3,11 +3,15 @@ import { StockItem, StockItemRaw } from "@/interfaces/interfaces";
 import { ItemStockType, StockTypeLabels } from "@/utils/enums";
 import {
   armarioFilterLabel,
-  caselaFilterLabel,
   caselaModeForContext,
   type UiDisplayCasela,
   type UiDisplayCaselaSetor,
 } from "@/helpers/ui-display.helper";
+import {
+  compareResidentsByCaselaThenName,
+  compareResidentsByNameThenCasela,
+} from "@/helpers/resident-sort.helper";
+import { formatResidentCaselaAutocompleteLabel } from "@/helpers/resident-casela-autocomplete.helper";
 import { formatValidityDate } from "@/helpers/dates.helper";
 
 export interface StockListFilters {
@@ -66,11 +70,14 @@ export interface StockListItemRaw extends Partial<StockItemRaw> {
   destino?: string | null;
   observacao?: string | null;
   dias_para_repor?: number | null;
+  /** Chave do setor; a API pode enviar `setor` (PT) ou `sector` (EN). */
+  sector?: string;
 }
 
 export function formatStockItems(raw: unknown[]): StockItem[] {
   return (raw || []).map((item: StockListItemRaw) => {
-    const isMedicamento = item.tipo_item === "medicamento";
+    const isMedicamento =
+      item.tipo_item === "medicamento" || item.tipo_item === "medicine";
     const name = isMedicamento
       ? `${item.nome || ""} ${item.dosagem || ""}${item.unidade_medida || ""}`.trim()
       : (item.nome || "").trim();
@@ -101,10 +108,9 @@ export function formatStockItems(raw: unknown[]): StockItem[] {
       suspended_at: item.suspenso_em ? new Date(item.suspenso_em) : null,
       detail: item.observacao ?? null,
       daysToReplacement: item.dias_para_repor ?? null,
-      medicamentoId:
-        item.tipo_item === "medicamento" ? (item.item_id ?? null) : null,
+      medicamentoId: isMedicamento ? (item.item_id ?? null) : null,
       itemType: item.tipo_item,
-      sector: item.setor,
+      sector: String(item.setor ?? item.sector ?? "").trim() || "-",
       lot: item.lote ?? null,
     } as StockItem;
   });
@@ -201,15 +207,12 @@ export function buildFilterOptions(
     ? [...options!.residents!]
         .sort((a, b) =>
           effEnf === "nome"
-            ? a.name.localeCompare(b.name, "pt-BR")
-            : a.casela - b.casela,
+            ? compareResidentsByNameThenCasela(a, b)
+            : compareResidentsByCaselaThenName(a, b),
         )
         .map((r) => ({
           value: String(r.casela),
-          label:
-            effEnf === "nome"
-              ? r.name
-              : caselaFilterLabel(r.casela, r.name, uiCasela, "enfermagem"),
+          label: formatResidentCaselaAutocompleteLabel(r),
         }))
     : Array.from(
         new Set(
@@ -222,24 +225,23 @@ export function buildFilterOptions(
       )
         .sort((a, b) => {
           if (effFarm === "nome" && (options?.residents?.length ?? 0) > 0) {
-            const na =
-              options!.residents!.find((r) => r.casela === a)?.name ?? "";
-            const nb =
-              options!.residents!.find((r) => r.casela === b)?.name ?? "";
-            return na.localeCompare(nb, "pt-BR");
+            const ra = options!.residents!.find((r) => r.casela === a);
+            const rb = options!.residents!.find((r) => r.casela === b);
+            return compareResidentsByNameThenCasela(
+              { name: ra?.name ?? "", casela: a },
+              { name: rb?.name ?? "", casela: b },
+            );
           }
           return a - b;
         })
         .map((id) => {
           const r = options?.residents?.find((x) => x.casela === id);
+          const nm = r?.name?.trim();
           return {
             value: String(id),
-            label: caselaFilterLabel(
-              id,
-              r?.name ?? null,
-              uiCasela,
-              sectorForFarmaciaList,
-            ),
+            label: nm
+              ? formatResidentCaselaAutocompleteLabel({ name: nm, casela: id })
+              : `Casela ${id}`,
           };
         });
 
@@ -301,37 +303,33 @@ export function buildFilterOptionsFromApi(
     ? [...options!.residents!]
         .sort((a, b) =>
           effEnf === "nome"
-            ? a.name.localeCompare(b.name, "pt-BR")
-            : a.casela - b.casela,
+            ? compareResidentsByNameThenCasela(a, b)
+            : compareResidentsByCaselaThenName(a, b),
         )
         .map((r) => ({
           value: String(r.casela),
-          label:
-            effEnf === "nome"
-              ? r.name
-              : caselaFilterLabel(r.casela, r.name, uiCasela, "enfermagem"),
+          label: formatResidentCaselaAutocompleteLabel(r),
         }))
     : (apiOptions?.caselas ?? [])
         .sort((a, b) => {
           if (effFarm === "nome" && (options?.residents?.length ?? 0) > 0) {
-            const na =
-              options!.residents!.find((r) => r.casela === a)?.name ?? "";
-            const nb =
-              options!.residents!.find((r) => r.casela === b)?.name ?? "";
-            return na.localeCompare(nb, "pt-BR");
+            const ra = options!.residents!.find((r) => r.casela === a);
+            const rb = options!.residents!.find((r) => r.casela === b);
+            return compareResidentsByNameThenCasela(
+              { name: ra?.name ?? "", casela: a },
+              { name: rb?.name ?? "", casela: b },
+            );
           }
           return a - b;
         })
         .map((id) => {
           const r = options?.residents?.find((x) => x.casela === id);
+          const nm = r?.name?.trim();
           return {
             value: String(id),
-            label: caselaFilterLabel(
-              id,
-              r?.name ?? null,
-              uiCasela,
-              sectorForFarmaciaList,
-            ),
+            label: nm
+              ? formatResidentCaselaAutocompleteLabel({ name: nm, casela: id })
+              : `Casela ${id}`,
           };
         });
 

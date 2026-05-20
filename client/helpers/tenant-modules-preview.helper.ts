@@ -11,6 +11,7 @@ export const PREVIEW_UI_MODULE_KEYS = new Set([
   "admin",
   "notifications",
   "reports",
+  "audit",
   "medical_record_exports",
 ]);
 

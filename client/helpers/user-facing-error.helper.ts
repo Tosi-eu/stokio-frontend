@@ -22,10 +22,7 @@ export function logSanitizedError(
   sanitized: string,
 ): void {
   if (shouldLogSanitization(rawMessage, sanitized)) {
-    console.error(
-      `[${context}] Erro interno (mensagem simplificada para o utilizador)`,
-      err,
-    );
+    console.error(`[${context}] Internal error`, err);
   }
 }
 
@@ -51,6 +48,18 @@ export function sanitizeUserFacingMessage(message: string): string {
     /não autorizado a/i,
     /permiss(ão|ões)/i,
     /sessão inválida/i,
+    /already exists.*medicine/i,
+    /already exists.*input/i,
+    /required fields/i,
+    /invalid quantity/i,
+    /user not authenticated/i,
+    /invalid credentials/i,
+    /invalid token/i,
+    /e-?mail.*already/i,
+    /insufficient privileges/i,
+    /not authorized to/i,
+    /permission(s)?/i,
+    /invalid session/i,
   ];
 
   if (safeBusinessMessages.some((pattern) => pattern.test(message))) {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Layout from "@/components/Layout";
 import EditableTable from "@/components/EditableTable";
 import { SkeletonTable } from "@/components/SkeletonTable";
@@ -10,6 +11,7 @@ import {
   updateCabinet,
 } from "@/api/requests";
 import { toast } from "@/hooks/use-toast.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import {
   getErrorMessage,
   USER_FACING_RETRY_SHORT,
@@ -32,7 +34,7 @@ import { fetchStockPage, formatStockItems } from "@/helpers/stock-list.helper";
 import type { StockItem } from "@/interfaces/interfaces";
 import { Button } from "@/components/ui/button";
 import { TableFilter } from "@/components/TableFilter";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, X } from "lucide-react";
 import DeletePopUp from "@/components/DeletePopUp";
 import { Input } from "@/components/ui/input";
 import {
@@ -59,6 +61,9 @@ import {
 export default function Cabinets() {
   const { previewMode, modules } = useTenant();
   const { labelByKey } = useTenantSetores();
+  const router = useRouter();
+  const { canMovementTipo } = usePermissionMatrix();
+  const canSaida = canMovementTipo("saida");
 
   const sectorFilterChoices = useMemo(
     () => buildSectorFilterOptions(getEnabledSectors(modules), labelByKey),
@@ -68,10 +73,10 @@ export default function Cabinets() {
   const [loadingList, setLoadingList] = useState(true);
   const [selectedNumero, setSelectedNumero] = useState<number | null>(null);
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("__all");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [tableFilter, setTableFilter] = useState("");
-  const [filterCasela, setFilterCasela] = useState("__all");
-  const [filterSetor, setFilterSetor] = useState("__all");
+  const [filterCasela, setFilterCasela] = useState("");
+  const [filterSetor, setFilterSetor] = useState("");
   const [filterLote, setFilterLote] = useState("");
   const [stockRows, setStockRows] = useState<StockItem[]>([]);
   const [loadingStock, setLoadingStock] = useState(false);
@@ -149,9 +154,10 @@ export default function Cabinets() {
           const all = filterPreviewStockByCabinet(numero);
           const nome = q.trim().toLowerCase();
           const lote = filterLote.trim().toLowerCase();
-          const setor =
-            filterSetor === "__all" ? "" : filterSetor.trim().toLowerCase();
-          const casela = filterCasela === "__all" ? "" : filterCasela.trim();
+          const setor = filterSetor.trim()
+            ? filterSetor.trim().toLowerCase()
+            : "";
+          const casela = filterCasela.trim() ? filterCasela.trim() : "";
 
           const filtered = all.filter((i) => {
             const okNome =
@@ -184,14 +190,8 @@ export default function Cabinets() {
           {
             armario: String(numero),
             nome: q.trim() ? q.trim() : undefined,
-            casela:
-              filterCasela !== "__all" && filterCasela.trim()
-                ? filterCasela.trim()
-                : undefined,
-            setor:
-              filterSetor !== "__all" && filterSetor.trim()
-                ? filterSetor.trim()
-                : undefined,
+            casela: filterCasela.trim() ? filterCasela.trim() : undefined,
+            setor: filterSetor.trim() ? filterSetor.trim() : undefined,
             lote: filterLote.trim() ? filterLote.trim() : undefined,
           },
         );
@@ -417,7 +417,38 @@ export default function Cabinets() {
                 </p>
               </div>
               {!previewMode ? (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button
+                    asChild
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-xl"
+                  >
+                    <Link href={`/stock?cabinet=${selectedNumero}`}>
+                      Ver no estoque
+                    </Link>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={() => {
+                      if (!canSaida) {
+                        toast({
+                          title: "Sem permissão",
+                          description:
+                            "Você não tem permissão para dar saída no estoque.",
+                          variant: "error",
+                          duration: 3000,
+                        });
+                        return;
+                      }
+                      router.push(`/stock/out?cabinet=${selectedNumero}`);
+                    }}
+                  >
+                    Saída rápida
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
@@ -455,40 +486,79 @@ export default function Cabinets() {
                   <Label htmlFor="cab-filter-casela" className="text-xs">
                     Casela
                   </Label>
-                  <Select value={filterCasela} onValueChange={setFilterCasela}>
-                    <SelectTrigger
-                      id="cab-filter-casela"
-                      className="rounded-xl"
-                    >
-                      <SelectValue placeholder="Todas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all">Todas</SelectItem>
-                      {caselaOptions.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2 items-center">
+                    <div className="min-w-0 flex-1">
+                      <Select
+                        value={filterCasela.trim() ? filterCasela : undefined}
+                        onValueChange={setFilterCasela}
+                      >
+                        <SelectTrigger
+                          id="cab-filter-casela"
+                          className="rounded-xl"
+                        >
+                          <SelectValue placeholder="Todas as caselas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {caselaOptions.map((c) => (
+                            <SelectItem key={c} value={c}>
+                              {c}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {filterCasela.trim() ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-10 w-10 shrink-0 rounded-xl"
+                        onClick={() => setFilterCasela("")}
+                        aria-label="Limpar filtro de casela"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="cab-filter-setor" className="text-xs">
                     Setor
                   </Label>
-                  <Select value={filterSetor} onValueChange={setFilterSetor}>
-                    <SelectTrigger id="cab-filter-setor" className="rounded-xl">
-                      <SelectValue placeholder="Todos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all">Todos</SelectItem>
-                      {sectorFilterChoices.map((s) => (
-                        <SelectItem key={s.value} value={s.value}>
-                          {s.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2 items-center">
+                    <div className="min-w-0 flex-1">
+                      <Select
+                        value={filterSetor.trim() ? filterSetor : undefined}
+                        onValueChange={setFilterSetor}
+                      >
+                        <SelectTrigger
+                          id="cab-filter-setor"
+                          className="rounded-xl"
+                        >
+                          <SelectValue placeholder="Todos os setores" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sectorFilterChoices.map((s) => (
+                            <SelectItem key={s.value} value={s.value}>
+                              {s.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {filterSetor.trim() ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-10 w-10 shrink-0 rounded-xl"
+                        onClick={() => setFilterSetor("")}
+                        aria-label="Limpar filtro de setor"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="cab-filter-lote" className="text-xs">
@@ -515,6 +585,7 @@ export default function Cabinets() {
                     columns={CABINET_STOCK_DETAIL_COLUMNS}
                     showAddons={false}
                     readOnly
+                    columnWidthKey="cabinets.detailStock"
                   />
 
                   <div className="flex flex-col items-center justify-center gap-2 pt-1">

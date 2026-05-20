@@ -6,6 +6,7 @@ import EditableTable from "@/components/EditableTable";
 import { SkeletonTable } from "@/components/SkeletonTable";
 import { deleteDrawer, getDrawers } from "@/api/requests";
 import { toast } from "@/hooks/use-toast.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import {
   getErrorMessage,
   USER_FACING_RETRY_SHORT,
@@ -28,8 +29,9 @@ import {
 import { fetchStockPage, formatStockItems } from "@/helpers/stock-list.helper";
 import type { StockItem } from "@/interfaces/interfaces";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TableFilter } from "@/components/TableFilter";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, X } from "lucide-react";
 import DeletePopUp from "@/components/DeletePopUp";
 import { setSpaNavigationState } from "@/helpers/spa-navigation-state.helper";
 import { ROUTES } from "@/constants/app.constants";
@@ -71,6 +73,8 @@ function stockItemsToDetailRows(items: StockItem[]): Record<string, unknown>[] {
 export default function Drawers() {
   const { previewMode, modules } = useTenant();
   const { labelByKey } = useTenantSetores();
+  const { canMovementTipo } = usePermissionMatrix();
+  const canSaida = canMovementTipo("saida");
 
   const sectorFilterChoices = useMemo(
     () => buildSectorFilterOptions(getEnabledSectors(modules), labelByKey),
@@ -81,10 +85,10 @@ export default function Drawers() {
   const [loadingList, setLoadingList] = useState(true);
   const [selectedNumero, setSelectedNumero] = useState<number | null>(null);
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("__all");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [tableFilter, setTableFilter] = useState("");
-  const [filterCasela, setFilterCasela] = useState("__all");
-  const [filterSetor, setFilterSetor] = useState("__all");
+  const [filterCasela, setFilterCasela] = useState("");
+  const [filterSetor, setFilterSetor] = useState("");
   const [filterLote, setFilterLote] = useState("");
   const [stockRows, setStockRows] = useState<StockItem[]>([]);
   const [loadingStock, setLoadingStock] = useState(false);
@@ -97,6 +101,13 @@ export default function Drawers() {
   const STOCK_PAGE_SIZE = 10;
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [checkedStockIds, setCheckedStockIds] = useState<Set<number>>(
+    () => new Set(),
+  );
+
+  useEffect(() => {
+    setCheckedStockIds(new Set());
+  }, [selectedNumero]);
 
   const loadDrawers = useCallback(async () => {
     setLoadingList(true);
@@ -156,9 +167,10 @@ export default function Drawers() {
           const all = filterPreviewStockByDrawer(numero);
           const nome = q.trim().toLowerCase();
           const lote = filterLote.trim().toLowerCase();
-          const setor =
-            filterSetor === "__all" ? "" : filterSetor.trim().toLowerCase();
-          const casela = filterCasela === "__all" ? "" : filterCasela.trim();
+          const setor = filterSetor.trim()
+            ? filterSetor.trim().toLowerCase()
+            : "";
+          const casela = filterCasela.trim() ? filterCasela.trim() : "";
 
           const filtered = all.filter((i) => {
             const okNome =
@@ -191,14 +203,8 @@ export default function Drawers() {
           {
             gaveta: String(numero),
             nome: q.trim() ? q.trim() : undefined,
-            casela:
-              filterCasela !== "__all" && filterCasela.trim()
-                ? filterCasela.trim()
-                : undefined,
-            setor:
-              filterSetor !== "__all" && filterSetor.trim()
-                ? filterSetor.trim()
-                : undefined,
+            casela: filterCasela.trim() ? filterCasela.trim() : undefined,
+            setor: filterSetor.trim() ? filterSetor.trim() : undefined,
             lote: filterLote.trim() ? filterLote.trim() : undefined,
           },
         );
@@ -367,7 +373,38 @@ export default function Drawers() {
                 </p>
               </div>
               {!previewMode ? (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button
+                    asChild
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-xl"
+                  >
+                    <Link href={`/stock?drawer=${selectedNumero}`}>
+                      Ver no estoque
+                    </Link>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={() => {
+                      if (!canSaida) {
+                        toast({
+                          title: "Sem permissão",
+                          description:
+                            "Você não tem permissão para dar saída no estoque.",
+                          variant: "error",
+                          duration: 3000,
+                        });
+                        return;
+                      }
+                      router.push(`/stock/out?drawer=${selectedNumero}`);
+                    }}
+                  >
+                    Saída rápida
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
@@ -405,43 +442,79 @@ export default function Drawers() {
                   <Label htmlFor="drawer-filter-casela" className="text-xs">
                     Casela
                   </Label>
-                  <Select value={filterCasela} onValueChange={setFilterCasela}>
-                    <SelectTrigger
-                      id="drawer-filter-casela"
-                      className="rounded-xl"
-                    >
-                      <SelectValue placeholder="Todas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all">Todas</SelectItem>
-                      {caselaOptions.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2 items-center">
+                    <div className="min-w-0 flex-1">
+                      <Select
+                        value={filterCasela.trim() ? filterCasela : undefined}
+                        onValueChange={setFilterCasela}
+                      >
+                        <SelectTrigger
+                          id="drawer-filter-casela"
+                          className="rounded-xl"
+                        >
+                          <SelectValue placeholder="Todas as caselas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {caselaOptions.map((c) => (
+                            <SelectItem key={c} value={c}>
+                              {c}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {filterCasela.trim() ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-10 w-10 shrink-0 rounded-xl"
+                        onClick={() => setFilterCasela("")}
+                        aria-label="Limpar filtro de casela"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="drawer-filter-setor" className="text-xs">
                     Setor
                   </Label>
-                  <Select value={filterSetor} onValueChange={setFilterSetor}>
-                    <SelectTrigger
-                      id="drawer-filter-setor"
-                      className="rounded-xl"
-                    >
-                      <SelectValue placeholder="Todos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all">Todos</SelectItem>
-                      {sectorFilterChoices.map((s) => (
-                        <SelectItem key={s.value} value={s.value}>
-                          {s.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2 items-center">
+                    <div className="min-w-0 flex-1">
+                      <Select
+                        value={filterSetor.trim() ? filterSetor : undefined}
+                        onValueChange={setFilterSetor}
+                      >
+                        <SelectTrigger
+                          id="drawer-filter-setor"
+                          className="rounded-xl"
+                        >
+                          <SelectValue placeholder="Todos os setores" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sectorFilterChoices.map((s) => (
+                            <SelectItem key={s.value} value={s.value}>
+                              {s.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {filterSetor.trim() ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-10 w-10 shrink-0 rounded-xl"
+                        onClick={() => setFilterSetor("")}
+                        aria-label="Limpar filtro de setor"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="drawer-filter-lote" className="text-xs">
@@ -465,7 +538,42 @@ export default function Drawers() {
                     columns={STOCK_DETAIL_COLUMNS}
                     showAddons={false}
                     readOnly
+                    columnWidthKey="drawers.detailStock"
                   />
+
+                  {stockRows.length > 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/70 p-4 space-y-2">
+                      <p className="text-sm font-medium">
+                        Conferência (esta sessão)
+                      </p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-2">
+                        {stockRows.map((row) => {
+                          const id = Number(row.id);
+                          return (
+                            <label
+                              key={id}
+                              className="flex items-center gap-2 text-sm cursor-pointer"
+                            >
+                              <Checkbox
+                                checked={checkedStockIds.has(id)}
+                                onCheckedChange={(c) => {
+                                  setCheckedStockIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (c === true) next.add(id);
+                                    else next.delete(id);
+                                    return next;
+                                  });
+                                }}
+                              />
+                              <span className="truncate max-w-[220px]">
+                                {row.name}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div className="flex flex-col items-center justify-center gap-2 pt-1">
                     <p className="text-xs text-muted-foreground">

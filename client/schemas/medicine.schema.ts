@@ -1,4 +1,5 @@
 import { MeasurementUnit } from "@/constants/measurement-units";
+import { formatEntityDisplayName } from "@/helpers/text-name.helper";
 import { z } from "zod";
 
 export const medicineSchema = z.object({
@@ -6,12 +7,14 @@ export const medicineSchema = z.object({
     .string()
     .min(1, "Nome é obrigatório")
     .max(255, "Nome deve ter no máximo 255 caracteres")
-    .trim(),
+    .trim()
+    .transform(formatEntityDisplayName),
   substance: z
     .string()
     .min(1, "Princípio ativo é obrigatório")
     .max(255, "Princípio ativo deve ter no máximo 255 caracteres")
-    .trim(),
+    .trim()
+    .transform(formatEntityDisplayName),
   dosageValue: z
     .string()
     .min(1, "Dosagem é obrigatória")

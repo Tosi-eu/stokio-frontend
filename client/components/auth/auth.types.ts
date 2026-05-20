@@ -1,3 +1,3 @@
 export type AuthProps = {
-  scrollToSection?: "auth" | "contact";
+  scrollToSection?: "auth" | "contact" | "privacy";
 };

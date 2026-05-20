@@ -236,6 +236,10 @@ export default function AdminPanel() {
             setStockHistoryPage={resumoExtras.setStockHistoryPage}
             stockHistoryLimit={resumoExtras.stockHistoryLimit}
             setStockHistoryLimit={resumoExtras.setStockHistoryLimit}
+            abcDays={resumoExtras.abcDays}
+            setAbcDays={resumoExtras.setAbcDays}
+            abcBundle={resumoExtras.abcBundle}
+            loadingAbc={resumoExtras.loadingAbc}
           />
         </TabsContent>
 
@@ -313,8 +317,6 @@ export default function AdminPanel() {
             setLimit={loginLog.setLimit}
             loginFilter={loginLog.loginFilter}
             setLoginFilter={loginLog.setLoginFilter}
-            successFilter={loginLog.successFilter}
-            setSuccessFilter={loginLog.setSuccessFilter}
             fromDate={loginLog.fromDate}
             setFromDate={loginLog.setFromDate}
             toDate={loginLog.toDate}
@@ -371,15 +373,17 @@ export default function AdminPanel() {
           <AdminTabInsights
             insights={insights.insights}
             loadingInsights={insights.loadingInsights}
-            insightDaysInput={insights.insightDaysInput}
-            setInsightDaysInput={insights.setInsightDaysInput}
-            applyInsightDays={insights.applyInsightDays}
-            insightFilter={insights.insightFilter}
-            setInsightFilter={insights.setInsightFilter}
-            insightResourceFilter={insights.insightResourceFilter}
-            setInsightResourceFilter={insights.setInsightResourceFilter}
-            insightUserIdFilter={insights.insightUserIdFilter}
-            setInsightUserIdFilter={insights.setInsightUserIdFilter}
+            fromDate={insights.fromDate}
+            setFromDate={insights.setFromDate}
+            toDate={insights.toDate}
+            setToDate={insights.setToDate}
+            actionFilter={insights.actionFilter}
+            setActionFilter={insights.setActionFilter}
+            resourceFilter={insights.resourceFilter}
+            setResourceFilter={insights.setResourceFilter}
+            operatorUserId={insights.operatorUserId}
+            setOperatorUserId={insights.setOperatorUserId}
+            applyFilters={insights.applyFilters}
             adminUsers={users.users}
             setEventsPage={insights.setEventsPage}
             eventsPage={insights.eventsPage}

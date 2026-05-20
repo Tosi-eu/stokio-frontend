@@ -24,6 +24,14 @@ export type UpdateUserPayload = {
   currentPassword: string;
 };
 
+export type UpdateUserResponse = {
+  id: number;
+  login: string;
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+};
+
 export type StockFilter =
   | "nearMin"
   | "belowMin"

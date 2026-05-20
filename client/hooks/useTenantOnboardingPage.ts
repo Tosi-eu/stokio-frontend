@@ -7,14 +7,20 @@ import {
   setTenantContractCode,
   claimTenantContractCode,
   verifyTenantContractCode,
+  fetchPublicTenantBrandingIfExists,
   listTenantSetores,
   type TenantSetorRow,
   downloadTenantImportTemplate,
   importTenantXlsx,
   tenantImportTotalForKey,
   type TenantImportXlsxResponse,
+  dismissTenantOnboarding,
 } from "@/api/requests";
-import { getEnabledSectors } from "@/helpers/tenant-sectors.helper";
+import { writeActiveTenantSlug } from "@/helpers/active-tenant-slug.helper";
+import {
+  getEnabledSectors,
+  tenantEnabledKeysForConfigPatch,
+} from "@/helpers/tenant-sectors.helper";
 import { setSkipTenantOnboarding } from "@/context/tenant-context";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -32,7 +38,10 @@ import {
   getErrorMessage,
   USER_FACING_RETRY_SHORT,
 } from "@/helpers/validation.helper";
-import { SIGNUP_CONTRACT_VERIFIED_SESSION_KEY } from "@/helpers/signup-contract-session.helper";
+import {
+  clearSignupContractVerified,
+  readSignupContractVerified,
+} from "@/helpers/signup-contract-session.helper";
 import { HeartPulse, Pill, Warehouse } from "lucide-react";
 import { TENANT_ONBOARDING_SECTOR_OPTIONS } from "@/components/tenant-onboarding/tenant-onboarding.constants";
 
@@ -45,7 +54,6 @@ export function useTenantOnboardingPage() {
   const canManageModules =
     user?.role === "admin" || isSuperAdminUser(user ?? null);
 
-  const [enabled, setEnabled] = useState<Set<string>>(new Set());
   const [enabledSectors, setEnabledSectors] = useState<Set<string>>(
     () => new Set(["farmacia", "enfermagem"]),
   );
@@ -73,8 +81,24 @@ export function useTenantOnboardingPage() {
   const [importResult, setImportResult] =
     useState<TenantImportXlsxResponse | null>(null);
 
-  const confirmSkipOnboarding = () => {
+  const confirmSkipOnboarding = async () => {
     if (tenantId == null) return;
+    try {
+      await dismissTenantOnboarding();
+    } catch (err) {
+      const message = getErrorMessage(
+        err,
+        "Não foi possível concluir. Tente novamente.",
+        "TenantOnboarding:dismiss",
+      );
+      toast({
+        title: "Não foi possível pular",
+        description: message,
+        variant: "error",
+        duration: 5000,
+      });
+      return;
+    }
     setSkipTenantOnboarding(tenantId, true);
     router.replace("/loading");
   };
@@ -178,7 +202,6 @@ export function useTenantOnboardingPage() {
         setContractValidated(false);
       }
     }
-    setEnabled(new Set(modules?.enabled ?? []));
     setEnabledSectors(new Set(getEnabledSectors(modules ?? null)));
     setBrandName(tenant?.brandName ?? tenant?.name ?? "");
     const serverLogo = tenant?.logoUrl?.trim() || null;
@@ -234,16 +257,14 @@ export function useTenantOnboardingPage() {
     () =>
       JSON.stringify(
         {
-          enabled: Array.from(enabled),
           enabled_sectors: Array.from(enabledSectors),
         },
         null,
         2,
       ),
-    [enabled, enabledSectors],
+    [enabledSectors],
   );
 
-  const selectedCount = enabled.size;
   const initials = useMemo(() => {
     const n = brandName.trim() || tenant?.name?.trim() || "A";
     return n
@@ -254,15 +275,6 @@ export function useTenantOnboardingPage() {
       .toUpperCase()
       .slice(0, 2);
   }, [brandName, tenant?.name]);
-
-  const toggle = (key: string) => {
-    setEnabled((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
 
   const toggleSector = (key: string) => {
     setEnabledSectors((prev) => {
@@ -276,6 +288,33 @@ export function useTenantOnboardingPage() {
       return next;
     });
   };
+
+  const prefillBrandFromCanonicalSlug = useCallback(
+    async (canonicalSlug: string) => {
+      const branding = await fetchPublicTenantBrandingIfExists(canonicalSlug);
+      if (!branding) return;
+      const label = (branding.brandName ?? branding.name ?? "").trim();
+      if (label) setBrandName(label);
+    },
+    [],
+  );
+
+  const applyContractMigrationResult = useCallback(
+    async (res: {
+      migrated?: boolean;
+      tenantId?: number;
+      tenantSlug?: string;
+    }) => {
+      if (res.migrated !== true || res.tenantId == null) return false;
+      const nextSlug = res.tenantSlug?.trim();
+      if (nextSlug) writeActiveTenantSlug(nextSlug);
+      patchStoredUser({ tenantId: res.tenantId, role: "admin" });
+      await refetch();
+      if (nextSlug) await prefillBrandFromCanonicalSlug(nextSlug);
+      return true;
+    },
+    [patchStoredUser, prefillBrandFromCanonicalSlug, refetch],
+  );
 
   const verifyContractCodeFlow = useCallback(
     async (rawCode: string, opts?: { silent?: boolean }): Promise<boolean> => {
@@ -322,13 +361,16 @@ export function useTenantOnboardingPage() {
       setValidatingContract(true);
       try {
         if (slug.startsWith("u-")) {
+          try {
+            const preview = await verifyTenantContractCode(slug, code);
+            if (preview.valid && preview.canonicalSlug?.trim()) {
+              await prefillBrandFromCanonicalSlug(preview.canonicalSlug.trim());
+            }
+          } catch {
+            void 0;
+          }
           const claim = await claimTenantContractCode(code, sessionLogin);
-          if (claim.migrated === true && claim.tenantId != null) {
-            patchStoredUser({
-              tenantId: claim.tenantId,
-              role: "admin",
-            });
-            await refetch();
+          if (await applyContractMigrationResult(claim)) {
             setContractValidated(true);
             if (!silent) {
               toast({
@@ -405,7 +447,12 @@ export function useTenantOnboardingPage() {
         setValidatingContract(false);
       }
     },
-    [tenant?.slug, user?.login, patchStoredUser, refetch],
+    [
+      tenant?.slug,
+      user?.login,
+      applyContractMigrationResult,
+      prefillBrandFromCanonicalSlug,
+    ],
   );
 
   const handleVerifyContract = async () => {
@@ -419,33 +466,20 @@ export function useTenantOnboardingPage() {
     if (!slug || !sessionLogin) return;
     if (signupContractAutoVerifyStartedRef.current) return;
 
-    let raw: string | null = null;
-    try {
-      raw = sessionStorage.getItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
-    } catch {
-      // ignore
-    }
-    if (!raw) return;
-
-    let parsed: { code?: string; email?: string };
-    try {
-      parsed = JSON.parse(raw) as { code?: string; email?: string };
-    } catch {
-      sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
-      return;
-    }
+    const parsed = readSignupContractVerified();
+    if (!parsed) return;
 
     const pc = String(parsed.code ?? "").trim();
     const pe = String(parsed.email ?? "").trim();
     if (!pc || pe !== sessionLogin) {
-      sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+      clearSignupContractVerified();
       return;
     }
 
     signupContractAutoVerifyStartedRef.current = true;
     void (async () => {
       const ok = await verifyContractCodeFlow(pc, { silent: true });
-      sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+      clearSignupContractVerified();
       if (!ok) {
         signupContractAutoVerifyStartedRef.current = false;
       } else if (tenantId != null) {
@@ -519,7 +553,6 @@ export function useTenantOnboardingPage() {
 
   const resetForm = () => {
     clearPendingLogo();
-    setEnabled(new Set(modules?.enabled ?? []));
     setEnabledSectors(new Set(getEnabledSectors(modules ?? null)));
     setBrandName(tenant?.brandName ?? tenant?.name ?? "");
     setContractCode("");
@@ -552,16 +585,9 @@ export function useTenantOnboardingPage() {
       toast({
         title: "Modo de visualização",
         description:
-          "Use «Concluir configuração» no aviso acima para guardar nome, logo e módulos.",
+          "Use «Concluir configuração» no aviso acima para guardar nome e logo.",
         variant: "warning",
         duration: 6000,
-      });
-      return;
-    }
-    if (canManageModules && enabled.size === 0) {
-      toast({
-        title: "Selecione ao menos um módulo",
-        variant: "error",
       });
       return;
     }
@@ -588,6 +614,38 @@ export function useTenantOnboardingPage() {
     let finalLogoUrl = logoUrl?.trim() || null;
     try {
       if (tenantId != null) setSkipTenantOnboarding(tenantId, false);
+
+      let contractRes: Awaited<
+        ReturnType<typeof setTenantContractCode>
+      > | null = null;
+      if (contractCode.trim()) {
+        const sessionLogin = user?.login?.trim();
+        if (!sessionLogin) {
+          toast({
+            title: "Sessão inválida",
+            description:
+              "Não foi possível gravar o código de contrato sem o e-mail da sessão. Faça login de novo.",
+            variant: "error",
+          });
+          return;
+        }
+        const activeSlug = tenant?.slug?.trim() ?? "";
+        if (activeSlug.startsWith("u-")) {
+          contractRes = await claimTenantContractCode(
+            contractCode.trim(),
+            sessionLogin,
+          );
+        } else if (user?.role === "admin" || isSuperAdminUser(user ?? null)) {
+          contractRes = await setTenantContractCode(
+            contractCode.trim(),
+            sessionLogin,
+          );
+        }
+        if (contractRes) {
+          await applyContractMigrationResult(contractRes);
+        }
+      }
+
       const brandPayload = { brandName: brandName.trim() || null };
       if (pendingLogoFile) {
         setLogoUploadPercent(0);
@@ -607,8 +665,8 @@ export function useTenantOnboardingPage() {
               onPhase: (phase) => setLogoUploadPhase(phase),
             },
           );
-          finalLogoUrl = appendLogoCacheBust(uploaded);
-          setLogoUrl(finalLogoUrl);
+          finalLogoUrl = uploaded;
+          setLogoUrl(appendLogoCacheBust(uploaded));
           clearPendingLogo();
         } finally {
           setUploadingLogo(false);
@@ -624,33 +682,18 @@ export function useTenantOnboardingPage() {
         });
         return;
       }
-      await updateTenantBranding({ ...brandPayload, logoUrl: finalLogoUrl });
-      let contractRes: Awaited<
-        ReturnType<typeof setTenantContractCode>
-      > | null = null;
-      if (contractCode.trim()) {
-        const sessionLogin = user?.login?.trim();
-        if (!sessionLogin) {
-          toast({
-            title: "Sessão inválida",
-            description:
-              "Não foi possível gravar o código de contrato sem o e-mail da sessão. Faça login de novo.",
-            variant: "error",
-          });
-          return;
-        }
-        contractRes = await setTenantContractCode(
-          contractCode.trim(),
-          sessionLogin,
-        );
-      }
-      if (contractRes?.migrated === true && contractRes.tenantId != null) {
-        patchStoredUser({ tenantId: contractRes.tenantId, role: "admin" });
-      }
+      await updateTenantBranding(
+        pendingLogoFile
+          ? brandPayload
+          : { ...brandPayload, logoUrl: finalLogoUrl },
+      );
       if (canManageModules) {
         await updateTenantConfig({
-          enabled: Array.from(enabled),
+          enabled: tenantEnabledKeysForConfigPatch(modules?.enabled),
           enabled_sectors: Array.from(enabledSectors),
+          automatic_price_search: modules?.automatic_price_search !== false,
+          automatic_reposicao_notifications:
+            modules?.automatic_reposicao_notifications !== false,
         });
       }
       toast({
@@ -695,7 +738,6 @@ export function useTenantOnboardingPage() {
     previewMode,
     tenantId,
     tenant,
-    selectedCount,
     contractCode,
     setContractCode,
     contractValidated,
@@ -720,8 +762,6 @@ export function useTenantOnboardingPage() {
     handleImportXlsx,
     importingXlsx,
     importResult,
-    toggle,
-    enabled,
     sectorUiRows,
     toggleSector,
     enabledSectors,

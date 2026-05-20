@@ -36,7 +36,6 @@ jobs:
           NEXT_PUBLIC_APP_NAME: CI
           NEXT_PUBLIC_APP_LOGO_URL: ""
           NEXT_PUBLIC_R2_PUBLIC_BASE_URL: ""
-          NEXT_PUBLIC_X_API_KEY: ""
         run: npm run build
 
       - name: Prettier (format check)

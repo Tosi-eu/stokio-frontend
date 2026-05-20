@@ -67,7 +67,8 @@ export function useMedicalRecordExportsPage() {
       const c = String(r.casela ?? "").trim();
       if (!c) continue;
       if (!map.has(c)) {
-        map.set(c, `Casela ${c} — ${r.residentName}`);
+        const name = String(r.residentName ?? "").trim();
+        map.set(c, name ? `${name} (${c})` : `Casela ${c}`);
       }
     }
     for (const row of rows) {
@@ -190,7 +191,7 @@ export function useMedicalRecordExportsPage() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `prontuario-${safeCasela}-${dateStamp}.${ext}`;
+        a.download = `medical-record-${safeCasela}-${dateStamp}.${ext}`;
         document.body.appendChild(a);
         a.click();
         a.remove();

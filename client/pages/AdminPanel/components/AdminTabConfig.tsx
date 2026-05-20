@@ -17,13 +17,15 @@ import {
   forceTenantPriceBackfill,
   getTenantPriceBackfillStatus,
   uploadTenantLogoWithProgress,
-  listTenantModuleDefinitions,
   type TenantSetorRow,
 } from "@/api/requests";
-import { getEnabledSectors } from "@/helpers/tenant-sectors.helper";
+import {
+  getEnabledSectors,
+  tenantEnabledKeysForConfigPatch,
+} from "@/helpers/tenant-sectors.helper";
 import { toast } from "@/hooks/use-toast.hook";
 import { useTenant } from "@/hooks/use-tenant.hook";
-import { Blocks, Loader2, Plus, Upload } from "lucide-react";
+import { Loader2, Plus, Upload, Warehouse } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { FadeInAvatarImage } from "@/components/FadeInAvatarImage";
 import { cn } from "@/lib/utils";
@@ -45,7 +47,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ADMIN_TAB_CONFIG_MODULE_OPTIONS } from "./admin-tab-config/admin-tab-config.constants";
 import type { AdminTabConfigProps } from "./admin-tab-config/admin-tab-config.types";
 
 export function AdminTabConfig({
@@ -55,7 +56,6 @@ export function AdminTabConfig({
   saving,
   onSave,
   isSuperAdmin: _isSuperAdmin,
-  // backups são geridos fora do sistema (mantemos props por compatibilidade)
   scheduledBackup: _scheduledBackup,
   setScheduledBackup: _setScheduledBackup,
 }: AdminTabConfigProps) {
@@ -63,13 +63,7 @@ export function AdminTabConfig({
   const [activeSubtab, setActiveSubtab] = useState<
     "geral" | "automacoes" | "sistema"
   >("geral");
-  const [moduleEnabled, setModuleEnabled] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const [moduleCatalogOptions, setModuleCatalogOptions] = useState<
-    Array<{ key: string; label: string }>
-  >(() => [...ADMIN_TAB_CONFIG_MODULE_OPTIONS]);
-  const [savingModules, setSavingModules] = useState(false);
+  const [savingTenantFeatures, setSavingTenantFeatures] = useState(false);
   const [autoPriceSearch, setAutoPriceSearch] = useState(true);
   const [autoReposicaoNotifications, setAutoReposicaoNotifications] =
     useState(true);
@@ -161,7 +155,7 @@ export function AdminTabConfig({
         setPriceBackfillRunning(s.running);
         setPriceBackfillQueueLength(Number(s.queueLength ?? 0));
       } catch {
-        /* ignore */
+        void 0;
       }
     })();
   }, []);
@@ -200,7 +194,7 @@ export function AdminTabConfig({
           return true;
         }
       } catch {
-        /* polling falhou — tenta no próximo intervalo */
+        void 0;
       }
       return false;
     },
@@ -218,37 +212,10 @@ export function AdminTabConfig({
     [stopPriceBackfillPolling, pollPriceBackfillOnce],
   );
 
-  useEffect(() => {
-    const next = new Set(modules?.enabled ?? []);
-    next.add("admin");
-    setModuleEnabled(next);
-  }, [modules]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await listTenantModuleDefinitions();
-        const list = res?.modules;
-        if (
-          !cancelled &&
-          Array.isArray(list) &&
-          list.length > 0 &&
-          list.every(
-            (x) =>
-              x && typeof x.key === "string" && typeof x.label === "string",
-          )
-        ) {
-          setModuleCatalogOptions(list);
-        }
-      } catch {
-        /* mantém fallback ADMIN_TAB_CONFIG_MODULE_OPTIONS */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const enabledKeysForConfigPatch = useMemo(
+    () => tenantEnabledKeysForConfigPatch(modules?.enabled),
+    [modules?.enabled],
+  );
 
   useEffect(() => {
     setEnabledSectors(new Set(getEnabledSectors(modules ?? null)));
@@ -293,17 +260,6 @@ export function AdminTabConfig({
     }
   }, [tenant?.logoUrl, tenant?.slug, tenant?.brandingUpdatedAt]);
 
-  const toggleModule = useCallback((key: string) => {
-    if (key === "admin") return;
-    setModuleEnabled((prev) => {
-      const next = new Set(prev);
-      next.add("admin");
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }, []);
-
   const toggleSector = useCallback((key: string) => {
     setEnabledSectors((prev) => {
       const next = new Set(prev);
@@ -340,39 +296,20 @@ export function AdminTabConfig({
       const merged = new Set(getEnabledSectors(modules ?? null));
       merged.add(key);
 
-      const enabledList = Array.from(
-        new Set([
-          ...(moduleEnabled.size > 0
-            ? Array.from(moduleEnabled)
-            : (modules?.enabled ?? [])),
-          "admin",
-        ]),
-      );
-
-      if (enabledList.length > 0) {
-        setEnabledSectors(merged);
-        await updateTenantConfig({
-          enabled: enabledList,
-          automatic_price_search: autoPriceSearch,
-          automatic_reposicao_notifications: autoReposicaoNotifications,
-          enabled_sectors: Array.from(merged),
-        });
-        await refetchTenant();
-        toast({
-          title: "Setor criado",
-          description:
-            "O setor já está disponível nos filtros, formulários e relatórios.",
-          variant: "success",
-        });
-      } else {
-        setEnabledSectors(merged);
-        toast({
-          title: "Setor criado",
-          description:
-            "Quando ativar módulos no abrigo e guardar, este setor passará a aparecer em todo o sistema.",
-          variant: "success",
-        });
-      }
+      setEnabledSectors(merged);
+      await updateTenantConfig({
+        enabled: enabledKeysForConfigPatch,
+        automatic_price_search: autoPriceSearch,
+        automatic_reposicao_notifications: autoReposicaoNotifications,
+        enabled_sectors: Array.from(merged),
+      });
+      await refetchTenant();
+      toast({
+        title: "Setor criado",
+        description:
+          "O setor já está disponível nos filtros, formulários e relatórios.",
+        variant: "success",
+      });
     } catch (err: unknown) {
       toast({
         title: "Não foi possível criar o setor",
@@ -481,14 +418,7 @@ export function AdminTabConfig({
     }
   };
 
-  const saveModules = async () => {
-    if (moduleEnabled.size === 0) {
-      toast({
-        title: "Selecione ao menos um módulo",
-        variant: "error",
-      });
-      return;
-    }
+  const saveTenantFeatures = async () => {
     if (enabledSectors.size === 0) {
       toast({
         title: "Selecione ao menos um setor",
@@ -497,33 +427,34 @@ export function AdminTabConfig({
       });
       return;
     }
-    setSavingModules(true);
+    setSavingTenantFeatures(true);
     try {
       await updateTenantConfig({
-        enabled: Array.from(new Set([...moduleEnabled, "admin"])),
+        enabled: enabledKeysForConfigPatch,
         automatic_price_search: autoPriceSearch,
         automatic_reposicao_notifications: autoReposicaoNotifications,
         enabled_sectors: Array.from(enabledSectors),
       });
       await refetchTenant();
       toast({
-        title: "Módulos atualizados",
-        description: "O menu e os atalhos já refletem as áreas ativadas.",
+        title: "Configuração atualizada",
+        description:
+          "Setores e automações foram guardados. O menu do abrigo continua definido no Admin Desktop.",
         variant: "success",
       });
     } catch (err: unknown) {
       await refetchTenant();
       toast({
-        title: "Não foi possível salvar os módulos",
+        title: "Não foi possível salvar",
         description: getErrorMessage(
           err,
           USER_FACING_RETRY_SHORT,
-          "AdminTabConfig:saveModules",
+          "AdminTabConfig:saveTenantFeatures",
         ),
         variant: "error",
       });
     } finally {
-      setSavingModules(false);
+      setSavingTenantFeatures(false);
     }
   };
 
@@ -558,21 +489,23 @@ export function AdminTabConfig({
         String(tenant?.brandName ?? "").trim() ||
         String(tenant?.name ?? "").trim() ||
         "logo";
-      const { logoUrl } = await uploadTenantLogoWithProgress(file, bnForUpload);
+      await uploadTenantLogoWithProgress(file, bnForUpload);
       const brandingRes = await updateTenantBranding({
         brandName: brandVisualName.trim() || null,
-        logoUrl,
       });
       const rev = brandingRes.tenant?.brandingUpdatedAt;
       const slug = tenant?.slug?.trim();
       const proxy = slug ? buildTenantLogoProxyUrl(slug) : "";
+      const persistedLogo = brandingRes.tenant?.logoUrl?.trim() || "";
       if (proxy) {
         setLogoPreviewUrl(
           rev ? appendLogoRevision(proxy, rev) : appendLogoCacheBust(proxy),
         );
-      } else {
+      } else if (persistedLogo) {
         setLogoPreviewUrl(
-          rev ? appendLogoRevision(logoUrl, rev) : appendLogoCacheBust(logoUrl),
+          rev
+            ? appendLogoRevision(persistedLogo, rev)
+            : appendLogoCacheBust(persistedLogo),
         );
       }
       await refetchTenant();
@@ -642,53 +575,27 @@ export function AdminTabConfig({
           <Card>
             <CardHeader>
               <div className="flex items-start gap-2">
-                <Blocks className="h-5 w-5 mt-0.5 text-muted-foreground shrink-0" />
+                <Warehouse className="h-5 w-5 mt-0.5 text-muted-foreground shrink-0" />
                 <div>
-                  <CardTitle>Módulos do sistema</CardTitle>
+                  <CardTitle>Setores de estoque e catálogo</CardTitle>
                   <p className="text-sm text-muted-foreground font-normal mt-1">
-                    Define quais áreas aparecem no menu para os usuários deste
-                    abrigo. Quem faz cadastro como usuário comum não altera esta
-                    lista — apenas administradores do painel. O menu{" "}
+                    Quais entradas aparecem no menu do abrigo são definidas na
+                    aplicação{" "}
                     <span className="font-medium text-foreground">
-                      só atualiza após Salvar módulos
-                    </span>
-                    .
+                      Admin Desktop
+                    </span>{" "}
+                    (chave de API). Aqui você mantém os setores ativos, cria
+                    setores adicionais e ajusta os tipos de estoque por setor.{" "}
+                    <span className="font-medium text-foreground">
+                      Use «Salvar setores e automações» (ou o separador
+                      Automações)
+                    </span>{" "}
+                    para gravar alterações desta área.
                   </p>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {moduleCatalogOptions.map((m) => {
-                  const lockedAdmin = m.key === "admin";
-                  const on = lockedAdmin || moduleEnabled.has(m.key);
-                  return (
-                    <label
-                      key={m.key}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg border p-3 transition-colors",
-                        lockedAdmin
-                          ? "border-border/80 bg-muted/20 cursor-not-allowed opacity-90"
-                          : "cursor-pointer",
-                        !lockedAdmin &&
-                          (on
-                            ? "border-primary/40 bg-primary/5"
-                            : "hover:bg-muted/40"),
-                      )}
-                    >
-                      <Checkbox
-                        checked={on}
-                        disabled={lockedAdmin}
-                        onCheckedChange={() => toggleModule(m.key)}
-                        aria-label={m.label}
-                      />
-                      <span className="text-sm font-medium leading-tight">
-                        {m.label}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
               <div className="rounded-lg border p-4 space-y-3 bg-muted/15">
                 <p className="text-sm font-medium text-foreground">
                   Setores de estoque
@@ -877,11 +784,13 @@ export function AdminTabConfig({
               </div>
               <Button
                 type="button"
-                onClick={saveModules}
-                disabled={savingModules}
+                onClick={() => void saveTenantFeatures()}
+                disabled={savingTenantFeatures}
                 variant="secondary"
               >
-                {savingModules ? "Salvando módulos..." : "Salvar módulos"}
+                {savingTenantFeatures
+                  ? "Salvando…"
+                  : "Salvar setores e automações"}
               </Button>
             </CardContent>
           </Card>
@@ -1064,11 +973,11 @@ export function AdminTabConfig({
               </div>
               <Button
                 type="button"
-                onClick={saveModules}
-                disabled={savingModules}
+                onClick={() => void saveTenantFeatures()}
+                disabled={savingTenantFeatures}
                 variant="secondary"
               >
-                {savingModules ? "Salvando…" : "Salvar automações"}
+                {savingTenantFeatures ? "Salvando…" : "Salvar automações"}
               </Button>
             </CardContent>
           </Card>
@@ -1122,12 +1031,7 @@ export function AdminTabConfig({
                         <Label htmlFor={key}>{label}</Label>
                         <Input
                           id={key}
-                          type={
-                            key === "expiring_days" ||
-                            key === "estoque_minimo_padrao"
-                              ? "number"
-                              : "text"
-                          }
+                          type={key === "expiring_days" ? "number" : "text"}
                           min={key === "expiring_days" ? 1 : undefined}
                           max={key === "expiring_days" ? 365 : undefined}
                           value={form[key] ?? ""}

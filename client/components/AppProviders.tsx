@@ -14,6 +14,9 @@ import { useAuth } from "@/hooks/use-auth.hook";
 import { AppRouteGate } from "@/components/AppRouteGate";
 import { GlobalErrorListeners } from "@/components/GlobalErrorListeners";
 import { RootErrorBoundary } from "@/components/RootErrorBoundary";
+import { CookieConsentProvider } from "@/context/cookie-consent-context";
+import { CookieConsentBanner } from "@/components/legal/CookieConsentBanner";
+import { CookiePreferencesDialog } from "@/components/legal/CookiePreferencesDialog";
 
 function TenantProviderWithUserKey({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -28,18 +31,22 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <GlobalErrorListeners />
-        <AuthProvider>
-          <TenantProviderWithUserKey>
-            <NotificationProvider>
-              <InvalidSessionProvider>
-                <RootErrorBoundary>
-                  <AppRouteGate>{children}</AppRouteGate>
-                </RootErrorBoundary>
-              </InvalidSessionProvider>
-            </NotificationProvider>
-          </TenantProviderWithUserKey>
-        </AuthProvider>
+        <CookieConsentProvider>
+          <GlobalErrorListeners />
+          <CookieConsentBanner />
+          <CookiePreferencesDialog />
+          <AuthProvider>
+            <TenantProviderWithUserKey>
+              <NotificationProvider>
+                <InvalidSessionProvider>
+                  <RootErrorBoundary>
+                    <AppRouteGate>{children}</AppRouteGate>
+                  </RootErrorBoundary>
+                </InvalidSessionProvider>
+              </NotificationProvider>
+            </TenantProviderWithUserKey>
+          </AuthProvider>
+        </CookieConsentProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

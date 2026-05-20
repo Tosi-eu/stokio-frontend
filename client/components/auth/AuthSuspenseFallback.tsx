@@ -1,8 +1,4 @@
 import { Skeleton } from "@/components/ui/skeleton";
-
-/**
- * Fallback de Suspense alinhado à landing de login (altura ~viewport, sem shell autenticado).
- */
 export function AuthSuspenseFallback({ title }: { title: string }) {
   return (
     <div className="flex min-h-[100dvh] flex-col bg-brand-mesh lg:flex-row">

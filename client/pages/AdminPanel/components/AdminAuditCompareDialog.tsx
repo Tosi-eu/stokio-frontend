@@ -82,6 +82,11 @@ export function AdminAuditCompareDialog({
             <Edit className="h-5 w-5 text-primary" />
             Comparação: Antes e Depois
           </DialogTitle>
+          {event.operator?.trim() ? (
+            <p className="text-sm text-muted-foreground">
+              Operador: {event.operator.trim()}
+            </p>
+          ) : null}
         </DialogHeader>
         <div className="overflow-auto flex-1 min-h-0 border rounded-md">
           {entries.length === 0 ? (

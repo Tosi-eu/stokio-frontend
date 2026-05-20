@@ -60,25 +60,60 @@ export const medicineFormSchema = z
     },
   )
   .refine(
-    (data) =>
-      [ItemStockType.CARRINHO, ItemStockType.CARRINHO_PSICOTROPICOS].includes(
-        data.stockType,
-      ) || data.cabinetId !== null,
+    (data) => data.stockType !== ItemStockType.GERAL || data.cabinetId !== null,
     {
-      message: "Selecione um armário",
+      message: "Estoque geral exige um armário",
       path: ["cabinetId"],
     },
   )
   .refine(
-    (data) => !(data.stockType === ItemStockType.GERAL && data.casela !== null),
+    (data) =>
+      data.stockType !== ItemStockType.GERAL ||
+      (data.drawerId === null && data.casela === null),
     {
-      message: "Estoque geral não pode ter casela",
-      path: ["casela"],
+      message: "Estoque geral usa só armário (sem gaveta nem casela)",
+      path: ["drawerId"],
     },
   )
-  .refine((data) => !(data.cabinetId !== null && data.drawerId !== null), {
-    message: "Não é possível selecionar armário e gaveta ao mesmo tempo",
-    path: ["drawerId"],
-  });
+  .refine(
+    (data) =>
+      data.stockType !== ItemStockType.INDIVIDUAL ||
+      (data.casela !== null && data.cabinetId !== null),
+    {
+      message: "Estoque individual exige casela e armário",
+      path: ["cabinetId"],
+    },
+  )
+  .refine(
+    (data) =>
+      data.stockType !== ItemStockType.INDIVIDUAL || data.drawerId === null,
+    {
+      message: "Estoque individual não usa gaveta nem carrinho",
+      path: ["drawerId"],
+    },
+  )
+  .refine(
+    (data) =>
+      ![ItemStockType.CARRINHO, ItemStockType.CARRINHO_PSICOTROPICOS].includes(
+        data.stockType,
+      ) ||
+      (data.drawerId !== null &&
+        data.cabinetId === null &&
+        data.casela === null),
+    {
+      message: "Carrinho usa apenas gaveta (sem armário nem casela)",
+      path: ["drawerId"],
+    },
+  )
+  .refine(
+    (data) =>
+      ![ItemStockType.CARRINHO, ItemStockType.CARRINHO_PSICOTROPICOS].includes(
+        data.stockType,
+      ) || data.sector === "enfermagem",
+    {
+      message: "Carrinho de emergência/psicotrópicos só no setor enfermagem",
+      path: ["sector"],
+    },
+  );
 
 export type MedicineFormData = z.infer<typeof medicineFormSchema>;

@@ -4,6 +4,10 @@ import { normalizeR2PublicBaseUrl } from "@/constants/app-branding";
 export function buildTenantLogoProxyUrl(slug: string): string {
   const s = String(slug ?? "").trim();
   if (!s) return "";
+  const path = `/api/v1/public/tenants/${encodeURIComponent(s)}/logo`;
+  if (typeof window !== "undefined") {
+    return path;
+  }
   const base = API_BASE_URL.replace(/\/$/, "");
   if (!base) return "";
   return `${base}/public/tenants/${encodeURIComponent(s)}/logo`;
@@ -49,17 +53,57 @@ export function normalizeSlugForR2Key(raw: string): string {
   return s || "tenant";
 }
 
-const LOGO_EXT_CANDIDATES = ["png", "webp", "jpg", "gif"] as const;
+export function tenantLogoStemForR2(brandLabel: string, slug: string): string {
+  const brandSeg = normalizeBrandNameForR2Key(brandLabel);
+  const slugSeg = normalizeSlugForR2Key(slug);
+  return `${brandSeg}-${slugSeg}`;
+}
+
+export function stripLogoUrlQueryAndHash(url: string): string {
+  const u = String(url ?? "").trim();
+  if (!u) return u;
+  try {
+    const parsed = new URL(u);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    const q = u.indexOf("?");
+    const h = u.indexOf("#");
+    const end = q === -1 ? (h === -1 ? u.length : h) : q;
+    return u.slice(0, end);
+  }
+}
+
+export function isUrlOnR2PublicBase(
+  url: string,
+  r2PublicBase: string | null | undefined,
+): boolean {
+  const base = normalizeR2PublicBaseUrl(r2PublicBase);
+  if (!base) return false;
+  const clean = stripLogoUrlQueryAndHash(url);
+  const normalizedBase = base.replace(/\/$/, "");
+  return clean === normalizedBase || clean.startsWith(`${normalizedBase}/`);
+}
 
 export function buildTenantLogoCandidateUrls(
   r2PublicBase: string,
   params: { slug: string; brandLabel: string },
 ): string[] {
   const base = r2PublicBase.replace(/\/$/, "");
-  const brandSeg = normalizeBrandNameForR2Key(params.brandLabel);
   const slugSeg = normalizeSlugForR2Key(params.slug);
-  const keyStem = `${brandSeg}-${slugSeg}`;
-  return LOGO_EXT_CANDIDATES.map((ext) => `${base}/${keyStem}.${ext}`);
+  const stem = tenantLogoStemForR2(params.brandLabel, params.slug);
+  return [`${base}/${stem}.png`, `${base}/${slugSeg}/${stem}.png`];
+}
+
+function uniqueLogoProbeUrls(urls: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const url of urls) {
+    const u = String(url ?? "").trim();
+    if (!u || seen.has(u)) continue;
+    seen.add(u);
+    out.push(u);
+  }
+  return out;
 }
 
 function tryLoadImage(url: string): Promise<boolean> {
@@ -76,30 +120,12 @@ export async function probeFirstResolvableTenantLogoUrl(
   urls: string[],
   isCancelled: () => boolean,
 ): Promise<string | null> {
-  if (urls.length === 0) return null;
-  return new Promise((resolve) => {
-    let settled = false;
-    let remaining = urls.length;
-    const doneOne = () => {
-      if (settled) return;
-      remaining -= 1;
-      if (remaining === 0) resolve(null);
-    };
-    for (const url of urls) {
-      const img = new Image();
-      img.referrerPolicy = "no-referrer";
-      img.onload = () => {
-        if (isCancelled() || settled) return;
-        settled = true;
-        resolve(url);
-      };
-      img.onerror = () => {
-        if (isCancelled() || settled) return;
-        doneOne();
-      };
-      img.src = url;
-    }
-  });
+  for (const url of urls) {
+    if (isCancelled()) return null;
+    const ok = await tryLoadImage(url);
+    if (ok) return url;
+  }
+  return null;
 }
 
 export async function resolveTenantR2LogoUrl(params: {
@@ -114,31 +140,40 @@ export async function resolveTenantR2LogoUrl(params: {
   const slug = params.slug?.trim();
   const trimmedApi = params.logoUrlFromApi?.trim() || null;
   const rev = params.brandingUpdatedAt ?? null;
+  const base = normalizeR2PublicBaseUrl(params.r2PublicBaseUrl);
+  const brandLabel = params.brandName?.trim() || params.name?.trim() || "logo";
 
-  if (slug && trimmedApi) {
+  const probeUrls: string[] = [];
+
+  if (slug) {
     const proxyBase = buildTenantLogoProxyUrl(slug);
     if (proxyBase) {
-      const proxyUrl = appendLogoRevision(proxyBase, rev);
-      const okProxy = await tryLoadImage(proxyUrl);
-      if (params.isCancelled()) return null;
-      if (okProxy) return proxyUrl;
+      probeUrls.push(appendLogoRevision(proxyBase, rev));
     }
   }
 
-  if (trimmedApi) {
-    const apiUrl = appendLogoRevision(trimmedApi, rev);
-    const ok = await tryLoadImage(apiUrl);
-    if (params.isCancelled()) return null;
-    if (ok) return apiUrl;
+  if (base && slug) {
+    probeUrls.push(
+      ...buildTenantLogoCandidateUrls(base, { slug, brandLabel }).map((u) =>
+        appendLogoRevision(u, rev),
+      ),
+    );
   }
 
-  const base = normalizeR2PublicBaseUrl(params.r2PublicBaseUrl);
-  const brandLabel = params.brandName?.trim() || params.name?.trim() || "logo";
-  if (!base || !slug) return null;
+  if (
+    trimmedApi &&
+    !isUrlOnR2PublicBase(trimmedApi, base) &&
+    /^https:\/\//i.test(stripLogoUrlQueryAndHash(trimmedApi))
+  ) {
+    probeUrls.push(
+      appendLogoRevision(stripLogoUrlQueryAndHash(trimmedApi), rev),
+    );
+  }
 
-  const candidates = buildTenantLogoCandidateUrls(base, {
-    slug,
-    brandLabel,
-  }).map((u) => appendLogoRevision(u, rev));
-  return probeFirstResolvableTenantLogoUrl(candidates, params.isCancelled);
+  const fromProbes = await probeFirstResolvableTenantLogoUrl(
+    uniqueLogoProbeUrls(probeUrls),
+    params.isCancelled,
+  );
+  if (params.isCancelled()) return null;
+  return fromProbes;
 }

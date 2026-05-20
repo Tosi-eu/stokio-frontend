@@ -20,6 +20,7 @@ export interface AdminUser {
 export interface AuditEvent {
   id: number;
   user_id: number | null;
+  operator?: string | null;
   method: string;
   path: string;
   operation_type: string;

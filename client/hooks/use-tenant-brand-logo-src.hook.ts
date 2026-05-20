@@ -7,7 +7,11 @@ const DEFAULT_LOGO_PRELOAD_TIMEOUT_MS = 1000;
 
 let tenantLogoDisplayCache: { key: string; src: string } | null = null;
 
-function buildTenantLogoDisplayCacheKey(
+export function setTenantBrandLogoDisplayCache(key: string, src: string): void {
+  tenantLogoDisplayCache = { key, src };
+}
+
+export function buildTenantLogoDisplayCacheKey(
   tenant: TenantBrandLogoInput,
   publicDefaultLogo: string,
 ): string {
@@ -106,7 +110,6 @@ export function useTenantBrandLogoSrc(
       cancelled = true;
       if (preloadTimeoutId !== undefined) clearTimeout(preloadTimeoutId);
     };
-    // cacheKey já incorpora tenant + publicDefaultLogo (evita efeito por referência nova).
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ver cacheKey
   }, [tenantConfigLoading, logoPreloadTimeoutMs, cacheKey]);
 

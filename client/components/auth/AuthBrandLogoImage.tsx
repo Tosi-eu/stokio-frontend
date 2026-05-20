@@ -9,14 +9,9 @@ type AuthBrandLogoImageProps = {
   className?: string;
   width: number;
   height: number;
-  /** LCP / above-the-fold */
   priority?: boolean;
   onFallback: () => void;
 };
-
-/**
- * Logo público da landing de auth com fallback para default_logo e next/image (CLS).
- */
 export function AuthBrandLogoImage({
   src,
   alt,

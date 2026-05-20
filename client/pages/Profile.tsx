@@ -1,42 +1,40 @@
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast.hook";
 import Layout from "@/components/Layout";
 import { getCurrentUser, updateUser } from "@/api/requests";
 import { profileSchema, type ProfileFormData } from "@/schemas/profile.schema";
 import type { UpdateUserPayload } from "@/interfaces/types";
+import { useAuth } from "@/hooks/use-auth.hook";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-
-import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
-import { APP_PUBLIC_NAME } from "@/constants/app-branding";
+import { Separator } from "@/components/ui/separator";
 import { VALIDATION_LIMITS } from "@/constants/app.constants";
-import { authStorage } from "@/helpers/auth.helper";
 import {
   getErrorMessage,
   USER_FACING_RETRY_SHORT,
 } from "@/helpers/validation.helper";
+import {
+  pageSurfaceCardClass,
+  pageSectionInnerStackClass,
+} from "@/components/page/page-ui.constants";
+import { cn } from "@/lib/utils";
+import { UserRound, Shield } from "lucide-react";
+import { ManageCookiesLink } from "@/components/legal/ManageCookiesLink";
 
 export default function Profile() {
-  const router = useRouter();
   const { toast } = useToast();
-  const [logoutOpen, setLogoutOpen] = useState(false);
+  const { patchStoredUser } = useAuth();
+  const [initialLogin, setInitialLogin] = useState("");
 
   const {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -47,8 +45,11 @@ export default function Profile() {
       currentPassword: "",
       login: "",
       password: "",
+      confirmPassword: "",
     },
   });
+
+  const watchedNewPassword = useWatch({ control, name: "password" }) ?? "";
 
   useEffect(() => {
     const loadUser = async () => {
@@ -58,20 +59,22 @@ export default function Profile() {
         const lastName = data.lastName ?? data.last_name ?? "";
         const login = data.login ?? "";
 
+        setInitialLogin(login);
         reset({
           firstName,
           lastName,
           currentLogin: login,
           currentPassword: "",
-          login,
+          login: "",
           password: "",
+          confirmPassword: "",
         });
       } catch (error) {
-        console.error("Erro ao carregar usuário logado", error);
+        console.error("Failed to load current user", error);
       }
     };
 
-    loadUser();
+    void loadUser();
   }, [reset]);
 
   const onSubmit = async (data: ProfileFormData) => {
@@ -80,199 +83,312 @@ export default function Profile() {
         currentPassword: data.currentPassword,
       };
 
-      if (data.firstName) payload.firstName = data.firstName;
-      if (data.lastName) payload.lastName = data.lastName;
+      if (data.firstName) payload.firstName = data.firstName.trim();
+      if (data.lastName) payload.lastName = data.lastName.trim();
 
-      if (data.login && data.login !== data.currentLogin) {
-        payload.login = data.login.trim();
+      const newEmail = data.login?.trim() ?? "";
+      if (
+        newEmail &&
+        newEmail.toLowerCase() !== data.currentLogin?.trim().toLowerCase()
+      ) {
+        payload.login = newEmail;
       }
 
-      if (data.password) {
+      if (data.password?.trim()) {
         payload.password = data.password;
       }
 
-      await updateUser(payload);
+      const updated = await updateUser(payload);
 
-      const user = await getCurrentUser();
-      const firstName = user.firstName ?? user.first_name ?? "";
-      const lastName = user.lastName ?? user.last_name ?? "";
-      const login = user.login ?? "";
+      patchStoredUser({
+        login: updated.login,
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+        first_name: updated.firstName,
+        last_name: updated.lastName,
+      });
 
+      setInitialLogin(updated.login);
       reset({
-        firstName,
-        lastName,
-        currentLogin: login,
+        firstName: updated.firstName ?? "",
+        lastName: updated.lastName ?? "",
+        currentLogin: updated.login,
         currentPassword: "",
-        login,
+        login: "",
         password: "",
+        confirmPassword: "",
       });
 
       toast({
-        title: "Perfil atualizado",
+        title: "Alterações guardadas",
+        description: "A sua conta foi atualizada com sucesso.",
         variant: "success",
-        duration: 3000,
+        duration: 4000,
       });
     } catch (err: unknown) {
+      const raw = getErrorMessage(
+        err,
+        USER_FACING_RETRY_SHORT,
+        "Profile:update",
+      );
+      const lower = raw.toLowerCase();
+      const isWrongPassword =
+        lower.includes("incorreta") ||
+        lower.includes("401") ||
+        lower.includes("credenciais");
+
       toast({
-        title: "Não foi possível atualizar o perfil",
-        description: getErrorMessage(
-          err,
-          USER_FACING_RETRY_SHORT,
-          "Profile:update",
-        ),
+        title: isWrongPassword
+          ? "Senha atual incorreta"
+          : "Não foi possível guardar",
+        description: isWrongPassword
+          ? "Confirme a senha atual e tente novamente."
+          : raw,
         variant: "error",
-        duration: 3000,
+        duration: 5000,
       });
     }
   };
 
-  const handleLogout = () => {
-    authStorage.clearAll();
-    router.push("/user/login");
-  };
+  const fieldClass = (hasError: boolean) =>
+    cn(
+      "h-11 rounded-xl border bg-background text-sm transition-colors",
+      hasError
+        ? "border-destructive/80 focus-visible:ring-destructive/25"
+        : "border-input focus-visible:ring-ring/30",
+    );
 
   return (
-    <Layout title="Meu Perfil">
-      <div className="flex justify-center py-24 px-4">
-        <Card className="w-full max-w-md shadow-lg border border-slate-200">
-          <CardHeader>
-            <CardTitle className="text-center text-2xl font-semibold">
-              Editar Perfil
-            </CardTitle>
-          </CardHeader>
+    <Layout
+      title="Conta e perfil"
+      description="Atualize o seu nome, o e-mail de acesso e a palavra-passe. A palavra-passe atual é sempre necessária para guardar."
+      breadcrumb={[
+        { label: "Início", path: "/loading" },
+        { label: "Conta e perfil", path: "/user/profile" },
+      ]}
+    >
+      <div className="mx-auto w-full max-w-2xl pb-10">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+          <section className={cn(pageSurfaceCardClass, "p-6 sm:p-8")}>
+            <div className="flex items-start gap-3 mb-6">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <UserRound className="h-5 w-5" aria-hidden />
+              </div>
+              <div>
+                <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">
+                  Dados pessoais
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Estes dados aparecem na sua sessão e nos registos do abrigo.
+                </p>
+              </div>
+            </div>
 
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              <div className="space-y-3">
-                <div>
+            <div className={pageSectionInnerStackClass}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
                   <Label htmlFor="firstName">Nome</Label>
                   <Input
                     id="firstName"
                     {...register("firstName")}
                     disabled={isSubmitting}
-                    aria-invalid={errors.firstName ? "true" : "false"}
+                    className={fieldClass(!!errors.firstName)}
+                    autoComplete="given-name"
                   />
                   {errors.firstName && (
-                    <p className="text-sm text-red-600 mt-1">
+                    <p className="text-xs text-destructive">
                       {errors.firstName.message}
                     </p>
                   )}
                 </div>
-
-                <div>
-                  <Label htmlFor="lastName">Sobrenome</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Apelido</Label>
                   <Input
                     id="lastName"
                     {...register("lastName")}
                     disabled={isSubmitting}
-                    aria-invalid={errors.lastName ? "true" : "false"}
+                    className={fieldClass(!!errors.lastName)}
+                    autoComplete="family-name"
                   />
                   {errors.lastName && (
-                    <p className="text-sm text-red-600 mt-1">
+                    <p className="text-xs text-destructive">
                       {errors.lastName.message}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="currentLogin">E-mail atual</Label>
-                  <Input
-                    id="currentLogin"
-                    type="email"
-                    {...register("currentLogin")}
-                    maxLength={VALIDATION_LIMITS.EMAIL_MAX_LENGTH}
-                    disabled={isSubmitting}
-                    aria-invalid={errors.currentLogin ? "true" : "false"}
-                  />
-                  {errors.currentLogin && (
-                    <p className="text-sm text-red-600 mt-1">
-                      {errors.currentLogin.message}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="currentPassword">Senha atual</Label>
-                  <Input
-                    id="currentPassword"
-                    type="password"
-                    {...register("currentPassword")}
-                    maxLength={VALIDATION_LIMITS.PASSWORD_MAX_LENGTH}
-                    disabled={isSubmitting}
-                    aria-invalid={errors.currentPassword ? "true" : "false"}
-                  />
-                  {errors.currentPassword && (
-                    <p className="text-sm text-red-600 mt-1">
-                      {errors.currentPassword.message}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="login">Novo e-mail</Label>
-                  <Input
-                    id="login"
-                    type="email"
-                    {...register("login")}
-                    maxLength={255}
-                    disabled={isSubmitting}
-                    aria-invalid={errors.login ? "true" : "false"}
-                  />
-                  {errors.login && (
-                    <p className="text-sm text-red-600 mt-1">
-                      {errors.login.message}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="password">Nova senha</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    {...register("password")}
-                    maxLength={128}
-                    disabled={isSubmitting}
-                    className={
-                      errors.password
-                        ? "border-red-300 focus:ring-red-200 focus:border-red-400"
-                        : ""
-                    }
-                    aria-invalid={errors.password ? "true" : "false"}
-                  />
-                  {errors.password && (
-                    <p className="text-sm text-red-600 mt-1">
-                      {errors.password.message}
                     </p>
                   )}
                 </div>
               </div>
 
-              <CardFooter className="flex gap-2 px-0">
-                <Button
-                  type="submit"
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+              <div className="space-y-2">
+                <Label htmlFor="currentLogin">E-mail de acesso atual</Label>
+                <Input
+                  id="currentLogin"
+                  type="email"
+                  readOnly
+                  {...register("currentLogin")}
+                  className={cn(
+                    fieldClass(false),
+                    "bg-muted/40 cursor-default",
+                  )}
+                  aria-readonly="true"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Para alterar, use o campo abaixo. O e-mail tem de ser único no
+                  sistema.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className={cn(pageSurfaceCardClass, "p-6 sm:p-8")}>
+            <div className="flex items-start gap-3 mb-6">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Shield className="h-5 w-5" aria-hidden />
+              </div>
+              <div>
+                <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">
+                  Segurança
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Palavra-passe atual obrigatória em qualquer alteração, como no
+                  resto da aplicação.
+                </p>
+              </div>
+            </div>
+
+            <div className={pageSectionInnerStackClass}>
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword">Palavra-passe atual</Label>
+                <Input
+                  id="currentPassword"
+                  type="password"
+                  {...register("currentPassword")}
+                  maxLength={VALIDATION_LIMITS.PASSWORD_MAX_LENGTH}
                   disabled={isSubmitting}
-                >
-                  {isSubmitting ? "Salvando..." : "Salvar"}
-                </Button>
-              </CardFooter>
-            </form>
-          </CardContent>
-        </Card>
+                  className={fieldClass(!!errors.currentPassword)}
+                  autoComplete="current-password"
+                />
+                {errors.currentPassword && (
+                  <p className="text-xs text-destructive">
+                    {errors.currentPassword.message}
+                  </p>
+                )}
+              </div>
 
-        <LogoutConfirmDialog
-          open={logoutOpen}
-          onCancel={() => setLogoutOpen(false)}
-          onConfirm={() => {
-            setLogoutOpen(false);
-            handleLogout();
-          }}
-        />
-      </div>
+              <Separator className="my-2 bg-border/60" />
 
-      <div className="text-center text-xs text-slate-400">
-        © {new Date().getFullYear()} {APP_PUBLIC_NAME}
+              <div className="space-y-2">
+                <Label htmlFor="login">Novo e-mail (opcional)</Label>
+                <Input
+                  id="login"
+                  type="email"
+                  placeholder={initialLogin || "novo@email.com"}
+                  {...register("login")}
+                  maxLength={255}
+                  disabled={isSubmitting}
+                  className={fieldClass(!!errors.login)}
+                  autoComplete="off"
+                />
+                {errors.login && (
+                  <p className="text-xs text-destructive">
+                    {errors.login.message}
+                  </p>
+                )}
+              </div>
+
+              <Separator className="my-2 bg-border/60" />
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Nova palavra-passe (opcional)</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  {...register("password")}
+                  maxLength={128}
+                  disabled={isSubmitting}
+                  className={fieldClass(!!errors.password)}
+                  autoComplete="new-password"
+                  placeholder="••••••••"
+                />
+                {errors.password && (
+                  <p className="text-xs text-destructive">
+                    {errors.password.message}
+                  </p>
+                )}
+                {watchedNewPassword &&
+                  !errors.password &&
+                  watchedNewPassword.length >= 8 && (
+                    <p className="text-xs text-primary font-medium">
+                      Requisitos da nova palavra-passe satisfeitos.
+                    </p>
+                  )}
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Mínimo 8 caracteres, com maiúscula, minúscula, número e
+                  símbolo.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">
+                  Confirmar nova palavra-passe
+                </Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  {...register("confirmPassword")}
+                  maxLength={128}
+                  disabled={isSubmitting}
+                  className={fieldClass(!!errors.confirmPassword)}
+                  autoComplete="new-password"
+                  placeholder="••••••••"
+                />
+                {errors.confirmPassword && (
+                  <p className="text-xs text-destructive">
+                    {errors.confirmPassword.message}
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <p className="text-xs text-muted-foreground">
+            <ManageCookiesLink />
+          </p>
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 rounded-xl sm:min-w-[140px]"
+              disabled={isSubmitting}
+              onClick={() => {
+                void getCurrentUser().then((data) => {
+                  const firstName = data.firstName ?? data.first_name ?? "";
+                  const lastName = data.lastName ?? data.last_name ?? "";
+                  const login = data.login ?? "";
+                  setInitialLogin(login);
+                  reset({
+                    firstName,
+                    lastName,
+                    currentLogin: login,
+                    currentPassword: "",
+                    login: "",
+                    password: "",
+                    confirmPassword: "",
+                  });
+                });
+              }}
+            >
+              Repor
+            </Button>
+            <Button
+              type="submit"
+              className="h-11 rounded-xl shadow-brand-glow sm:min-w-[180px]"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "A guardar…" : "Guardar alterações"}
+            </Button>
+          </div>
+        </form>
       </div>
     </Layout>
   );

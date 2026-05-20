@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Layout from "@/components/Layout";
-import EditableTable from "@/components/EditableTable";
 import { SkeletonTable } from "@/components/SkeletonTable";
 import { toast } from "@/hooks/use-toast.hook";
 import {
   getErrorMessage,
   USER_FACING_RETRY_SHORT,
 } from "@/helpers/validation.helper";
-import { getResidents, updateResident } from "@/api/requests";
+import {
+  deleteResident,
+  getResidents,
+  getResidentActiveMedicalRecord,
+  updateResident,
+  type ActiveMedicalRecordItem,
+} from "@/api/requests";
 import { formatDateToPtBr } from "@/helpers/dates.helper";
 import {
   cpfDigitsOnly,
@@ -17,26 +22,27 @@ import {
   formatCpfForDisplay,
   formatCpfMask,
 } from "@/helpers/cpf-format.helper";
-import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
-import { useTenant } from "@/hooks/use-tenant.hook";
-import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
 import {
-  buildSectorFilterOptions,
-  getEnabledSectors,
-} from "@/helpers/tenant-sectors.helper";
+  brPhoneDigitsOnly,
+  brPhoneInputValueFromStored,
+  brPhonePayloadFromInput,
+  formatBrPhoneForDisplay,
+  formatBrPhoneMask,
+} from "@/helpers/br-phone-format.helper";
+import { DEFAULT_PAGE_SIZE } from "@/helpers/paginacao.helper";
+import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
+import { useTenant } from "@/hooks/use-tenant.hook";
+import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import {
   PREVIEW_RESIDENTS,
-  filterPreviewStockByCasela,
+  getPreviewActiveMedicalRecordForCasela,
 } from "@/helpers/preview-mock-data";
-import { fetchStockPage, formatStockItems } from "@/helpers/stock-list.helper";
-import type { StockItem } from "@/interfaces/interfaces";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { DownloadJobButton } from "@/components/DownloadJobButton";
-import { ClipboardList, Pencil, Trash2, UserRound } from "lucide-react";
+import { ClipboardList, Pencil, Trash2, UserRound, Users } from "lucide-react";
 import DeletePopUp from "@/components/DeletePopUp";
-import { deleteResident } from "@/api/requests";
 import {
   Dialog,
   DialogContent,
@@ -45,47 +51,29 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { ResidentRow } from "@/components/residents/residents.types";
 import { EmptyStateCard } from "@/components/medical-record-exports/medical-record-exports.shared";
 import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
-import { Users } from "lucide-react";
-import { RESIDENT_STOCK_CHART_COLUMNS } from "@/components/residents/residents.chart-columns";
-import {
-  residentInitials,
-  stockToResidentChartRows,
-} from "@/components/residents/residents.stock-chart";
+import { ResidentMedicalRecordTable } from "@/components/residents/ResidentMedicalRecordTable";
+import { residentInitials } from "@/components/residents/residents.stock-chart";
 
 export default function Resident() {
-  const { previewMode, modules } = useTenant();
-  const { labelByKey } = useTenantSetores();
-
-  const residentChartSectorOptions = useMemo(
-    () => buildSectorFilterOptions(getEnabledSectors(modules), labelByKey),
-    [modules, labelByKey],
-  );
+  const { previewMode } = useTenant();
+  const { can } = usePermissionMatrix();
+  const canUpdateResidents = can("residents", "update");
   const [residents, setResidents] = useState<ResidentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedCasela, setSelectedCasela] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
-  const [residentChartItems, setResidentChartItems] = useState<StockItem[]>([]);
+  const [residentChartItems, setResidentChartItems] = useState<
+    ActiveMedicalRecordItem[]
+  >([]);
   const [residentChartLoading, setResidentChartLoading] = useState(false);
   const [residentChartPage, setResidentChartPage] = useState(1);
   const RESIDENT_CHART_PAGE_SIZE = 10;
-  const [residentChartHasNext, setResidentChartHasNext] = useState(false);
-  const [residentChartTotal, setResidentChartTotal] = useState(0);
   const [residentChartNameFilter, setResidentChartNameFilter] = useState("");
-  const [residentChartSector, setResidentChartSector] = useState("__all");
-  const [residentChartLot, setResidentChartLot] = useState("");
-  const [residentChartCabinet, setResidentChartCabinet] = useState("__all");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -93,6 +81,7 @@ export default function Resident() {
   const [editNome, setEditNome] = useState("");
   const [editDataNascimento, setEditDataNascimento] = useState("");
   const [editCpf, setEditCpf] = useState("");
+  const [editTelefone, setEditTelefone] = useState("");
 
   const loadResidents = useCallback(async () => {
     setLoading(true);
@@ -101,9 +90,13 @@ export default function Resident() {
         const start = (page - 1) * DEFAULT_PAGE_SIZE;
         const slice = PREVIEW_RESIDENTS.slice(start, start + DEFAULT_PAGE_SIZE);
         setResidents(
-          slice
-            .map((r) => ({ ...r, cpf: null }))
-            .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+          slice.map((r) => ({
+            ...r,
+            cpf: null,
+            telefone_responsavel:
+              (r as { telefone_responsavel?: string | null })
+                .telefone_responsavel ?? null,
+          })),
         );
         setHasNext(start + DEFAULT_PAGE_SIZE < PREVIEW_RESIDENTS.length);
         return;
@@ -116,6 +109,12 @@ export default function Resident() {
         cpf:
           (r as { cpf?: unknown }).cpf != null
             ? String((r as { cpf?: unknown }).cpf)
+            : null,
+        telefone_responsavel:
+          (r as { telefone_responsavel?: unknown }).telefone_responsavel != null
+            ? String(
+                (r as { telefone_responsavel?: unknown }).telefone_responsavel,
+              )
             : null,
         data_nascimento:
           r.data_nascimento != null ? String(r.data_nascimento) : null,
@@ -158,11 +157,14 @@ export default function Resident() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return residents;
-    return residents.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) || String(r.casela).includes(q.trim()),
-    );
+    const list = !q
+      ? residents
+      : residents.filter(
+          (r) =>
+            r.name.toLowerCase().includes(q) ||
+            String(r.casela).includes(q.trim()),
+        );
+    return [...list].sort(compareResidentsByNameThenCasela);
   }, [residents, search]);
 
   const selected = useMemo(
@@ -170,105 +172,36 @@ export default function Resident() {
     [residents, selectedCasela],
   );
 
-  const loadResidentChart = useCallback(
+  const loadResidentMedicalRecordSource = useCallback(
     async (casela: number) => {
       setResidentChartLoading(true);
       try {
         if (previewMode) {
-          const all = filterPreviewStockByCasela(casela);
-          const nome = residentChartNameFilter.trim().toLowerCase();
-          const lote = residentChartLot.trim().toLowerCase();
-          const setor =
-            residentChartSector === "__all"
-              ? ""
-              : residentChartSector.trim().toLowerCase();
-          const armario =
-            residentChartCabinet === "__all" ? "" : residentChartCabinet.trim();
-
-          const filtered = all.filter((i) => {
-            const okNome =
-              !nome ||
-              String(i.name ?? "")
-                .toLowerCase()
-                .includes(nome);
-            const okLote =
-              !lote ||
-              String(i.lot ?? "")
-                .toLowerCase()
-                .includes(lote);
-            const okSetor =
-              !setor || String(i.sector ?? "").toLowerCase() === setor;
-            const okArmario =
-              !armario || String(i.cabinet ?? "").trim() === armario;
-            return okNome && okLote && okSetor && okArmario;
-          });
-
-          const start = (residentChartPage - 1) * RESIDENT_CHART_PAGE_SIZE;
-          const pageItems = filtered.slice(
-            start,
-            start + RESIDENT_CHART_PAGE_SIZE,
-          );
-          setResidentChartItems(pageItems);
-          setResidentChartTotal(filtered.length);
-          setResidentChartHasNext(
-            start + RESIDENT_CHART_PAGE_SIZE < filtered.length,
-          );
+          setResidentChartItems(getPreviewActiveMedicalRecordForCasela(casela));
           return;
         }
-
-        const { data, hasNext, total } = await fetchStockPage(
-          residentChartPage,
-          RESIDENT_CHART_PAGE_SIZE,
-          {
-            casela: String(casela),
-            nome: residentChartNameFilter.trim()
-              ? residentChartNameFilter.trim()
-              : undefined,
-            setor:
-              residentChartSector !== "__all" && residentChartSector.trim()
-                ? residentChartSector.trim()
-                : undefined,
-            lote: residentChartLot.trim() ? residentChartLot.trim() : undefined,
-            armario:
-              residentChartCabinet !== "__all" && residentChartCabinet.trim()
-                ? residentChartCabinet.trim()
-                : undefined,
-          },
-        );
-        setResidentChartItems(formatStockItems(data));
-        setResidentChartHasNext(Boolean(hasNext));
-        setResidentChartTotal(Number.isFinite(total) ? total : 0);
+        const res = await getResidentActiveMedicalRecord(casela);
+        setResidentChartItems(res.items ?? []);
       } catch {
         toast({
-          title: "Erro ao carregar o prontuário",
+          title: "Falha ao carregar prontuário",
           description:
-            "Não foi possível listar medicamentos e insumos desta casela.",
+            "Não foi possível carregar medicamentos e insumos em uso nesta casela.",
           variant: "error",
           duration: 3000,
         });
         setResidentChartItems([]);
-        setResidentChartHasNext(false);
-        setResidentChartTotal(0);
       } finally {
         setResidentChartLoading(false);
       }
     },
-    [
-      previewMode,
-      residentChartNameFilter,
-      residentChartSector,
-      residentChartLot,
-      residentChartCabinet,
-      residentChartPage,
-    ],
+    [previewMode],
   );
 
   useEffect(() => {
     if (selected == null) {
       setResidentChartItems([]);
       setResidentChartPage(1);
-      setResidentChartHasNext(false);
-      setResidentChartTotal(0);
       return;
     }
     setResidentChartPage(1);
@@ -277,74 +210,51 @@ export default function Resident() {
   useEffect(() => {
     if (selected == null) return;
     setResidentChartPage(1);
-  }, [
-    selected,
-    selected?.casela,
-    residentChartNameFilter,
-    residentChartSector,
-    residentChartLot,
-    residentChartCabinet,
-  ]);
+  }, [selected, residentChartNameFilter]);
 
   useEffect(() => {
     if (selected == null) return;
-    void loadResidentChart(selected.casela);
+    void loadResidentMedicalRecordSource(selected.casela);
   }, [
     selected,
     selected?.casela,
-    residentChartPage,
-    residentChartNameFilter,
-    residentChartSector,
-    residentChartLot,
-    residentChartCabinet,
-    loadResidentChart,
+    previewMode,
+    loadResidentMedicalRecordSource,
   ]);
 
-  const residentChartRows = useMemo(
-    () => stockToResidentChartRows(residentChartItems),
-    [residentChartItems],
-  );
+  const residentMedicalRecordFiltered = useMemo(() => {
+    let list = residentChartItems;
+    const nameQ = residentChartNameFilter.trim().toLowerCase();
+    if (nameQ) {
+      list = list.filter(
+        (i) =>
+          i.name.toLowerCase().includes(nameQ) ||
+          (i.detail && i.detail.toLowerCase().includes(nameQ)),
+      );
+    }
+    return list;
+  }, [residentChartItems, residentChartNameFilter]);
+
+  const residentMedicalRecordPageSlice = useMemo(() => {
+    const start = (residentChartPage - 1) * RESIDENT_CHART_PAGE_SIZE;
+    return residentMedicalRecordFiltered.slice(
+      start,
+      start + RESIDENT_CHART_PAGE_SIZE,
+    );
+  }, [residentMedicalRecordFiltered, residentChartPage]);
+
+  const residentChartTotal = residentMedicalRecordFiltered.length;
 
   const residentChartDownloadParams = useMemo(() => {
     const params: Record<string, string> = {};
     if (selected?.casela != null) params.casela = String(selected.casela);
-    if (residentChartNameFilter.trim())
-      params.name = residentChartNameFilter.trim();
-    if (residentChartSector !== "__all" && residentChartSector.trim())
-      params.sector = residentChartSector.trim();
-    if (residentChartLot.trim()) params.lot = residentChartLot.trim();
-    if (residentChartCabinet !== "__all" && residentChartCabinet.trim())
-      params.cabinet = residentChartCabinet.trim();
     return params;
-  }, [
-    selected?.casela,
-    residentChartNameFilter,
-    residentChartSector,
-    residentChartLot,
-    residentChartCabinet,
-  ]);
+  }, [selected]);
 
-  const residentChartTotalPages = useMemo(() => {
-    if (previewMode) {
-      return Math.max(
-        1,
-        Math.ceil(residentChartTotal / RESIDENT_CHART_PAGE_SIZE),
-      );
-    }
-    return Math.max(
-      1,
-      Math.ceil(residentChartTotal / RESIDENT_CHART_PAGE_SIZE),
-    );
-  }, [residentChartTotal, previewMode]);
-
-  const residentChartCabinetOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const i of residentChartItems) {
-      const v = i.cabinet == null ? "" : String(i.cabinet);
-      if (v.trim()) set.add(v);
-    }
-    return Array.from(set).sort((a, b) => Number(a) - Number(b));
-  }, [residentChartItems]);
+  const residentChartTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(residentChartTotal / RESIDENT_CHART_PAGE_SIZE)),
+    [residentChartTotal],
+  );
 
   const handleEditResident = useCallback(() => {
     if (!selected || previewMode) return;
@@ -355,6 +265,7 @@ export default function Resident() {
         : "",
     );
     setEditCpf(cpfInputValueFromStored(selected.cpf));
+    setEditTelefone(brPhoneInputValueFromStored(selected.telefone_responsavel));
     setEditOpen(true);
   }, [selected, previewMode]);
 
@@ -382,12 +293,26 @@ export default function Resident() {
       return;
     }
 
+    const phoneRaw = editTelefone.trim();
+    const phoneDigits = phoneRaw ? brPhonePayloadFromInput(phoneRaw) : null;
+    if (phoneRaw && !phoneDigits) {
+      toast({
+        title: "Telefone incompleto",
+        description:
+          "Informe DDD + número (10 ou 11 dígitos) ou deixe o campo vazio.",
+        variant: "warning",
+        duration: 3500,
+      });
+      return;
+    }
+
     setEditSaving(true);
     try {
       const dn = editDataNascimento.trim();
       await updateResident(selected.casela, {
         nome: nomeTrim,
         cpf: cpfDigits && cpfDigits.length === 11 ? cpfDigits : null,
+        telefone_responsavel: phoneDigits,
         data_nascimento: dn === "" ? null : dn,
       });
       toast({
@@ -420,6 +345,7 @@ export default function Resident() {
     loadResidents,
     setEditOpen,
     editCpf,
+    editTelefone,
   ]);
 
   const handleDeleteResident = useCallback(async () => {
@@ -512,7 +438,7 @@ export default function Resident() {
                           {r.name}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Casela {r.casela}
+                          ({r.casela})
                           {r.idade != null ? (
                             <span className="text-foreground/90">
                               {" "}
@@ -637,6 +563,14 @@ export default function Resident() {
                     </div>
                     <div>
                       <dt className="text-muted-foreground">
+                        Tel. do responsável
+                      </dt>
+                      <dd className="font-medium mt-1">
+                        {formatBrPhoneForDisplay(selected.telefone_responsavel)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">
                         Data de nascimento
                       </dt>
                       <dd className="font-medium mt-1">
@@ -669,19 +603,18 @@ export default function Resident() {
                       <DownloadJobButton
                         reportType="prontuario_residente"
                         params={residentChartDownloadParams}
-                        filenameBase={`prontuario-casela-${selected.casela}-${new Date().toISOString().slice(0, 10)}`}
+                        filenameBase={`medical-record-casela-${selected.casela}-${new Date().toISOString().slice(0, 10)}`}
                         disabled={residentChartLoading}
                         label="Descarregar"
                       />
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Medicamentos e insumos em stock na casela (mesmo critério
-                      do ficheiro PDF/Excel ao descarregar).
+                      O que o residente utiliza
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 gap-3 max-w-md">
                       <div className="space-y-1">
                         <Label htmlFor="chart-name" className="text-xs">
-                          Nome
+                          Nome ou detalhe
                         </Label>
                         <Input
                           id="chart-name"
@@ -693,80 +626,26 @@ export default function Resident() {
                           className="rounded-xl"
                         />
                       </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="chart-sector" className="text-xs">
-                          Setor
-                        </Label>
-                        <Select
-                          value={residentChartSector}
-                          onValueChange={setResidentChartSector}
-                        >
-                          <SelectTrigger
-                            id="chart-sector"
-                            className="rounded-xl"
-                          >
-                            <SelectValue placeholder="Todos" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__all">Todos</SelectItem>
-                            {residentChartSectorOptions.map((s) => (
-                              <SelectItem key={s.value} value={s.value}>
-                                {s.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="chart-lot" className="text-xs">
-                          Lote
-                        </Label>
-                        <Input
-                          id="chart-lot"
-                          value={residentChartLot}
-                          onChange={(e) => setResidentChartLot(e.target.value)}
-                          placeholder="ex.: LT-123"
-                          className="rounded-xl"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="chart-cabinet" className="text-xs">
-                          Armário
-                        </Label>
-                        <Select
-                          value={residentChartCabinet}
-                          onValueChange={setResidentChartCabinet}
-                        >
-                          <SelectTrigger
-                            id="chart-cabinet"
-                            className="rounded-xl"
-                          >
-                            <SelectValue placeholder="Todos" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__all">Todos</SelectItem>
-                            {residentChartCabinetOptions.map((a) => (
-                              <SelectItem key={a} value={a}>
-                                {a}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
                     </div>
                     {residentChartLoading ? (
-                      <SkeletonTable rows={4} cols={4} />
-                    ) : residentChartRows.length === 0 ? (
+                      <SkeletonTable rows={4} cols={7} />
+                    ) : residentMedicalRecordPageSlice.length === 0 ? (
                       <p className="text-sm text-muted-foreground py-4 text-center rounded-xl border border-dashed border-border/70">
-                        Nenhum item em stock na casela (com os filtros atuais).
+                        Não há medicamentos nem insumos ativos na casela (com os
+                        filtros atuais).
                       </p>
                     ) : (
                       <div className="space-y-3">
-                        <EditableTable
-                          columns={RESIDENT_STOCK_CHART_COLUMNS}
-                          data={residentChartRows}
-                          readOnly
-                          showAddons={false}
+                        <ResidentMedicalRecordTable
+                          casela={selected.casela}
+                          items={residentMedicalRecordPageSlice}
+                          previewMode={previewMode}
+                          canUpdate={canUpdateResidents}
+                          onSaved={() =>
+                            void loadResidentMedicalRecordSource(
+                              selected.casela,
+                            )
+                          }
                         />
 
                         <div className="flex flex-col items-center justify-center gap-2 pt-1">
@@ -781,7 +660,7 @@ export default function Resident() {
                               –
                               {(residentChartPage - 1) *
                                 RESIDENT_CHART_PAGE_SIZE +
-                                residentChartRows.length}
+                                residentMedicalRecordPageSlice.length}
                             </span>{" "}
                             de{" "}
                             <span className="font-medium text-foreground">
@@ -816,9 +695,7 @@ export default function Resident() {
                                 )
                               }
                               disabled={
-                                previewMode
-                                  ? residentChartPage >= residentChartTotalPages
-                                  : !residentChartHasNext
+                                residentChartPage >= residentChartTotalPages
                               }
                             >
                               Seguinte
@@ -905,6 +782,32 @@ export default function Resident() {
                             inputMode="numeric"
                             autoComplete="off"
                             maxLength={14}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Deixe em branco para remover.
+                          </p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="resident-telefone">
+                            Telefone do responsável
+                          </Label>
+                          <Input
+                            id="resident-telefone"
+                            value={editTelefone}
+                            onChange={(e) =>
+                              setEditTelefone(
+                                formatBrPhoneMask(
+                                  brPhoneDigitsOnly(e.target.value),
+                                ),
+                              )
+                            }
+                            disabled={editSaving}
+                            className="rounded-xl"
+                            placeholder="(11) 98765-4321"
+                            inputMode="tel"
+                            autoComplete="tel"
+                            maxLength={16}
                           />
                           <p className="text-xs text-muted-foreground">
                             Deixe em branco para remover.

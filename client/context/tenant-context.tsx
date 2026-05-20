@@ -15,6 +15,7 @@ import {
 } from "@/helpers/storage-location-display.helper";
 import { setPreviewModeStorage } from "@/helpers/preview-mode-storage";
 import { isPreviewUiModuleKey } from "@/helpers/tenant-modules-preview.helper";
+import { isFunctionalConsentGranted } from "@/helpers/functional-consent.helper";
 
 export type TenantModules = {
   enabled: string[];
@@ -41,8 +42,15 @@ export type TenantContextType = {
 
 const SKIP_ONBOARDING_EVENT = "abrigo:skip-onboarding-changed";
 
+const skipOnboardingMemory = new Map<number, boolean>();
+
 export function readSkipTenantOnboarding(tenantId: number): boolean {
-  if (typeof window === "undefined") return false;
+  if (skipOnboardingMemory.has(tenantId)) {
+    return skipOnboardingMemory.get(tenantId) === true;
+  }
+  if (typeof window === "undefined" || !isFunctionalConsentGranted()) {
+    return false;
+  }
   try {
     return (
       window.localStorage.getItem(`abrigo.skipOnboarding.${tenantId}`) === "1"
@@ -53,7 +61,10 @@ export function readSkipTenantOnboarding(tenantId: number): boolean {
 }
 
 function hasSkipTenantOnboardingPreference(tenantId: number): boolean {
-  if (typeof window === "undefined") return false;
+  if (skipOnboardingMemory.has(tenantId)) return true;
+  if (typeof window === "undefined" || !isFunctionalConsentGranted()) {
+    return false;
+  }
   try {
     return (
       window.localStorage.getItem(`abrigo.skipOnboarding.${tenantId}`) !== null
@@ -64,14 +75,18 @@ function hasSkipTenantOnboardingPreference(tenantId: number): boolean {
 }
 
 export function setSkipTenantOnboarding(tenantId: number, value: boolean) {
-  if (typeof window === "undefined") return;
+  skipOnboardingMemory.set(tenantId, value);
+  if (typeof window === "undefined" || !isFunctionalConsentGranted()) {
+    window.dispatchEvent(new Event(SKIP_ONBOARDING_EVENT));
+    return;
+  }
   try {
     const k = `abrigo.skipOnboarding.${tenantId}`;
     if (value) window.localStorage.setItem(k, "1");
     else window.localStorage.removeItem(k);
     window.dispatchEvent(new Event(SKIP_ONBOARDING_EVENT));
   } catch {
-    /* ignore */
+    void 0;
   }
 }
 
@@ -179,6 +194,15 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     window.addEventListener("ui-display-updated", onUiDisplayUpdated);
     return () =>
       window.removeEventListener("ui-display-updated", onUiDisplayUpdated);
+  }, [refetch]);
+
+  useEffect(() => {
+    const onTenantSlug = () => {
+      void refetch();
+    };
+    window.addEventListener("stokio-active-tenant-changed", onTenantSlug);
+    return () =>
+      window.removeEventListener("stokio-active-tenant-changed", onTenantSlug);
   }, [refetch]);
 
   const effectiveEnabled = useMemo(

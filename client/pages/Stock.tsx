@@ -16,6 +16,7 @@ import {
   resumeInputFromStock,
   suspendInputFromStock,
   transferStockSector,
+  transferMedicineInterTenant,
   getResidents,
   getDrawers,
 } from "@/api/requests";
@@ -27,7 +28,9 @@ import {
   buildFilterOptionsFromApi,
 } from "@/helpers/stock-list.helper";
 import ConfirmActionModal from "@/components/ConfirmationActionModal";
-import TransferQuantityModal from "@/components/TransferQuantityModal";
+import TransferQuantityModal, {
+  type InterTenantTransferModalPayload,
+} from "@/components/TransferQuantityModal";
 import {
   actionConfig,
   actionMessages,
@@ -37,6 +40,11 @@ import { getErrorMessage } from "@/helpers/validation.helper";
 import { toast } from "@/hooks/use-toast.hook";
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
+import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
+import {
+  formatResidentCaselaAutocompleteLabel,
+  matchesResidentCaselaSearch,
+} from "@/helpers/resident-casela-autocomplete.helper";
 import {
   Popover,
   PopoverContent,
@@ -47,6 +55,7 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList,
 } from "@/components/ui/command";
 import { ChevronsUpDown, X } from "lucide-react";
 import { TableFilter } from "@/components/TableFilter";
@@ -54,6 +63,7 @@ import { useTenant } from "@/hooks/use-tenant.hook";
 import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
 import {
   buildSectorFilterOptions,
+  formatTenantSectorKeyLabel,
   getEnabledSectors,
   resolveSectorProfile,
 } from "@/helpers/tenant-sectors.helper";
@@ -67,13 +77,14 @@ import {
   formatCaselaLabel,
   formatGavetaLabel,
 } from "@/helpers/storage-location-display.helper";
+import { tenantProfileLabel } from "@/helpers/tenant-display.helper";
 
 import { STOCK_FILTER_LABELS } from "@/components/stock/stock.constants";
 import { pageSurfaceSubtleClass } from "@/components/page/page-ui.constants";
 import { cn } from "@/lib/utils";
 
 export default function Stock() {
-  const { uiDisplay, previewMode, modules } = useTenant();
+  const { uiDisplay, previewMode, modules, tenant } = useTenant();
   const { profilesByKey, labelByKey } = useTenantSetores();
 
   const sectorKeys = useMemo(() => getEnabledSectors(modules), [modules]);
@@ -87,8 +98,30 @@ export default function Stock() {
   const { can, canMovementTipo } = usePermissionMatrix();
   const canSaida = canMovementTipo("saida");
   const canReports = can("reports", "read");
+  const canInterTenant = canMovementTipo("transferencia");
   const searchParams = useSearchParams();
   const filter = searchParams.get("filter");
+
+  const [filters, setFilters] = useState({
+    nome: "",
+    casela: "",
+    armario: "",
+    gaveta: "",
+    setor: "",
+    lote: "",
+  });
+
+  useEffect(() => {
+    const cab = searchParams.get("cabinet");
+    const drw = searchParams.get("drawer");
+    if (cab || drw) {
+      setFilters((prev) => ({
+        ...prev,
+        ...(cab ? { armario: cab } : {}),
+        ...(drw ? { gaveta: drw } : {}),
+      }));
+    }
+  }, [searchParams]);
 
   const stockBreadcrumb = useMemo(
     () =>
@@ -111,13 +144,6 @@ export default function Stock() {
   const [page, setPage] = useState(1);
   const limit = 8;
   const [hasNext, setHasNext] = useState(false);
-  const [filters, setFilters] = useState({
-    nome: "",
-    casela: "",
-    armario: "",
-    setor: "",
-    lote: "",
-  });
 
   const setorProfileForFilters = useMemo(
     () =>
@@ -130,7 +156,9 @@ export default function Stock() {
   const [debouncedNome, setDebouncedNome] = useState("");
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [armarioSearch, setArmarioSearch] = useState("");
+  const [gavetaSearch, setGavetaSearch] = useState("");
   const [caselaSearch, setCaselaSearch] = useState("");
+  const [setorSearch, setSetorSearch] = useState("");
 
   useEffect(() => {
     if (debounceTimerRef.current) {
@@ -247,7 +275,7 @@ export default function Stock() {
             casela: r.casela,
             name: r.name,
           }))
-          .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+          .sort(compareResidentsByNameThenCasela),
       );
     } catch (err: unknown) {
       if (previewMode) {
@@ -255,7 +283,7 @@ export default function Stock() {
           PREVIEW_RESIDENTS.map((r) => ({
             casela: r.casela,
             name: r.name,
-          })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+          })).sort(compareResidentsByNameThenCasela),
         );
       } else {
         const errorMessage = getErrorMessage(
@@ -329,6 +357,7 @@ export default function Stock() {
       prevFiltersRef.current.nome !== effectiveFilters.nome ||
       prevFiltersRef.current.casela !== effectiveFilters.casela ||
       prevFiltersRef.current.armario !== effectiveFilters.armario ||
+      prevFiltersRef.current.gaveta !== effectiveFilters.gaveta ||
       prevFiltersRef.current.setor !== effectiveFilters.setor ||
       prevFiltersRef.current.lote !== effectiveFilters.lote;
 
@@ -355,12 +384,18 @@ export default function Stock() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadStock is stable, intentional deps
   }, [page, effectiveFilters, filter]);
 
-  const handleNomeFilterChange = useCallback((value: string) => {
-    setFilters((prev) => ({ ...prev, nome: value }));
-  }, []);
-  const handleLoteFilterChange = useCallback((value: string) => {
-    setFilters((prev) => ({ ...prev, lote: value }));
-  }, []);
+  const handleNomeFilterChange = useCallback(
+    (value: string) => {
+      setFilters((prev) => ({ ...prev, nome: value }));
+    },
+    [setFilters],
+  );
+  const handleLoteFilterChange = useCallback(
+    (value: string) => {
+      setFilters((prev) => ({ ...prev, lote: value }));
+    },
+    [setFilters],
+  );
 
   const filterOptions = useMemo(
     () =>
@@ -394,9 +429,10 @@ export default function Stock() {
           : caselaId != null
             ? residents.find((r) => r.casela === caselaId)?.name
             : undefined;
-      const caselaDisplay = formatCaselaLabel(uiDisplay.casela, {
+      const caselaDisplay = formatCaselaLabel(uiDisplay, {
         caselaId,
         residentName,
+        sector: item.sector,
       });
       const numDrawer =
         typeof item.drawer === "number"
@@ -411,9 +447,14 @@ export default function Stock() {
             ? drawerCategoryByNum.get(numDrawer)
             : undefined,
       });
-      return { ...item, caselaDisplay, drawerDisplay };
+      const sectorKey = String(item.sector ?? "").trim();
+      const sectorDisplay =
+        sectorKey && sectorKey !== "-"
+          ? (labelByKey.get(sectorKey) ?? formatTenantSectorKeyLabel(sectorKey))
+          : "—";
+      return { ...item, caselaDisplay, drawerDisplay, sectorDisplay };
     });
-  }, [items, residents, uiDisplay, drawerCategoryByNum]);
+  }, [items, residents, uiDisplay, drawerCategoryByNum, labelByKey]);
 
   const filteredCabinets = useMemo(() => {
     if (!armarioSearch) return filterOptions.cabinets;
@@ -426,14 +467,50 @@ export default function Stock() {
   }, [armarioSearch, filterOptions.cabinets]);
 
   const filteredCaselas = useMemo(() => {
-    if (!caselaSearch) return filterOptions.caselas;
-    const term = caselaSearch.trim().toLowerCase();
-    return filterOptions.caselas.filter(
-      (c) =>
-        c.value.startsWith(caselaSearch.trim()) ||
-        c.label.toLowerCase().includes(term),
+    if (!caselaSearch.trim()) return filterOptions.caselas;
+    const q = caselaSearch.trim();
+    const ql = q.toLowerCase();
+    return filterOptions.caselas.filter((c) => {
+      if (c.label.toLowerCase().includes(ql) || c.value.includes(q.trim())) {
+        return true;
+      }
+      const r = residents.find((x) => String(x.casela) === c.value);
+      return r ? matchesResidentCaselaSearch(r, q) : false;
+    });
+  }, [caselaSearch, filterOptions.caselas, residents]);
+
+  const filteredSectors = useMemo(() => {
+    if (!setorSearch.trim()) return filterOptions.sectors;
+    const q = setorSearch.trim().toLowerCase();
+    return filterOptions.sectors.filter(
+      (s) =>
+        s.label.toLowerCase().includes(q) || s.value.toLowerCase().includes(q),
     );
-  }, [caselaSearch, filterOptions.caselas]);
+  }, [setorSearch, filterOptions.sectors]);
+
+  const drawerSelectOptions = useMemo(
+    () =>
+      [...drawerCategoryByNum.keys()]
+        .sort((a, b) => a - b)
+        .map((num) => ({
+          value: String(num),
+          label: formatGavetaLabel(uiDisplay.gaveta, {
+            gavetaId: num,
+            categoriaNome: drawerCategoryByNum.get(num),
+          }),
+        })),
+    [drawerCategoryByNum, uiDisplay.gaveta],
+  );
+
+  const filteredDrawers = useMemo(() => {
+    if (!gavetaSearch.trim()) return drawerSelectOptions;
+    const q = gavetaSearch.trim().toLowerCase();
+    return drawerSelectOptions.filter(
+      (d) =>
+        d.label.toLowerCase().includes(q) ||
+        d.value.includes(gavetaSearch.trim()),
+    );
+  }, [gavetaSearch, drawerSelectOptions]);
 
   const columns = [
     { key: "stockType", label: "Tipo", editable: false },
@@ -448,7 +525,7 @@ export default function Stock() {
     { key: "caselaDisplay", label: "Casela", editable: false },
     { key: "daysToReplacement", label: "Dias para Repor", editable: false },
     { key: "origin", label: "Origem", editable: false },
-    { key: "sector", label: "Setor", editable: false },
+    { key: "sectorDisplay", label: "Setor", editable: false },
     { key: "destination", label: "Destino", editable: false },
     { key: "detail", label: "Observação", editable: false },
     { key: "status", label: "Status", editable: false },
@@ -570,9 +647,11 @@ export default function Stock() {
     setActionLoading(true);
 
     try {
+      const destSetor = row.sector === "farmacia" ? "enfermagem" : "farmacia";
+
       await transferStockSector({
         estoque_id: row.id,
-        setor: "enfermagem",
+        setor: destSetor,
         itemType: row.itemType as StockItemType,
         quantidade: quantity,
         casela_id: casela ?? null,
@@ -609,6 +688,56 @@ export default function Stock() {
     }
   };
 
+  const handleInterTenantTransferConfirm = async (
+    payload: InterTenantTransferModalPayload,
+  ) => {
+    if (!pendingAction.row || pendingAction.type !== "transfer") return;
+
+    const { row } = pendingAction;
+    setActionLoading(true);
+
+    try {
+      const { destTenantDisplayLabel, ...interPayload } = payload;
+      await transferMedicineInterTenant({
+        ...interPayload,
+        tipo_item: row.itemType === "insumo" ? "insumo" : "medicamento",
+        sourceEstoqueId: row.id,
+      });
+
+      await loadStock(page);
+
+      const from = tenantProfileLabel(tenant);
+      const to = destTenantDisplayLabel?.trim() || interPayload.destTenantSlug;
+      toast({
+        title: `Transferência de ${from} para ${to} concluída com sucesso.`,
+        variant: "success",
+        duration: 3000,
+      });
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(
+        err,
+        "Não foi possível transferir o item. Tente novamente.",
+        "Stock:transfer-inter-tenant",
+      );
+
+      const from = tenantProfileLabel(tenant);
+      const to =
+        payload.destTenantDisplayLabel?.trim() || payload.destTenantSlug;
+      toast({
+        title: `Não foi possível transferir de ${from} para ${to}.`,
+        description: errorMessage,
+        variant: "error",
+        duration: 3000,
+      });
+
+      await loadStock(page);
+    } finally {
+      setActionLoading(false);
+      setTransferModalOpen(false);
+      setPendingAction({ type: null, row: null });
+    }
+  };
+
   return (
     <Layout
       title="Estoque de Medicamentos e Insumos"
@@ -616,7 +745,7 @@ export default function Stock() {
       breadcrumb={stockBreadcrumb}
     >
       <div className="flex w-full flex-col gap-8">
-        <div className="flex flex-wrap gap-3 justify-end mt-8">
+        <div className="flex flex-wrap gap-3 justify-end mt-8 items-center">
           <button
             onClick={() => {
               if (!canSaida) {
@@ -693,81 +822,94 @@ export default function Stock() {
 
         {apiFilterOptions !== null && (
           <div className={cn(pageSurfaceSubtleClass, "p-6")}>
-            <div className="flex items-end gap-4">
-              <div className="flex-1 min-w-0">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+              <div className="min-w-0">
                 <label className="block text-xs text-muted-foreground mb-1">
                   Nome
                 </label>
                 <TableFilter
                   placeholder="Buscar por nome"
                   onFilterChange={handleNomeFilterChange}
+                  className="[&_input]:rounded-lg [&_input]:py-2 [&_input]:text-sm"
                 />
               </div>
 
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0">
                 <label className="block text-xs text-muted-foreground mb-1">
                   Setor
                 </label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <button className="w-full border border-border bg-background p-2 rounded-lg flex justify-between items-center truncate">
-                      <span className="truncate">
+                      <span
+                        className={
+                          filters.setor
+                            ? "truncate"
+                            : "truncate text-muted-foreground"
+                        }
+                      >
                         {filters.setor
                           ? filterOptions.sectors.find(
                               (s) => s.value === filters.setor,
                             )?.label || filters.setor
-                          : "Selecione"}
+                          : "Todos os setores"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0">
-                    <Command>
-                      <CommandGroup>
-                        <CommandItem
-                          value=""
-                          onSelect={() =>
-                            setFilters((prev) => ({ ...prev, setor: "" }))
-                          }
-                        >
-                          Todos
-                        </CommandItem>
-                        {filterOptions.sectors.map((sector) => (
-                          <CommandItem
-                            key={sector.value}
-                            value={sector.value}
-                            onSelect={() =>
-                              setFilters((prev) => ({
-                                ...prev,
-                                setor:
-                                  prev.setor === sector.value
-                                    ? ""
-                                    : sector.value,
-                              }))
-                            }
-                          >
-                            {sector.label}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Buscar setor"
+                        value={setorSearch}
+                        onValueChange={setSetorSearch}
+                      />
+                      <CommandList>
+                        <CommandGroup>
+                          {filteredSectors.map((sector) => (
+                            <CommandItem
+                              key={sector.value}
+                              value={sector.value}
+                              onSelect={() => {
+                                setFilters((prev) => ({
+                                  ...prev,
+                                  setor:
+                                    prev.setor === sector.value
+                                      ? ""
+                                      : sector.value,
+                                }));
+                                setSetorSearch("");
+                              }}
+                            >
+                              {sector.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
                     </Command>
                   </PopoverContent>
                 </Popover>
               </div>
 
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0">
                 <label className="block text-xs text-muted-foreground mb-1">
                   Armário
                 </label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <button className="w-full border border-border bg-background p-2 rounded-lg flex justify-between items-center truncate">
-                      <span className="truncate">
+                      <span
+                        className={
+                          filters.armario
+                            ? "truncate"
+                            : "truncate text-muted-foreground"
+                        }
+                      >
                         {filters.armario
                           ? (filterOptions.cabinets.find(
                               (c) => c.value === filters.armario,
                             )?.label ?? `Armário ${filters.armario}`)
-                          : "Selecione"}
+                          : "Todos os armários"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
                     </button>
@@ -779,50 +921,129 @@ export default function Stock() {
                         value={armarioSearch}
                         onValueChange={setArmarioSearch}
                       />
-                      <CommandGroup>
-                        {filteredCabinets.map((cabinet) => (
-                          <CommandItem
-                            key={cabinet.value}
-                            value={cabinet.value}
-                            onSelect={() => {
-                              setFilters((prev) => ({
-                                ...prev,
-                                armario:
-                                  prev.armario === cabinet.value
-                                    ? ""
-                                    : cabinet.value,
-                              }));
-                              setArmarioSearch("");
-                            }}
-                          >
-                            {cabinet.label}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
+                      <CommandList>
+                        <CommandGroup>
+                          {filteredCabinets.map((cabinet) => (
+                            <CommandItem
+                              key={cabinet.value}
+                              value={cabinet.value}
+                              onSelect={() => {
+                                setFilters((prev) => ({
+                                  ...prev,
+                                  armario:
+                                    prev.armario === cabinet.value
+                                      ? ""
+                                      : cabinet.value,
+                                }));
+                                setArmarioSearch("");
+                              }}
+                            >
+                              {cabinet.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
                     </Command>
                   </PopoverContent>
                 </Popover>
               </div>
 
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0">
+                <label className="mb-1 block text-xs text-muted-foreground">
+                  {uiDisplay.gaveta === "categoria" ? "Categoria" : "Gaveta"}
+                </label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between truncate rounded-lg border border-border bg-background p-2"
+                    >
+                      <span
+                        className={
+                          filters.gaveta
+                            ? "truncate"
+                            : "truncate text-muted-foreground"
+                        }
+                      >
+                        {filters.gaveta
+                          ? (drawerSelectOptions.find(
+                              (d) => d.value === filters.gaveta,
+                            )?.label ??
+                            (uiDisplay.gaveta === "categoria"
+                              ? `Categoria ${filters.gaveta}`
+                              : `Gaveta ${filters.gaveta}`))
+                          : uiDisplay.gaveta === "categoria"
+                            ? "Todas as categorias"
+                            : "Todas as gavetas"}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder={
+                          uiDisplay.gaveta === "categoria"
+                            ? "Buscar categoria"
+                            : "Buscar gaveta"
+                        }
+                        value={gavetaSearch}
+                        onValueChange={setGavetaSearch}
+                      />
+                      <CommandList>
+                        <CommandGroup>
+                          {filteredDrawers.map((drawer) => (
+                            <CommandItem
+                              key={drawer.value}
+                              value={drawer.value}
+                              onSelect={() => {
+                                setFilters((prev) => ({
+                                  ...prev,
+                                  gaveta:
+                                    prev.gaveta === drawer.value
+                                      ? ""
+                                      : drawer.value,
+                                }));
+                                setGavetaSearch("");
+                              }}
+                            >
+                              {drawer.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="min-w-0">
                 <label className="block text-xs text-muted-foreground mb-1">
                   Casela
                 </label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <button className="w-full border border-border bg-background p-2 rounded-lg flex justify-between items-center truncate">
-                      <span className="truncate">
+                      <span
+                        className={
+                          filters.casela
+                            ? "truncate"
+                            : "truncate text-muted-foreground"
+                        }
+                      >
                         {filters.casela
-                          ? (filterOptions.caselas.find(
-                              (c) => c.value === filters.casela,
-                            )?.label ??
-                            formatCaselaLabel(uiDisplay.casela, {
-                              caselaId: Number(filters.casela),
-                              residentName: residents.find(
-                                (r) => r.casela === Number(filters.casela),
-                              )?.name,
-                            }))
-                          : "Selecione"}
+                          ? (() => {
+                              const found = filterOptions.caselas.find(
+                                (c) => c.value === filters.casela,
+                              );
+                              if (found?.label) return found.label;
+                              const id = Number(filters.casela);
+                              const r = residents.find((x) => x.casela === id);
+                              return r
+                                ? formatResidentCaselaAutocompleteLabel(r)
+                                : `Casela ${filters.casela}`;
+                            })()
+                          : "Todas as caselas"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
                     </button>
@@ -834,38 +1055,41 @@ export default function Stock() {
                         value={caselaSearch}
                         onValueChange={setCaselaSearch}
                       />
-                      <CommandGroup>
-                        {filteredCaselas.map((casela) => (
-                          <CommandItem
-                            key={casela.value}
-                            value={casela.value}
-                            onSelect={() => {
-                              setFilters((prev) => ({
-                                ...prev,
-                                casela:
-                                  prev.casela === casela.value
-                                    ? ""
-                                    : casela.value,
-                              }));
-                              setCaselaSearch("");
-                            }}
-                          >
-                            {casela.label}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
+                      <CommandList>
+                        <CommandGroup>
+                          {filteredCaselas.map((casela) => (
+                            <CommandItem
+                              key={casela.value}
+                              value={casela.value}
+                              onSelect={() => {
+                                setFilters((prev) => ({
+                                  ...prev,
+                                  casela:
+                                    prev.casela === casela.value
+                                      ? ""
+                                      : casela.value,
+                                }));
+                                setCaselaSearch("");
+                              }}
+                            >
+                              {casela.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
                     </Command>
                   </PopoverContent>
                 </Popover>
               </div>
 
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0">
                 <label className="block text-xs text-muted-foreground mb-1">
                   Lote
                 </label>
                 <TableFilter
                   placeholder="Buscar por lote"
                   onFilterChange={handleLoteFilterChange}
+                  className="[&_input]:rounded-lg [&_input]:py-2 [&_input]:text-sm"
                 />
               </div>
             </div>
@@ -930,11 +1154,19 @@ export default function Stock() {
                 casela: pendingAction.row.casela ?? null,
                 daysToReplacement: pendingAction.row.daysToReplacement ?? null,
                 medicamentoId: pendingAction.row.medicamentoId ?? null,
+                estoqueId: pendingAction.row.id,
+                tipo: pendingAction.row.tipo ?? undefined,
+                expiry: pendingAction.row.expiry,
+                lot: pendingAction.row.lot ?? null,
               }
             : null
         }
         residents={residents}
         onConfirm={handleTransferConfirm}
+        onConfirmInterTenant={
+          canInterTenant ? handleInterTenantTransferConfirm : undefined
+        }
+        enableInterTenant={canInterTenant}
         onCancel={() => {
           setTransferModalOpen(false);
           setPendingAction({ type: null, row: null });

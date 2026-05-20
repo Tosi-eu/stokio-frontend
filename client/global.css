@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .auth-landing-scroll {
+    scroll-padding-top: 4.5rem;
+  }
+  @media (min-width: 1024px) {
+    .auth-landing-scroll {
+      scroll-padding-top: 0;
+    }
+  }
+}
+
 @layer base {
   /**
    * Tema Stokio — alinhado ao default_logo (azul-marinho, azul médio/claro, ciano de destaque)

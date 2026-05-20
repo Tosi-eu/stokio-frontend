@@ -1,10 +1,4 @@
-import {
-  useState,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useCallback,
-} from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -19,14 +13,18 @@ import {
   type LoginTenantSummary,
 } from "@/api/requests";
 import {
-  SIGNUP_CONTRACT_VERIFIED_SESSION_KEY,
+  clearSignupContractVerified,
+  readSignupContractVerified,
+  writeSignupContractVerified,
   type SignupContractVerifiedPayload,
 } from "@/helpers/signup-contract-session.helper";
+import { ManageCookiesLink } from "@/components/legal/ManageCookiesLink";
+import { PrivacyPolicyContent } from "@/components/legal/PrivacyPolicyContent";
 import {
   getErrorMessage,
   USER_FACING_RETRY_SHORT,
 } from "@/helpers/validation.helper";
-import { formatLoginTenantChoice } from "@/components/auth/auth.utils";
+import { loginTenantDisplayLabel } from "@/helpers/tenant-display.helper";
 import type { AuthProps } from "@/components/auth/auth.types";
 import {
   AlertDialog,
@@ -50,7 +48,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { APP_PUBLIC_NAME } from "@/constants/app-branding";
+import {
+  APP_PUBLIC_NAME,
+  BRAND_LOGO_LOCAL_FALLBACK_PATH,
+} from "@/constants/app-branding";
 import {
   validateEmail,
   validatePassword,
@@ -58,13 +59,34 @@ import {
   validateTextInput,
 } from "@/helpers/validation.helper";
 import { prefetchTenantBrandLogoBeforeInicioNavigation } from "@/helpers/tenant-brand-logo-prefetch.helper";
-import { ArrowUp, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { ContactFormSection } from "@/components/ContactFormSection";
 import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
 import { AuthMarketingAside } from "@/components/auth/AuthMarketingAside";
+import { AuthLandingHero } from "@/components/auth/AuthLandingHero";
+import { AuthContactIntro } from "@/components/auth/AuthContactIntro";
 import { AuthMobileHeader } from "@/components/auth/AuthMobileHeader";
 import { AuthMobileAnchorBar } from "@/components/auth/AuthMobileAnchorBar";
 import { AuthSkipLinks } from "@/components/auth/AuthSkipLinks";
+import { AuthLandingSection } from "@/components/auth/AuthLandingSection";
+import { AuthLandingPanel } from "@/components/auth/AuthLandingPanel";
+import { AuthSectionFooterLinks } from "@/components/auth/AuthSectionFooterLinks";
+import { scrollAuthLandingSectionIntoView } from "@/components/auth/auth-landing.utils";
+import { useAuthLandingActiveSection } from "@/components/auth/useAuthLandingActiveSection";
+import { PageLabel } from "@/components/page/PageLabel";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 export default function Auth({ scrollToSection = "auth" }: AuthProps) {
   const router = useRouter();
@@ -80,6 +102,8 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [tenantSlug, setTenantSlug] = useState("");
+  const [tenantPickerOpen, setTenantPickerOpen] = useState(false);
+  const [tenantPickerQuery, setTenantPickerQuery] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginLinkedTenants, setLoginLinkedTenants] = useState<
@@ -111,7 +135,7 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
     lastName: string;
   } | null>(null);
 
-  const authHeaderLogoSrc = "/default_logo.png";
+  const activeLandingSection = useAuthLandingActiveSection();
 
   useEffect(() => {
     const invite = (searchParams.get("invite") ?? "").trim();
@@ -125,20 +149,20 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
   }, [searchParams]);
 
   useLayoutEffect(() => {
-    if (scrollToSection !== "contact") return;
-    const scrollContactIntoView = () => {
-      const el = document.getElementById("contact");
-      if (!el) return;
-      const reduceMotion = window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      ).matches;
-      el.scrollIntoView({
-        behavior: reduceMotion ? "auto" : "smooth",
-        block: "start",
-      });
+    if (scrollToSection === "auth") return;
+    const sectionId =
+      scrollToSection === "contact"
+        ? "contact"
+        : scrollToSection === "privacy"
+          ? "privacy"
+          : null;
+    if (!sectionId) return;
+
+    const scrollSectionIntoView = () => {
+      scrollAuthLandingSectionIntoView(sectionId);
     };
-    scrollContactIntoView();
-    requestAnimationFrame(scrollContactIntoView);
+    scrollSectionIntoView();
+    requestAnimationFrame(scrollSectionIntoView);
   }, [scrollToSection]);
 
   useEffect(() => {
@@ -165,16 +189,9 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
     const signupEmail = sanitizeInput(login).trim();
     const emailCheck = validateEmail(signupEmail);
 
-    try {
-      const raw = sessionStorage.getItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
-      if (raw) {
-        const o = JSON.parse(raw) as { code?: string; email?: string };
-        if (o.code !== cc || o.email !== signupEmail) {
-          sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
-        }
-      }
-    } catch {
-      sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+    const stored = readSignupContractVerified();
+    if (stored && (stored.code !== cc || stored.email !== signupEmail)) {
+      clearSignupContractVerified();
     }
 
     if (!cc || !emailCheck.valid) {
@@ -192,16 +209,13 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
             email: signupEmail,
             verifiedAt: Date.now(),
           };
-          sessionStorage.setItem(
-            SIGNUP_CONTRACT_VERIFIED_SESSION_KEY,
-            JSON.stringify(payload),
-          );
+          writeSignupContractVerified(payload);
         } else {
-          sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+          clearSignupContractVerified();
         }
       } catch {
         if (cancelled) return;
-        sessionStorage.removeItem(SIGNUP_CONTRACT_VERIFIED_SESSION_KEY);
+        clearSignupContractVerified();
         const now = Date.now();
         if (now - contractVerifyBackgroundErrorAtRef.current > 60_000) {
           contractVerifyBackgroundErrorAtRef.current = now;
@@ -396,7 +410,7 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
             try {
               setSkipTenantOnboarding(created.tenant.id, false);
             } catch {
-              // ignore
+              void 0;
             }
             toast({
               title: "Vamos configurar seu abrigo",
@@ -645,16 +659,31 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
   const loginEmailTrim = sanitizeInput(login).trim();
   const loginEmailValid = validateEmail(loginEmailTrim).valid;
 
-  const [authHeaderImgSrc, setAuthHeaderImgSrc] = useState(authHeaderLogoSrc);
-  useEffect(() => {
-    setAuthHeaderImgSrc(authHeaderLogoSrc);
-  }, [authHeaderLogoSrc]);
-
-  const handleAuthLogoFallback = useCallback(() => {
-    setAuthHeaderImgSrc((current) =>
-      current === "/default_logo.png" ? current : "/default_logo.png",
+  const sortedLoginTenants = useMemo(() => {
+    if (!loginLinkedTenants?.length) return [];
+    return [...loginLinkedTenants].sort((a, b) =>
+      loginTenantDisplayLabel(a).localeCompare(
+        loginTenantDisplayLabel(b),
+        undefined,
+        { sensitivity: "base" },
+      ),
     );
-  }, []);
+  }, [loginLinkedTenants]);
+
+  const filteredLoginTenants = useMemo(() => {
+    const q = tenantPickerQuery.trim().toLowerCase();
+    if (!q) return sortedLoginTenants;
+    return sortedLoginTenants.filter((t) =>
+      loginTenantDisplayLabel(t).toLowerCase().includes(q),
+    );
+  }, [sortedLoginTenants, tenantPickerQuery]);
+
+  const selectedLoginTenant = loginLinkedTenants?.find(
+    (t) => t.slug === tenantSlug,
+  );
+  const loginTenantTriggerLabel = selectedLoginTenant
+    ? loginTenantDisplayLabel(selectedLoginTenant)
+    : "Selecione o abrigo";
 
   const inputFieldClass =
     "h-11 rounded-xl border-border/70 bg-background/95 shadow-sm transition-shadow focus-visible:ring-primary/30";
@@ -732,36 +761,42 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
       </AlertDialog>
 
       <AuthMarketingAside
-        logoSrc={authHeaderImgSrc}
-        onLogoFallback={handleAuthLogoFallback}
+        logoSrc={BRAND_LOGO_LOCAL_FALLBACK_PATH}
+        onLogoFallback={() => {}}
+        activeSection={activeLandingSection}
       />
 
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AuthSkipLinks />
-        <div className="flex min-h-0 flex-1 snap-y snap-proximity flex-col overflow-y-auto scroll-smooth overscroll-y-contain motion-reduce:snap-none pb-[5.25rem] lg:pb-0">
+        <div className="auth-landing-scroll flex min-h-0 flex-1 snap-y snap-proximity flex-col overflow-y-auto scroll-smooth overscroll-y-contain motion-reduce:snap-none pb-[5.25rem] lg:pb-0">
           <AuthMobileHeader
-            logoSrc={authHeaderImgSrc}
-            onLogoFallback={handleAuthLogoFallback}
+            logoSrc={BRAND_LOGO_LOCAL_FALLBACK_PATH}
+            onLogoFallback={() => {}}
           />
 
           <main id="auth-page-main">
             <h1 className="sr-only">
-              Iniciar sessão e contacto · {APP_PUBLIC_NAME}
+              Iniciar sessão, contacto e privacidade · {APP_PUBLIC_NAME}
             </h1>
 
-            <section
+            <AuthLandingSection
               id="auth"
-              aria-label="Entrar ou cadastrar"
-              className="relative flex min-h-[100dvh] snap-start scroll-mt-24 flex-col justify-center border-b border-border/40 bg-gradient-to-b from-background/50 via-brand-mesh to-muted/15 px-4 pb-20 pt-4 sm:px-6 lg:min-h-[100dvh] lg:scroll-mt-28 lg:px-10 lg:pb-28 lg:pt-8"
+              ariaLabel="Entrar ou cadastrar"
+              tone="default"
+              align="start"
+              className="border-t-0 pb-20 pt-4 sm:pt-5 lg:pb-24 lg:pt-8"
             >
-              <div className="mx-auto w-full max-w-md">
-                <header className="mb-8 space-y-3 sm:mb-10"></header>
+              <AuthLandingPanel className="space-y-5 sm:space-y-6">
+                <header className="space-y-3">
+                  <PageLabel>Acesso</PageLabel>
+                  <AuthLandingHero />
+                </header>
 
                 <Card
                   id="auth-main"
                   className={cn(
                     pageSurfaceCardClass,
-                    "bg-card/95 backdrop-blur-sm",
+                    "border-border/60 bg-background/75 shadow-sm ring-0 backdrop-blur-sm",
                   )}
                 >
                   <CardHeader className="space-y-1 pb-2">
@@ -989,30 +1024,92 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
                               <span className="font-medium text-foreground">
                                 Abrigo:
                               </span>{" "}
-                              {formatLoginTenantChoice(loginLinkedTenants[0]!)}
+                              {loginTenantDisplayLabel(loginLinkedTenants[0]!)}
                             </p>
                           ) : (
                             <div className="space-y-1.5">
-                              <Label
-                                htmlFor="tenant-slug"
-                                className="text-xs font-medium"
-                              >
+                              <Label className="text-xs font-medium">
                                 Onde quer entrar?
                               </Label>
-                              <select
-                                id="tenant-slug"
-                                value={tenantSlug}
-                                onChange={(e) => setTenantSlug(e.target.value)}
-                                required
-                                className={cn(inputFieldClass, "bg-background")}
+                              <Popover
+                                open={tenantPickerOpen}
+                                onOpenChange={(open) => {
+                                  setTenantPickerOpen(open);
+                                  if (!open) setTenantPickerQuery("");
+                                }}
                               >
-                                <option value="">Selecione o abrigo</option>
-                                {loginLinkedTenants.map((t) => (
-                                  <option key={t.slug} value={t.slug}>
-                                    {formatLoginTenantChoice(t)}
-                                  </option>
-                                ))}
-                              </select>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={tenantPickerOpen}
+                                    id="tenant-login-picker"
+                                    className={cn(
+                                      inputFieldClass,
+                                      "w-full justify-between font-normal px-3",
+                                    )}
+                                  >
+                                    <span className="truncate text-left">
+                                      {loginTenantTriggerLabel}
+                                    </span>
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  className="w-[var(--radix-popover-trigger-width)] min-w-[16rem] max-w-[min(24rem,calc(100vw-2rem))] p-0"
+                                  align="start"
+                                >
+                                  <Command shouldFilter={false}>
+                                    <CommandInput
+                                      placeholder="Pesquisar por nome…"
+                                      value={tenantPickerQuery}
+                                      onValueChange={setTenantPickerQuery}
+                                    />
+                                    <CommandList className="max-h-[260px]">
+                                      <CommandEmpty>
+                                        Nenhum abrigo encontrado.
+                                      </CommandEmpty>
+                                      <CommandGroup>
+                                        {filteredLoginTenants.map((t) => {
+                                          const label =
+                                            loginTenantDisplayLabel(t);
+                                          const selected =
+                                            t.slug === tenantSlug;
+                                          return (
+                                            <CommandItem
+                                              key={t.slug}
+                                              value={`${t.slug}\t${label}`}
+                                              onSelect={() => {
+                                                setTenantSlug(t.slug);
+                                                setTenantPickerOpen(false);
+                                                setTenantPickerQuery("");
+                                              }}
+                                            >
+                                              <Check
+                                                className={cn(
+                                                  "mr-2 h-4 w-4 shrink-0",
+                                                  selected
+                                                    ? "opacity-100"
+                                                    : "opacity-0",
+                                                )}
+                                              />
+                                              <span className="truncate">
+                                                {label}
+                                              </span>
+                                            </CommandItem>
+                                          );
+                                        })}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                              {!tenantSlug.trim() ? (
+                                <p className="text-xs text-muted-foreground">
+                                  Escolha o abrigo em que deseja entrar.
+                                </p>
+                              ) : null}
                             </div>
                           )}
                         </div>
@@ -1147,36 +1244,46 @@ export default function Auth({ scrollToSection = "auth" }: AuthProps) {
                   </CardContent>
                 </Card>
 
-                <p className="mt-8 text-center text-xs text-muted-foreground/80 lg:hidden">
-                  © {new Date().getFullYear()} {APP_PUBLIC_NAME}
+                <p className="text-center text-xs text-muted-foreground/80 lg:hidden space-y-1">
+                  <span className="block">
+                    © {new Date().getFullYear()} {APP_PUBLIC_NAME}
+                  </span>
+                  <ManageCookiesLink className="text-muted-foreground/80" />
                 </p>
-              </div>
-            </section>
+              </AuthLandingPanel>
+            </AuthLandingSection>
 
-            <section
-              id="contact"
-              aria-label="Contacto"
-              className="relative flex min-h-[100dvh] snap-start scroll-mt-24 flex-col justify-center bg-muted/35 px-4 pb-28 pt-14 shadow-[inset_0_1px_0_0_hsl(var(--border)/0.45)] dark:bg-muted/20 sm:px-6 lg:min-h-[100dvh] lg:scroll-mt-28 lg:px-10 lg:pb-36 lg:pt-20"
+            <AuthLandingSection id="contact" ariaLabel="Contacto" tone="muted">
+              <AuthLandingPanel className="space-y-6">
+                <PageLabel>Contato</PageLabel>
+                <AuthContactIntro />
+                <ContactFormSection variant="embedded-panel" />
+                <AuthSectionFooterLinks
+                  primaryHref="#privacy"
+                  primaryLabel="Privacidade e cookies"
+                />
+              </AuthLandingPanel>
+            </AuthLandingSection>
+
+            <AuthLandingSection
+              id="privacy"
+              ariaLabel="Privacidade e cookies"
+              tone="subtle"
             >
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-border/80 to-transparent" />
-
-              <div className="relative mx-auto w-full max-w-md">
-                <ContactFormSection variant="embedded" />
-
-                <p className="mt-10 text-center">
-                  <a
-                    href="#auth"
-                    className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
-                  >
-                    <ArrowUp className="h-4 w-4 shrink-0" aria-hidden />
-                    Voltar ao início de sessão
-                  </a>
-                </p>
-              </div>
-            </section>
+              <AuthLandingPanel className="space-y-6">
+                <PageLabel>Privacidade</PageLabel>
+                <div className="rounded-xl border border-border/50 bg-muted/25 p-4 sm:p-5">
+                  <PrivacyPolicyContent />
+                </div>
+                <AuthSectionFooterLinks
+                  primaryHref="#contact"
+                  primaryLabel="Contacto"
+                />
+              </AuthLandingPanel>
+            </AuthLandingSection>
           </main>
         </div>
-        <AuthMobileAnchorBar />
+        <AuthMobileAnchorBar activeSection={activeLandingSection} />
       </div>
     </div>
   );

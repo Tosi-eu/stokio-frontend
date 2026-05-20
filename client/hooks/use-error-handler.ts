@@ -1,5 +1,6 @@
 import { useToast } from "@/hooks/use-toast.hook";
 import { ERROR_MESSAGES } from "@/constants/app.constants";
+import { sanitizeUserFacingMessage } from "@/helpers/user-facing-error.helper";
 import { useCallback } from "react";
 
 interface ErrorHandlerOptions {
@@ -29,9 +30,11 @@ export function useErrorHandler() {
       let title: string = defaultTitle;
 
       if (error instanceof Error) {
-        message = showDetails ? error.message : ERROR_MESSAGES.GENERIC;
+        message = showDetails
+          ? sanitizeUserFacingMessage(error.message)
+          : ERROR_MESSAGES.GENERIC;
       } else if (typeof error === "string") {
-        message = error;
+        message = sanitizeUserFacingMessage(error);
       }
 
       if (message.includes("network") || message.includes("fetch")) {

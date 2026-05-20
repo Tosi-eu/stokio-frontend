@@ -34,7 +34,7 @@ export async function submitPublicContact(payload: {
       const j = (await res.json()) as { error?: string };
       if (j?.error) msg = j.error;
     } catch {
-      /* Nothing to do */
+      void 0;
     }
     throw new Error(msg);
   }
@@ -161,7 +161,11 @@ import type {
   DashboardSummaryResponse,
   AdminInsightsResponse,
 } from "./types";
-import { StockItemType, UpdateUserPayload } from "@/interfaces/types";
+import {
+  StockItemType,
+  UpdateUserPayload,
+  UpdateUserResponse,
+} from "@/interfaces/types";
 import { MovementsParams } from "@/components/StockReporter";
 import type { StockReplacementItem } from "@/components/StockReplacementModal";
 import type {
@@ -181,8 +185,34 @@ export const getCabinets = (page = 1, limit = 10) =>
     },
   );
 
+export const getCabinetsInTenantContext = (
+  tenantSlug: string,
+  page = 1,
+  limit = 500,
+) => {
+  const slug = tenantSlug.trim();
+  return stokioClient.get<
+    PaginatedResponse<{ numero: number; categoria: string }>
+  >("/armarios", {
+    params: { page, limit },
+    headers: { "X-Tenant": slug },
+  });
+};
+
+export const getDrawersInTenantContext = (
+  tenantSlug: string,
+  page = 1,
+  limit = 500,
+) => {
+  const slug = tenantSlug.trim();
+  return stokioClient.get<PaginatedResponse<Drawer>>("/gavetas", {
+    params: { page, limit },
+    headers: { "X-Tenant": slug },
+  });
+};
+
 export const getNonMovementProducts = () =>
-  stokioClient.get("/movimentacoes/produtos-parados");
+  stokioClient.get("/movements/produtos-parados");
 
 export const checkCabinetStock = (number: number) =>
   stokioClient.get(`/armarios/${number}/check`);
@@ -201,6 +231,44 @@ export const getMedicines = (
     params: { page, limit, ...(name ? { name } : {}) },
   });
 
+export const getMedicinesInTenantContext = (
+  tenantSlug: string,
+  page = 1,
+  limit = 15,
+  name?: string,
+): Promise<PaginatedResponse<RawStockMedicine>> => {
+  const slug = tenantSlug.trim();
+  return stokioClient.get<PaginatedResponse<RawStockMedicine>>(
+    "/medicamentos",
+    {
+      params: {
+        page,
+        limit,
+        ...(name?.trim() ? { name: name.trim() } : {}),
+      },
+      headers: { "X-Tenant": slug },
+    },
+  );
+};
+
+export const getInputsInTenantContext = (
+  tenantSlug: string,
+  page = 1,
+  limit = 20,
+  name?: string,
+): Promise<PaginatedResponse<RawStockInput>> => {
+  const slug = tenantSlug.trim();
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+  if (name?.trim()) params.set("name", name.trim());
+  return stokioClient.get<PaginatedResponse<RawStockInput>>(
+    `/insumos?${params.toString()}`,
+    { headers: { "X-Tenant": slug } },
+  );
+};
+
 export const deleteMedicine = (id: number) =>
   stokioClient.delete(`/medicamentos/${id}`);
 
@@ -218,7 +286,7 @@ export const getInputMovements = ({
   days?: number;
   type?: string;
 }): Promise<PaginatedResponse<RawMovement>> =>
-  stokioClient.get<PaginatedResponse<RawMovement>>("/movimentacoes/insumos", {
+  stokioClient.get<PaginatedResponse<RawMovement>>("/movements/insumos", {
     params: { page, limit, type, days },
   });
 
@@ -233,12 +301,9 @@ export const getMedicineMovements = ({
   days?: number;
   type?: string;
 }): Promise<PaginatedResponse<RawMovement>> =>
-  stokioClient.get<PaginatedResponse<RawMovement>>(
-    "/movimentacoes/medicamentos",
-    {
-      params: { page, limit, days, type },
-    },
-  );
+  stokioClient.get<PaginatedResponse<RawMovement>>("/movements/medicamentos", {
+    params: { page, limit, days, type },
+  });
 
 export const getInputs = (
   page = 1,
@@ -270,8 +335,77 @@ export const getResidents = (page = 1, limit = 20) =>
     params: { page, limit },
   });
 
+export const getResidentsInTenantContext = (
+  tenantSlug: string,
+  page = 1,
+  limit = 100,
+) => {
+  const slug = tenantSlug.trim();
+  return stokioClient.get<PaginatedResponse<ResidentListItem>>("/residentes", {
+    params: { page, limit },
+    headers: { "X-Tenant": slug },
+  });
+};
+
 export const getResidentByCasela = (casela: string | number) =>
   stokioClient.get<ResidentListItem>(`/residentes/${casela}`);
+
+export type MedicalRecordApplicationSlot = {
+  index: number;
+  scheduledTime: string | null;
+  completedAt: string | null;
+};
+
+export type ActiveMedicalRecordItem = {
+  category: "medicine" | "supply";
+  name: string;
+  detail: string;
+  note: string | null;
+  applicationFrequency: number | null;
+  applicationPeriod: string | null;
+  applicationDoseQuantity: number | null;
+  applicationSlots: MedicalRecordApplicationSlot[];
+  periodKey: string | null;
+  stallStockQuantity: number;
+  estimatedDaysRemaining: number | null;
+  estimatedDepletionDate: string | null;
+  medicineId: number | null;
+  supplyId: number | null;
+};
+
+export type ResidentActiveMedicalRecordResponse = {
+  residentName: string;
+  stallNumber: number;
+  items: ActiveMedicalRecordItem[];
+};
+
+export const getResidentActiveMedicalRecord = (casela: string | number) =>
+  stokioClient.get<ResidentActiveMedicalRecordResponse>(
+    `/residentes/${casela}/prontuario-ativo`,
+  );
+
+export const patchResidentMedicalRecordItem = (
+  casela: string | number,
+  body: {
+    category: "medicine" | "supply";
+    itemId: number;
+    applicationFrequency?: number | null;
+    applicationPeriod?: string | null;
+    applicationTimes?: (string | null)[] | null;
+    applicationDoseQuantity?: number | null;
+  },
+) => stokioClient.patch(`/residentes/${casela}/prontuario-item`, body);
+
+export const patchResidentMedicalRecordSlot = (
+  casela: string | number,
+  body: {
+    category: "medicine" | "supply";
+    itemId: number;
+    slotIndex: number;
+    action: "setTime" | "complete" | "uncomplete";
+    scheduledTime?: string;
+  },
+) => stokioClient.patch(`/residentes/${casela}/prontuario-item/etapa`, body);
 
 export const getResidentsCount = () => stokioClient.get("/residentes/count");
 export const getCabinetsCount = () => stokioClient.get("/armarios/count");
@@ -307,6 +441,137 @@ export const getExpiringItems = (
   stokioClient.get("/dashboard/expiring-items", {
     params: { days, page, limit },
   });
+
+export type MedicineAbcBundleRow = {
+  medicamento_id: number;
+  nome: string;
+  principio_ativo: string;
+  qtd: number;
+  share_of_total: number;
+  cumulative_share: number;
+  class: "A" | "B" | "C";
+};
+
+export type MedicineAbcBundleSection = {
+  total_movimentado: number;
+  rows: MedicineAbcBundleRow[];
+};
+
+export type AdminMedicineAbcBundleResponse = {
+  period: { start: string; end: string };
+  entrada: MedicineAbcBundleSection;
+  saida: MedicineAbcBundleSection;
+  transferencia: MedicineAbcBundleSection;
+};
+
+export const getAdminMedicineAbcBundle = (days?: number) =>
+  stokioClient.get<AdminMedicineAbcBundleResponse>("/admin/medicine-abc", {
+    params: days != null ? { days } : undefined,
+  });
+
+export type ComplianceAuditInsights = {
+  created: number;
+  updated: number;
+  deleted: number;
+  total: number;
+  totalFiltered: number;
+  events: Array<{
+    id: number;
+    user_id: number | null;
+    operator?: string | null;
+    method: string;
+    path: string;
+    operation_type: string;
+    resource: string | null;
+    status_code: number;
+    duration_ms: number | null;
+    created_at: string;
+    old_value: Record<string, unknown> | null;
+    new_value: Record<string, unknown> | null;
+  }>;
+};
+
+export function getComplianceAuditEvents(params: {
+  days?: number;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  limit?: number;
+  operationType?: string;
+  resource?: string;
+  userId?: number;
+}) {
+  return stokioClient.get<ComplianceAuditInsights>("/audit/events", {
+    params: params as Record<string, unknown>,
+  });
+}
+
+export function getComplianceLoginLog(params: {
+  days?: number;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  limit?: number;
+  userId?: number;
+  login?: string;
+  success?: boolean;
+}) {
+  return stokioClient.get<{
+    data: Array<{
+      id: number;
+      user_id: number | null;
+      login: string;
+      success: boolean;
+      ip: string | null;
+      user_agent: string | null;
+      created_at: string | Date;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+  }>("/audit/login-log", {
+    params: params as Record<string, unknown>,
+  });
+}
+export async function downloadComplianceCsv(
+  kind: "events" | "login" | "movements",
+  query: Record<string, string>,
+): Promise<void> {
+  const path =
+    kind === "events"
+      ? "/audit/export/events.csv"
+      : kind === "login"
+        ? "/audit/export/login-log.csv"
+        : "/audit/export/movements.csv";
+  const base = API_BASE_URL.replace(/\/$/, "");
+  const url = new URL(base + path);
+  Object.entries(query).forEach(([k, v]) => {
+    if (v !== "") url.searchParams.set(k, v);
+  });
+  const res = await fetch(url.toString(), {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    let msg = "Não foi possível gerar o ficheiro.";
+    try {
+      const j = (await res.json()) as { error?: string };
+      if (j?.error) msg = j.error;
+    } catch {
+      void 0;
+    }
+    throw new Error(msg);
+  }
+  const blob = await res.blob();
+  const cd = res.headers.get("Content-Disposition");
+  let filename = "export.csv";
+  const m = cd?.match(/filename="([^"]+)"/);
+  if (m?.[1]) filename = m[1];
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
 export type { ConsumptionPeriodItem } from "@stokio/sdk";
 
@@ -700,23 +965,12 @@ export const verifySignupContractCode = (
   signupEmail?: string,
 ) => stokioClient.public.verifySignupContractCode(contractCode, signupEmail);
 
-function superAdminApiKeyHeaders(): HeadersInit | undefined {
-  const k = process.env.NEXT_PUBLIC_X_API_KEY;
-  if (k == null || String(k).trim() === "") return undefined;
-  return { "X-API-Key": String(k).trim() };
-}
-
 export const adminSetTenantContractCodeBySlug = (
   slug: string,
   payload:
     | { contract_code: string; bound_login: string }
     | { clear_contract_code: true },
-) =>
-  stokioClient.admin.setTenantContractCodeBySlug(
-    slug,
-    payload,
-    superAdminApiKeyHeaders(),
-  );
+) => stokioClient.admin.setTenantContractCodeBySlug(slug, payload);
 
 export const updateInput = (id: number, data: Record<string, unknown>) =>
   stokioClient.put(`/insumos/${id}`, data);
@@ -727,16 +981,27 @@ export const updateCabinet = (id: number, data: Record<string, unknown>) =>
 export const updateMedicine = (id: number, data: Record<string, unknown>) =>
   stokioClient.put(`/medicamentos/${id}`, data);
 
-export const resetPassword = (login: string, newPassword: string) =>
-  stokioClient.post(`/login/reset-password`, { login, newPassword });
+export const requestPasswordReset = (login: string) =>
+  stokioClient.post<{ ok: true }>(`/login/forgot-password/request`, { login });
+
+export const confirmPasswordReset = (
+  login: string,
+  token: string,
+  newPassword: string,
+) =>
+  stokioClient.post<{ id: number; login: string }>(
+    `/login/forgot-password/confirm`,
+    { login, token, newPassword },
+  );
 
 export const updateResident = (
   casela: string | number,
   data: Record<string, unknown>,
 ) => stokioClient.put(`/residentes/${casela}`, data);
 
-export const updateUser = (payload: UpdateUserPayload) =>
-  stokioClient.put("/login", payload);
+export const updateUser = (
+  payload: UpdateUserPayload,
+): Promise<UpdateUserResponse> => stokioClient.put("/login", payload);
 
 export const createCabinet = (numero: number, categoria_id: number) =>
   stokioClient.post("/armarios", { numero, categoria_id });
@@ -750,7 +1015,8 @@ export const createInput = (
   stokioClient.post("/insumos", {
     nome,
     descricao: descricao ?? null,
-    estoque_minimo: estoque_minimo ?? 0,
+    estoque_minimo:
+      estoque_minimo != null && estoque_minimo > 0 ? estoque_minimo : null,
     preco: preco ?? null,
   });
 
@@ -775,11 +1041,16 @@ export const createResident = (
   casela: string,
   data_nascimento?: string | null,
   cpf?: string | null,
+  telefone_responsavel?: string | null,
 ) =>
   stokioClient.post("/residentes", {
     nome,
     casela: parseInt(casela),
     ...(cpf != null && String(cpf).trim() !== "" ? { cpf } : {}),
+    ...(telefone_responsavel != null &&
+    String(telefone_responsavel).trim() !== ""
+      ? { telefone_responsavel: String(telefone_responsavel).trim() }
+      : {}),
     ...(data_nascimento != null && String(data_nascimento).trim() !== ""
       ? { data_nascimento: String(data_nascimento).trim() }
       : {}),
@@ -819,7 +1090,7 @@ export const createMovement = (payload: {
   insumo_id?: number;
   setor: string;
   lote?: string | null;
-}) => stokioClient.post("/movimentacoes", payload);
+}) => stokioClient.post("/movements", payload);
 
 export const createNotificationEvent = (payload: {
   medicamento_id: number;
@@ -834,7 +1105,7 @@ export const createNotificationEvent = (payload: {
   const d =
     payload.data_prevista instanceof Date ? payload.data_prevista : null;
   const dateOnly = d ? d.toISOString().slice(0, 10) : "";
-  return stokioClient.post("/notificacao", {
+  return stokioClient.post("/notification", {
     medicamento_id: payload.medicamento_id,
     residente_id: payload.residente_id,
     destino: payload.destino,
@@ -886,7 +1157,7 @@ export const getNotifications = async ({
 export const updateNotification = (
   id: number,
   data: { status?: string; visto?: boolean },
-) => stokioClient.patch(`/notificacao/${id}`, data);
+) => stokioClient.patch(`/notification/${id}`, data);
 
 export const patchNotificationEvent = (
   id: number,
@@ -903,27 +1174,51 @@ export const patchNotificationEvent = (
   if (data.data_prevista instanceof Date) {
     out.data_prevista = data.data_prevista.toISOString().slice(0, 10);
   }
-  return stokioClient.patch(`/notificacao/${id}`, out);
+  return stokioClient.patch(`/notification/${id}`, out);
 };
 
-export const getTodayMedicineNotifications = () =>
-  getNotifications({
+const REMINDER_PAGE_SIZE = 100;
+const REMINDER_MAX_PAGES = 80;
+
+async function fetchAllNotificationsMatching(
+  base: Omit<Parameters<typeof getNotifications>[0], "page" | "limit">,
+): Promise<{
+  items: Awaited<ReturnType<typeof getNotifications>>["items"];
+}> {
+  const acc: Awaited<ReturnType<typeof getNotifications>>["items"] = [];
+  for (let page = 1; page <= REMINDER_MAX_PAGES; page++) {
+    const res = await getNotifications({
+      ...base,
+      page,
+      limit: REMINDER_PAGE_SIZE,
+    });
+    acc.push(...res.items);
+    if (!res.hasNext || res.items.length === 0) break;
+  }
+  return { items: acc };
+}
+
+export const getTodayMedicineNotifications = async () => {
+  const { items } = await fetchAllNotificationsMatching({
     type: "medicamento",
     date: "today",
     status: EventStatus.PENDENTE,
     visto: false,
   });
+  return { items, total: items.length, hasNext: false };
+};
 
 export const getTomorrowReplacementNotifications = async () => {
-  const res = await getNotifications({
+  const { items } = await fetchAllNotificationsMatching({
     type: "reposicao_estoque",
     date: "tomorrow",
     status: EventStatus.PENDENTE,
     visto: false,
   });
   return {
-    ...res,
-    items: res.items as StockReplacementItem[],
+    items: items as StockReplacementItem[],
+    total: items.length,
+    hasNext: false,
   };
 };
 
@@ -989,7 +1284,7 @@ export const getMedicineRanking = (
   page = 1,
   limit = 10,
 ) =>
-  stokioClient.get("/movimentacoes/medicamentos/ranking", {
+  stokioClient.get("/movements/medicamentos/ranking", {
     params: { type, page, limit },
   });
 
@@ -1125,18 +1420,83 @@ export const logoutRequest = () => stokioClient.post("/login/logout");
 export const getTenantConfig = () =>
   stokioClient.get<TenantConfigResponse>("/tenant/config");
 
-export type TenantModuleDefinitionRow = {
-  key: string;
-  label: string;
+export const dismissTenantOnboarding = () =>
+  stokioClient.post<{
+    tenantId: number;
+    tenant: TenantConfigResponse["tenant"];
+    alreadyComplete?: boolean;
+  }>("/tenant/onboarding/dismiss", {});
+
+export type AccessibleTenantRow = {
+  id: number;
+  slug: string;
+  name: string;
+  brandName: string | null;
+  isPrimary: boolean;
 };
 
-export type TenantModuleCatalogResponse = {
-  modules: TenantModuleDefinitionRow[];
+export type AccessibleTenantsResponse = {
+  tenants: AccessibleTenantRow[];
 };
 
-/** Catálogo de módulos (chaves válidas + rótulos) — fonte única com GET /tenant/modules no backend. */
-export const listTenantModuleDefinitions = () =>
-  stokioClient.get<TenantModuleCatalogResponse>("/tenant/modules");
+export const listAccessibleTenants = () =>
+  stokioClient.get<AccessibleTenantsResponse>("/tenant/accessible-tenants");
+
+export async function grantTenantMembership(targetLoginId: number) {
+  return stokioClient.post<{ ok: boolean }>("/tenant/memberships", {
+    targetLoginId,
+  });
+}
+
+export type InterTenantMedicineTransferPayload = {
+  tipo_item?: "medicamento" | "insumo";
+  destTenantSlug: string;
+  sourceEstoqueId: number;
+  destMedicamentoId?: number;
+  destInsumoId?: number;
+  quantidade: number;
+  validade?: string;
+  destTipo: string;
+  destSetor?: string;
+  destCaselaId?: number | null;
+  destArmarioId?: number | null;
+  destGavetaId?: number | null;
+  destLote?: string | null;
+};
+
+export const transferMedicineInterTenant = (
+  payload: InterTenantMedicineTransferPayload,
+) =>
+  stokioClient.post<{ correlationId: string }>(
+    "/estoque/transferencia-inter-abrigo",
+    payload,
+  );
+
+export type InterTenantMovementRow = {
+  id: number;
+  data: string;
+  tipo: string;
+  quantidade: number;
+  medicamento_id: number | null;
+  insumo_id: number | null;
+  observacao: string | null;
+  setor: string;
+  armario_id: number | null;
+  gaveta_id: number | null;
+  lote: string | null;
+};
+
+export const listInterTenantMovements = (params?: {
+  page?: number;
+  limit?: number;
+}) =>
+  stokioClient.get<{
+    data: InterTenantMovementRow[];
+    total: number;
+    page: number;
+    limit: number;
+    hasNext: boolean;
+  }>("/movements/inter-tenant", { params });
 
 export type UpdateTenantModulesPayload = {
   enabled: string[];
@@ -1228,7 +1588,7 @@ export type TenantSetorRow = {
 };
 
 export const listTenantSetores = () =>
-  stokioClient.get<{ data: TenantSetorRow[] }>("/tenant/setores");
+  stokioClient.get<{ data: TenantSetorRow[] }>("/tenant/sectors");
 
 export type CreateTenantSetorPayload = {
   key?: string;
@@ -1236,8 +1596,13 @@ export type CreateTenantSetorPayload = {
   proportionProfile?: "farmacia" | "enfermagem";
 };
 
+export const listTenantSetoresInTenantContext = (tenantSlug: string) =>
+  stokioClient.get<{ data: TenantSetorRow[] }>("/tenant/sectors", {
+    headers: { "X-Tenant": tenantSlug.trim() },
+  });
+
 export const createTenantSetor = (payload: CreateTenantSetorPayload) =>
-  stokioClient.post<TenantSetorRow>("/tenant/setores", payload);
+  stokioClient.post<TenantSetorRow>("/tenant/sectors", payload);
 
 export type TenantSetorStockTypesResponse = {
   setorId: number;
@@ -1248,7 +1613,7 @@ export type TenantSetorStockTypesResponse = {
 
 export const getTenantSetorStockTypes = (setorId: number) =>
   stokioClient.get<TenantSetorStockTypesResponse>(
-    `/tenant/setores/${setorId}/stock-types`,
+    `/tenant/sectors/${setorId}/stock-types`,
   );
 
 export const updateTenantSetorStockTypes = (
@@ -1256,7 +1621,7 @@ export const updateTenantSetorStockTypes = (
   stockTypes: TenantSetorStockTypesResponse["stockTypes"],
 ) =>
   stokioClient.put<TenantSetorStockTypesResponse>(
-    `/tenant/setores/${setorId}/stock-types`,
+    `/tenant/sectors/${setorId}/stock-types`,
     { stockTypes },
   );
 
@@ -1277,8 +1642,6 @@ export type MedicalRecordExportJobRow = {
   downloadCount: number;
   lastDownloadAt: string | null;
 };
-
-/** Uma geração concluída com sucesso (mais recente = versionIndex 1). */
 export type MedicalRecordVersionRow = {
   versionIndex: number;
   jobId: string;
@@ -1376,6 +1739,9 @@ export type LoginLogEntry = {
   success: boolean;
   ip: string | null;
   user_agent: string | null;
+  browser?: string | null;
+  os?: string | null;
+  country?: string | null;
   created_at: string;
 };
 
@@ -1540,26 +1906,25 @@ export type {
 export type { AdminNotificationItem } from "@stokio/sdk";
 
 export const getAdminTenants = (params?: { page?: number; limit?: number }) =>
-  stokioClient.admin.tenants.list(params, superAdminApiKeyHeaders());
+  stokioClient.admin.tenants.list(params);
 export const createAdminTenant = (data: {
   slug: string;
   name: string;
   contract_code?: string;
-}) => stokioClient.admin.tenants.create(data, superAdminApiKeyHeaders());
+}) => stokioClient.admin.tenants.create(data);
 export const updateAdminTenant = (
   id: number,
   data: Partial<{ slug: string; name: string; contract_code?: string }>,
-) => stokioClient.admin.tenants.update(id, data, superAdminApiKeyHeaders());
+) => stokioClient.admin.tenants.update(id, data);
 export const deleteAdminTenant = (id: number) =>
-  stokioClient.admin.tenants.remove(id, superAdminApiKeyHeaders());
+  stokioClient.admin.tenants.remove(id);
 
 export const getAdminTenantConfig = (id: number) =>
-  stokioClient.admin.tenants.getConfig(id, superAdminApiKeyHeaders());
+  stokioClient.admin.tenants.getConfig(id);
 export const setAdminTenantConfig = (
   id: number,
   modules: { enabled: string[] },
-) =>
-  stokioClient.admin.tenants.setConfig(id, modules, superAdminApiKeyHeaders());
+) => stokioClient.admin.tenants.setConfig(id, modules);
 
 export const restoreBackup = (file: File) =>
   stokioClient.admin.restoreBackup(file);
@@ -1579,6 +1944,8 @@ export const patchAdminNotification = (
 
 export const getAdminInsights = (params?: {
   days?: number;
+  fromDate?: string;
+  toDate?: string;
   limit?: number;
   page?: number;
   operationType?: "create" | "update" | "delete";

@@ -215,9 +215,10 @@ export default function Dashboard() {
           name: m.MedicineModel?.nome || m.InputModel?.nome || "-",
           type: m.tipo,
           operator: m.LoginModel?.login || "-",
-          casela: formatCaselaLabel(uiDisplay.casela, {
+          casela: formatCaselaLabel(uiDisplay, {
             caselaId: m.ResidentModel?.num_casela,
             residentName: m.ResidentModel?.nome,
+            sector: m.setor,
           }),
           quantity: m.quantidade,
           patient: m.ResidentModel ? m.ResidentModel.nome : "-",
@@ -657,7 +658,6 @@ export default function Dashboard() {
               <DashboardWidgetShell
                 id="customSectorProportions"
                 editMode={dashLayout.editMode}
-                // Sempre ocupar a linha inteira para os cards não ficarem "minúsculos"
                 wide={true}
                 allowWide={false}
                 onHide={() => dashLayout.hide("customSectorProportions")}
@@ -724,6 +724,7 @@ export default function Dashboard() {
                       showAddons={false}
                       minRows={minRowsMovements}
                       loading={loadingNonMovement}
+                      columnWidthKey="dashboard.nonMovement"
                     />
                     <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
                       <span className="text-sm text-muted-foreground">
@@ -795,6 +796,7 @@ export default function Dashboard() {
                       minRows={minRowsMovements}
                       showAddons={false}
                       loading={loadingRecentMovements}
+                      columnWidthKey="dashboard.recentMovements"
                     />
                     <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
                       <span className="text-sm text-muted-foreground">
@@ -860,6 +862,7 @@ export default function Dashboard() {
                       ]}
                       data={mostMovData as unknown as Record<string, unknown>[]}
                       showAddons={false}
+                      columnWidthKey="dashboard.mostMoved"
                     />
                   </CardContent>
                 </Card>
@@ -893,6 +896,7 @@ export default function Dashboard() {
                         leastMovData as unknown as Record<string, unknown>[]
                       }
                       showAddons={false}
+                      columnWidthKey="dashboard.leastMoved"
                     />
                   </CardContent>
                 </Card>

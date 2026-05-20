@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, type Dispatch, type SetStateAction } from "react";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,14 +15,13 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList,
 } from "@/components/ui/command";
 import type { TenantUiDisplay } from "@/helpers/storage-location-display.helper";
-import {
-  formatCaselaLabel,
-  formatGavetaLabel,
-} from "@/helpers/storage-location-display.helper";
+import { formatGavetaLabel } from "@/helpers/storage-location-display.helper";
 import type { MovementFilters } from "@/components/movements/movements.types";
 import { MovementsSearchableSelect } from "@/components/movements/MovementsSearchableSelect";
+import { formatResidentCaselaAutocompleteLabel } from "@/helpers/resident-casela-autocomplete.helper";
 
 type FiltersActions = {
   onProduto: (v: string) => void;
@@ -102,18 +100,21 @@ export function MovementsFiltersSection({
 
   return (
     <div className="grid gap-2">
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-[220px] flex-1 max-w-[360px]">
-          <Label className="text-xs">Produto</Label>
+      <div className="grid grid-cols-2 items-end gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <div className="min-w-0">
+          <label className="mb-1 block text-xs text-muted-foreground">
+            Produto
+          </label>
           <Input
             value={filters.produto}
             onChange={(e) => actions.onProduto(e.target.value)}
             placeholder="Nome do produto"
-            className="mt-1 h-8 px-2 text-xs"
+            className="h-auto rounded-lg px-2 py-2 text-sm"
           />
         </div>
         <MovementsSearchableSelect
           label="Armário"
+          placeholder="Todos os armários"
           value={filters.armario}
           onChange={actions.onArmario}
           options={cabinetSelectOptions}
@@ -121,13 +122,20 @@ export function MovementsFiltersSection({
         />
         <MovementsSearchableSelect
           label={uiDisplay.gaveta === "categoria" ? "Categoria" : "Gaveta"}
+          placeholder={
+            uiDisplay.gaveta === "categoria"
+              ? "Todas as categorias"
+              : "Todas as gavetas"
+          }
           value={filters.gaveta}
           onChange={actions.onGaveta}
           options={drawerSelectOptions}
           searchPlaceholder="Buscar gaveta..."
         />
-        <div className="min-w-[220px] max-w-[320px]">
-          <Label className="text-xs">Casela</Label>
+        <div className="min-w-0">
+          <label className="mb-1 block text-xs text-muted-foreground">
+            Casela
+          </label>
           <Popover
             open={residentPopoverOpen[uiKey]}
             onOpenChange={(next) =>
@@ -135,25 +143,31 @@ export function MovementsFiltersSection({
             }
           >
             <PopoverTrigger asChild>
-              <Button
+              <button
                 type="button"
-                variant="outline"
                 role="combobox"
-                className="mt-1 h-8 w-full justify-between px-2 text-xs"
+                className="flex w-full items-center justify-between truncate rounded-lg border border-border bg-background p-2 text-sm"
               >
-                <span className="truncate">
+                <span
+                  className={
+                    filters.casela
+                      ? "truncate"
+                      : "truncate text-muted-foreground"
+                  }
+                >
                   {filters.casela
-                    ? formatCaselaLabel(uiDisplay.casela, {
-                        caselaId: Number(filters.casela),
-                        residentName:
-                          residentOptions.find(
-                            (r) => r.casela === Number(filters.casela),
-                          )?.name ?? null,
-                      })
-                    : "Selecione"}
+                    ? (() => {
+                        const r = residentOptions.find(
+                          (x) => x.casela === Number(filters.casela),
+                        );
+                        return r
+                          ? formatResidentCaselaAutocompleteLabel(r)
+                          : `Casela ${filters.casela}`;
+                      })()
+                    : "Todas as caselas"}
                 </span>
-                <ChevronsUpDown className="h-4 w-4 opacity-60" />
-              </Button>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </button>
             </PopoverTrigger>
             <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
               <Command shouldFilter={false}>
@@ -162,62 +176,56 @@ export function MovementsFiltersSection({
                   value={residentSearch}
                   onValueChange={setResidentSearch}
                 />
-                <CommandEmpty>Nenhum residente encontrado.</CommandEmpty>
-                <CommandGroup>
-                  <CommandItem
-                    value="all"
-                    onSelect={() => {
-                      actions.onCasela("");
-                      setResidentSearch("");
-                      setResidentPopoverOpen((p) => ({
-                        ...p,
-                        [uiKey]: false,
-                      }));
-                    }}
-                  >
-                    Todos
-                  </CommandItem>
-                  {filteredResidentOptions.map((r) => (
-                    <CommandItem
-                      key={r.casela}
-                      value={String(r.casela)}
-                      onSelect={() => {
-                        actions.onCasela(String(r.casela));
-                        setResidentSearch("");
-                        setResidentPopoverOpen((p) => ({
-                          ...p,
-                          [uiKey]: false,
-                        }));
-                      }}
-                    >
-                      {uiDisplay.casela === "nome"
-                        ? `${r.name} (Casela ${r.casela})`
-                        : `Casela ${r.casela} — ${r.name}`}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
+                <CommandList>
+                  <CommandEmpty>Nenhum residente encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {filteredResidentOptions.map((r) => (
+                      <CommandItem
+                        key={r.casela}
+                        value={`${r.casela}-${r.name}`}
+                        onSelect={() => {
+                          const next =
+                            String(r.casela) === filters.casela
+                              ? ""
+                              : String(r.casela);
+                          actions.onCasela(next);
+                          setResidentSearch("");
+                          setResidentPopoverOpen((p) => ({
+                            ...p,
+                            [uiKey]: false,
+                          }));
+                        }}
+                      >
+                        {formatResidentCaselaAutocompleteLabel(r)}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
               </Command>
             </PopoverContent>
           </Popover>
         </div>
         <MovementsSearchableSelect
           label="Setor"
+          placeholder="Todos os setores"
           value={filters.setor}
           onChange={actions.onSetor}
           options={sectorOptions}
           searchPlaceholder="Buscar setor..."
         />
-        <div className="min-w-[180px] max-w-[240px]">
-          <Label className="text-xs">Lote</Label>
+        <div className="min-w-0">
+          <label className="mb-1 block text-xs text-muted-foreground">
+            Lote
+          </label>
           <Input
             value={filters.lote}
             onChange={(e) => actions.onLote(e.target.value)}
             placeholder="Ex.: ABC123"
-            className="mt-1 h-8 px-2 text-xs"
+            className="h-auto rounded-lg px-2 py-2 text-sm"
           />
         </div>
 
-        <div className="ml-auto flex justify-end gap-2">
+        <div className="col-span-full flex justify-end gap-2 xl:col-span-6">
           <Button
             type="button"
             variant="outline"

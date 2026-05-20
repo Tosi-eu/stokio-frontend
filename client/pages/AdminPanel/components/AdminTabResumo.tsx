@@ -41,9 +41,129 @@ import {
   LogIn,
 } from "lucide-react";
 import { formatDateToPtBr, formatValidityDate } from "@/helpers/dates.helper";
+import type { MedicineAbcBundleRow } from "@/api/requests";
 import type { AdminTabResumoProps } from "./admin-tab-resumo/admin-tab-resumo.types";
 import { useAdminTabResumoMetrics } from "./admin-tab-resumo/useAdminTabResumoMetrics";
 import { AdminTabResumoMetricsDialog } from "./admin-tab-resumo/AdminTabResumoMetricsDialog";
+
+function AbcClassBadge({ c }: { c: "A" | "B" | "C" }) {
+  const cls =
+    c === "A"
+      ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+      : c === "B"
+        ? "bg-amber-100 text-amber-900 border border-amber-200"
+        : "bg-slate-100 text-slate-700 border border-slate-200";
+  return (
+    <span
+      className={`inline-flex min-w-[1.25rem] justify-center rounded px-1.5 py-0.5 text-xs font-semibold ${cls}`}
+    >
+      {c}
+    </span>
+  );
+}
+
+function AbcMovementTable({
+  title,
+  section,
+  refreshKey,
+}: {
+  title: string;
+  section:
+    | { total_movimentado: number; rows: MedicineAbcBundleRow[] }
+    | undefined;
+  refreshKey: number;
+}) {
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
+  const rows = section?.rows ?? [];
+  const total = section?.total_movimentado ?? 0;
+
+  useEffect(() => {
+    setPage(1);
+  }, [refreshKey, rows.length]);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const slice = rows.slice((page - 1) * pageSize, page * pageSize);
+
+  return (
+    <div className="mb-8 last:mb-0">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <h4 className="text-sm font-semibold">{title}</h4>
+        <span className="text-xs text-muted-foreground">
+          Volume total: <strong>{total}</strong> unidades
+        </span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-2">
+          Nenhum medicamento com movimentação neste tipo no período.
+        </p>
+      ) : (
+        <>
+          <div className="rounded-md border overflow-x-auto max-h-[320px] overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">ABC</TableHead>
+                  <TableHead>Medicamento</TableHead>
+                  <TableHead>Princípio ativo</TableHead>
+                  <TableHead className="text-right">Qtd</TableHead>
+                  <TableHead className="text-right">% do total</TableHead>
+                  <TableHead className="text-right">% acum.</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {slice.map((row, idx) => (
+                  <TableRow key={`${row.medicamento_id}-${idx}`}>
+                    <TableCell>
+                      <AbcClassBadge c={row.class} />
+                    </TableCell>
+                    <TableCell>{row.nome}</TableCell>
+                    <TableCell
+                      className="max-w-[180px] truncate"
+                      title={row.principio_ativo}
+                    >
+                      {row.principio_ativo || "—"}
+                    </TableCell>
+                    <TableCell className="text-right">{row.qtd}</TableCell>
+                    <TableCell className="text-right">
+                      {row.share_of_total.toFixed(2)}%
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {row.cumulative_share.toFixed(2)}%
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          {rows.length > pageSize ? (
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Anterior
+              </Button>
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                Página {page} de {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Próximo
+              </Button>
+            </div>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}
 
 export function AdminTabResumo({
   metrics,
@@ -88,6 +208,10 @@ export function AdminTabResumo({
   setStockHistoryPage,
   stockHistoryLimit,
   setStockHistoryLimit,
+  abcDays,
+  setAbcDays,
+  abcBundle,
+  loadingAbc,
 }: AdminTabResumoProps) {
   const metricsVm = useAdminTabResumoMetrics();
   const { setMetricsDialog } = metricsVm;
@@ -597,6 +721,72 @@ export function AdminTabResumo({
                 </Button>
               </div>
             </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4 space-y-0 pb-2">
+          <div>
+            <CardTitle>Curva ABC (medicamentos)</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Classes por volume acumulado (A ≤80%, B ≤95%, C restante) por tipo
+              de movimentação — decisões de priorização e compras.
+            </p>
+          </div>
+          <Select
+            value={String(abcDays)}
+            onValueChange={(v) => {
+              setAbcDays(Number(v));
+            }}
+          >
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Período" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="30">30 dias</SelectItem>
+              <SelectItem value="60">60 dias</SelectItem>
+              <SelectItem value="90">90 dias</SelectItem>
+              <SelectItem value="180">180 dias</SelectItem>
+              <SelectItem value="365">365 dias</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent>
+          {loadingAbc ? (
+            <div className="flex items-center gap-2 text-muted-foreground py-6">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Carregando curva ABC...
+            </div>
+          ) : abcBundle ? (
+            <>
+              <p className="text-xs text-muted-foreground mb-6">
+                Período considerado:{" "}
+                <strong>
+                  {formatDateToPtBr(abcBundle.period.start)} —{" "}
+                  {formatDateToPtBr(abcBundle.period.end)}
+                </strong>
+              </p>
+              <AbcMovementTable
+                title="Entradas"
+                section={abcBundle.entrada}
+                refreshKey={abcDays}
+              />
+              <AbcMovementTable
+                title="Saídas"
+                section={abcBundle.saida}
+                refreshKey={abcDays}
+              />
+              <AbcMovementTable
+                title="Transferências"
+                section={abcBundle.transferencia}
+                refreshKey={abcDays}
+              />
+            </>
+          ) : (
+            <p className="text-muted-foreground py-4">
+              Não foi possível carregar a curva ABC.
+            </p>
           )}
         </CardContent>
       </Card>

@@ -15,8 +15,6 @@ export function labelFormatoArquivo(fmt: string | null | undefined): string {
   if (f === "csv") return "CSV";
   return fmt?.trim() ? fmt : "PDF";
 }
-
-/** Texto curto para a coluna “na casela” (evita siglas técnicas). */
 export function textoItensNaCasela(med: number, ins: number): string {
   const m =
     med === 0 ? null : med === 1 ? "1 medicamento" : `${med} medicamentos`;

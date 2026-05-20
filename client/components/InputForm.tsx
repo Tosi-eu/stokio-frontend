@@ -37,7 +37,10 @@ import {
   getEnabledSectors,
   resolveSectorProfile,
 } from "@/helpers/tenant-sectors.helper";
+import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
+import { formatResidentCaselaAutocompleteLabel } from "@/helpers/resident-casela-autocomplete.helper";
 import { getTenantSetorStockTypes } from "@/api/requests";
+import { caselaUsesResidentName } from "@/helpers/ui-display.helper";
 
 function normalizeText(text: string) {
   return text
@@ -119,9 +122,7 @@ export const InputForm = memo(function InputForm({
   );
   const caselasForSelect = useMemo(() => {
     if (nursingLike) {
-      return [...(caselas ?? [])].sort((a, b) =>
-        a.name.localeCompare(b.name, "pt-BR"),
-      );
+      return [...(caselas ?? [])].sort(compareResidentsByNameThenCasela);
     }
     return caselas ?? [];
   }, [caselas, nursingLike]);
@@ -199,12 +200,18 @@ export const InputForm = memo(function InputForm({
   }, [sectorKeys, defaultSector, getValues, isCart, setValue]);
 
   useEffect(() => {
+    if (isIndividual) {
+      setValue("drawerId", null);
+      return;
+    }
     if (isCart) {
       setValue("cabinetId", null);
+      setValue("casela", null);
     } else {
       setValue("drawerId", null);
+      setValue("casela", null);
     }
-  }, [stockType, setValue, isCart]);
+  }, [stockType, setValue, isCart, isIndividual]);
 
   useEffect(() => {
     if (!isIndividual) {
@@ -219,13 +226,15 @@ export const InputForm = memo(function InputForm({
 
   const onFormSubmit = async (data: InputFormData) => {
     try {
+      const isIndividualSubmit = data.stockType === ItemStockType.INDIVIDUAL;
+      const cabinetId = isCart ? undefined : (data.cabinetId ?? undefined);
       onSubmit({
         inputId: data.inputId,
         quantity: data.quantity,
         isEmergencyCart: isCart,
-        drawerId: data.drawerId ?? undefined,
-        cabinetId: data.cabinetId ?? undefined,
-        casela: data.casela ?? undefined,
+        drawerId: isCart ? (data.drawerId ?? undefined) : undefined,
+        cabinetId,
+        casela: isIndividualSubmit ? (data.casela ?? undefined) : undefined,
         validity: data.validity ?? undefined,
         stockType: data.stockType,
         sector: data.sector,
@@ -446,6 +455,7 @@ export const InputForm = memo(function InputForm({
         <div className="grid gap-2">
           <label className="text-sm font-semibold text-slate-700">
             {nursingLike ? "Casela (residente)" : "Casela"}
+            {isIndividual ? <span className="text-red-500"> *</span> : null}
           </label>
           <Controller
             name="casela"
@@ -467,10 +477,8 @@ export const InputForm = memo(function InputForm({
                       )}
                     >
                       {field.value != null && selectedCasela
-                        ? uiDisplay.casela === "nome"
-                          ? `${selectedCasela.name} (${selectedCasela.casela})`
-                          : String(selectedCasela.casela)
-                        : uiDisplay.casela === "nome"
+                        ? formatResidentCaselaAutocompleteLabel(selectedCasela)
+                        : caselaUsesResidentName(uiDisplay.casela)
                           ? "Buscar por nome do residente..."
                           : "Selecione a casela"}
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
@@ -486,7 +494,7 @@ export const InputForm = memo(function InputForm({
                     <Command shouldFilter={false}>
                       <CommandInput
                         placeholder={
-                          uiDisplay.casela === "nome"
+                          caselaUsesResidentName(uiDisplay.casela)
                             ? "Buscar por nome ou número..."
                             : "Buscar por número ou nome..."
                         }
@@ -504,10 +512,6 @@ export const InputForm = memo(function InputForm({
                       <CommandEmpty>Nenhuma casela encontrada.</CommandEmpty>
                       <CommandGroup>
                         {filteredCaselas.map((c) => {
-                          const primary =
-                            uiDisplay.casela === "nome"
-                              ? c.name
-                              : String(c.casela);
                           const searchValue = `${c.casela} ${c.name}`;
                           return (
                             <CommandItem
@@ -526,12 +530,7 @@ export const InputForm = memo(function InputForm({
                                     : "opacity-0",
                                 )}
                               />
-                              {primary}
-                              <span className="ml-2 text-slate-500 text-xs">
-                                {uiDisplay.casela === "nome"
-                                  ? `(${c.casela})`
-                                  : c.name}
-                              </span>
+                              {formatResidentCaselaAutocompleteLabel(c)}
                             </CommandItem>
                           );
                         })}
@@ -547,6 +546,32 @@ export const InputForm = memo(function InputForm({
               </>
             )}
           />
+          {isIndividual ? (
+            <div className="grid gap-2">
+              <label className="text-sm font-semibold text-slate-700">
+                Armário da casela <span className="text-red-500">*</span>
+              </label>
+              <select
+                {...register("cabinetId", { valueAsNumber: true })}
+                className={cn(
+                  "w-full border rounded-lg px-3 py-2 text-sm bg-white",
+                  errors.cabinetId ? "border-red-500" : "border-slate-300",
+                )}
+              >
+                <option value="">Selecione o armário</option>
+                {cabinets.map((s) => (
+                  <option key={s.numero} value={s.numero}>
+                    {s.numero}
+                  </option>
+                ))}
+              </select>
+              {errors.cabinetId && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.cabinetId.message}
+                </p>
+              )}
+            </div>
+          ) : null}
         </div>
         {farmaciaLike && (
           <div className="grid gap-2">
@@ -569,57 +594,59 @@ export const InputForm = memo(function InputForm({
         )}
       </div>
 
-      <div className="grid gap-2">
-        <label className="text-sm font-semibold text-slate-700">
-          {isCart ? "Gaveta" : "Armário"}{" "}
-          <span className="text-red-500">*</span>
-        </label>
-        {isCart ? (
-          <>
-            <select
-              {...register("drawerId", { valueAsNumber: true })}
-              className={cn(
-                "w-full border rounded-lg px-3 py-2 text-sm bg-white",
-                errors.drawerId ? "border-red-500" : "border-slate-300",
+      {!isIndividual ? (
+        <div className="grid gap-2">
+          <label className="text-sm font-semibold text-slate-700">
+            {isCart ? "Gaveta" : "Armário"}{" "}
+            <span className="text-red-500">*</span>
+          </label>
+          {isCart ? (
+            <>
+              <select
+                {...register("drawerId", { valueAsNumber: true })}
+                className={cn(
+                  "w-full border rounded-lg px-3 py-2 text-sm bg-white",
+                  errors.drawerId ? "border-red-500" : "border-slate-300",
+                )}
+              >
+                <option value="">Selecione</option>
+                {storageOptions.map((s) => (
+                  <option key={s.numero} value={s.numero}>
+                    {s.numero}
+                  </option>
+                ))}
+              </select>
+              {errors.drawerId && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.drawerId.message}
+                </p>
               )}
-            >
-              <option value="">Selecione</option>
-              {storageOptions.map((s) => (
-                <option key={s.numero} value={s.numero}>
-                  {s.numero}
-                </option>
-              ))}
-            </select>
-            {errors.drawerId && (
-              <p className="text-sm text-red-500 mt-1">
-                {errors.drawerId.message}
-              </p>
-            )}
-          </>
-        ) : (
-          <>
-            <select
-              {...register("cabinetId", { valueAsNumber: true })}
-              className={cn(
-                "w-full border rounded-lg px-3 py-2 text-sm bg-white",
-                errors.cabinetId ? "border-red-500" : "border-slate-300",
+            </>
+          ) : (
+            <>
+              <select
+                {...register("cabinetId", { valueAsNumber: true })}
+                className={cn(
+                  "w-full border rounded-lg px-3 py-2 text-sm bg-white",
+                  errors.cabinetId ? "border-red-500" : "border-slate-300",
+                )}
+              >
+                <option value="">Selecione</option>
+                {storageOptions.map((s) => (
+                  <option key={s.numero} value={s.numero}>
+                    {s.numero}
+                  </option>
+                ))}
+              </select>
+              {errors.cabinetId && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.cabinetId.message}
+                </p>
               )}
-            >
-              <option value="">Selecione</option>
-              {storageOptions.map((s) => (
-                <option key={s.numero} value={s.numero}>
-                  {s.numero}
-                </option>
-              ))}
-            </select>
-            {errors.cabinetId && (
-              <p className="text-sm text-red-500 mt-1">
-                {errors.cabinetId.message}
-              </p>
-            )}
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>
+      ) : null}
 
       <div className="grid gap-2">
         <label className="text-sm font-semibold text-slate-700">Lote</label>

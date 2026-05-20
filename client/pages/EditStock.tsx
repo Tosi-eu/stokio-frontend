@@ -30,12 +30,14 @@ import "react-datepicker/dist/react-datepicker.css";
 import { parseDateFromString } from "@/utils/utils";
 import { SkeletonForm } from "@/components/SkeletonForm";
 import { useTenant } from "@/hooks/use-tenant.hook";
+import { formatResidentCaselaAutocompleteLabel } from "@/helpers/resident-casela-autocomplete.helper";
 import { useTenantSetores } from "@/hooks/use-tenant-setores.hook";
 import {
   buildSectorFilterOptions,
   getEnabledSectors,
   resolveSectorProfile,
 } from "@/helpers/tenant-sectors.helper";
+import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
 import { getEditStockFormDefaults } from "@/components/edit-stock/edit-stock.defaults";
 
 export default function EditStock() {
@@ -194,9 +196,7 @@ export default function EditStock() {
 
   const caselaResidentsList = useMemo(() => {
     if (resolveSectorProfile(watchedSetor, profilesByKey) === "enfermagem") {
-      return [...residents].sort((a, b) =>
-        a.name.localeCompare(b.name, "pt-BR"),
-      );
+      return [...residents].sort(compareResidentsByNameThenCasela);
     }
     return residents;
   }, [residents, watchedSetor, profilesByKey]);
@@ -430,9 +430,7 @@ export default function EditStock() {
                               key={resident.casela}
                               value={resident.casela.toString()}
                             >
-                              {uiDisplay.casela === "nome"
-                                ? resident.name
-                                : String(resident.casela)}
+                              {formatResidentCaselaAutocompleteLabel(resident)}
                             </SelectItem>
                           ))}
                         </SelectContent>

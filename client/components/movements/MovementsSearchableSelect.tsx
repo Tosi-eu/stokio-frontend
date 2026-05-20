@@ -1,8 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -15,6 +13,7 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList,
 } from "@/components/ui/command";
 
 export function MovementsSearchableSelect<
@@ -45,27 +44,39 @@ export function MovementsSearchableSelect<
   }, [options, value]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim();
+    const ql = q.toLowerCase();
     if (!q) return options;
-    return options.filter((o) => o.label.toLowerCase().includes(q));
+    return options.filter(
+      (o) =>
+        o.label.toLowerCase().includes(ql) ||
+        o.value.toLowerCase().includes(ql),
+    );
   }, [options, search]);
 
   return (
-    <div className="min-w-[150px]">
-      <Label className="text-xs">{label}</Label>
+    <div className="min-w-0 flex-1">
+      <label className="mb-1 block text-xs text-muted-foreground">
+        {label}
+      </label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button
+          <button
             type="button"
-            variant="outline"
             role="combobox"
-            className={`mt-1 h-8 w-full justify-between px-2 text-xs ${triggerClassName ?? ""}`}
+            className={`flex w-full items-center justify-between truncate rounded-lg border border-border bg-background p-2 text-sm ${triggerClassName ?? ""}`}
           >
-            <span className="truncate">
-              {selectedLabel || placeholder || "Selecione"}
+            <span
+              className={
+                selectedLabel ? "truncate" : "truncate text-muted-foreground"
+              }
+            >
+              {selectedLabel ||
+                placeholder ||
+                (label ? `Qualquer ${label.toLowerCase()}` : "Selecione")}
             </span>
-            <ChevronsUpDown className="h-4 w-4 opacity-60" />
-          </Button>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </button>
         </PopoverTrigger>
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
           <Command shouldFilter={false}>
@@ -74,32 +85,24 @@ export function MovementsSearchableSelect<
               value={search}
               onValueChange={setSearch}
             />
-            <CommandEmpty>Nenhum resultado.</CommandEmpty>
-            <CommandGroup>
-              <CommandItem
-                value="all"
-                onSelect={() => {
-                  onChange("");
-                  setSearch("");
-                  setOpen(false);
-                }}
-              >
-                Todos
-              </CommandItem>
-              {filtered.map((o) => (
-                <CommandItem
-                  key={o.value}
-                  value={o.value}
-                  onSelect={() => {
-                    onChange(o.value);
-                    setSearch("");
-                    setOpen(false);
-                  }}
-                >
-                  {o.label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            <CommandList>
+              <CommandEmpty>Nenhum resultado.</CommandEmpty>
+              <CommandGroup>
+                {filtered.map((o) => (
+                  <CommandItem
+                    key={o.value}
+                    value={o.value}
+                    onSelect={() => {
+                      onChange(o.value === value ? "" : o.value);
+                      setSearch("");
+                      setOpen(false);
+                    }}
+                  >
+                    {o.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
           </Command>
         </PopoverContent>
       </Popover>

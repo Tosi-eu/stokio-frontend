@@ -4,6 +4,13 @@ const DEFAULT = ["farmacia", "enfermagem"] as const;
 
 export const SECTOR_KEY_REGEX = /^[a-z0-9_]{1,64}$/;
 
+export function tenantEnabledKeysForConfigPatch(
+  modulesEnabled: readonly string[] | null | undefined,
+): string[] {
+  const base = Array.isArray(modulesEnabled) ? [...modulesEnabled] : [];
+  return base.includes("admin") ? base : [...base, "admin"];
+}
+
 export function getEnabledSectors(
   modules: Pick<TenantModules, "enabled_sectors"> | null,
 ): string[] {
@@ -41,8 +48,6 @@ export function resolveSectorProfile(
   if (p) return p;
   return k === "enfermagem" ? "enfermagem" : "farmacia";
 }
-
-/** Labels for selects/filters: prefer catalog nome, else formatted key. */
 export function buildSectorFilterOptions(
   enabledKeys: string[],
   labelByKey: Map<string, string>,

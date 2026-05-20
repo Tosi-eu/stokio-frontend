@@ -1,20 +1,12 @@
-const KEY = "__spa_nav_state_v1";
+let pendingState: unknown;
 
 export function setSpaNavigationState(state: unknown): void {
-  try {
-    sessionStorage.setItem(KEY, JSON.stringify(state));
-  } catch {
-    /* ignore quota / private mode */
-  }
+  pendingState = state;
 }
 
 export function consumeSpaNavigationState<T>(): T | undefined {
-  try {
-    const raw = sessionStorage.getItem(KEY);
-    if (!raw) return undefined;
-    sessionStorage.removeItem(KEY);
-    return JSON.parse(raw) as T;
-  } catch {
-    return undefined;
-  }
+  if (pendingState === undefined) return undefined;
+  const value = pendingState as T;
+  pendingState = undefined;
+  return value;
 }

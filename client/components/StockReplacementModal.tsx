@@ -7,7 +7,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Package } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -52,23 +51,23 @@ const StockReplacementModal: FC<StockReplacementModalProps> = ({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         className="
-          max-w-lg rounded-2xl p-6 space-y-4
+          flex max-h-[90vh] max-w-lg flex-col gap-4 overflow-hidden rounded-2xl p-6
           [&>button.absolute.right-4.top-4]:hidden
         "
       >
-        <DialogHeader>
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl text-slate-900">
             <Package className="w-5 h-5 text-primary" />
             Reposição de estoque amanhã
           </DialogTitle>
         </DialogHeader>
 
-        <p className="text-slate-600">
+        <p className="shrink-0 text-slate-600">
           Os seguintes itens possuem reposição programada para amanhã:
         </p>
 
-        <ScrollArea className="max-h-80 pr-2">
-          <div className="space-y-3">
+        <div className="min-h-0 max-h-[min(60vh,28rem)] overflow-y-auto overscroll-contain pr-2 [-webkit-overflow-scrolling:touch]">
+          <div className="space-y-3 pb-1">
             {items.map((item) => (
               <Card
                 key={item.id}
@@ -108,9 +107,9 @@ const StockReplacementModal: FC<StockReplacementModalProps> = ({
               </Card>
             ))}
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button
             onClick={handleGoToStock}
             variant="outline"

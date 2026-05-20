@@ -1,4 +1,5 @@
 import { createStokioClient, StokioApiError } from "@stokio/sdk";
+import { readActiveTenantSlug } from "@/helpers/active-tenant-slug.helper";
 import { readPreviewModeFromStorage } from "@/helpers/preview-mode-storage";
 import { sanitizeUserFacingMessage } from "@/helpers/user-facing-error.helper";
 import { reportClientError } from "@/helpers/error-report.helper";
@@ -29,13 +30,9 @@ export class InvalidSessionError extends Error {
   }
 }
 
+/** Session uses HttpOnly cookie; Bearer header is not sent from the web client. */
 export function readBearerToken(): string | null {
-  try {
-    const token = sessionStorage.getItem("authToken");
-    return token && token.trim() ? token.trim() : null;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 const PREVIEW_MUTATION_ALLOW_PREFIXES = [
@@ -44,6 +41,7 @@ const PREVIEW_MUTATION_ALLOW_PREFIXES = [
   "/login/register-account",
   "/login/register-user",
   "/login/join-by-token",
+  "/login/forgot-password",
   "/login/reset-password",
   "/tenant/",
 ];
@@ -87,7 +85,6 @@ function handleHttpError(err: StokioApiError): never {
 
     if (isAuthError) {
       window.dispatchEvent(new CustomEvent("invalid-session"));
-      sessionStorage.removeItem("user");
       const sessErr = new InvalidSessionError("Sessão inválida");
       reportClientError(sessErr, {
         category: "auth",
@@ -101,13 +98,25 @@ function handleHttpError(err: StokioApiError): never {
   }
 
   if (err.httpStatus === 403) {
-    if (!err.silentInsufficientPrivileges) {
+    const dataObj =
+      data && typeof data === "object" && !Array.isArray(data)
+        ? (data as Record<string, unknown>)
+        : null;
+    const bodyCode =
+      dataObj && typeof dataObj.code === "string" ? dataObj.code.trim() : "";
+    const errorText =
+      dataObj && typeof dataObj.error === "string" ? dataObj.error.trim() : "";
+    const isModuleDisabled =
+      bodyCode === "MODULE_DISABLED" ||
+      errorText.includes("Módulo desabilitado");
+
+    if (!err.silentInsufficientPrivileges && !isModuleDisabled) {
       window.dispatchEvent(
         new CustomEvent("insufficient-privileges", {
           detail: {
             message:
-              (data && typeof data === "object" && "error" in data
-                ? String((data as { error?: string }).error)
+              (dataObj && typeof dataObj.error === "string"
+                ? dataObj.error
                 : null) ||
               rawMsg ||
               INSUFFICIENT_PRIVILEGES_MESSAGE,
@@ -116,9 +125,7 @@ function handleHttpError(err: StokioApiError): never {
       );
     }
     const forbidden = new Error(
-      (data && typeof data === "object" && "error" in data
-        ? String((data as { error?: string }).error)
-        : null) ||
+      (dataObj && typeof dataObj.error === "string" ? dataObj.error : null) ||
         rawMsg ||
         INSUFFICIENT_PRIVILEGES_MESSAGE,
     );
@@ -148,6 +155,13 @@ function handleHttpError(err: StokioApiError): never {
 export const stokioClient = createStokioClient({
   baseUrl: API_BASE_URL,
   getToken: readBearerToken,
+  getExtraHeaders: () => {
+    const slug = readActiveTenantSlug();
+    if (slug && slug.trim()) {
+      return { "X-Tenant": slug.trim() };
+    }
+    return {};
+  },
   onBeforeRequest: async ({ path, method, body }) => {
     const m = method.toUpperCase();
     if (

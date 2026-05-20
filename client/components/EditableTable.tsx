@@ -1,11 +1,4 @@
-import {
-  useState,
-  useEffect,
-  useMemo,
-  useId,
-  useCallback,
-  useRef,
-} from "react";
+import { useState, useEffect, useMemo, useId } from "react";
 import {
   Pencil,
   Trash2,
@@ -35,6 +28,7 @@ import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 import type { PermissionResourceKey } from "@/domain/permission-matrix.types";
 import { pageSurfaceCardClass } from "@/components/page/page-ui.constants";
 import { cn } from "@/lib/utils";
+import { usePersistedColumnWidths } from "@/hooks/use-persisted-column-widths";
 
 import {
   deleteCabinet,
@@ -54,8 +48,6 @@ const toPermissionResourceKey = (
   v: string | null | undefined,
 ): PermissionResourceKey | null => {
   if (!v) return null;
-  // EditableTable recebe `entityType` e alguns aliases internos. Mantemos aqui
-  // a whitelist de chaves válidas do permission matrix.
   const allowed: readonly PermissionResourceKey[] = [
     "dashboard",
     "residents",
@@ -153,6 +145,7 @@ export default function EditableTable({
   data,
   columns,
   entityType,
+  columnWidthKey,
   showAddons = true,
   readOnly = false,
   currentPage = 1,
@@ -193,84 +186,9 @@ export default function EditableTable({
   const router = useRouter();
   const { can, canMovementTipo } = usePermissionMatrix();
 
-  const columnWidthStorageKey = useMemo(
-    () => `abrigo.tableWidths.${entityType ?? "default"}`,
-    [entityType],
-  );
-  const [colWidths, setColWidths] = useState<Record<string, number>>({});
-  const resizeRef = useRef<{
-    key: string;
-    startX: number;
-    startWidth: number;
-  } | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(columnWidthStorageKey);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as Record<string, unknown>;
-      const next: Record<string, number> = {};
-      for (const [k, v] of Object.entries(parsed ?? {})) {
-        const n = typeof v === "number" ? v : Number(v);
-        if (Number.isFinite(n) && n >= 80 && n <= 800) next[k] = n;
-      }
-      setColWidths(next);
-    } catch {
-      /* ignore */
-    }
-  }, [columnWidthStorageKey]);
-
-  const persistColWidths = useCallback(
-    (next: Record<string, number>) => {
-      if (typeof window === "undefined") return;
-      try {
-        window.localStorage.setItem(
-          columnWidthStorageKey,
-          JSON.stringify(next),
-        );
-      } catch {
-        /* ignore */
-      }
-    },
-    [columnWidthStorageKey],
-  );
-
-  const startResize = useCallback(
-    (key: string, e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const th = (e.currentTarget as HTMLElement).closest("th");
-      const startWidth =
-        colWidths[key] ??
-        (th ? Math.max(80, Math.floor(th.getBoundingClientRect().width)) : 160);
-      resizeRef.current = { key, startX: e.clientX, startWidth };
-      const onMove = (ev: MouseEvent) => {
-        const st = resizeRef.current;
-        if (!st) return;
-        const dx = ev.clientX - st.startX;
-        const nextW = Math.min(800, Math.max(80, st.startWidth + dx));
-        setColWidths((prev) => {
-          const next = { ...prev, [st.key]: nextW };
-          return next;
-        });
-      };
-      const onUp = () => {
-        const st = resizeRef.current;
-        resizeRef.current = null;
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-        if (!st) return;
-        setColWidths((prev) => {
-          persistColWidths(prev);
-          return prev;
-        });
-      };
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
-    },
-    [colWidths, persistColWidths],
-  );
+  const columnWidthsStorageSuffix = columnWidthKey ?? entityType ?? "default";
+  const { colWidths, startResize, resetColumnWidth, hasCustomWidths } =
+    usePersistedColumnWidths(columnWidthsStorageSuffix);
 
   useEffect(() => {
     setRows(data);
@@ -397,6 +315,12 @@ export default function EditableTable({
         const num = typeof v === "number" ? v : Number(v);
         if (Number.isNaN(num)) return "-";
         return `R$ ${num.toFixed(2)}`;
+      }
+
+      case "preco_atualizado_em": {
+        const v = row[colKey];
+        if (v === null || v === undefined || v === "") return "-";
+        return formatDateToPtBr(String(v));
       }
 
       case "expiry":
@@ -528,7 +452,12 @@ export default function EditableTable({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-max table-auto">
+        <table
+          className={cn(
+            "w-full min-w-max",
+            hasCustomWidths ? "table-fixed" : "table-auto",
+          )}
+        >
           <colgroup>
             {columns.map((col) => (
               <col
@@ -553,9 +482,10 @@ export default function EditableTable({
                   <span
                     role="separator"
                     aria-orientation="vertical"
-                    title="Arraste para redimensionar"
+                    title="Arraste para redimensionar. Duplo clique para repor."
                     onMouseDown={(e) => startResize(col.key, e)}
-                    className="absolute right-0 top-0 h-full w-2 cursor-col-resize select-none opacity-40 hover:opacity-100"
+                    onDoubleClick={(e) => resetColumnWidth(col.key, e)}
+                    className="absolute right-0 top-0 z-[1] h-full w-2 cursor-col-resize select-none opacity-40 hover:opacity-100"
                   />
                 </th>
               ))}
@@ -602,7 +532,7 @@ export default function EditableTable({
                           }`}
                         >
                           <div
-                            className="mx-auto"
+                            className="mx-auto min-w-0 max-w-full break-words text-center"
                             style={{
                               maxWidth: colWidths[col.key]
                                 ? `${colWidths[col.key]}px`
@@ -889,7 +819,8 @@ function fallbackQuantityStatusKey(
   quantity: number,
   minimumStock: number,
 ): string {
-  const min = minimumStock;
+  const min = Math.max(0, Number(minimumStock) || 0);
+  if (min <= 0) return "high";
   const lowMax = min * 1.35;
   const highThreshold = min * 3;
   if (quantity >= highThreshold) return "high";

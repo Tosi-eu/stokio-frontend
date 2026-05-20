@@ -13,7 +13,6 @@ import {
 
 export const CONFIG_KEYS = {
   expiring_days: "Dias para considerar “próximo ao vencimento”",
-  estoque_minimo_padrao: "Estoque mínimo padrão (novos itens)",
   display_casela: "Identificação de casela (estoque, movimentações, filtros)",
   display_gaveta: "Identificação de gaveta (estoque, movimentações)",
   display_default_report_format:
@@ -22,7 +21,8 @@ export const CONFIG_KEYS = {
 
 export const CONFIG_SELECT_KEYS = {
   display_casela: [
-    { value: "nome", label: "Nome do residente" },
+    { value: "nome_somente", label: "Nome do residente" },
+    { value: "nome_casela", label: "Nome do residente (nº da casela)" },
     { value: "numero", label: "Número da casela" },
   ],
   display_gaveta: [
@@ -46,7 +46,8 @@ export const DISPLAY_CONFIG_KEYS = {
 export const DISPLAY_SELECT_OPTIONS = {
   display_casela: [
     { value: "numero", label: "Número da casela" },
-    { value: "nome", label: "Nome do residente" },
+    { value: "nome_somente", label: "Nome do residente" },
+    { value: "nome_casela", label: "Nome do residente (nº da casela)" },
   ],
   display_casela_setor: [
     { value: "farmacia", label: "Somente farmácia" },
@@ -65,8 +66,7 @@ export const DISPLAY_SELECT_OPTIONS = {
 
 const DEFAULT_VALUES: AdminSystemConfig = {
   expiring_days: "45",
-  estoque_minimo_padrao: "0",
-  display_casela: "nome",
+  display_casela: "nome_casela",
   display_gaveta: "numero",
   display_default_report_format: "pdf",
 };
@@ -95,7 +95,10 @@ export function useAdminConfig(
     try {
       const data = await getAdminConfig();
       const display = data.display ?? {};
-      const next = { ...DEFAULT_VALUES, ...display };
+      const { ...displayRest } = display as AdminSystemConfig & {
+        estoque_minimo_padrao?: string;
+      };
+      const next = { ...DEFAULT_VALUES, ...displayRest };
       setConfig(next);
       setForm(next);
       if (data.system?.scheduledBackup) {
@@ -123,15 +126,22 @@ export function useAdminConfig(
   async function save() {
     setSaving(true);
     try {
+      const display: AdminSystemConfig = {};
+      for (const key of Object.keys(CONFIG_KEYS)) {
+        if (form[key] !== undefined) display[key] = form[key];
+      }
       const body: Parameters<typeof updateAdminConfig>[0] = {
-        display: form,
+        display,
       };
       if (isSuperAdmin) {
         body.system = { scheduledBackup };
       }
       const updated = await updateAdminConfig(body);
-      const display = updated.display ?? {};
-      const merged = { ...DEFAULT_VALUES, ...display };
+      const savedDisplay = updated.display ?? {};
+      const { ...displayRest } = savedDisplay as AdminSystemConfig & {
+        estoque_minimo_padrao?: string;
+      };
+      const merged = { ...DEFAULT_VALUES, ...displayRest };
       setConfig(merged);
       setForm(merged);
       if (updated.system?.scheduledBackup) {

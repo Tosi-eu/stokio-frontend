@@ -1,10 +1,7 @@
 import {
   createAdminTenant,
   deleteAdminTenant,
-  getAdminTenantConfig,
   getAdminTenants,
-  listTenantModuleDefinitions,
-  setAdminTenantConfig,
   type AdminTenant,
 } from "@/api/requests";
 import { Button } from "@/components/ui/button";
@@ -31,7 +28,6 @@ import {
   USER_FACING_RETRY_SHORT,
 } from "@/helpers/validation.helper";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ADMIN_TAB_CONFIG_MODULE_OPTIONS } from "./admin-tab-config/admin-tab-config.constants";
 
 export function AdminTabTenants({ enabled }: { enabled: boolean }) {
   const [loading, setLoading] = useState(false);
@@ -42,40 +38,6 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
 
   const [newSlug, setNewSlug] = useState("");
   const [newName, setNewName] = useState("");
-
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [modules, setModules] = useState<Set<string>>(new Set());
-  const [moduleCatalogOptions, setModuleCatalogOptions] = useState<
-    Array<{ key: string; label: string }>
-  >(() => [...ADMIN_TAB_CONFIG_MODULE_OPTIONS]);
-  const [configLoading, setConfigLoading] = useState(false);
-  const [saveLoading, setSaveLoading] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await listTenantModuleDefinitions();
-        const list = res?.modules;
-        if (
-          !cancelled &&
-          Array.isArray(list) &&
-          list.length > 0 &&
-          list.every(
-            (x) =>
-              x && typeof x.key === "string" && typeof x.label === "string",
-          )
-        ) {
-          setModuleCatalogOptions(list);
-        }
-      } catch {
-        /* fallback ADMIN_TAB_CONFIG_MODULE_OPTIONS */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil((total || 0) / (limit || 1))),
@@ -108,49 +70,16 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
     void load();
   }, [load]);
 
-  const loadConfig = useCallback(async (id: number) => {
-    setConfigLoading(true);
-    try {
-      const res = await getAdminTenantConfig(id);
-      setSelectedId(id);
-      const enabled = res.modules?.enabled ?? [];
-      setModules(new Set([...enabled, "admin"]));
-    } catch (e: unknown) {
-      toast({
-        title: "Não foi possível carregar a configuração",
-        description: getErrorMessage(
-          e,
-          USER_FACING_RETRY_SHORT,
-          "AdminTabTenants:loadConfig",
-        ),
-        variant: "error",
-      });
-    } finally {
-      setConfigLoading(false);
-    }
-  }, []);
-
-  const previewJson = useMemo(
-    () => JSON.stringify({ enabled: Array.from(modules) }, null, 2),
-    [modules],
-  );
-
-  const toggle = (key: string) => {
-    if (key === "admin") return;
-    setModules((prev) => {
-      const next = new Set(prev);
-      next.add("admin");
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Abrigos</CardTitle>
+          <p className="text-sm text-muted-foreground font-normal">
+            A lista de módulos ativos por abrigo é gerida na aplicação{" "}
+            <span className="font-medium text-foreground">Admin Desktop</span>{" "}
+            (chave de API), não neste painel web.
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-end gap-2">
@@ -261,13 +190,6 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button
-                        variant="outline"
-                        onClick={() => void loadConfig(t.id)}
-                        disabled={configLoading}
-                      >
-                        Configurar módulos
-                      </Button>
-                      <Button
                         variant="destructive"
                         onClick={async () => {
                           if (t.id === 1) return;
@@ -318,78 +240,6 @@ export function AdminTabTenants({ enabled }: { enabled: boolean }) {
               Próxima
             </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Módulos do abrigo {selectedId ?? "-"}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {selectedId == null ? (
-            <div className="text-sm text-muted-foreground">
-              Selecione um abrigo na lista e clique em “Configurar módulos”.
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {moduleCatalogOptions.map((m) => {
-                  const lockedAdmin = m.key === "admin";
-                  const checked = lockedAdmin || modules.has(m.key);
-                  return (
-                    <label
-                      key={m.key}
-                      className={
-                        lockedAdmin
-                          ? "flex items-center gap-3 border rounded-md p-3 cursor-not-allowed opacity-90 bg-muted/20"
-                          : "flex items-center gap-3 border rounded-md p-3 cursor-pointer"
-                      }
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        disabled={lockedAdmin}
-                        onChange={() => toggle(m.key)}
-                      />
-                      <span>{m.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-sm font-medium">Prévia JSON</div>
-                <pre className="text-xs bg-muted rounded-md p-3 overflow-auto max-h-64">
-                  {previewJson}
-                </pre>
-              </div>
-
-              <div className="flex justify-end">
-                <Button
-                  onClick={async () => {
-                    if (selectedId == null) return;
-                    setSaveLoading(true);
-                    try {
-                      await setAdminTenantConfig(selectedId, {
-                        enabled: Array.from(new Set([...modules, "admin"])),
-                      });
-                      toast({ title: "Config salva" });
-                    } catch {
-                      toast({
-                        title: "Erro ao salvar config",
-                        variant: "error",
-                      });
-                    } finally {
-                      setSaveLoading(false);
-                    }
-                  }}
-                  disabled={saveLoading}
-                >
-                  {saveLoading ? "Salvando..." : "Salvar"}
-                </Button>
-              </div>
-            </>
-          )}
         </CardContent>
       </Card>
     </div>

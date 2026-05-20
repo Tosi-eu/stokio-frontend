@@ -1,6 +1,7 @@
 "use client";
 
 import { reportClientError } from "@/helpers/error-report.helper";
+import { subscribeErrorReporting } from "@/helpers/analytics-loader.helper";
 import { useEffect } from "react";
 
 export function GlobalErrorListeners(): null {
@@ -22,12 +23,16 @@ export function GlobalErrorListeners(): null {
       });
     };
 
-    window.addEventListener("error", onWindowError);
-    window.addEventListener("unhandledrejection", onUnhandledRejection);
-    return () => {
-      window.removeEventListener("error", onWindowError);
-      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+    const attach = (): (() => void) => {
+      window.addEventListener("error", onWindowError);
+      window.addEventListener("unhandledrejection", onUnhandledRejection);
+      return () => {
+        window.removeEventListener("error", onWindowError);
+        window.removeEventListener("unhandledrejection", onUnhandledRejection);
+      };
     };
+
+    return subscribeErrorReporting(() => attach());
   }, []);
 
   return null;

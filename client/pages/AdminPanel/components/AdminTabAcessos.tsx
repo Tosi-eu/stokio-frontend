@@ -31,8 +31,6 @@ interface AdminTabAcessosProps {
   setLimit: (l: number) => void;
   loginFilter: string;
   setLoginFilter: (v: string) => void;
-  successFilter: boolean | "";
-  setSuccessFilter: (v: boolean | "") => void;
   fromDate: string;
   setFromDate: (v: string) => void;
   toDate: string;
@@ -50,8 +48,6 @@ export function AdminTabAcessos({
   setLimit,
   loginFilter,
   setLoginFilter,
-  successFilter,
-  setSuccessFilter,
   fromDate,
   setFromDate,
   toDate,
@@ -67,7 +63,7 @@ export function AdminTabAcessos({
       <CardHeader>
         <CardTitle>Log de acessos</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Histórico de tentativas de login (sucesso e falha), com IP e data.
+          Tentativas de login no abrigo (sucesso e falha).
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -75,34 +71,10 @@ export function AdminTabAcessos({
           <div className="grid gap-2 w-48">
             <Label>Login</Label>
             <Input
-              placeholder="Filtrar por login"
+              placeholder="Filtrar por e-mail ou login"
               value={loginFilter}
               onChange={(e) => setLoginFilter(e.target.value)}
             />
-          </div>
-          <div className="grid gap-2 w-36">
-            <Label>Resultado</Label>
-            <Select
-              value={
-                successFilter === ""
-                  ? "all"
-                  : successFilter
-                    ? "success"
-                    : "failure"
-              }
-              onValueChange={(v) =>
-                setSuccessFilter(v === "all" ? "" : v === "success")
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="success">Sucesso</SelectItem>
-                <SelectItem value="failure">Falha</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
           <div className="grid gap-2">
             <Label>De</Label>
@@ -132,17 +104,15 @@ export function AdminTabAcessos({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Data</TableHead>
-                    <TableHead>Login</TableHead>
+                    <TableHead>E-mail</TableHead>
                     <TableHead>Resultado</TableHead>
-                    <TableHead>IP</TableHead>
-                    <TableHead className="max-w-[200px]">User-Agent</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {data.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={5}
+                        colSpan={3}
                         className="text-center text-muted-foreground"
                       >
                         Nenhum registro encontrado.
@@ -167,15 +137,6 @@ export function AdminTabAcessos({
                           >
                             {row.success ? "Sucesso" : "Falha"}
                           </span>
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {row.ip ?? "-"}
-                        </TableCell>
-                        <TableCell
-                          className="max-w-[200px] truncate text-muted-foreground"
-                          title={row.user_agent ?? undefined}
-                        >
-                          {row.user_agent ?? "-"}
                         </TableCell>
                       </TableRow>
                     ))

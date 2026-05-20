@@ -13,12 +13,41 @@ export function normalizeR2PublicBaseUrl(
   return s || null;
 }
 
+export const BRAND_LOGO_LOCAL_FALLBACK_PATH = "/default_logo.png";
+
 function r2DefaultLogoUrl(): string | null {
   const r2 = normalizeR2PublicBaseUrl(
     process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
   );
   if (!r2) return null;
   return `${r2}/default_logo.png`;
+}
+
+export function getR2PublicDefaultLogoUrl(): string | null {
+  return r2DefaultLogoUrl();
+}
+
+function stripUrlQuery(u: string): string {
+  const i = u.indexOf("?");
+  return i === -1 ? u : u.slice(0, i);
+}
+
+export function getNextBrandLogoFallback(currentSrc: string): string | null {
+  const cur = stripUrlQuery(currentSrc.trim());
+  const r2 = getR2PublicDefaultLogoUrl();
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const localAbs = origin
+    ? `${origin}${BRAND_LOGO_LOCAL_FALLBACK_PATH}`
+    : BRAND_LOGO_LOCAL_FALLBACK_PATH;
+
+  if (r2) {
+    const r2Norm = stripUrlQuery(r2);
+    if (cur !== r2Norm) return r2;
+    if (cur !== stripUrlQuery(localAbs)) return localAbs;
+    return null;
+  }
+  if (cur !== stripUrlQuery(localAbs)) return localAbs;
+  return null;
 }
 
 function isAbsoluteHttpUrl(value: string): boolean {
@@ -31,12 +60,12 @@ function resolvePublicLogoUrl(): string {
 
   const r2Logo = r2DefaultLogoUrl();
   if (r2Logo) {
-    if (!explicit || explicit === "/default_logo.png") return r2Logo;
+    if (!explicit || explicit === BRAND_LOGO_LOCAL_FALLBACK_PATH) return r2Logo;
     return explicit;
   }
 
   if (explicit) return explicit;
-  return "/default_logo.png";
+  return BRAND_LOGO_LOCAL_FALLBACK_PATH;
 }
 
 function resolvePdfLogoUrl(): string {
@@ -45,7 +74,7 @@ function resolvePdfLogoUrl(): string {
 
   const r2Logo = r2DefaultLogoUrl();
   if (r2Logo) {
-    if (!pdf || pdf === "/default_logo.png") return r2Logo;
+    if (!pdf || pdf === BRAND_LOGO_LOCAL_FALLBACK_PATH) return r2Logo;
     return pdf;
   }
 

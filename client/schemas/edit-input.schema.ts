@@ -1,3 +1,4 @@
+import { formatEntityDisplayName } from "@/helpers/text-name.helper";
 import { z } from "zod";
 
 export const editInputSchema = z.object({
@@ -5,13 +6,14 @@ export const editInputSchema = z.object({
     .string()
     .min(1, "Nome é obrigatório")
     .max(255, "Nome deve ter no máximo 255 caracteres")
-    .trim(),
+    .trim()
+    .transform(formatEntityDisplayName),
   descricao: z
     .string()
     .max(1000, "Descrição deve ter no máximo 1000 caracteres")
     .trim()
     .optional()
-    .transform((val) => val || ""),
+    .transform((val) => (val ? formatEntityDisplayName(val) : "")),
   estoque_minimo: z
     .string()
     .optional()

@@ -1,4 +1,5 @@
 import type { DashboardSummaryResponse } from "@/api/types";
+import type { ActiveMedicalRecordItem } from "@/api/requests";
 import type {
   StockItem,
   StockProportionResponse,
@@ -25,40 +26,46 @@ export const PREVIEW_DRAWERS = [
 
 export const PREVIEW_RESIDENTS = [
   {
-    name: "Maria Silva",
-    casela: 101,
-    data_nascimento: "1948-03-12",
-    idade: 78,
-  },
-  {
-    name: "João Santos",
-    casela: 102,
-    data_nascimento: "1955-11-02",
-    idade: 70,
-  },
-  {
     name: "Ana Costa",
     casela: 103,
+    telefone_responsavel: "11987654321",
     data_nascimento: null,
     idade: null,
   },
   {
     name: "Carlos Mendes",
     casela: 104,
+    telefone_responsavel: "2134567890",
     data_nascimento: "1960-07-20",
     idade: 65,
   },
   {
-    name: "Rosa Ferreira",
-    casela: 105,
-    data_nascimento: "1952-01-30",
-    idade: 74,
+    name: "João Santos",
+    casela: 102,
+    telefone_responsavel: null,
+    data_nascimento: "1955-11-02",
+    idade: 70,
+  },
+  {
+    name: "Maria Silva",
+    casela: 101,
+    telefone_responsavel: "11999887766",
+    data_nascimento: "1948-03-12",
+    idade: 78,
   },
   {
     name: "Pedro Alves",
     casela: 106,
+    telefone_responsavel: null,
     data_nascimento: null,
     idade: null,
+  },
+  {
+    name: "Rosa Ferreira",
+    casela: 105,
+    telefone_responsavel: "47991234567",
+    data_nascimento: "1952-01-30",
+    idade: 74,
   },
 ];
 
@@ -252,6 +259,103 @@ export function filterPreviewStockByDrawer(drawerNum: number): StockItem[] {
 export function filterPreviewStockByCasela(casela: number): StockItem[] {
   return getPreviewStockItems().filter(
     (s) => s.casela != null && Number(s.casela) === Number(casela),
+  );
+}
+
+export function getPreviewActiveMedicalRecordForCasela(
+  casela: number,
+): ActiveMedicalRecordItem[] {
+  type Agg = {
+    category: "medicine" | "supply";
+    name: string;
+    detail: string;
+    observacoes: Set<string>;
+  };
+
+  const byKey = new Map<string, Agg>();
+
+  for (const i of filterPreviewStockByCasela(casela)) {
+    if (String(i.status ?? "").toLowerCase() !== "active") continue;
+    const q = Number(i.quantity);
+    if (!Number.isFinite(q) || q <= 0) continue;
+
+    const category: "medicine" | "supply" =
+      i.itemType === OperationType.MEDICINE ? "medicine" : "supply";
+    const name = String(i.name ?? "").trim() || "—";
+    const key = `${category}:${name.toLowerCase()}`;
+
+    const detail =
+      category === "medicine"
+        ? String(i.activeSubstance ?? "")
+            .trim()
+            .replace(/^—$/, "")
+        : String(i.description ?? "")
+            .trim()
+            .replace(/^—$/, "");
+
+    const obs = String(i.detail ?? "")
+      .trim()
+      .replace(/^—$/, "");
+
+    const cur = byKey.get(key);
+    if (!cur) {
+      byKey.set(key, {
+        category,
+        name,
+        detail,
+        observacoes: new Set(obs ? [obs] : []),
+      });
+    } else {
+      if (obs) cur.observacoes.add(obs);
+    }
+  }
+
+  const rows: ActiveMedicalRecordItem[] = [];
+  let samplePosology = true;
+  for (const a of byKey.values()) {
+    const obsJoined =
+      [...a.observacoes].filter(Boolean).sort().join("; ") || null;
+
+    const pid = previewMedicalRecordProductId(a.category, a.name);
+    const withSample =
+      samplePosology &&
+      a.category === "medicine" &&
+      a.name.toLowerCase().includes("paracet");
+    if (withSample) samplePosology = false;
+
+    const freq = withSample ? 3 : null;
+    const period = withSample ? "day" : null;
+    const today = new Date().toISOString().slice(0, 10);
+    rows.push({
+      category: a.category,
+      name: a.name,
+      detail: a.detail,
+      note: obsJoined,
+      applicationFrequency: freq,
+      applicationPeriod: period,
+      applicationDoseQuantity: withSample ? 1 : null,
+      applicationSlots: withSample
+        ? [
+            {
+              index: 0,
+              scheduledTime: "08:00",
+              completedAt: new Date().toISOString(),
+            },
+            { index: 1, scheduledTime: "14:00", completedAt: null },
+            { index: 2, scheduledTime: "20:00", completedAt: null },
+          ]
+        : [],
+      periodKey: withSample ? today : null,
+      stallStockQuantity: withSample ? 30 : 0,
+      estimatedDaysRemaining: withSample ? 10 : null,
+      estimatedDepletionDate: withSample ? today : null,
+      medicineId: a.category === "medicine" ? pid : null,
+      supplyId: a.category === "supply" ? pid : null,
+    });
+  }
+
+  return rows.sort((x, y) =>
+    x.name.localeCompare(y.name, "en", { sensitivity: "base" }),
   );
 }
 
@@ -526,6 +630,8 @@ export const PREVIEW_MEDICINES: Record<string, unknown>[] = [
     dosagem: "500",
     unidade_medida: "mg",
     estoque_minimo: 10,
+    preco: 12.5,
+    preco_atualizado_em: new Date(Date.now() - 5 * 86400000).toISOString(),
   },
   {
     id: 8002,
@@ -534,6 +640,8 @@ export const PREVIEW_MEDICINES: Record<string, unknown>[] = [
     dosagem: "50",
     unidade_medida: "mg",
     estoque_minimo: 8,
+    preco: 28.9,
+    preco_atualizado_em: new Date(Date.now() - 12 * 86400000).toISOString(),
   },
 ];
 
@@ -544,6 +652,7 @@ export const PREVIEW_INPUTS: Record<string, unknown>[] = [
     descricao: "Procedimento",
     estoque_minimo: 100,
     preco: 39.9,
+    preco_atualizado_em: new Date(Date.now() - 3 * 86400000).toISOString(),
   },
   {
     id: 7002,
@@ -551,8 +660,36 @@ export const PREVIEW_INPUTS: Record<string, unknown>[] = [
     descricao: "Frasco 500ml",
     estoque_minimo: 20,
     preco: 8.5,
+    preco_atualizado_em: new Date(Date.now() - 20 * 86400000).toISOString(),
   },
 ];
+
+function previewMedicalRecordProductId(
+  category: "medicine" | "supply",
+  nome: string,
+): number | null {
+  const n = nome.trim().toLowerCase();
+  if (category === "medicine") {
+    const row = PREVIEW_MEDICINES.find((m) => {
+      const mn = String((m as { nome: string }).nome)
+        .trim()
+        .toLowerCase();
+      return mn === n || n.startsWith(mn) || mn.startsWith(n);
+    });
+    return row != null ? Number((row as { id: number }).id) : null;
+  }
+  const row = PREVIEW_INPUTS.find((m) => {
+    const mn = String((m as { nome: string }).nome)
+      .trim()
+      .toLowerCase();
+    return (
+      mn === n ||
+      n.includes(mn) ||
+      mn.includes(n.split("(")[0]?.trim().toLowerCase() ?? "")
+    );
+  });
+  return row != null ? Number((row as { id: number }).id) : null;
+}
 
 export const PREVIEW_ADMIN_SUMMARY_CARDS = [
   { title: "Medicamentos", value: "28", hint: "Cadastros ativos (demo)" },

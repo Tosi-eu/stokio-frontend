@@ -17,6 +17,7 @@ import DatePicker from "react-datepicker";
 import { CommandSelect } from "./CommandSelect";
 import type { RawStockMedicine } from "@/interfaces/interfaces";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
+import { formatResidentCaselaAutocompleteLabel } from "@/helpers/resident-casela-autocomplete.helper";
 
 type EditNotificationData = {
   medicamento_id?: number | string | null;
@@ -65,8 +66,6 @@ export default function CreateNotificationForm({
     [NotificationDestiny.PHARMACY]: "Farmácia",
     [NotificationDestiny.STOCK]: "Estoque",
   };
-
-  /** Destinos permitidos para notificação de receita (sem Estoque — só automático/reposição). */
   const receitaDestinoOptions: NotificationDestiny[] = [
     NotificationDestiny.SUS,
     NotificationDestiny.FAMILY,
@@ -214,7 +213,7 @@ export default function CreateNotificationForm({
         value={residentes.find((r) => r.casela === form.residente_id)}
         items={residentes}
         onSelect={(r) => setForm({ ...form, residente_id: r.casela })}
-        getLabel={(r) => `${r.name} (${r.casela})`}
+        getLabel={(r) => formatResidentCaselaAutocompleteLabel(r)}
       />
 
       <CommandSelect

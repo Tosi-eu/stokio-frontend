@@ -1,11 +1,26 @@
 import { z } from "zod";
 
-export const forgotPasswordSchema = z
+export const forgotPasswordRequestSchema = z.object({
+  login: z
+    .string()
+    .min(1, "Login é obrigatório")
+    .email("Login deve ser um e-mail válido"),
+});
+
+export type ForgotPasswordRequestFormData = z.infer<
+  typeof forgotPasswordRequestSchema
+>;
+
+export const forgotPasswordConfirmSchema = z
   .object({
     login: z
       .string()
       .min(1, "Login é obrigatório")
       .email("Login deve ser um e-mail válido"),
+    token: z
+      .string()
+      .min(1, "Código é obrigatório")
+      .max(128, "Código inválido"),
     newPassword: z
       .string()
       .min(8, "Senha deve ter no mínimo 8 caracteres")
@@ -21,4 +36,6 @@ export const forgotPasswordSchema = z
     path: ["confirmPassword"],
   });
 
-export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
+export type ForgotPasswordConfirmFormData = z.infer<
+  typeof forgotPasswordConfirmSchema
+>;

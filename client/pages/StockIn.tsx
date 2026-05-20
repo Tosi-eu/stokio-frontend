@@ -26,6 +26,7 @@ import {
 } from "@/api/requests";
 import { useRouter } from "next/navigation";
 import { fetchAllPaginated } from "@/helpers/paginacao.helper";
+import { compareResidentsByNameThenCasela } from "@/helpers/resident-sort.helper";
 import {
   Select,
   SelectTrigger,
@@ -35,6 +36,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { OperationType } from "@/utils/enums";
+import { buildStockInLocationFields } from "@/helpers/stock-in-location.helper";
 import { usePermissionMatrix } from "@/hooks/usePermissionMatrix";
 
 export default function StockIn() {
@@ -73,9 +75,7 @@ export default function StockIn() {
 
         setMedicines(medicinesRes);
         setInputs(inputsRes);
-        setCaselas(
-          [...residents].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
-        );
+        setCaselas([...residents].sort(compareResidentsByNameThenCasela));
         setCabinets([...cabinets].sort((a, b) => b.numero - a.numero));
         setDrawers([...drawers].sort((a, b) => b.numero - a.numero));
       } catch (err: unknown) {
@@ -116,9 +116,11 @@ export default function StockIn() {
         tipo: data.stockType,
         medicamento_id: data.id,
         quantidade: data.quantity,
-        armario_id: data.cabinetId ?? null,
-        gaveta_id: data.drawerId ?? null,
-        casela_id: data.casela ?? null,
+        ...buildStockInLocationFields(data.stockType, {
+          casela: data.casela,
+          cabinetId: data.cabinetId,
+          drawerId: data.drawerId,
+        }),
         validade: data.expirationDate ?? null,
         origem: data.origin ?? null,
         setor: data.sector,
@@ -172,9 +174,11 @@ export default function StockIn() {
         tipo: data.stockType,
         insumo_id: data.inputId,
         quantidade: data.quantity,
-        armario_id: data.cabinetId ?? null,
-        gaveta_id: data.drawerId ?? null,
-        casela_id: data.casela ?? null,
+        ...buildStockInLocationFields(data.stockType, {
+          casela: data.casela,
+          cabinetId: data.cabinetId,
+          drawerId: data.drawerId,
+        }),
         validade: data.validity,
         setor: data.sector,
         lote: data.lot ?? null,

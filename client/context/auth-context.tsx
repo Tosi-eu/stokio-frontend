@@ -9,13 +9,18 @@ import {
 import { AuthContextType, LoggedUser } from "@/interfaces/interfaces";
 import {
   getCurrentUser,
+  listAccessibleTenants,
   login as apiLogin,
   logoutRequest,
 } from "@/api/requests";
 import { cleanupSessionTimeout } from "@/helpers/session-timeout.helper";
 import { isSuperAdminUser } from "@/helpers/auth-roles.helper";
-import { authStorage } from "@/helpers/auth.helper";
 import { setPreviewModeStorage } from "@/helpers/preview-mode-storage";
+import {
+  clearActiveTenantSlug,
+  readActiveTenantSlug,
+  writeActiveTenantSlug,
+} from "@/helpers/active-tenant-slug.helper";
 
 export const AuthContext = createContext<AuthContextType | undefined>(
   undefined,
@@ -43,15 +48,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser((prev) => {
       if (!prev) return prev;
       const merged = { ...prev, ...partial };
-      const next = normalizeSessionUser(merged);
-      if (next) {
-        try {
-          sessionStorage.setItem("user", JSON.stringify(next));
-        } catch {
-          /* ignore */
-        }
-      }
-      return next;
+      return normalizeSessionUser(merged);
     });
   }, []);
 
@@ -62,8 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error(err);
     } finally {
       setUser(null);
-      sessionStorage.removeItem("user");
-      sessionStorage.removeItem("authToken");
+      clearActiveTenantSlug();
       setPreviewModeStorage(false);
       cleanupSessionTimeout();
     }
@@ -73,49 +69,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let cancelled = false;
 
     async function hydrateSession() {
-      const token = authStorage.getToken();
-      if (token) {
-        try {
-          const fresh = await getCurrentUser();
-          if (cancelled) return;
-          if (fresh && typeof fresh.id === "number") {
-            const next = normalizeSessionUser(fresh as LoggedUser);
-            setUser(next);
-            if (next) {
-              try {
-                sessionStorage.setItem("user", JSON.stringify(next));
-              } catch {
-                /* ignore */
-              }
+      try {
+        const fresh = await getCurrentUser();
+        if (cancelled) return;
+        if (fresh && typeof fresh.id === "number") {
+          if (!readActiveTenantSlug()) {
+            try {
+              const acc = await listAccessibleTenants();
+              const rows = acc?.tenants ?? [];
+              const primary = rows.find((t) => t.isPrimary);
+              const pick = primary ?? rows[0];
+              const s = pick?.slug?.trim();
+              if (s) writeActiveTenantSlug(s);
+            } catch {
+              void 0;
             }
-            return;
           }
-        } catch {
-          if (cancelled) return;
+          setUser(normalizeSessionUser(fresh as LoggedUser));
+          return;
         }
+      } catch {
+        if (cancelled) return;
       }
-
-      const storedUser = sessionStorage.getItem("user");
-      if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser) as
-            | LoggedUser
-            | { user?: LoggedUser };
-          const raw =
-            parsed && typeof parsed === "object" && "user" in parsed
-              ? (parsed.user ?? null)
-              : (parsed as LoggedUser);
-          setUser(
-            normalizeSessionUser(raw && raw.id ? (raw as LoggedUser) : null),
-          );
-        } catch (error) {
-          console.error("Failed to restore session:", error);
-          sessionStorage.removeItem("user");
-          setUser(null);
-        }
-      } else {
-        setUser(null);
-      }
+      setUser(null);
     }
 
     void hydrateSession().finally(() => {
@@ -126,22 +102,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       cancelled = true;
       cleanupSessionTimeout();
     };
-  }, [handleLogout]);
+  }, []);
 
   const login = useCallback(
     async (loginStr: string, password: string, tenantSlug: string) => {
       const data = await apiLogin(loginStr, password, tenantSlug);
 
-      const response = data as { user?: LoggedUser; token?: string };
+      const response = data as { user?: LoggedUser };
       const loggedUser = response.user ?? (data as LoggedUser);
       const normalized = normalizeSessionUser(loggedUser);
 
-      setUser(normalized);
-
-      sessionStorage.setItem("user", JSON.stringify(normalized));
-      if (response.token && typeof response.token === "string") {
-        authStorage.setToken(response.token);
+      const slug = tenantSlug.trim();
+      if (slug) {
+        writeActiveTenantSlug(slug);
       }
+
+      setUser(normalized);
     },
     [],
   );
