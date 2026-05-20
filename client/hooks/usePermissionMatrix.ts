@@ -9,12 +9,13 @@ import {
   canCrudFromMatrix,
   canMovementTipoFromMatrix,
   isPermissionBypassUser,
+  resolveUserPermissionMatrix,
 } from "@/helpers/permission-matrix.helpers";
 
 export function usePermissionMatrix() {
   const { user } = useAuth();
   const bypass = useMemo(() => isPermissionBypassUser(user), [user]);
-  const matrix = user?.permissionMatrix;
+  const matrix = useMemo(() => resolveUserPermissionMatrix(user), [user]);
 
   return useMemo(
     () => ({
